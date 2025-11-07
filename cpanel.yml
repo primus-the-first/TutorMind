@@ -1,0 +1,7 @@
+---
+deployment:
+  tasks:
+    # Set the deployment path. Ensure this path is correct for your site.
+    - export DEPLOYPATH=/home/tutodtoo/public_html/
+    # Copy all necessary files and folders from the repository to the DEPLOYPATH
+    - /bin/cp -R * $DEPLOYPATH
