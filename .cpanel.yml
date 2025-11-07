@@ -5,3 +5,4 @@ deployment:
     - export DEPLOYPATH=/home/tutodtoo/public_html/
     # Copy all necessary files and folders from the repository to the DEPLOYPATH
     - /bin/cp -R * $DEPLOYPATH
+    - /bin/cp A.html $DEPLOYPATH
