@@ -865,6 +865,32 @@ body {
     border-right: 1px solid #3730a3; /* Match the darker end of the gradient */
 }
 
+/* Profile Icon Section - Circular */
+#user-account-trigger {
+    padding: 0 !important;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+#user-account-trigger .w-10.h-10 {
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+}
+
+#user-account-trigger .flex-1 {
+    display: none;
+}
+
+#user-account-trigger i {
+    display: none;
+}
+
 #chat-history-container a {
     display: block;
     padding: 10px 15px;
