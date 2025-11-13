@@ -1,0 +1,698 @@
+<?php
+// Enable error reporting for debugging during development
+if (defined('PREDICTOR_SCRIPT')) {
+    // This file is being included by predict.php, so just make functions available and stop.
+    return;
+}
+error_reporting(E_ALL & ~E_DEPRECATED); // Report all errors except for deprecation notices
+ini_set('display_errors', 1);
+
+require_once 'check_auth.php'; // Secure all API endpoints
+
+// --- ALWAYS require the autoloader first ---
+require_once 'db_mysql.php';
+require 'vendor/autoload.php';
+
+header('Content-Type: application/json');
+
+if (!function_exists('formatResponse')) {
+    function formatResponse($text) {
+        // --- Pre-processing: Remove backticks around LaTeX ---
+        $text = preg_replace('/`(\\$ .*? \\$)`/s', '$1', $text);
+
+        // --- 1. Protect LaTeX from Parsedown ---
+        $text = preg_replace_callback(
+            '/(\$\$|\\\[|\\\\\(|\$)(.*?)(\$\$|\\\]|\\\\\)|\\$)/s',
+            function ($matches) {
+                // These keys MUST match the *literal captured string*
+                $delimiters = [
+                    '$$' => '$$',
+                    '['  => ']', // Captured string is '['
+                    '('  => ')', // Captured string is '('
+                    '$'  => '$'
+                ];
+                
+                $start_delim = $matches[1];
+                if (!isset($matches[3])) {
+                    return $matches[0]; // Not a valid pair
+                }
+                $content = $matches[2];
+                $end_delim = $matches[3];
+
+                if (isset($delimiters[$start_delim]) && $delimiters[$start_delim] === $end_delim) {
+
+                    // --- Handle $ delimiters ---
+                    if ($start_delim === '$') {
+                        $trimmed_content = trim($content);
+                        $has_spaces = preg_match('/^\s|\s$/', $content);
+                        $is_plain_paren = (strlen($trimmed_content) > 1 && substr($trimmed_content, 0, 1) === '(' && substr($trimmed_content, -1) === ')');
+
+                        if (empty($content) || $has_spaces) {
+                            return $matches[0]; // Not math
+                        }
+                        if ($is_plain_paren) {
+                            return $trimmed_content; // It's just $(LLMs)$, strip $
+                        }
+                        return '@@LATEX_PLACEHOLDER@@' . base64_encode($matches[0]) . '@@END_LATEX_PLACEHOLDER@@';
+                    }
+                    
+                    // --- Handle ( delimiters ---
+                    if ($start_delim === '(') {
+                        $trimmed_content = trim($content);
+                        
+                        // --- THIS IS THE FIX ---
+                        // Removed the forward slash (/) from the regex
+                        $has_math_symbols = preg_match('/[\\^_{}=+\-\*]/', $trimmed_content); 
+                        // --- END OF FIX ---
+
+                        $is_function_call = preg_match('/^[a-zA-Z0-9]+\s*\(.+\)$/', $trimmed_content);
+
+                        if (!$has_math_symbols && !$is_function_call && !empty($trimmed_content)) {
+                            return '(' . $content . ')'; // It's plain text
+                        }
+                        // It's real math, restore backslashes
+                        return '@@LATEX_PLACEHOLDER@@' . base64_encode('\(' . $content . '\)') . '@@END_LATEX_PLACEHOLDER@@';
+                    }
+
+                    // --- Handle [ and $$ delimiters ---
+                    if ($start_delim === '[') {
+                        return '@@LATEX_PLACEHOLDER@@' . base64_encode('\[' . $content . '\]') . '@@END_LATEX_PLACEHOLDER@@';
+                    }
+                    if ($start_delim === '$$') {
+                        return '@@LATEX_PLACEHOLDER@@' . base64_encode($matches[0]) . '@@END_LATEX_PLACEHOLDER@@';
+                    }
+                }
+                
+                return $matches[0]; // Not a valid pair
+            },
+            $text
+        );
+
+        // --- 2. Process with Parsedown ---
+        $Parsedown = new Parsedown();
+        $Parsedown->setBreaksEnabled(true);
+        $html = $Parsedown->text($text);
+
+        // --- 3. Restore LaTeX and Final Cleanup ---
+        $html = preg_replace_callback(
+            '/@@LATEX_PLACEHOLDER@@(.*?)@@END_LATEX_PLACEHOLDER@@/s',
+            function ($matches) {
+                return base64_decode($matches[1]);
+            },
+            $html
+        );
+
+        // --- Final HTML Cleanup ---
+        $html = preg_replace('/<li(>|\s[^>]*>)\s*<p>(.*?)<\/p>\s*<\/li>/s', '<li$1>$2</li>', $html);
+        $html = preg_replace('/<li>&gt;/', '<li>', $html);
+
+        return $html;
+    }
+}
+
+$action = $_REQUEST['action'] ?? null; // Use $_REQUEST to handle GET and POST actions
+
+// Add a special case for logout to be handled by auth.php
+if ($action === 'logout') {
+    session_unset();
+    session_destroy();
+    header('Location: login.html');
+    exit;
+}
+
+if ($action) {
+    switch ($action) { // This switch now handles GET and some POST actions
+        case 'history':
+            try {
+                $pdo = getDbConnection();
+                $stmt = $pdo->prepare("SELECT id, title FROM conversations WHERE user_id = ? ORDER BY updated_at DESC");
+                $stmt->execute([$_SESSION['user_id']]);
+                $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo json_encode(['success' => true, 'history' => $history]);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Could not fetch history.']);
+            }
+            break;
+
+        case 'get_conversation':
+            $convo_id = $_GET['id'] ?? null;
+            if (!$convo_id) {
+                echo json_encode(['success' => false, 'error' => 'Conversation ID is missing.']);
+                break;
+            }
+            try {
+                $pdo = getDbConnection();
+                // First, verify the user owns this conversation
+                $stmt = $pdo->prepare("SELECT id, title FROM conversations WHERE id = ? AND user_id = ?");
+                $stmt->execute([$convo_id, $_SESSION['user_id']]);
+                $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$conversation) {
+                    echo json_encode(['success' => false, 'error' => 'Conversation not found or access denied.']);
+                    break;
+                }
+
+                // Fetch all messages for this conversation
+                $stmt = $pdo->prepare("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC");
+                $stmt->execute([$convo_id]);
+                $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $conversation['chat_history'] = [];
+                foreach ($messages as $message) {
+                    // The 'content' is a JSON string of the 'parts' array, so we decode it.
+                    $parts = json_decode($message['content'], true);
+                    if ($message['role'] === 'model') {
+                        $parts[0]['text'] = formatResponse($parts[0]['text']);
+                    }
+                    $conversation['chat_history'][] = ['role' => $message['role'], 'parts' => $parts];
+                }
+
+                echo json_encode(['success' => true, 'conversation' => $conversation]);
+            } catch (Exception $e) {
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Could not fetch conversation.']);
+            }
+            break;
+
+        case 'delete_conversation':
+            $convo_id = $_GET['id'] ?? null;
+            $pdo = getDbConnection();
+            $stmt = $pdo->prepare("DELETE FROM conversations WHERE id = ? AND user_id = ?");
+            $stmt->execute([$convo_id, $_SESSION['user_id']]);
+            echo json_encode(['success' => true]);
+            break;
+        
+        case 'rename_conversation':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
+                break;
+            }
+            $convo_id = $_POST['id'] ?? null;
+            $new_title = trim($_POST['title'] ?? '');
+
+            if (!$convo_id || empty($new_title)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Missing conversation ID or title.']);
+                break;
+            }
+
+            $pdo = getDbConnection();
+            $stmt = $pdo->prepare("UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
+            $stmt->execute([$new_title, $convo_id, $_SESSION['user_id']]);
+            echo json_encode(['success' => true]);
+            break;
+
+        default:
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Invalid action.']);
+            break;
+    }
+    exit;
+}
+
+// --- Main Chat Logic (handles POST requests without an 'action' parameter) ---
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'error' => 'Invalid request method for chat.']);
+    exit;
+}
+
+// --- Check for large file upload error ---
+// If the request method is POST but the POST and FILES arrays are empty, it's a classic sign
+// that the upload exceeded the server's post_max_size limit.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES) && $_SERVER['CONTENT_LENGTH'] > 0) {
+    throw new Exception("The uploaded file is too large. It exceeds the server's configured limit.");
+}
+
+$question = $_POST['question'] ?? '';
+$learningLevel = $_POST['learningLevel'] ?? 'Understanding';
+
+$conversation_id = $_POST['conversation_id'] ?? null;
+
+function prepareFileParts($file, $user_question) {
+    $filePath = $file['tmp_name'];
+    $fileType = mime_content_type($filePath);
+    $originalName = $file['name'];
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+    $allowed_types = [
+        'txt' => 'text/plain',
+        'pdf' => 'application/pdf',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'bmp'  => 'image/bmp',
+        'webp' => 'image/webp',
+    ];
+
+    if (!in_array($extension, array_keys($allowed_types))) {
+        // Let's be more generic in the error message now
+        throw new Exception("Unsupported file type: {$extension}.");
+    }
+
+    // Double-check MIME type
+    if (!in_array($fileType, $allowed_types)) {
+         // Allow for some variation in MIME types reported by servers
+        if ($extension !== 'docx' || $fileType !== 'application/zip') {
+            throw new Exception("File content does not match its extension ({$extension} vs {$fileType}).");
+        }
+    }
+
+    // Handle images
+    if (strpos($fileType, 'image/') === 0) {
+        if (!extension_loaded('gd')) {
+            throw new Exception("The 'gd' PHP extension is required to process images but it is not enabled. Please enable it in your php.ini file.");
+        }
+        $fileData = file_get_contents($filePath);
+        if ($fileData === false) {
+            throw new Exception("Could not read the image file '{$originalName}'.");
+        }
+        $base64Data = base64_encode($fileData);
+
+        return [
+            ['inline_data' => ['mime_type' => $fileType, 'data' => $base64Data]],
+            ['text' => $user_question]
+        ];
+    }
+
+    $text = '';
+    switch ($extension) {
+        case 'txt':
+            $text = file_get_contents($filePath);
+            break;
+        case 'pdf':
+            if (!class_exists('\Smalot\PdfParser\Parser')) {
+                throw new Exception("PDF parsing library is not installed. Please run 'composer require smalot/pdfparser'.");
+            }
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf = $parser->parseFile($filePath);
+            $text = $pdf->getText();
+            break;
+        case 'docx':
+            if (!class_exists('\PhpOffice\PhpWord\IOFactory')) {
+                throw new Exception("Word document parsing library is not installed. Please run 'composer require phpoffice/phpword'.");
+            }
+            if (!extension_loaded('zip')) {
+                throw new Exception("The 'zip' PHP extension is required to read .docx files but it is not enabled. Please enable it in your php.ini file.");
+            }
+            $phpWord = \PhpOffice\PhpWord\IOFactory::load($filePath);
+            $textExtractor = new \PhpOffice\PhpWord\Shared\Html();
+            foreach ($phpWord->getSections() as $section) {
+                foreach ($section->getElements() as $element) {
+                    if ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
+                        foreach($element->getElements() as $textElement) {
+                             if ($textElement instanceof \PhpOffice\PhpWord\Element\Text) {
+                                $text .= $textElement->getText() . ' ';
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        case 'pptx':
+            if (!class_exists('\PhpOffice\PhpPresentation\IOFactory')) {
+                throw new Exception("PowerPoint parsing library is not installed. Please run 'composer require phpoffice/phppresentation'.");
+            }
+            if (!extension_loaded('zip')) {
+                throw new Exception("The 'zip' PHP extension is required to read .pptx files but it is not enabled. Please enable it in your php.ini file.");
+            }
+            $phpPresentation = \PhpOffice\PhpPresentation\IOFactory::load($filePath);
+            foreach ($phpPresentation->getAllSlides() as $slide) {
+                foreach ($slide->getShapeCollection() as $shape) {
+                    if ($shape instanceof \PhpOffice\PhpPresentation\Shape\RichText) {
+                        $text .= $shape->getPlainText() . "\n\n";
+                    }
+                }
+            }
+            break;
+    }
+
+    if (empty($text)) {
+        throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based, or corrupted.");
+    }
+
+    // Truncate to a reasonable length to avoid excessive API costs/limits
+    $maxLength = 20000; // Approx 5000 tokens
+    if (strlen($text) > $maxLength) {
+        $text = substr($text, 0, $maxLength) . "\n\n... [File content truncated] ...\n\n";
+    }
+
+    $combined_text = "Context from uploaded file '{$originalName}':\n---\n{$text}\n---\n\nUser's question: {$user_question}";
+    return [
+        ['text' => $combined_text]
+    ];
+}
+
+function callGeminiAPI($payload, $apiKey) {
+    $model = 'gemini-2.5-flash-preview-05-20';
+    $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . $apiKey;
+
+    $retries = 0;
+    $max_retries = 5;
+    $delay = 1;
+
+    while ($retries < $max_retries) {
+        if (!function_exists('curl_init')) {
+            throw new Exception('PHP cURL extension is not enabled.');
+        }
+
+        $ch = curl_init($apiUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Content-Length: ' . strlen($payload)],
+            CURLOPT_TIMEOUT => 30
+        ]);
+
+        $response = curl_exec($ch);
+        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_error = curl_error($ch);
+        curl_close($ch);
+
+        if ($curl_error) throw new Exception('cURL Error: ' . $curl_error); // Still throw for actual cURL errors
+        if ($http_status === 429 || $http_status === 503) { // Rate limit or Service Unavailable
+            $retries++;
+            if ($retries >= $max_retries) throw new Exception('AI service rate limit exceeded.');
+            sleep($delay);
+            $delay *= 2;
+            continue;
+        } // Add this closing brace
+        if ($http_status !== 200) throw new Exception('AI service returned an error: HTTP ' . $http_status . ' - ' . substr($response, 0, 200));
+
+        return json_decode($response, true);
+    }
+}
+
+try {
+    $pdo = getDbConnection();
+
+    // --- Secure API Key Handling ---
+    $config = parse_ini_file('config.ini');
+    if ($config === false || !isset($config['GEMINI_API_KEY'])) {
+        throw new Exception('API key configuration is missing or unreadable.');
+    }
+    define('GEMINI_API_KEY', $config['GEMINI_API_KEY']);
+
+    if (GEMINI_API_KEY === 'YOUR_ACTUAL_GEMINI_API_KEY_HERE' || empty(GEMINI_API_KEY)) {
+        throw new Exception('Gemini API Key is not configured in config.ini.');
+    }
+
+    $user_message_parts = [];
+
+    // Check for file upload
+    if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+        $user_message_parts = prepareFileParts($_FILES['attachment'], $question);
+    } else {
+        $user_message_parts[] = ['text' => $question];
+    }
+
+    // Basic validation
+    $is_empty = empty($user_message_parts) || (count($user_message_parts) === 1 && empty(trim($user_message_parts[0]['text'])));
+    if ($is_empty) {
+        echo json_encode(['success' => false, 'error' => 'Question is missing or file content is empty.']);
+        exit;
+    }
+
+    // If no conversation ID, create a new one in the database
+    if (!$conversation_id) {
+        $stmt = $pdo->prepare("INSERT INTO conversations (user_id, title) VALUES (?, ?)");
+        $stmt->execute([$_SESSION['user_id'], 'New Chat on ' . date('Y-m-d')]);
+        $conversation_id = $pdo->lastInsertId();
+    } else {
+        // Verify the user owns the conversation they are trying to post to.
+        $stmt = $pdo->prepare("SELECT id FROM conversations WHERE id = ? AND user_id = ?");
+        $stmt->execute([$conversation_id, $_SESSION['user_id']]);
+        if (!$stmt->fetch()) {
+            throw new Exception("Conversation access denied.");
+        }
+    }
+
+    // Save user message to the database
+    $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'user', ?)");
+    $stmt->execute([$conversation_id, json_encode($user_message_parts)]);
+
+    // Fetch the conversation history from the database to send to the AI
+    $stmt = $pdo->prepare("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC");
+    $stmt->execute([$conversation_id]);
+    $db_messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $chat_history = [];
+    foreach ($db_messages as $message) {
+        $chat_history[] = [
+            'role' => $message['role'],
+            'parts' => json_decode($message['content'], true)
+        ];
+    }
+
+    // Add the new user message (with its parts) to the history
+
+    // System prompt
+    $system_prompt = <<<PROMPT
+# Adaptive AI Tutor System Prompt
+
+You are an expert AI tutor designed to facilitate deep learning across any subject. Your goal is not just to provide answers, but to guide learners toward understanding through adaptive, personalized instruction.
+
+## Core Philosophy
+
+- **Learning > Answers**: Prioritize understanding over quick solutions
+- **Adaptive**: Continuously adjust to the learner's needs
+- **Socratic**: Use questions to guide discovery when appropriate
+- **Encouraging**: Build confidence and maintain engagement
+- **Metacognitive**: Help learners understand their own thinking
+
+---
+
+## PHASE 1: ASSESS THE LEARNER
+
+Before responding, analyze the learner's message. The user has indicated a desired learning goal based on Bloom's Taxonomy: **{$learningLevel}**. Use this as a starting point, but adapt based on your analysis of their actual message.
+
+### A. Knowledge State Indicators
+
+**General Proficiency**:
+- **Novice**: Vague questions, missing vocabulary, fundamental confusion
+- **Developing**: Partial understanding, specific confusion points, some correct terminology
+- **Proficient**: Detailed questions, mostly correct understanding, seeking nuance
+- **Expert**: Deep questions, looking for edge cases or advanced applications
+
+**Bloom's Taxonomy Level** (Cognitive Dimension):
+Identify which level(s) the learner is operating at or needs to reach:
+
+1.  **Remember**: Recall facts, terms, basic concepts. Keywords: "what is", "define", "list".
+2.  **Understand**: Explain ideas, interpret meaning, summarize. Keywords: "explain", "describe", "why".
+3.  **Apply**: Use information in new situations, solve problems. Keywords: "calculate", "solve", "what happens if".
+4.  **Analyze**: Draw connections, distinguish between parts. Keywords: "compare", "contrast", "examine".
+5.  **Evaluate**: Justify decisions, make judgments, critique. Keywords: "assess", "judge", "which is better".
+6.  **Create**: Generate new ideas, design solutions. Keywords: "design", "create", "propose".
+
+**Target Bloom's Level**: Where should you guide them?
+- The user's stated goal is **{$learningLevel}**.
+- If their question seems below this level, help them build up to it.
+- If their question is already at or above this level, engage them there.
+- Build foundations before advancing. Don't jump more than 1-2 levels in a single interaction.
+
+### B. Interaction Intent
+- **Seeking explanation**: "What is...", "Can you explain..."
+- **Seeking confirmation**: "Is this correct?"
+- **Stuck on problem**: "I'm stuck on...", shows work
+- **Seeking challenge**: "What's a harder problem?"
+- **Exploring curiosity**: "Why...", "What if..."
+
+### C. Emotional/Motivational State
+- **Frustrated**: Negative language, giving up signals
+- **Confused**: Contradictory statements, uncertainty
+- **Confident**: Assertive statements, ready for more
+- **Curious**: Exploratory questions, enthusiasm
+
+### D. Error Pattern Recognition
+- **Conceptual**: Fundamental misunderstanding
+- **Procedural**: Knows concept but wrong steps
+- **Careless**: Simple mistake, likely understands
+
+---
+
+## PHASE 2: SELECT STRATEGY
+
+Based on assessment, choose your pedagogical approach:
+
+| Learner State | Primary Strategy |
+|---|---|
+| Novice seeking explanation | **Direct Teaching** with examples |
+| Developing, specific confusion | **Socratic Questioning** |
+| Proficient, seeking nuance | **Elaborative Discussion** |
+| Stuck on problem | **Scaffolded Guidance** |
+| Made an error | **Diagnostic Questions** |
+| Showing mastery | **Challenge Extension** |
+| Frustrated | **Encouraging Reset** |
+| Curious exploration | **Guided Discovery** |
+
+### Teaching Strategies Defined
+
+1.  **Direct Teaching**: Clear, structured explanation with examples and analogies. Check for understanding.
+2.  **Socratic Questioning**: Guide through strategic questions to help them discover answers.
+3.  **Scaffolded Guidance**: Start with minimal hints, gradually increasing support.
+4.  **Diagnostic Questions**: Ask questions that reveal thinking ("How did you get that?"). Guide to self-correction.
+5.  **Elaborative Discussion**: Explore implications and connections ("How does this relate to...?" ).
+6.  **Challenge Extension**: Pose harder problems or introduce advanced applications.
+
+---
+
+## DISCIPLINE-SPECIFIC ENHANCEMENTS
+
+When you detect the subject area, apply these additional strategies on top of your primary strategy:
+
+### IF MATHEMATICS:
+- Always explain WHY procedures work, not just HOW.
+- Use multiple representations (numerical, algebraic, graphical, verbal).
+- When students make errors, ask diagnostic questions before correcting.
+- Guide through: Understand → Plan → Execute → Check.
+- Never let them just memorize formulas without understanding.
+- Use LaTeX for all mathematical notation. For inline math, use `$ ... $` or `\( ... \)`. For display/block math, use `$$ ... $$` or `\[ ... \]`. For example: `\$E=mc^2\$` or `$$ \int_a_b f(x) \, dx $$`.
+
+### IF SCIENCE (Physics, Chemistry, Biology):
+- Start with observable phenomena before abstract explanations.
+- Connect macroscopic (what we see) to microscopic (atoms/cells/particles).
+- Actively confront common misconceptions.
+- Build mental models through prediction and testing.
+- Always ask "What's happening at the [molecular/atomic/cellular] level?"
+
+### IF BIOLOGY specifically:
+- Emphasize structure-function relationships ("Why does it exist? What's its purpose?").
+- Walk through processes step-by-step with causation ("which causes... leading to...").
+- Don't just teach vocabulary - teach the concepts, terminology follows.
+- Connect to evolution ("What survival advantage does this provide?").
+
+### IF HUMANITIES (History, Literature, Philosophy):
+- Multiple valid interpretations exist, but all need textual evidence.
+- Always ask "What evidence from the text/source supports that?".
+- Emphasize historical/cultural context.
+- Build arguments: Claim → Evidence → Reasoning → Counterargument.
+- Ask "What would someone from that time period have thought?".
+
+### IF PROGRAMMING:
+- Focus on computational thinking first, syntax second.
+- Normalize errors: "Errors are feedback, not failure".
+- Guide through: Understand → Examples → Decompose → Pseudocode → Code.
+- When debugging: "What did you expect? What actually happened? Where's the gap?".
+- Ask them to read/trace code before writing it.
+
+---
+
+## PHASE 3: CRAFT YOUR RESPONSE
+
+### Response Structure Template
+
+```
+[Optional: Brief acknowledgment of their effort/emotional state]
+[Main instructional content - tailored to strategy]
+[Engagement element: question, challenge, or check for understanding]
+[Optional: Encouragement or next steps]
+```
+
+### Response Guidelines
+
+- **Tone**: Patient for novices, supportive for developing, collegial for proficient, reassuring for frustrated.
+- **Language**: Match their vocabulary. Introduce technical terms with definitions. Use analogies.
+- **Scaffolding Levels** (for problem-solving):
+    1.  **Metacognitive Prompt**: "What have you tried so far?"
+    2.  **Directional Hint**: "Think about how [concept] applies here."
+    3.  **Strategic Hint**: "Try breaking this into smaller steps."
+    4.  **Partial Solution**: "Let's start with... can you continue?"
+    5.  **Worked Example** (Last resort): Show a full solution, then ask them to try a similar problem.
+
+---
+
+## PHASE 4: ADAPTIVE FOLLOW-UP
+
+- **If They Understand**: Acknowledge success, reinforce, and extend ("Now try this variation...").
+- **If Still Confused**: Don't repeat. Try a different approach (analogy, simpler language). Ask diagnostic questions.
+- **If They Made Progress**: Celebrate progress and provide a targeted hint for the next step.
+- **If They're Frustrated**: Normalize the struggle, reframe what they DO understand, and simplify to rebuild confidence.
+
+---
+
+## SPECIAL SCENARIOS
+
+### When They Ask for Direct Answer
+**Don't immediately comply**. Instead:
+1.  "I want to help you learn this, not just give you the answer. Let me guide you."
+2.  "What do you understand so far?"
+3.  If truly stuck after scaffolding, provide the answer with a thorough explanation and follow up with a similar problem for them to solve.
+
+### When They Share Wrong Work/Thinking
+**Never say "That's wrong" directly**. Instead:
+1.  "I can see your thinking here..."
+2.  Ask diagnostically: "Can you walk me through why you chose...?"
+3.  Guide them to see the error themselves.
+
+### When They Ask Homework Questions
+1.  Never solve homework directly.
+2.  State: "I'll help you learn to solve it yourself."
+3.  Use the scaffolding approach to teach the method, not the specific answer.
+
+---
+
+## QUALITY CHECKS
+
+Before sending your response, verify:
+- [ ] Did I assess their knowledge state, using their stated goal of **{$learningLevel}** as a guide?
+- [ ] Did I choose an appropriate strategy?
+- [ ] Am I facilitating learning, not just giving answers?
+- [ ] Is my language and tone appropriate?
+- [ ] Did I include an engagement element (a question or challenge)?
+- [ ] Have I avoided robbing them of the "aha!" moment?
+
+Remember: You are a **learning facilitator**. Your success is measured by how deeply you help learners understand.
+PROMPT;
+    // Construct the prompt for the AI
+    $payload = json_encode([
+        "contents" => $chat_history,
+        "system_instruction" => [
+            "role" => "system",
+            "parts" => [["text" => $system_prompt]]
+        ]
+    ]);
+
+    $responseData = callGeminiAPI($payload, GEMINI_API_KEY);
+
+    if (isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
+        $answer = $responseData['candidates'][0]['content']['parts'][0]['text'];
+
+        // Save AI response to the database
+        $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'model', ?)");
+        $stmt->execute([$conversation_id, json_encode([['text' => $answer]])]);
+
+        // For new chats, we will generate the title on the client-side for faster response.
+        // We'll pass a flag to the client to let it know a new title is needed.
+        $new_title_for_response = null;
+        if (count($chat_history) === 1) { 
+            // This is a new chat. The client will generate and send the title.
+            // We send back the original user question to help generate the title.
+            $new_title_for_response = true; // Flag for the client
+        }
+
+        $formattedAnswer = formatResponse($answer);
+        $response_payload = [
+            'success' => true, 
+            'answer' => $formattedAnswer, 
+            'conversation_id' => $conversation_id
+        ];
+        if ($new_title_for_response) {
+            $response_payload['is_new_chat'] = true;
+            $response_payload['user_question'] = $question;
+        }
+        echo json_encode($response_payload);
+        exit();
+    } else {
+        error_log("Gemini API: Unexpected response structure - " . print_r($responseData, true));
+        throw new Exception('No content generated or unexpected response structure from AI.');
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Server Error: ' . $e->getMessage()]);
+}
