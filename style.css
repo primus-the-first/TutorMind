@@ -1217,6 +1217,40 @@ body.dark-mode .prompt-card span.text-blue-500 { color: #93c5fd; } /* Light blue
 .message-bubble p:last-child {
     margin-bottom: 0;
 }
+.message-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 10px;
+}
+
+body.dark-mode .message-footer {
+    border-top-color: #4a5568;
+}
+
+.read-aloud-btn, .copy-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+}
+
+.read-aloud-btn:hover, .copy-btn:hover {
+    color: #374151;
+}
+
+body.dark-mode .read-aloud-btn, body.dark-mode .copy-btn {
+    color: #9ca3af;
+}
+
+body.dark-mode .read-aloud-btn:hover, body.dark-mode .copy-btn:hover {
+    color: #e5e7eb;
+}
+
 .message-bubble ul, .message-bubble ol {
     padding-left: 20px;
     margin-bottom: 10px;

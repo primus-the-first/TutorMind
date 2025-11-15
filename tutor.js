@@ -105,6 +105,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Copy to Clipboard Functionality ---
+    function handleCopy(e) {
+        const button = e.currentTarget;
+        const messageBubble = button.closest('.message-bubble');
+        const contentClone = messageBubble.cloneNode(true);
+        const footerClone = contentClone.querySelector('.message-footer');
+        if (footerClone) footerClone.remove();
+        
+        const textToCopy = contentClone.innerText || contentClone.textContent;
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            // Success! Change icon to a checkmark for a moment.
+            const originalIcon = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+                button.innerHTML = originalIcon;
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+            // You could add a visual indicator for the error here
+        });
+    }
+
     // --- Function to show/hide the typing indicator ---
     function showTypingIndicator(show) {
         let indicator = document.getElementById('typing-indicator');
@@ -209,12 +232,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="read-aloud-btn" title="Read aloud">
                             <i class="fas fa-volume-up"></i>
                         </button>
+                        <button class="copy-btn" title="Copy">
+                            <i class="fas fa-copy"></i>
+                        </button>
                     </div>
                 `;
                 addMessage('ai', messageContent);
                 // Attach event listener to the new button
-                const newButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
-                if (newButton) newButton.addEventListener('click', handleReadAloud);
+                const newReadAloudButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
+                if (newReadAloudButton) newReadAloudButton.addEventListener('click', handleReadAloud);
+
+                const newCopyButton = chatMessages.lastElementChild.querySelector('.copy-btn');
+                if (newCopyButton) newCopyButton.addEventListener('click', handleCopy);
                 
                 // If this was a new chat, generate and set the title on the client side
                 if (result.is_new_chat && result.user_question) {
@@ -361,12 +390,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <button class="read-aloud-btn" title="Read aloud">
                                     <i class="fas fa-volume-up"></i>
                                 </button>
+                                <button class="copy-btn" title="Copy">
+                                    <i class="fas fa-copy"></i>
+                                </button>
                             </div>
                         `;
                         addMessage('ai', messageContent);
-                        // Attach event listener to the new button
-                        const newButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
-                        if (newButton) newButton.addEventListener('click', handleReadAloud);
+                        // Attach event listeners to the new buttons
+                        const newReadAloudButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
+                        if (newReadAloudButton) newReadAloudButton.addEventListener('click', handleReadAloud);
+                        
+                        const newCopyButton = chatMessages.lastElementChild.querySelector('.copy-btn');
+                        if (newCopyButton) newCopyButton.addEventListener('click', handleCopy);
                     }
                 });
                 highlightActiveConversation(id);

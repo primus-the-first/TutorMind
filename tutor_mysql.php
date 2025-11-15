@@ -35,6 +35,9 @@ try {
           inlineMath: [['\(', '\)'], ['$', '$']],
           displayMath: [['\[', '\]'], ['$$', '$$']]
         },
+        options: {
+          ignoreHtmlClass: 'no-mathjax'
+        },
         chtml: {
           fontCache: 'global'
         }
@@ -43,6 +46,23 @@ try {
     <script type="text/javascript" id="MathJax-script" async
       src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
     </script>
+        <style>
+            /* Small toast for copy feedback */
+            .copy-toast {
+                position: fixed;
+                left: 50%;
+                bottom: 24px;
+                transform: translateX(-50%);
+                background: rgba(31, 41, 55, 0.95);
+                color: #fff;
+                padding: 8px 14px;
+                border-radius: 8px;
+                font-size: 14px;
+                box-shadow: 0 6px 18px rgba(15, 23, 42, 0.4);
+                z-index: 60;
+                pointer-events: none;
+            }
+        </style>
 </head>
 <body class="bg-gray-100 flex h-screen">
     <!-- Sidebar -->
@@ -196,5 +216,6 @@ try {
     </div>
 
     <script src="tutor_mysql.js?v=2"></script>
+    <div id="copy-toast" class="copy-toast" style="display:none" aria-live="polite" role="status">Copied to clipboard</div>
 </body>
 </html>

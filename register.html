@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Outfit font for clean and modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-page">
+
+    <div class="login-container">
+        <div class="login-card">
+            <!-- 1. Icon Header -->
+            <div class="icon-header">
+                <i class="fas fa-user-plus"></i>
+            </div>
+
+            <!-- 2. Typography -->
+            <h1 class="login-title">Create Account</h1>
+            <p class="login-subtitle">Join us and start your journey to academic excellence.</p>
+
+            <!-- This div is for displaying feedback messages -->
+            <div id="feedbackMessage" class="w-full text-center p-3 rounded-lg mb-4 hidden"></div>
+
+            <!-- 3. Registration Form -->
+            <form id="registerForm" action="auth_mysql.php" method="POST" class="login-form">
+                <!-- This hidden input tells auth.php what to do -->
+                <input type="hidden" name="action" value="register">
+
+                <!-- 4. Input Groups -->
+                <div class="input-group">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text" id="username" name="username" placeholder="Username" required>
+                </div>
+
+                <div class="input-group">
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" id="email" name="email" placeholder="Email" required>
+                </div>
+
+                <div class="input-group">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" id="password" name="password" placeholder="Password" required minlength="8">
+                </div>
+
+                <div class="input-group">
+                    <i class="fas fa-check-circle input-icon"></i>
+                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
+                </div>
+
+                <!-- 6. Primary CTA -->
+                <button type="submit" class="btn-login">Create Account</button>
+            </form>
+
+            <!-- 7. Separator -->
+            <div class="separator">
+                <span>Or sign up with</span>
+            </div>
+
+            <!-- 8. Social Logins -->
+            <div class="social-logins">
+                <a href="#" class="social-btn" title="Sign up with Google">
+                    <i class="fab fa-google"></i>
+                </a>
+                <a href="#" class="social-btn" title="Sign up with Facebook">
+                    <i class="fab fa-facebook-f"></i>
+                </a>
+                <a href="#" class="social-btn" title="Sign up with Apple">
+                    <i class="fab fa-apple"></i>
+                </a>
+            </div>
+
+            <p class="signup-link">
+                Already have an account? <a href="login.html">Sign in</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const registerForm = document.getElementById('registerForm');
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+        const feedbackMessageDiv = document.getElementById('feedbackMessage');
+
+        registerForm.addEventListener('submit', async function(e) {
+            e.preventDefault(); // Prevent the default page reload
+
+            // --- Client-side validation ---
+            if (password.value !== confirmPassword.value) {
+                feedbackMessageDiv.textContent = "Passwords do not match. Please try again.";
+                feedbackMessageDiv.className = 'w-full text-center bg-red-500/50 text-white p-3 rounded-lg mb-4';
+                feedbackMessageDiv.classList.remove('hidden');
+                confirmPassword.focus();
+                return;
+            }
+
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+
+            // Show loading state
+            submitButton.disabled = true;
+            submitButton.innerHTML = 'Creating...';
+            feedbackMessageDiv.classList.add('hidden');
+
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('auth_mysql.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+
+                if (result.success) {
+                    feedbackMessageDiv.textContent = result.message;
+                    feedbackMessageDiv.className = 'w-full text-center bg-green-500/50 text-white p-3 rounded-lg mb-4';
+                    feedbackMessageDiv.classList.remove('hidden');
+                    submitButton.disabled = true; // Keep disabled while redirecting
+                    // Redirect to login page after a short delay
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
+                } else {
+                    feedbackMessageDiv.textContent = result.error || 'An unknown error occurred.';
+                    feedbackMessageDiv.className = 'w-full text-center bg-red-500/50 text-white p-3 rounded-lg mb-4';
+                    feedbackMessageDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Registration Error:', error);
+                feedbackMessageDiv.textContent = 'Could not connect to the server. Please try again.';
+                feedbackMessageDiv.className = 'w-full text-center bg-red-500/50 text-white p-3 rounded-lg mb-4';
+                feedbackMessageDiv.classList.remove('hidden');
+            } finally {
+                // Restore button state unless we are redirecting
+                if (feedbackMessageDiv.classList.contains('bg-red-500/50')) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>

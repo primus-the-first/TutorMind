@@ -27,7 +27,7 @@ try {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Outfit font for clean and modern typography -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=<?= time() ?>">
     <!-- Add this to the <head> of your tutor.html file -->
     <script>
       MathJax = {
@@ -193,6 +193,6 @@ try {
         </footer>
     </div>
 
-    <script src="tutor.js"></script>
+    <script src="tutor.js?v=<?= time() ?>"></script>
 </body>
 </html>

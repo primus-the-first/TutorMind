@@ -105,6 +105,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Copy-to-Clipboard Functionality ---
+    function handleCopyClick(e) {
+        const button = e.currentTarget;
+        const messageBubble = button.closest('.message-bubble');
+        if (!messageBubble) return;
+        // Clone the node to avoid modifying the DOM
+        const contentClone = messageBubble.cloneNode(true);
+        // Remove the footer so buttons aren't copied
+        const footerClone = contentClone.querySelector('.message-footer');
+        if (footerClone) footerClone.remove();
+        const textToCopy = contentClone.textContent.trim();
+
+        if (!textToCopy) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showCopyToast('Copied to clipboard');
+            }).catch(() => {
+                fallbackCopyText(textToCopy);
+            });
+        } else {
+            fallbackCopyText(textToCopy);
+        }
+    }
+
+    function fallbackCopyText(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        // Avoid visual jump
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            const ok = document.execCommand('copy');
+            if (ok) showCopyToast('Copied to clipboard');
+            else showCopyToast('Could not copy');
+        } catch (err) {
+            showCopyToast('Could not copy');
+        }
+        document.body.removeChild(ta);
+    }
+
+    function showCopyToast(msg) {
+        const toast = document.getElementById('copy-toast');
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        toast.style.opacity = '1';
+        setTimeout(() => {
+            toast.style.transition = 'opacity 250ms ease-out';
+            toast.style.opacity = '0';
+            setTimeout(() => { toast.style.display = 'none'; toast.style.transition = ''; }, 300);
+        }, 1100);
+    }
+
     // --- Function to show/hide the typing indicator ---
     function showTypingIndicator(show) {
         let indicator = document.getElementById('typing-indicator');
@@ -209,12 +265,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="read-aloud-btn" title="Read aloud">
                             <i class="fas fa-volume-up"></i>
                         </button>
+                        <button class="copy-btn" title="Copy response">
+                            <i class="fas fa-copy"></i>
+                        </button>
                     </div>
                 `;
                 addMessage('ai', messageContent);
                 // Attach event listener to the new button
                 const newButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
                 if (newButton) newButton.addEventListener('click', handleReadAloud);
+                const newCopyButton = chatMessages.lastElementChild.querySelector('.copy-btn');
+                if (newCopyButton) newCopyButton.addEventListener('click', handleCopyClick);
                 
                 // If this was a new chat, generate and set the title on the client side
                 if (result.is_new_chat && result.user_question) {
@@ -358,15 +419,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         const messageContent = `
                             ${item.parts[0].text}
                             <div class="message-footer">
-                                <button class="read-aloud-btn" title="Read aloud">
-                                    <i class="fas fa-volume-up"></i>
-                                </button>
+                                    <button class="read-aloud-btn" title="Read aloud">
+                                        <i class="fas fa-volume-up"></i>
+                                    </button>
+                                    <button class="copy-btn" title="Copy response">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
                             </div>
                         `;
                         addMessage('ai', messageContent);
                         // Attach event listener to the new button
                         const newButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
                         if (newButton) newButton.addEventListener('click', handleReadAloud);
+                            const newCopyButton = chatMessages.lastElementChild.querySelector('.copy-btn');
+                            if (newCopyButton) newCopyButton.addEventListener('click', handleCopyClick);
                     }
                 });
                 highlightActiveConversation(id);
