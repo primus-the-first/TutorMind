@@ -18,370 +18,55 @@ header('Content-Type: application/json');
 
 if (!function_exists('formatResponse')) {
     function formatResponse($text) {
-        // --- STAGE 0: Protect quotation marks from MathJax interpretation ---
-        // Replace straight quotes with a special marker that we'll restore on the client side
-        // This prevents MathJax from treating quotes as math delimiters
-        $text = str_replace('"', '@@QUOTE@@', $text);
+        $protections = [];
+        $counter = 0;
 
-        // --- STAGE 0B: Fix common plain-text math notation patterns ---
-        // This is a safety net in case the AI doesn't follow LaTeX instructions.
-        // Wrap patterns like "a2+b2=c2" in LaTeX delimiters.
-        // Patterns to fix:
-        // 1. Variable with superscript digits: a2, b3, c^2, x^3, etc.
-        // 2. Simple equations like "a2+b2=c2" surrounded by spaces or punctuation
-        // 3. Avoid matching things already in code blocks or existing LaTeX
-        
-        // Pattern: variables with digit superscripts (a2, b3, x2, etc.) followed by +/-/= and more similar
-        // E.g., "a2+b2=c2" should become "$a^2 + b^2 = c^2$"
-        // But avoid: "version 2.0", "item2" at start of line, "test2value"
-        
-        // First, wrap patterns like "a2 + b2 = c2" in LaTeX if they look like equations
+        // Protect LaTeX expressions ($...$, $$...$$, \(...\), \[...\])
         $text = preg_replace_callback(
-            '/\b([a-z])\d+\s*([+\-=])\s*([a-z])\d+\s*([+\-=])\s*([a-z])\d+\b/i',
-            function ($matches) {
-                // This looks like a multi-term equation with variables and digit superscripts
-                // Convert "a2 + b2 = c2" to "$a^2 + b^2 = c^2$"
-                $var1 = $matches[1];
-                $op1  = $matches[2];
-                $var2 = $matches[3];
-                $op2  = $matches[4];
-                $var3 = $matches[5];
-                
-                // Extract the digits from the original match
-                preg_match('/([a-z])(\d+)\s*([+\-=])\s*([a-z])(\d+)\s*([+\-=])\s*([a-z])(\d+)/i', $matches[0], $parts);
-                if (count($parts) >= 9) {
-                    $var1_num = $parts[2]; // First digit(s)
-                    $var2_num = $parts[5]; // Second digit(s)
-                    $var3_num = $parts[8]; // Third digit(s)
-                    return "$$" . $var1 . "^{" . $var1_num . "} " . $op1 . " " . $var2 . "^{" . $var2_num . "} " . $op2 . " " . $var3 . "^{" . $var3_num . "}$$";
-                }
-                return $matches[0];
-            },
-            $text
-        );
-
-        // Also wrap single-variable equations like "c=5", "x=25" (with optional spaces)
-        $text = preg_replace_callback(
-            '/\b([a-z])\s*=\s*(\d+)\b/i',
-            function ($matches) {
-                return "$" . $matches[1] . " = " . $matches[2] . "$";
-            },
-            $text
-        );
-
-        // --- STAGE 0C: Fix common AI word concatenation errors ---
-        // Pattern 1: "orCathetus", "andSomething" - common word + capital word
-        $commonPrefixes = ['or', 'and', 'the', 'a', 'an', 'in', 'is', 'as', 'be', 'do', 'if', 'no', 'so', 'to', 'up', 'we'];
-        foreach ($commonPrefixes as $prefix) {
-            $pattern = '/(\b' . preg_quote($prefix) . ')([A-Z][a-z]+)/';
-            $text = preg_replace($pattern, '$1 $2', $text);
-        }
-        
-        // Pattern 2: "aandb" style - direct fixes for common patterns
-        $text = str_replace('aandb', 'a and b', $text); 
-        $text = str_replace('andab', 'and ab', $text);
-        
-        // Pattern 3: "ASimpleExample" - single capital letter followed by capital letter + word
-        $text = preg_replace_callback(
-            '/([A-Z])([A-Z][a-z]+)/s',
-            function ($matches) {
-                $first = $matches[1];
-                $rest = $matches[2];
-                return $first . ' ' . $rest;
-            },
-            $text
-        );
-        
-        // Pattern 4: Consecutive title-case words
-        $text = preg_replace_callback(
-            '/([a-z])([A-Z][a-z]+)/s',
-            function ($matches) {
-                return $matches[1] . ' ' . $matches[2];
-            },
-            $text
-        );
-
-        // --- STAGE 1: Protect all inline code (backticks) from Markdown processing ---
-        // This prevents Parsedown from treating * or _ inside backticks as emphasis markers
-        $backtickProtections = [];
-        $backtickCounter = 0;
-        $text = preg_replace_callback(
-            '/`[^`]+`/s',
-            function ($matches) use (&$backtickProtections, &$backtickCounter) {
-                $placeholder = '@@BACKTICK_' . $backtickCounter . '@@';
-                $backtickProtections[$placeholder] = $matches[0];
-                $backtickCounter++;
+            '/\$\$([\s\S]*?)\$\$|\\\\\[([\s\S]*?)\\\\\]|\\\\\((.*?)\\\\\)|\\$([^$]+?)\\$/',
+            function ($matches) use (&$protections, &$counter) {
+                $placeholder = '@@PROTECT_' . $counter . '@@';
+                // Store the original content, which includes the delimiters
+                $protections[$placeholder] = ['type' => 'latex', 'content' => $matches[0]];
+                $counter++;
                 return $placeholder;
             },
             $text
         );
 
-        // --- STAGE 1B: Protect parenthesized text from Markdown and MathJax processing ---
-        // Protects plain text in parentheses from being misinterpreted as emphasis by Markdown
-        // or as math by MathJax.
-        $parenProtections = [];
-        $parenCounter = 0;
+        // Protect inline code (`)
         $text = preg_replace_callback(
-            '/\(([^)]*)\)/s',
-            function ($matches) use (&$parenProtections, &$parenCounter) {
-                $inner = $matches[1];
-
-                // If the content looks like LaTeX or code, leave it for the next stages.
-                if (strpos($inner, '$') !== false || strpos($inner, '\\') !== false || strpos($inner, '`') !== false) {
-                    return $matches[0];
-                }
-
-                // For plain text, escape Markdown emphasis characters.
-                $escaped = str_replace(['*', '_'], ['&#42;', '&#95;'], $inner);
-                
-                $placeholder = '@@PAREN_' . $parenCounter . '@@';
-
-                // MODIFICATION: Wrap the content in a span with the 'no-mathjax' class.
-                // This is the most reliable way to prevent MathJax from processing the content.
-                // The zero-width space hack was not consistently effective.
-                $parenProtections[$placeholder] = '(<span class="no-mathjax">' . $escaped . '</span>)';
-                $parenCounter++;
+            '/`([^`]+)`/s',
+            function ($matches) use (&$protections, &$counter) {
+                $placeholder = '@@PROTECT_' . $counter . '@@';
+                // Store the inner content of the code block
+                $protections[$placeholder] = ['type' => 'code', 'content' => $matches[1]];
+                $counter++;
                 return $placeholder;
             },
             $text
         );
 
-        // --- STAGE 2: Protect LaTeX from Parsedown ---
-        $latexProtections = [];
-        $latexCounter = 0;
-
-        // First protect display math ($$...$$ and \[...\])
-        $text = preg_replace_callback(
-            '/\$\$(.*?)\$\$|\\\\\[(.*?)\\\\\]/s',
-            function ($matches) use (&$latexProtections, &$latexCounter) {
-                $placeholder = '@@LATEX_' . $latexCounter . '@@';
-                $latexProtections[$placeholder] = $matches[0];
-                $latexCounter++;
-                return $placeholder;
-            },
-            $text
-        );
-
-        // Then protect inline math (\(...\) and $...$)
-        $text = preg_replace_callback(
-            '/\\\\\((.*?)\\\\\)|\$([^\$]+)\$/s',
-            function ($matches) use (&$latexProtections, &$latexCounter) {
-                $full_match = $matches[0];
-                $start_delim = substr($full_match, 0, 2) === '\\(' ? '\\(' : '$';
-                
-                // Get the content (group 1 for \(...\), group 2 for $...$)
-                $content = $matches[1] !== '' ? $matches[1] : $matches[2];
-                
-                // Handle $...$ validation
-                if ($start_delim === '$') {
-                    // This is a common heuristic to avoid matching prices like "$10" or "$20".
-                    // If the content has spaces at the start/end, it's probably not math.
-                    $has_spaces = preg_match('/^\s|\s$/', $content);
-
-                    if (empty($content) || $has_spaces) {
-                        return $full_match; // Don't treat as LaTeX
-                    }
-                }
-                
-                // For \(...\), we can be less strict as it's a more explicit delimiter.
-                // We'll accept it as LaTeX unless the content is completely empty.
-                if ($start_delim === '\\(') {
-                    if (empty(trim($content))) {
-                        return $full_match; // Don't protect empty delimiters
-                    }
-                }
-                
-                $placeholder = '@@LATEX_' . $latexCounter . '@@';
-                $latexProtections[$placeholder] = $full_match;
-                $latexCounter++;
-                return $placeholder;
-            },
-            $text
-        );
-
-        // --- STAGE 3: Process with Parsedown ---
+        // Process with Parsedown
         $Parsedown = new Parsedown();
         $Parsedown->setBreaksEnabled(true);
         $html = $Parsedown->text($text);
 
-        // --- STAGE 4: Clean up unnecessary emphasis tags around LaTeX BEFORE restoring ---
-        // Remove <strong> and <em> tags that wrap LaTeX placeholders
-        $html = preg_replace('/<strong>(@@LATEX_\d+@@)<\/strong>/s', '$1', $html);
-        $html = preg_replace('/<em>(@@LATEX_\d+@@)<\/em>/s', '$1', $html);
-
-        // --- STAGE 5: Restore LaTeX ---
-        foreach ($latexProtections as $placeholder => $latex) {
-            // Decide whether this LaTeX should be displayed as block math or inline math.
-            // If it's already display math ($$...$$ or \[...\]) leave as-is.
-            $isDisplay = (substr($latex, 0, 2) === '$$' || substr($latex, 0, 2) === '\\[');
-
-            if (!$isDisplay) {
-                // Extract the inner content for inspection
-                $inner = $latex;
-                // Remove delimiters for $...$ and \(...\)
-                if (substr($inner, 0, 1) === '$' && substr($inner, -1) === '$') {
-                    $inner = substr($inner, 1, -1);
-                } elseif (substr($inner, 0, 2) === '\\(' && substr($inner, -2) === '\\)') {
-                    $inner = substr($inner, 2, -2);
-                }
-
-                $trimmed = trim($inner);
-
-                // Heuristic: promote to display math if it looks like a block equation.
-                $looksLikeEquation = false;
-                
-                // Promote for structures that are typically display-style.
-                if (preg_match('/\\\\frac|\\\\sum|\\\\int|\\\\begin/', $trimmed)) {
-                    $looksLikeEquation = true;
-                }
-                
-                // Promote if it contains an equals sign and is not very short.
-                if (!$looksLikeEquation && strpos($trimmed, '=') !== false && strlen($trimmed) > 10) {
-                    $looksLikeEquation = true;
-                }
-
-                // Promote if it contains line breaks or is very long.
-                if (!$looksLikeEquation && (strpos($trimmed, "\n") !== false || strlen($trimmed) > 120)) {
-                    $looksLikeEquation = true;
-                }
-
-                if ($looksLikeEquation) {
-                    // Convert to display math using $$...$$
-                    $latex = '$$' . $trimmed . '$$';
-                    $isDisplay = true;
-                } else {
-                    // Keep inline and wrap in a span for MathJax isolation
-                    $latex = '<span class="math inline">' . $latex . '</span>';
-                }
+        // Restore protected content
+        foreach ($protections as $placeholder => $protection) {
+            if ($protection['type'] === 'latex') {
+                $html = str_replace($placeholder, $protection['content'], $html);
+            } elseif ($protection['type'] === 'code') {
+                $codeContent = htmlspecialchars($protection['content'], ENT_QUOTES, 'UTF-8');
+                $html = str_replace($placeholder, '<code>' . $codeContent . '</code>', $html);
             }
-
-            $html = str_replace($placeholder, $latex, $html);
         }
-
-        // --- STAGE 6: Restore backticks (wrapped in <code> tags) ---
-        foreach ($backtickProtections as $placeholder => $backtick) {
-            // Remove the backticks and wrap the content in <code> tags
-            $codeContent = substr($backtick, 1, -1); // Remove the backticks
-            $html = str_replace($placeholder, '<code>' . htmlspecialchars($codeContent, ENT_QUOTES, 'UTF-8') . '</code>', $html);
-        }
-
-        // --- STAGE 6B: Restore protected parenthesized text ---
-        // These were protected before Parsedown to prevent unwanted emphasis inside parentheses.
-        foreach ($parenProtections as $placeholder => $paren) {
-            $html = str_replace($placeholder, $paren, $html);
-        }
-
-        // --- STAGE 7: Clean up any remaining emphasis tags around LaTeX expressions ---
-        // Match: <strong>$...$</strong> or <em>$...$</em> or similar with other delimiters
-        $html = preg_replace('/<strong>(\$\$.*?\$\$)<\/strong>/s', '$1', $html);
-        $html = preg_replace('/<em>(\$\$.*?\$\$)<\/em>/s', '$1', $html);
-        $html = preg_replace('/<strong>(\\\\\[.*?\\\\\])<\/strong>/s', '$1', $html);
-        $html = preg_replace('/<em>(\\\\\[.*?\\\\\])<\/em>/s', '$1', $html);
-        $html = preg_replace('/<strong>(\\\\\(.*?\\\\\))<\/strong>/s', '$1', $html);
-        $html = preg_replace('/<em>(\\\\\(.*?\\\\\))<\/em>/s', '$1', $html);
-        $html = preg_replace('/<strong>(\$[^$]+\$)<\/strong>/s', '$1', $html);
-        $html = preg_replace('/<em>(\$[^$]+\$)<\/em>/s', '$1', $html);
-
-    // --- STAGE 7B: Fix unwanted emphasis inside or around parentheses ---
-    // Parsedown can sometimes turn underscores or surrounding characters into <em> inside parentheses.
-    // Remove emphasis tags that wrap entire parenthesized fragments, or wrap content directly inside parentheses.
-    // Examples handled:
-    //   <em>(some text)</em>  -> (some text)
-    //   (<em>some text</em>)  -> (some text)
-    // Also handle <strong> similarly.
-    $html = preg_replace('/<em>\((.*?)\)<\/em>/s', '($1)', $html);
-    $html = preg_replace('/\(<em>(.*?)<\/em>\)/s', '($1)', $html);
-    $html = preg_replace('/<strong>\((.*?)\)<\/strong>/s', '($1)', $html);
-    $html = preg_replace('/\(<strong>(.*?)<\/strong>\)/s', '($1)', $html);
-
-        // --- STAGE 8: Ensure LaTeX is not wrapped in unnecessary <p> tags ---
-        // MathJax CHTML renderer can have issues with LaTeX inside <p> tags
-        // Move display math outside of paragraphs
         
-        // First, handle pure display math paragraphs: <p>$$...$</p> or <p>\[...\]</p>
+        // Final cleanup: remove <p> tags from around display math
         $html = preg_replace('/<p>(\s*)(\$\$.*?\$\$)(\s*)<\/p>/s', '$2', $html);
         $html = preg_replace('/<p>(\s*)(\\\\\[.*?\\\\\])(\s*)<\/p>/s', '$2', $html);
 
-        // Second, handle mixed content: split <p> tags when they contain display math
-        // For example: <p>Using it: $$3^2 + 4^2 = c^2$$</p> becomes:
-        //              <p>Using it:</p>\n$$3^2 + 4^2 = c^2$$\n
-        $html = preg_replace_callback(
-            '/<p>((?:[^<]|<(?!\/p>))*?\$\$(?:[^<]|<(?!\/p>))*?\$\$(?:[^<]|<(?!\/p>))*?)<\/p>/s',
-            function ($matches) {
-                $content = $matches[1];
-                
-                // Split on display math delimiters ($$...$$)
-                $parts = preg_split('/(\$\$[^\$]*(?:\$[^\$])*\$\$)/s', $content, -1, PREG_SPLIT_DELIM_CAPTURE);
-                
-                $result = '';
-                foreach ($parts as $part) {
-                    if (empty($part)) continue;
-                    
-                    if (strpos($part, '$$') === 0) {
-                        // This is display math - output it on its own line, outside <p>
-                        $result .= "\n" . $part . "\n";
-                    } else {
-                        // This is text - wrap it in <p> if not empty
-                        $text = trim($part);
-                        if ($text) {
-                            $result .= '<p>' . $text . '</p>';
-                        }
-                    }
-                }
-                return rtrim($result);
-            },
-            $html
-        );
-
-        // --- Final HTML Cleanup ---
-        $html = preg_replace('/<li(>|\s[^>]*>)\s*<p>(.*?)<\/p>\s*<\/li>/s', '<li$1>$2</li>', $html);
-        $html = preg_replace('/<li>&gt;/', '<li>', $html);
-
-        // --- STAGE 9: Restore quotation marks (now that MathJax processing is complete) ---
-        $html = str_replace('@@QUOTE@@', '"', $html);
-
-        // --- STAGE 10: Remove emphasis elements that wrongly cover parenthesized text ---
-        // Use DOMDocument to safely unwrap <em> and <strong> nodes whose text contains parentheses
-        libxml_use_internal_errors(true);
-        $doc = new DOMDocument();
-        $doc->preserveWhiteSpace = true;
-        // Wrap HTML in a container to allow fragment parsing; add XML encoding to preserve UTF-8
-        $wrapped = '<?xml encoding="utf-8" ?><div id="__wrapper__">' . $html . '</div>';
-        if (!$doc->loadHTML($wrapped, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD)) {
-            libxml_clear_errors();
-            return $html; // Return original HTML on parsing failure
-        }
-        $xpath = new DOMXPath($doc);
-
-        foreach (['em', 'strong'] as $tag) {
-            $nodes = $xpath->query('//' . $tag);
-            for ($i = $nodes->length - 1; $i >= 0; $i--) {
-                $node = $nodes->item($i);
-                if (!$node) continue;
-                $text = $node->textContent;
-                if (strpos($text, '(') !== false || strpos($text, ')') !== false) {
-                    $parent = $node->parentNode;
-                    while ($node->firstChild) {
-                        $parent->insertBefore($node->firstChild, $node);
-                    }
-                    $parent->removeChild($node);
-                }
-            }
-        }
-
-        $wrapper = $doc->getElementById('__wrapper__');
-        $newHtml = '';
-        if ($wrapper) {
-            foreach ($wrapper->childNodes as $child) {
-                $newHtml .= $doc->saveHTML($child);
-            }
-        } else {
-            $newHtml = $doc->saveHTML();
-        }
-
-        libxml_clear_errors();
-
-        return $newHtml;
+        return $html;
     }
 }
 

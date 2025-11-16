@@ -30,22 +30,27 @@ try {
     <link rel="stylesheet" href="style.css">
     <!-- Add this to the <head> of your tutor.html file -->
     <script>
-      MathJax = {
-        tex: {
-          inlineMath: [['\(', '\)'], ['$', '$']],
-          displayMath: [['\[', '\]'], ['$$', '$$']]
-        },
-        options: {
-          ignoreHtmlClass: 'no-mathjax'
-        },
-        chtml: {
-          fontCache: 'global'
-        }
-      };
+        MathJax = {
+            tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],      // Fixed order and escaping
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],   // Fixed order
+            processEscapes: true,
+            processEnvironments: true
+            },
+            options: {
+            ignoreHtmlClass: 'no-mathjax',
+            processHtmlClass: 'tex2jax_process'
+            },
+            startup: {
+            pageReady: () => {
+                return MathJax.startup.defaultPageReady();
+            }
+            }
+        };
     </script>
-    <script type="text/javascript" id="MathJax-script" async
-      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
-    </script>
+<script type="text/javascript" id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
         <style>
             /* Small toast for copy feedback */
             .copy-toast {

@@ -7,11 +7,11 @@
  * @throws PDOException If the connection fails.
  */
 function getDbConnection() {
-    // Read database configuration from config-sql.ini
+    // Read database configuration from config.ini
     // NOTE: This uses MySQL database credentials instead of PostgreSQL
     $config = parse_ini_file('config-sql.ini', true);
     if ($config === false || !isset($config['database'])) {
-        throw new Exception("Database configuration is missing or unreadable in config-sql.ini.");
+        throw new Exception("Database configuration is missing or unreadable in config.ini.");
     }
     $dbConfig = $config['database'];
 

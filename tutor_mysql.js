@@ -62,8 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
         // If MathJax is available, typeset the new message
-        if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
-            MathJax.typesetPromise([messageBubble]);
+        if (window.MathJax) {
+            MathJax.typesetPromise([document.getElementById('chat-container')]).catch((err) => {
+                console.error('MathJax typeset failed:', err);
+            });
         }
     }
 
