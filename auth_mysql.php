@@ -1,8 +1,8 @@
 <?php
 session_start();
+header('Content-Type: application/json');
 require_once 'db_mysql.php';
 
-header('Content-Type: application/json');
 $request_method = $_SERVER['REQUEST_METHOD'];
 
 switch ($request_method) {
@@ -20,7 +20,8 @@ switch ($request_method) {
         $action = $_POST['action'] ?? '';
         if ($action === 'register') {
             // --- Registration Logic ---
-            $username = $_POST['username'] ?? '';
+            $fullName = trim($_POST['fullName'] ?? ''); // Added fullName
+            $username = trim($_POST['username'] ?? '');
             $email = $_POST['email'] ?? '';
             $password = $_POST['password'] ?? '';
 
@@ -46,14 +47,21 @@ switch ($request_method) {
                 $stmt->execute([$username, $email]);
                 if ($stmt->fetch()) {
                     http_response_code(409);
-                    echo json_encode(['success' => false, 'error' => 'Username or email already exists.']);
+                    echo json_encode(['success' => false, 'error' => 'That username or email is already taken.']);
                     exit;
                 }
 
                 $password_hash = password_hash($password, PASSWORD_ARGON2ID);
-                $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)");
-                if ($stmt->execute([$username, $email, $password_hash])) {
-                    echo json_encode(['success' => true, 'message' => 'Registration successful! You can now log in.']);
+                $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, full_name) VALUES (?, ?, ?, ?)");
+                if ($stmt->execute([$username, $email, $password_hash, $fullName])) {
+                    // Automatically log the user in
+                    $user_id = $pdo->lastInsertId();
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = $user_id;
+                    $_SESSION['username'] = $username;
+                    $_SESSION['full_name'] = $fullName;
+
+                    echo json_encode(['success' => true, 'redirect' => 'tutor_mysql.php']);
                 } else {
                     throw new Exception("Failed to create user account.");
                 }
@@ -65,10 +73,10 @@ switch ($request_method) {
 
         } elseif ($action === 'login') {
             // --- Login Logic ---
-            $email = $_POST['email'] ?? '';
+            $identifier = $_POST['email'] ?? ''; // Can be email or username
             $password = $_POST['password'] ?? '';
 
-            if (empty($email) || empty($password)) {
+            if (empty($identifier) || empty($password)) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Email and password are required.']);
                 exit;
@@ -76,15 +84,16 @@ switch ($request_method) {
 
             try {
                 $pdo = getDbConnection();
-                $stmt = $pdo->prepare("SELECT id, username, password_hash FROM users WHERE email = ?");
-                $stmt->execute([$email]);
+                $stmt = $pdo->prepare("SELECT id, username, password_hash, full_name FROM users WHERE email = ? OR username = ?");
+                $stmt->execute([$identifier, $identifier]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($user && password_verify($password, $user['password_hash'])) {
                     session_regenerate_id(true);
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
-                    echo json_encode(['success' => true, 'message' => 'Login successful!']);
+                    $_SESSION['full_name'] = $user['full_name']; // Store full_name in session
+                    echo json_encode(['success' => true, 'redirect' => 'tutor_mysql.php']);
                 } else {
                     http_response_code(401);
                     echo json_encode(['success' => false, 'error' => 'Invalid email or password.']);
@@ -151,5 +160,11 @@ switch ($request_method) {
         http_response_code(405); // Method Not Allowed
         echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
         break;
+}
+
+function send_json_error($message, $code = 400) {
+    http_response_code($code);
+    echo json_encode(['success' => false, 'error' => $message]);
+    exit;
 }
 ?>
