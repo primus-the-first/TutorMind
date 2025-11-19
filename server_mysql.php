@@ -317,7 +317,7 @@ function prepareFileParts($file, $user_question) {
 }
 
 function callGeminiAPI($payload, $apiKey) {
-    $model = 'gemini-2.5-flash-preview-05-20';
+    $model = 'gemini-2.5-flash';
     $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . $apiKey;
 
     $retries = 0;

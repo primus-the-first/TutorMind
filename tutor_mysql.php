@@ -52,6 +52,7 @@ if ($user_id) {
 
     <!-- Custom Styles for the new UI Overhaul -->
     <link rel="stylesheet" href="ui-overhaul.css">
+    <link rel="stylesheet" href="settings.css">
 </head>
 <body class="flex h-screen">
 
@@ -95,7 +96,7 @@ if ($user_id) {
                 <nav class="user-menu-nav">
                     <a href="#"><i class="fas fa-star"></i> Upgrade plan</a>
                     <a href="#"><i class="fas fa-user-edit"></i> Personalization</a>
-                    <a href="#"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#" id="open-settings-btn"><i class="fas fa-cog"></i> Settings</a>
                     <a href="#"><i class="fas fa-question-circle"></i> Help</a>
                     <a href="auth_mysql.php?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
                     <div class="dark-mode-toggle">
@@ -119,7 +120,9 @@ if ($user_id) {
             <button id="menu-toggle" class="menu-toggle">
                 <i class="fas fa-bars"></i>
             </button>
-            <h2 id="conversation-title" class="conversation-title">TutorMind</h2>
+            <a href="index.html" style="text-decoration: none; color: inherit;">
+                <h2 id="conversation-title" class="conversation-title">TutorMind</h2>
+            </a>
         </header>
 
         <main id="chat-container" class="chat-content">
@@ -182,6 +185,7 @@ if ($user_id) {
     <div id="copy-toast" class="copy-toast" style="display:none;">Copied to clipboard</div>
 
     <!-- Main application script -->
+    <script src="settings.js"></script>
     <script src="tutor_mysql.js?v=3"></script>
 </body>
 </html>

@@ -15,6 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const userAccountChevron = document.getElementById('user-account-chevron');
     const darkModeToggle = document.getElementById('darkModeToggle');
     const welcomeScreen = document.getElementById('welcome-screen');
+    const settingsBtn = document.getElementById('open-settings-btn');
+
+    // --- Open Settings Modal ---
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.settingsManager) {
+                window.settingsManager.open();
+            }
+        });
+    }
 
     // --- Load chat history on page load ---
     loadChatHistory();

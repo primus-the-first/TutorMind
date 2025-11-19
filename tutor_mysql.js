@@ -589,4 +589,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // --- Initialize Settings Manager ---
+    // This ensures the SettingsManager class from settings.js is available
+    // and the modal HTML is created before we attach listeners to it.
+    window.settingsManager = new SettingsManager();
+    window.settingsManager.init();
+
+    // --- Settings Modal Trigger ---
+    const openSettingsBtn = document.getElementById('open-settings-btn');
+    if (openSettingsBtn) {
+        openSettingsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            // The settingsManager is created and attached to the window by settings.js
+            if (window.settingsManager) {
+                window.settingsManager.open();
+            }
+        });
+    }
 });

@@ -24,6 +24,7 @@ try {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="settings.css?v=<?= time() ?>">
     <script>
       MathJax = {
         tex: {
@@ -65,6 +66,7 @@ try {
                         <i class="fas fa-chevron-up" id="user-account-chevron"></i>
                     </button>
                     <div id="user-account-menu" class="user-menu-dropdown hidden">
+                        <a href="#" id="open-settings-btn"><i class="fas fa-cog w-6"></i> Settings</a>
                         <a href="#"><i class="fas fa-star w-6 text-yellow-400"></i> Upgrade plan</a>
                         <a href="auth.php?action=logout" class="logout-link"><i class="fas fa-sign-out-alt w-6"></i> Log out</a>
                         <div class="dark-mode-toggle">
@@ -134,6 +136,7 @@ try {
     <div id="copy-toast" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #333; color: white; padding: 10px 20px; border-radius: 8px; z-index: 1000; display: none;">Copied!</div>
 
 
+    <script src="settings.js?v=<?= time() ?>"></script>
     <script src="tutor_mysql.js?v=<?= time() ?>"></script>
 </body>
 </html>
