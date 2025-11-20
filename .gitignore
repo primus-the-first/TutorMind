@@ -9,6 +9,9 @@ composer.phar
 config.ini
 config-sql.ini
 
+#Database files
+tutdtoo_tutordb.sql
+
 # Log and output files
 test_output.txt
 *.log
