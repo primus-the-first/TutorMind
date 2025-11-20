@@ -61,7 +61,7 @@ switch ($request_method) {
                     $_SESSION['username'] = $username;
                     $_SESSION['full_name'] = $fullName;
 
-                    echo json_encode(['success' => true, 'redirect' => 'tutor_mysql.php']);
+                    echo json_encode(['success' => true, 'redirect' => 'onboarding.php']);
                 } else {
                     throw new Exception("Failed to create user account.");
                 }
@@ -84,7 +84,7 @@ switch ($request_method) {
 
             try {
                 $pdo = getDbConnection();
-                $stmt = $pdo->prepare("SELECT id, username, password_hash, full_name FROM users WHERE email = ? OR username = ?");
+                $stmt = $pdo->prepare("SELECT id, username, password_hash, full_name, onboarding_completed FROM users WHERE email = ? OR username = ?");
                 $stmt->execute([$identifier, $identifier]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -93,7 +93,9 @@ switch ($request_method) {
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['full_name'] = $user['full_name']; // Store full_name in session
-                    echo json_encode(['success' => true, 'redirect' => 'tutor_mysql.php']);
+                    // Redirect based on onboarding completion status
+                    $redirect = ($user['onboarding_completed']) ? 'tutor_mysql.php' : 'onboarding.php';
+                    echo json_encode(['success' => true, 'redirect' => $redirect]);
                 } else {
                     http_response_code(401);
                     echo json_encode(['success' => false, 'error' => 'Invalid email or password.']);

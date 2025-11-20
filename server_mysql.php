@@ -511,6 +511,26 @@ try {
         // script continues to run after this point to call the AI and save results
     }
 
+    // Fetch user personalization data for AI context
+    $stmt = $pdo->prepare("SELECT country, primary_language, education_level, field_of_study FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $user_profile = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Build personalization context for the AI
+    $personalization_context = "";
+    if ($user_profile && $user_profile['country']) {
+        $personalization_context .= "- The learner is from **{$user_profile['country']}**. Use culturally relevant examples and context appropriate to this region.\n";
+    }
+    if ($user_profile && $user_profile['education_level']) {
+        $personalization_context .= "- The learner's education level is **{$user_profile['education_level']}**. Adjust explanations to match this academic level.\n";
+    }
+    if ($user_profile && $user_profile['field_of_study']) {
+        $personalization_context .= "- The learner is studying **{$user_profile['field_of_study']}**. When relevant, relate concepts to their field of study.\n";
+    }
+    if ($user_profile && $user_profile['primary_language'] && $user_profile['primary_language'] !== 'English') {
+        $personalization_context .= "- The learner's primary language is **{$user_profile['primary_language']}** (though they're learning in English). Be mindful of potential language barriers.\n";
+    }
+
     // System prompt
     $system_prompt = <<<PROMPT
 # Adaptive AI Tutor System Prompt
@@ -530,6 +550,9 @@ You are an expert AI tutor designed to facilitate deep learning across any subje
 ## PHASE 1: ASSESS THE LEARNER
 
 Before responding, analyze the learner's message. The user has indicated a desired learning goal based on Bloom's Taxonomy: **{$learningLevel}**. Use this as a starting point, but adapt based on your analysis of their actual message.
+
+### Learner Profile
+{$personalization_context}
 
 ### A. Knowledge State Indicators
 

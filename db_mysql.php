@@ -10,7 +10,19 @@ function getDbConnection() {
     // Automatically detect which config file to use based on environment
     // Local (XAMPP): uses config-sql.ini
     // Production (cPanel): uses config.ini
-    $configFile = file_exists('config-sql.ini') ? 'config-sql.ini' : 'config.ini';
+    // Check both current directory and parent directory (for API calls from subdirectories)
+    $configFile = null;
+    if (file_exists('config-sql.ini')) {
+        $configFile = 'config-sql.ini';
+    } elseif (file_exists('config.ini')) {
+        $configFile = 'config.ini';
+    } elseif (file_exists('../config-sql.ini')) {
+        $configFile = '../config-sql.ini';
+    } elseif (file_exists('../config.ini')) {
+        $configFile = '../config.ini';
+    } else {
+        throw new Exception("Database configuration file not found. Please ensure config-sql.ini or config.ini exists in the root directory.");
+    }
     
     $config = parse_ini_file($configFile, true);
     if ($config === false || !isset($config['database'])) {
