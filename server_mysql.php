@@ -228,10 +228,73 @@ function prepareFileParts($file, $user_question) {
         if (!extension_loaded('gd')) {
             throw new Exception("The 'gd' PHP extension is required to process images but it is not enabled. Please enable it in your php.ini file.");
         }
-        $fileData = file_get_contents($filePath);
-        if ($fileData === false) {
-            throw new Exception("Could not read the image file '{$originalName}'.");
+        
+        // Load and potentially resize the image to prevent "server has gone away" errors
+        $srcImage = null;
+        switch ($fileType) {
+            case 'image/jpeg':
+                $srcImage = imagecreatefromjpeg($filePath);
+                break;
+            case 'image/png':
+                $srcImage = imagecreatefrompng($filePath);
+                break;
+            case 'image/gif':
+                $srcImage = imagecreatefromgif($filePath);
+                break;
+            case 'image/bmp':
+                $srcImage = imagecreatefrombmp($filePath);
+                break;
+            case 'image/webp':
+                $srcImage = imagecreatefromwebp($filePath);
+                break;
         }
+        
+        if (!$srcImage) {
+            throw new Exception("Could not process the image file '{$originalName}'.");
+        }
+        
+        // Get original dimensions
+        $origWidth = imagesx($srcImage);
+        $origHeight = imagesy($srcImage);
+        
+        // Resize to smaller dimensions to prevent DB packet errors
+        // Most MySQL servers have max_allowed_packet around 4-16MB
+        // After base64 encoding, size increases by ~33%, so we need to be conservative
+        $maxWidth = 1024;  // Reduced from 1920 for better compression
+        $maxHeight = 1024;
+        
+        // Always resize and compress to JPEG for consistency and smaller size
+        // Calculate new dimensions maintaining aspect ratio
+        $ratio = min($maxWidth / $origWidth, $maxHeight / $origHeight);
+        $newWidth = (int)($origWidth * $ratio);
+        $newHeight = (int)($origHeight * $ratio);
+        
+        // Create resized image
+        $dstImage = imagecreatetruecolor($newWidth, $newHeight);
+        
+        // Preserve transparency for PNG/GIF by using white background
+        if ($fileType === 'image/png' || $fileType === 'image/gif') {
+            $white = imagecolorallocate($dstImage, 255, 255, 255);
+            imagefilledrectangle($dstImage, 0, 0, $newWidth, $newHeight, $white);
+        }
+        
+        imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
+        
+        // Convert to JPEG with more aggressive compression
+        ob_start();
+        imagejpeg($dstImage, null, 75); // 75% quality - more aggressive compression
+        $fileData = ob_get_clean();
+        $fileType = 'image/jpeg';
+        
+        imagedestroy($srcImage);
+        imagedestroy($dstImage);
+        
+        // Final safety check: if the image is still too large, reject it
+        $maxSizeBytes = 3 * 1024 * 1024; // 3MB raw limit (becomes ~4MB after base64)
+        if (strlen($fileData) > $maxSizeBytes) {
+            throw new Exception("Image file is too large even after compression. Please use a smaller image.");
+        }
+        
         $base64Data = base64_encode($fileData);
 
         return [

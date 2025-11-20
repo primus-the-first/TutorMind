@@ -31,8 +31,16 @@ function getDbConnection() {
         $pdo = new PDO($dsn, $user, $password, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 60, // Increase timeout for large uploads
         ]);
+        
+        // Configure MySQL for handling large data transfers
+        // Note: max_allowed_packet is read-only at session level, must be set globally
+        // Increase wait timeout to prevent connection drops during image processing
+        $pdo->exec("SET SESSION wait_timeout=300"); // 5 minutes
+        $pdo->exec("SET SESSION interactive_timeout=300"); // 5 minutes
+        
         return $pdo;
     } catch (PDOException $e) {
         // In a real application, you would log this error, not display it to the user.
