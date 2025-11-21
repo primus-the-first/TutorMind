@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const tutorForm = document.getElementById('tutorForm');
     const questionInput = document.getElementById('question');
     const chatMessages = document.getElementById('chat-container');
@@ -16,6 +16,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const darkModeToggle = document.getElementById('darkModeToggle');
     const welcomeScreen = document.getElementById('welcome-screen');
 
+    // --- Initialize Settings Manager FIRST ---
+    // This ensures settings (especially dark mode) are applied before page renders
+    window.settingsManager = new SettingsManager();
+    window.settingsManager.init();
+    
+    // Load settings immediately and wait for them to apply
+    try {
+        await window.settingsManager.loadSettings();
+        console.log('Settings applied successfully on page load');
+    } catch (error) {
+        console.error('Failed to load settings on page load:', error);
+    }
+
     // --- Load chat history on page load ---
     loadChatHistory();
 
@@ -28,23 +41,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Dark Mode Logic ---
-    // Check for saved dark mode preference
-    if (localStorage.getItem('darkMode') === 'enabled') {
-        document.body.classList.add('dark-mode');
-        if (darkModeToggle) darkModeToggle.checked = true;
-    }
-
-    // Listen for dark mode toggle changes
+    // Note: Dark mode is now managed by the SettingsManager and loaded from the database.
+    // The toggle in the user menu will update both the UI and the database.
+    
+    // Listen for dark mode toggle changes in the main UI
     if (darkModeToggle) {
-        darkModeToggle.addEventListener('change', () => {
-            document.body.classList.toggle('dark-mode');
-            if (document.body.classList.contains('dark-mode')) {
-                localStorage.setItem('darkMode', 'enabled');
-            } else {
-                localStorage.setItem('darkMode', 'disabled');
+        darkModeToggle.addEventListener('change', async () => {
+            const isDark = darkModeToggle.checked;
+            document.body.classList.toggle('dark-mode', isDark);
+            localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+            
+            // Save to database via settings manager
+            if (window.settingsManager) {
+                await window.settingsManager.debouncedSave({ dark_mode: isDark });
             }
         });
     }
+
 
     // --- Function to add a message to the chat window ---
     function addMessage(sender, messageHtml) {
@@ -58,6 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
         messageWrapper.appendChild(messageBubble);
         chatMessages.appendChild(messageWrapper);
 
+        // Add copy buttons to code blocks
+        addCopyButtonsToCodeBlocks(messageBubble);
+
         // Scroll to the bottom
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
@@ -67,6 +83,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('MathJax typeset failed:', err);
             });
         }
+    }
+
+    // --- Function to add copy buttons to code blocks ---
+    function addCopyButtonsToCodeBlocks(container) {
+        const codeBlocks = container.querySelectorAll('pre code');
+        
+        // Apply syntax highlighting
+        if (window.hljs) {
+            codeBlocks.forEach(block => {
+                hljs.highlightElement(block);
+            });
+        }
+        
+        // Add copy buttons
+        container.querySelectorAll('pre').forEach(pre => {
+            // Don't add button if it already exists
+            if (pre.querySelector('.copy-code-btn')) return;
+            
+            const button = document.createElement('button');
+            button.className = 'copy-code-btn';
+            button.textContent = 'Copy';
+            button.addEventListener('click', () => {
+                const code = pre.querySelector('code') || pre;
+                const text = code.textContent;
+                
+                navigator.clipboard.writeText(text).then(() => {
+                    button.textContent = 'Copied!';
+                    setTimeout(() => {
+                        button.textContent = 'Copy';
+                    }, 2000);
+                }).catch(() => {
+                    button.textContent = 'Failed';
+                    setTimeout(() => {
+                        button.textContent = 'Copy';
+                    }, 2000);
+                });
+            });
+            
+            pre.appendChild(button);
+        });
     }
 
     // --- Text-to-Speech Functionality ---
@@ -279,18 +335,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newCopyButton = chatMessages.lastElementChild.querySelector('.copy-btn');
                 if (newCopyButton) newCopyButton.addEventListener('click', handleCopyClick);
                 
-                // If this was a new chat, generate and set the title on the client side
-                if (result.is_new_chat && result.user_question) {
-                    const newTitle = generateTitleFromQuestion(result.user_question);
-                    await renameConversationOnServer(result.conversation_id, newTitle);
-                }
+                // Handle conversation ID and title updates
                 if (result.conversation_id) {
                     conversationIdInput.value = result.conversation_id;
-                    // If this was a new chat, refresh the history to show it
-                    const existingLink = chatHistoryContainer.querySelector(`[data-conversation-id="${result.conversation_id}"]`);
-                    if (!existingLink) {
+                    
+                    // If server generated a title, update the conversation in the sidebar
+                    if (result.generated_title) {
+                        console.log('AI generated title:', result.generated_title);
+                        // Refresh chat history to show the new conversation with AI-generated title
                         await loadChatHistory();
                         highlightActiveConversation(result.conversation_id);
+                    } else {
+                        // Not a new chat, just highlight if needed
+                        const existingLink = chatHistoryContainer.querySelector(`[data-conversation-id="${result.conversation_id}"]`);
+                        if (!existingLink) {
+                            await loadChatHistory();
+                            highlightActiveConversation(result.conversation_id);
+                        }
                     }
                 }
             } else {
@@ -307,34 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Function to generate a simple title from the user's question ---
-    function generateTitleFromQuestion(question) {
-        const words = question.split(/\s+/);
-        // Take the first 5 words and join them.
-        let title = words.slice(0, 5).join(' ');
-        if (words.length > 5) {
-            title += '...';
-        }
-        return title;
-    }
 
-    // --- Function to send the new title to the server ---
-    async function renameConversationOnServer(id, newTitle) {
-        try {
-            const formData = new FormData();
-            formData.append('action', 'rename_conversation');
-            formData.append('id', id);
-            formData.append('title', newTitle);
-
-            const response = await fetch('server_mysql.php', {
-                method: 'POST',
-                body: formData
-            });
-            // We don't need to wait for the response, but error checking could be added.
-        } catch (error) {
-            console.error('Could not update title on server:', error);
-        }
-    }
 
     // --- Handle "New Chat" button ---
     newChatBtn.addEventListener('click', () => {
@@ -590,11 +624,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // --- Initialize Settings Manager ---
-    // This ensures the SettingsManager class from settings.js is available
-    // and the modal HTML is created before we attach listeners to it.
-    window.settingsManager = new SettingsManager();
-    window.settingsManager.init();
 
     // --- Settings Modal Trigger ---
     const openSettingsBtn = document.getElementById('open-settings-btn');

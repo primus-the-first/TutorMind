@@ -6,6 +6,7 @@ class SettingsManager {
         this.currentTab = 'account';
         this.initialSettings = {};
         this.dirty = false; // To track unsaved changes
+        this.isPopulating = false; // Flag to prevent input events during form population
 
         // Debounce save function for toggle switches
         this.debouncedSave = this.debounce(this.saveToggle.bind(this), 500);
@@ -303,6 +304,9 @@ class SettingsManager {
 
         // Input change tracking
         this.modal.querySelector('.settings-content').addEventListener('input', (e) => {
+            // Don't set dirty if we're programmatically populating the form
+            if (this.isPopulating) return;
+            
             const target = e.target;
             if (target.classList.contains('form-control') || target.classList.contains('form-select')) {
                 if (target.closest('#tab-account') || target.closest('#tab-appearance')) {
@@ -317,14 +321,18 @@ class SettingsManager {
             toggle.addEventListener('change', (e) => {
                 const setting = e.target.dataset.setting;
                 const value = e.target.checked;
+                console.log('Toggle changed:', setting, '=', value); // Debug logging
                 this.debouncedSave({ [setting]: value });
 
                 // Special case for dark mode to apply immediately
                 if (setting === 'dark_mode') {
+                    console.log('Dark mode toggle - applying immediately'); // Debug logging
                     document.body.classList.toggle('dark-mode', value);
                     // Sync with the main toggle in the user menu
                     const mainToggle = document.getElementById('darkModeToggle');
                     if (mainToggle) mainToggle.checked = value;
+                    // Sync with localStorage
+                    localStorage.setItem('darkMode', value ? 'enabled' : 'disabled');
                 }
             });
         });
@@ -479,15 +487,55 @@ class SettingsManager {
 
             const data = await response.json();
             if (data.success) {
+                console.log('Settings loaded:', data.settings); // Debug logging
                 this.initialSettings = data.settings;
                 this.populateForm(data.settings);
+                this.applyGlobalSettings(data.settings);
             } else {
                 throw new Error(data.error || 'Unknown error loading settings.');
             }
         } catch (error) {
+            console.error('Settings load error:', error); // Debug logging
             this.showToast('Error: ' + error.message, 'error');
         } finally {
             this.showLoadingState(false);
+        }
+    }
+
+    /**
+     * Applies settings to the global application UI (outside the modal).
+     * @param {object} settings The settings object.
+     */
+    applyGlobalSettings(settings) {
+        console.log('Applying global settings:', settings); // Debug logging
+        
+        // Apply Learning Level to the main chat input
+        const mainLearningLevel = document.getElementById('learningLevel');
+        if (mainLearningLevel && settings.learning_level) {
+            mainLearningLevel.value = settings.learning_level;
+        }
+
+        // Apply Font Size
+        if (settings.font_size) {
+            document.documentElement.style.fontSize = settings.font_size === 'small' ? '14px' : (settings.font_size === 'large' ? '18px' : '16px');
+        }
+
+        // Apply Chat Density
+        if (settings.chat_density) {
+            document.body.classList.toggle('compact-mode', settings.chat_density === 'compact');
+        }
+        
+        // Apply Dark Mode and sync with localStorage
+        if (settings.dark_mode !== undefined) {
+             const isDark = !!settings.dark_mode;
+             const wasDark = document.body.classList.contains('dark-mode');
+             console.log('Dark mode - Current:', wasDark, 'Setting to:', isDark, 'Raw value:', settings.dark_mode);
+             document.body.classList.toggle('dark-mode', isDark);
+             const mainToggle = document.getElementById('darkModeToggle');
+             if (mainToggle) mainToggle.checked = isDark;
+             // Update localStorage to match database setting
+             localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+             console.log('Dark mode applied. Body has dark-mode class:', document.body.classList.contains('dark-mode'));
         }
     }
 
@@ -496,6 +544,9 @@ class SettingsManager {
      * @param {object} settings The user settings object.
      */
     populateForm(settings) {
+        // Set flag to prevent input events from marking form as dirty
+        this.isPopulating = true;
+        
         // Text inputs, selects, and checkboxes
         this.modal.querySelectorAll('[data-setting]').forEach(el => {
             const key = el.dataset.setting;
@@ -510,10 +561,6 @@ class SettingsManager {
             }
         });
 
-        // Special case for dark mode to sync with body class
-        const isDarkMode = document.body.classList.contains('dark-mode');
-        this.modal.querySelector('#settings-dark-mode').checked = isDarkMode;
-        this.initialSettings.dark_mode = isDarkMode;
 
         // Read-only fields
         const createdAt = this.modal.querySelector('#settings-created-at');
@@ -526,6 +573,11 @@ class SettingsManager {
         // Sync dark mode toggle with main UI toggle
         const mainToggle = document.getElementById('darkModeToggle');
         this.resetFormState();
+        
+        // Clear the flag after a short delay to ensure all events have settled
+        setTimeout(() => {
+            this.isPopulating = false;
+        }, 100);
     }
 
     /**
@@ -533,6 +585,7 @@ class SettingsManager {
      * @param {object} settings An object containing the setting key and value.
      */
     async saveToggle(settings) {
+        console.log('saveToggle called with:', settings); // Debug logging
         try {
             const response = await fetch('api/user_settings.php', {
                 method: 'POST',
@@ -540,12 +593,17 @@ class SettingsManager {
                 body: JSON.stringify(settings)
             });
             const result = await response.json();
+            console.log('saveToggle API response:', result); // Debug logging
             if (result.success) {
                 this.showToast('Setting saved!', 'success');
+                this.applyGlobalSettings(settings);
+                // Update initialSettings to keep in sync
+                Object.assign(this.initialSettings, settings);
             } else {
                 throw new Error(result.error);
             }
         } catch (error) {
+            console.error('saveToggle error:', error); // Debug logging
             this.showToast('Error: ' + error.message, 'error');
             // Revert the toggle if save fails
             const key = Object.keys(settings)[0];
@@ -599,10 +657,16 @@ class SettingsManager {
             const result = await response.json();
             if (result.success) {
                 this.showToast('Settings saved successfully!', 'success');
-                this.updateMainUI(payload); // <-- Add this line to update the UI
+                this.updateMainUI(payload);
+                
+                // Update initialSettings with saved values to prevent dirty flag
+                Object.assign(this.initialSettings, payload);
+                
+                // Apply the saved settings globally
+                this.applyGlobalSettings(payload);
+                
+                // Mark as clean
                 this.dirty = false;
-                // Reload settings to get fresh data and reset initial state
-                await this.loadSettings(); 
             } else {
                 throw new Error(result.error || 'Failed to save.');
             }

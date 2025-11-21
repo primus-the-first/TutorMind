@@ -34,6 +34,24 @@ if (!function_exists('formatResponse')) {
             $text
         );
 
+        // Protect code blocks (triple backticks) - must come before inline code
+        $text = preg_replace_callback(
+            '/```([\w]*)\n([\s\S]*?)```/s',
+            function ($matches) use (&$protections, &$counter) {
+                $placeholder = '@@PROTECT_' . $counter . '@@';
+                $language = $matches[1]; // Language identifier (optional)
+                $codeContent = $matches[2]; // The actual code
+                $protections[$placeholder] = [
+                    'type' => 'codeblock',
+                    'language' => $language,
+                    'content' => $codeContent
+                ];
+                $counter++;
+                return $placeholder;
+            },
+            $text
+        );
+
         // Protect inline code (`)
         $text = preg_replace_callback(
             '/`([^`]+)`/s',
@@ -56,6 +74,12 @@ if (!function_exists('formatResponse')) {
         foreach ($protections as $placeholder => $protection) {
             if ($protection['type'] === 'latex') {
                 $html = str_replace($placeholder, $protection['content'], $html);
+            } elseif ($protection['type'] === 'codeblock') {
+                // Restore code blocks with proper HTML
+                $codeContent = htmlspecialchars($protection['content'], ENT_QUOTES, 'UTF-8');
+                $language = !empty($protection['language']) ? ' class="language-' . htmlspecialchars($protection['language']) . '"' : '';
+                $codeBlockHtml = '<pre' . $language . '><code>' . $codeContent . '</code></pre>';
+                $html = str_replace($placeholder, $codeBlockHtml, $html);
             } elseif ($protection['type'] === 'code') {
                 $codeContent = htmlspecialchars($protection['content'], ENT_QUOTES, 'UTF-8');
                 $html = str_replace($placeholder, '<code>' . $codeContent . '</code>', $html);
@@ -757,13 +781,42 @@ PROMPT;
         $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'model', ?)");
         $stmt->execute([$conversation_id, json_encode([['text' => $answer]])]);
 
-        // For new chats, we will generate the title on the client-side for faster response.
-        // We'll pass a flag to the client to let it know a new title is needed.
-        $new_title_for_response = null;
+        // For new chats, generate an AI title
+        $generated_title = null;
         if (count($chat_history) === 1) { 
-            // This is a new chat. The client will generate and send the title.
-            // We send back the original user question to help generate the title.
-            $new_title_for_response = true; // Flag for the client
+            // This is a new chat - generate a title using AI
+            try {
+                $title_prompt = "Based on this user question: \"$question\"\n\nGenerate a very concise, descriptive title for this conversation in 3-5 words maximum. The title should capture the main topic or question. Respond with ONLY the title, nothing else.";
+                
+                $title_payload = json_encode([
+                    "contents" => [
+                        [
+                            "role" => "user",
+                            "parts" => [["text" => $title_prompt]]
+                        ]
+                    ]
+                ]);
+                
+                $title_response = callGeminiAPI($title_payload, GEMINI_API_KEY);
+                
+                if (isset($title_response['candidates'][0]['content']['parts'][0]['text'])) {
+                    $generated_title = trim($title_response['candidates'][0]['content']['parts'][0]['text']);
+                    
+                    // Limit to 60 characters max and remove any quotes
+                    $generated_title = str_replace(['"', "'"], '', $generated_title);
+                    if (strlen($generated_title) > 60) {
+                        $generated_title = substr($generated_title, 0, 57) . '...';
+                    }
+                    
+                    // Update the conversation title
+                    $stmt = $pdo->prepare("UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ?");
+                    $stmt->execute([$generated_title, $conversation_id]);
+                }
+            } catch (Exception $e) {
+                // If title generation fails, use a fallback
+                error_log("Title generation failed: " . $e->getMessage());
+                $generated_title = "New Chat";
+            }
         }
 
         $formattedAnswer = formatResponse($answer);
@@ -772,9 +825,8 @@ PROMPT;
             'answer' => $formattedAnswer, 
             'conversation_id' => $conversation_id
         ];
-        if ($new_title_for_response) {
-            $response_payload['is_new_chat'] = true;
-            $response_payload['user_question'] = $question;
+        if ($generated_title) {
+            $response_payload['generated_title'] = $generated_title;
         }
         if (empty($backgrounded)) {
             echo json_encode($response_payload);
