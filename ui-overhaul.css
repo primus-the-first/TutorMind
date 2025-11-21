@@ -561,18 +561,20 @@ body {
 
 /* Copy button for code blocks */
 .message-bubble pre .copy-code-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 6px 12px;
-  background-color: rgba(123, 63, 242, 0.1);
-  border: 1px solid var(--primary);
-  border-radius: 6px;
-  color: var(--primary);
-  font-size: 0.75rem;
-  cursor: pointer;
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  padding: 6px 12px !important;
+  background-color: rgba(123, 63, 242, 0.1) !important;
+  border: 1px solid var(--primary) !important;
+  border-radius: 6px !important;
+  color: var(--primary) !important;
+  font-size: 0.75rem !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  cursor: pointer !important;
   opacity: 0;
   transition: opacity 0.2s, background-color 0.2s;
+  z-index: 10;
 }
 
 .message-bubble pre:hover .copy-code-btn {
@@ -580,8 +582,8 @@ body {
 }
 
 .message-bubble pre .copy-code-btn:hover {
-  background-color: var(--primary);
-  color: white;
+  background-color: var(--primary) !important;
+  color: white !important;
 }
 
 
@@ -902,14 +904,14 @@ body.dark-mode .message-bubble code {
 }
 
 body.dark-mode .message-bubble pre .copy-code-btn {
-  background-color: rgba(157, 107, 245, 0.15);
-  border-color: var(--primary-light);
-  color: var(--primary-light);
+  background-color: rgba(157, 107, 245, 0.15) !important;
+  border-color: var(--primary-light) !important;
+  color: var(--primary-light) !important;
 }
 
 body.dark-mode .message-bubble pre .copy-code-btn:hover {
-  background-color: var(--primary-light);
-  color: #1a1a1a;
+  background-color: var(--primary-light) !important;
+  color: #1a1a1a !important;
 }
 
 body.dark-mode #attachment-preview-area .attachment-display {
