@@ -21,20 +21,8 @@ if (!function_exists('formatResponse')) {
         $protections = [];
         $counter = 0;
 
-        // Protect LaTeX expressions ($...$, $$...$$, \(...\), \[...\])
-        $text = preg_replace_callback(
-            '/\$\$([\s\S]*?)\$\$|\\\\\[([\s\S]*?)\\\\\]|\\\\\((.*?)\\\\\)|\\$([^$]+?)\\$/',
-            function ($matches) use (&$protections, &$counter) {
-                $placeholder = '@@PROTECT_' . $counter . '@@';
-                // Store the original content, which includes the delimiters
-                $protections[$placeholder] = ['type' => 'latex', 'content' => $matches[0]];
-                $counter++;
-                return $placeholder;
-            },
-            $text
-        );
-
-        // Protect code blocks (triple backticks) - must come before inline code
+        // IMPORTANT: Protect code blocks FIRST, before LaTeX or inline code
+        // This prevents ${variables} in code from being caught by LaTeX $ protection
         $text = preg_replace_callback(
             '/```([\w]*)\n([\s\S]*?)```/s',
             function ($matches) use (&$protections, &$counter) {
@@ -52,13 +40,26 @@ if (!function_exists('formatResponse')) {
             $text
         );
 
-        // Protect inline code (`)
+        // Protect inline code (`) - before LaTeX
         $text = preg_replace_callback(
             '/`([^`]+)`/s',
             function ($matches) use (&$protections, &$counter) {
                 $placeholder = '@@PROTECT_' . $counter . '@@';
                 // Store the inner content of the code block
                 $protections[$placeholder] = ['type' => 'code', 'content' => $matches[1]];
+                $counter++;
+                return $placeholder;
+            },
+            $text
+        );
+
+        // Protect LaTeX expressions LAST (after all code is protected)
+        $text = preg_replace_callback(
+            '/\$\$([\s\S]*?)\$\$|\\\\\[([\s\S]*?)\\\\\]|\\\\\((.*?)\\\\\)|\$([^$]+?)\$/',
+            function ($matches) use (&$protections, &$counter) {
+                $placeholder = '@@PROTECT_' . $counter . '@@';
+                // Store the original content, which includes the delimiters
+                $protections[$placeholder] = ['type' => 'latex', 'content' => $matches[0]];
                 $counter++;
                 return $placeholder;
             },
