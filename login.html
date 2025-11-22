@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="logo.css">
     <style>
         :root {
             --primary: #7B3FF2;
@@ -67,11 +68,10 @@
             margin-bottom: 2.5rem;
         }
 
-        .logo {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 1rem;
+        .auth-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
         }
 
         .login-header h1 {
@@ -336,7 +336,11 @@
         <div class="login-form-container">
             <div class="login-content">
                 <header class="login-header">
-                    <div class="logo">Tutormind</div>
+                    <div class="auth-logo">
+                        <a href="index.html" class="app-logo">
+                            <span class="app-logo-text">🧠 TutorMind</span>
+                        </a>
+                    </div>
                     <h1>Welcome back!</h1>
                     <p>Enter to get unlimited access to data & information.</p>
                 </header>

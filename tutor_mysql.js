@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const userAccountChevron = document.getElementById('user-account-chevron');
     const darkModeToggle = document.getElementById('darkModeToggle');
     const welcomeScreen = document.getElementById('welcome-screen');
+    const conversationTitleEl = document.getElementById('conversation-title');
 
     // --- Initialize Settings Manager FIRST ---
     // This ensures settings (especially dark mode) are applied before page renders
@@ -33,11 +34,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadChatHistory();
 
     // --- Initial State ---
-    // If there's no active conversation, show the welcome screen.
+    // If there's no active conversation, show the welcome screen and hide title.
     if (!conversationIdInput.value) {
         welcomeScreen.style.display = 'flex';
+        if (conversationTitleEl) conversationTitleEl.style.display = 'none';
     } else {
         welcomeScreen.style.display = 'none';
+        if (conversationTitleEl) conversationTitleEl.style.display = 'block';
     }
 
     // --- Dark Mode Logic ---
@@ -293,8 +296,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const escapedQuestion = question.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         addMessage('user', userMessageHtml + escapedQuestion);
 
-        // Hide welcome screen on first message
+        // Hide welcome screen on first message and show title
         if (welcomeScreen) welcomeScreen.style.display = 'none';
+        if (conversationTitleEl) conversationTitleEl.style.display = 'block';
 
         // Clear inputs immediately for better UX
         questionInput.value = '';
@@ -378,6 +382,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         welcomeScreen.style.display = 'flex';
         conversationIdInput.value = '';
         highlightActiveConversation(null);
+        
+        // Reset conversation title to default and hide it
+        if (conversationTitleEl) {
+            conversationTitleEl.textContent = 'TutorMind';
+            conversationTitleEl.style.display = 'none';
+        }
     });
 
     // --- Function to load chat history from server ---
@@ -472,6 +482,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
                 highlightActiveConversation(id);
+                
+                // Update the conversation title in the header and show it
+                if (conversationTitleEl && result.conversation.title) {
+                    conversationTitleEl.textContent = result.conversation.title;
+                    conversationTitleEl.style.display = 'block';
+                }
 
             }
         } catch (error) {
@@ -575,17 +591,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- Mobile Sidebar Toggle ---
-    if (menuToggle && sidebar) {
+    // --- Sidebar Toggle (Desktop & Mobile) ---
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    
+    if (sidebar) {
         const overlay = document.getElementById('sidebar-overlay');
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('hidden');
-        });
+        
+        // Restore state from localStorage on load (Desktop only)
+        if (window.innerWidth > 768) {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+            }
+        }
+
+        // Internal Sidebar Toggle (Desktop: Collapse, Mobile: Close)
+        if (menuToggle) {
+            menuToggle.addEventListener('click', () => {
+                if (window.innerWidth > 768) {
+                    // Desktop: Toggle collapse
+                    sidebar.classList.toggle('collapsed');
+                    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+                } else {
+                    // Mobile: Close sidebar
+                    sidebar.classList.remove('open');
+                    overlay.classList.add('hidden');
+                }
+            });
+        }
+
+        // Header Toggle (Mobile Only: Open)
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', () => {
+                sidebar.classList.add('open');
+                overlay.classList.remove('hidden');
+            });
+        }
 
         overlay.addEventListener('click', () => {
             sidebar.classList.remove('open');
             overlay.classList.add('hidden');
+        });
+        
+        // Handle resize to reset states if needed
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('open');
+                overlay.classList.add('hidden');
+                // Restore collapsed state
+                const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+                sidebar.classList.toggle('collapsed', isCollapsed);
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
         });
     }
 

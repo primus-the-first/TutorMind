@@ -10,7 +10,7 @@ require_once '../db_mysql.php';
 // --- CONFIGURATION ---
 // Define the list of fields that are managed by this API.
 $allowed_fields = [
-    'full_name', 'email', 'username', 'learning_level', 'response_style',
+    'first_name', 'last_name', 'email', 'username', 'learning_level', 'response_style',
     'email_notifications', 'study_reminders', 'feature_announcements', 'weekly_summary',
     'data_sharing', 'dark_mode', 'font_size', 'chat_density'
 ];
@@ -52,7 +52,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
     try {
         // Prepare and execute the query to get user settings.
         // We also fetch created_at for display purposes.
-        $stmt = $pdo->prepare("SELECT full_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $settings = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -148,12 +148,15 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields): void 
 
         // Check if any rows were actually updated.
         if ($stmt->rowCount() > 0) {
-            // If the username or full_name was changed, update the session variables.
+            // If the username, first_name, or last_name was changed, update the session variables.
             if (isset($input['username'])) {
                 $_SESSION['username'] = $input['username'];
             }
-            if (isset($input['full_name'])) {
-                $_SESSION['full_name'] = $input['full_name'];
+            if (isset($input['first_name'])) {
+                $_SESSION['first_name'] = $input['first_name'];
+            }
+            if (isset($input['last_name'])) {
+                $_SESSION['last_name'] = $input['last_name'];
             }
             http_response_code(200);
             echo json_encode(['success' => true, 'message' => 'Settings updated successfully.']);

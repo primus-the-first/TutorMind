@@ -3,7 +3,7 @@ require_once 'check_auth.php'; // Secure this page
 require_once 'db_mysql.php';
 
 $user_email = 'email@example.com';
-$displayName = isset($_SESSION['full_name']) && !empty($_SESSION['full_name']) ? $_SESSION['full_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
+$displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
 $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'User';
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
@@ -58,14 +58,24 @@ if ($user_id) {
     <!-- Custom Styles for the new UI Overhaul -->
     <link rel="stylesheet" href="ui-overhaul.css">
     <link rel="stylesheet" href="settings.css">
+    <link rel="stylesheet" href="logo.css">
 </head>
 <body class="flex h-screen">
 
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar">
+        <div class="sidebar-top-row" style="display: flex; align-items: center; padding: 1rem 0.75rem; gap: 0.5rem;">
+            <button id="menu-toggle" class="menu-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <a href="index.html" class="app-logo" style="margin-bottom: 0; padding: 0;">
+                <span class="app-logo-text">🧠 TutorMind</span>
+            </a>
+        </div>
+        
         <div class="sidebar-header">
             <button id="newChatBtn" class="new-chat-btn">
-                <i class="fas fa-plus"></i> New Chat
+                <i class="fas fa-pen"></i> <span>New chat</span>
             </button>
         </div>
         
@@ -122,7 +132,7 @@ if ($user_id) {
     <!-- Main Chat Area -->
     <div class="main-chat-wrapper">
         <header class="main-chat-header">
-            <button id="menu-toggle" class="menu-toggle">
+            <button id="mobile-menu-toggle" class="menu-toggle mobile-only">
                 <i class="fas fa-bars"></i>
             </button>
             <a href="index.html" style="text-decoration: none; color: inherit;">

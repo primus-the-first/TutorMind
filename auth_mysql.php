@@ -20,12 +20,13 @@ switch ($request_method) {
         $action = $_POST['action'] ?? '';
         if ($action === 'register') {
             // --- Registration Logic ---
-            $fullName = trim($_POST['fullName'] ?? ''); // Added fullName
+            $firstName = trim($_POST['firstName'] ?? '');
+            $lastName = trim($_POST['lastName'] ?? '');
             $username = trim($_POST['username'] ?? '');
             $email = $_POST['email'] ?? '';
             $password = $_POST['password'] ?? '';
 
-            if (empty($username) || empty($email) || empty($password)) {
+            if (empty($firstName) || empty($lastName) || empty($username) || empty($email) || empty($password)) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'All fields are required.']);
                 exit;
@@ -52,14 +53,15 @@ switch ($request_method) {
                 }
 
                 $password_hash = password_hash($password, PASSWORD_ARGON2ID);
-                $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, full_name) VALUES (?, ?, ?, ?)");
-                if ($stmt->execute([$username, $email, $password_hash, $fullName])) {
+                $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, first_name, last_name) VALUES (?, ?, ?, ?, ?)");
+                if ($stmt->execute([$username, $email, $password_hash, $firstName, $lastName])) {
                     // Automatically log the user in
                     $user_id = $pdo->lastInsertId();
                     session_regenerate_id(true);
                     $_SESSION['user_id'] = $user_id;
                     $_SESSION['username'] = $username;
-                    $_SESSION['full_name'] = $fullName;
+                    $_SESSION['first_name'] = $firstName;
+                    $_SESSION['last_name'] = $lastName;
 
                     echo json_encode(['success' => true, 'redirect' => 'onboarding.php']);
                 } else {
@@ -84,7 +86,7 @@ switch ($request_method) {
 
             try {
                 $pdo = getDbConnection();
-                $stmt = $pdo->prepare("SELECT id, username, password_hash, full_name, onboarding_completed FROM users WHERE email = ? OR username = ?");
+                $stmt = $pdo->prepare("SELECT id, username, password_hash, first_name, last_name, onboarding_completed FROM users WHERE email = ? OR username = ?");
                 $stmt->execute([$identifier, $identifier]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -92,7 +94,8 @@ switch ($request_method) {
                     session_regenerate_id(true);
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
-                    $_SESSION['full_name'] = $user['full_name']; // Store full_name in session
+                    $_SESSION['first_name'] = $user['first_name'];
+                    $_SESSION['last_name'] = $user['last_name'];
                     // Redirect based on onboarding completion status
                     $redirect = ($user['onboarding_completed']) ? 'tutor_mysql.php' : 'onboarding.php';
                     echo json_encode(['success' => true, 'redirect' => $redirect]);
@@ -100,10 +103,18 @@ switch ($request_method) {
                     http_response_code(401);
                     echo json_encode(['success' => false, 'error' => 'Invalid email or password.']);
                 }
+            } catch (PDOException $e) {
+                error_log("Login Database Error: " . $e->getMessage());
+                error_log("Login Error Code: " . $e->getCode());
+                error_log("Login Error Info: " . print_r($e->errorInfo, true));
+                http_response_code(500);
+                // In production, you might want to temporarily show this for debugging:
+                echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
             } catch (Exception $e) {
                 error_log("Login Error: " . $e->getMessage());
+                error_log("Login Error Trace: " . $e->getTraceAsString());
                 http_response_code(500);
-                echo json_encode(['success' => false, 'error' => 'A server error occurred during login.']);
+                echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
             }
 
         } elseif ($action === 'change_password') {

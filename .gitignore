@@ -26,4 +26,7 @@ A.html
 index.php
 # Test files
 test_*.php
-
+NAME_ATOMIZATION_GUIDE.md
+CODE_CHANGES_GUIDE.md
+*.sql
+*.md

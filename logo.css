@@ -1,0 +1,92 @@
+/* Logo Styles - Global */
+.app-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform 0.3s ease, filter 0.3s ease;
+    padding: 8px 12px;
+    border-radius: 12px;
+}
+
+.app-logo:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.app-logo img {
+    height: 32px;
+    width: auto;
+    transition: transform 0.3s ease;
+}
+
+.app-logo:hover img {
+    transform: scale(1.05);
+}
+
+.app-logo-text {
+    font-size: 35px;
+    font-weight: 700;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    /* Default: Darker gradient for light backgrounds (Homepage, Login) */
+    background: linear-gradient(135deg, #5E2EBF 0%, #7B3FF2 50%, #9D6BF5 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+}
+
+/* Dark mode adjustments - Global */
+body.dark-mode .app-logo-text,
+.dark-mode .app-logo-text {
+    background: linear-gradient(135deg, #C4B5FD 0%, #9D6BF5 50%, #7B3FF2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Logo in sidebar (for chat page) - Always needs light text due to dark sidebar bg */
+.sidebar .app-logo {
+    padding: 16px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.sidebar .app-logo-text {
+    font-size: 24px; /* Slightly smaller for sidebar */
+    /* Light gradient for dark sidebar background */
+    background: linear-gradient(135deg, #FFFFFF 0%, #E9D5FF 50%, #C4B5FD 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Logo in top nav (for homepage) */
+.top-nav .app-logo {
+    position: absolute;
+    left: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Logo in auth pages */
+.auth-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 32px;
+}
+
+.auth-logo .app-logo {
+    padding: 12px 20px;
+}
+
+.auth-logo .app-logo img {
+    height: 36px;
+}
+
+.auth-logo .app-logo-text {
+    font-size: 24px;
+}

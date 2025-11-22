@@ -66,19 +66,73 @@ body {
 
 /* --- Sidebar --- */
 .sidebar {
-  width: 250px;
+  width: 260px;
   background: linear-gradient(135deg, 
-    #7b3ff2 0%, 
-    #9d6bf5 35%, 
-    #ff8a5c 70%, 
-    #ffb347 100%
+    rgba(232, 224, 245, 0.95) 0%,
+    rgba(236, 229, 247, 0.95) 25%,
+    rgba(245, 232, 227, 0.95) 50%,
+    rgba(252, 238, 229, 0.95) 75%,
+    rgba(255, 243, 232, 0.95) 100%
   );
-  color: var(--text-on-primary);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
+  border-right: 1px solid rgba(200, 180, 200, 0.3);
+  box-shadow: 2px 0 15px rgba(123, 63, 242, 0.08);
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  transition: transform 0.3s ease-in-out;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 200;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+}
+
+.sidebar.collapsed .app-logo-text,
+.sidebar.collapsed .new-chat-btn span, /* Assuming text is wrapped or I'll wrap it */
+.sidebar.collapsed .user-details,
+.sidebar.collapsed #user-account-chevron,
+.sidebar.collapsed .chat-history {
+  opacity: 0;
+  pointer-events: none;
+  display: none;
+}
+
+.sidebar.collapsed .new-chat-btn {
+  padding: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  margin: 0 auto;
+  justify-content: center;
+}
+
+.sidebar.collapsed .user-profile {
+  padding: 1rem 0.5rem;
+  justify-content: center;
+}
+
+.sidebar.collapsed .user-info-button {
+  padding: 0;
+  justify-content: center;
+}
+
+.sidebar.collapsed .user-avatar {
+  margin-right: 0;
+  width: 40px;
+  height: 40px;
+}
+
+.sidebar.collapsed .sidebar-header {
+  padding: 1.25rem 0.5rem;
+  display: flex;
+  justify-content: center;
 }
 
 .sidebar-header {
@@ -86,25 +140,32 @@ body {
 }
 
 .new-chat-btn {
-  background-color: var(--secondary);
-  color: var(--text-on-primary);
+  background-color: rgba(123, 63, 242, 0.08);
+  color: var(--text-primary);
   border: none;
-  border-radius: 8px;
-  padding: 12px;
+  border-bottom: 2px solid rgba(123, 63, 242, 0.3);
+  border-radius: 8px 8px 0 0;
+  padding: 10px 12px;
   width: 100%;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 400;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  justify-content: flex-start;
+  gap: 10px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.new-chat-btn i {
+  font-size: 0.9rem;
+  color: var(--primary);
 }
 
 .new-chat-btn:hover {
-  background-color: var(--secondary-light);
-  transform: scale(1.03);
+  background-color: rgba(123, 63, 242, 0.15);
+  color: var(--primary);
+  border-bottom-color: rgba(123, 63, 242, 0.5);
 }
 
 /* Chat History */
@@ -125,7 +186,7 @@ body {
 .history-item a {
   flex-grow: 1;
   padding: 10px 12px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-secondary);
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
@@ -135,19 +196,20 @@ body {
 }
 
 .history-item:hover a {
-  color: white;
+  color: var(--primary);
+  background-color: rgba(123, 63, 242, 0.08);
 }
 
 .history-item a.active {
-  background-color: rgba(123, 63, 242, 0.15); /* 15% opacity of #7B3FF2 */
-  color: var(--text-on-primary);
+  background-color: rgba(123, 63, 242, 0.15);
+  color: var(--primary);
   font-weight: 600;
 }
 
 .history-item button {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 8px;
   border-radius: 50%;
@@ -161,8 +223,8 @@ body {
 }
 
 .history-item button:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: var(--text-on-primary);
+  background-color: rgba(123, 63, 242, 0.15);
+  color: var(--primary);
 }
 
 /* User Profile */
@@ -170,6 +232,7 @@ body {
   padding: 1rem 1.25rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
+  margin-top: auto; /* Push to bottom */
 }
 
 .user-info-button {
@@ -345,20 +408,40 @@ body {
   align-items: center;
   padding: 0 1.5rem;
   height: 65px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
   background: transparent;
 }
 
 .menu-toggle {
-  display: none; /* Hidden on desktop */
+  display: block;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 1.25rem;
   padding: 8px;
-  margin-left: -8px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.menu-toggle:hover {
+  color: var(--primary);
+  background-color: rgba(123, 63, 242, 0.1);
+}
+
+.sidebar.collapsed .app-logo {
+  display: none !important; /* Hide logo completely when collapsed */
+}
+
+.sidebar.collapsed .sidebar-top-row {
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+.sidebar.collapsed .menu-toggle {
+  margin: 0;
 }
 
 .conversation-title {
@@ -643,7 +726,6 @@ body {
 .input-bar-area {
   padding: 1rem 1.5rem;
   background: transparent;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
 }
 
@@ -779,6 +861,20 @@ label.icon-btn {
 }
 
 /* --- Utility & Other --- */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block !important;
+  }
+  
+  /* Hide the sidebar's internal toggle on mobile if we want, 
+     but keeping it as a 'close' button is better. 
+     However, we might want to style it differently or hide it if it conflicts.
+     For now, let's keep it. */
+}
 .copy-toast {
   position: fixed;
   left: 50%;
@@ -868,15 +964,12 @@ body.dark-mode {
   );
 }
 
-/* Keep header and input bar transparent in dark mode too */
 body.dark-mode .main-chat-header {
   background: transparent;
-  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
 body.dark-mode .input-bar-area {
   background: transparent;
-  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 body.dark-mode .text-input {
@@ -956,24 +1049,30 @@ body.dark-mode #attachment-preview-area .attachment-display {
   color: #e0e7ff;
 }
 
-/* Dark mode sidebar - deeper gradient */
+/* Dark mode sidebar - deeper gradient with glassmorphism */
 body.dark-mode .sidebar {
   background: linear-gradient(160deg, 
-    #1a1625 0%,
-    #221a30 50%, 
-    #2a2040 100%
+    rgba(26, 22, 37, 0.9) 0%,
+    rgba(34, 26, 48, 0.9) 50%, 
+    rgba(42, 32, 64, 0.9) 100%
   );
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
   color: #e0e7ff;
 }
 
 body.dark-mode .new-chat-btn {
-  background-color: var(--primary-light);
-  color: white;
+  background-color: rgba(157, 107, 245, 0.12);
+  color: rgba(224, 231, 255, 0.95);
+  border-bottom-color: rgba(224, 231, 255, 0.3);
 }
 
 body.dark-mode .new-chat-btn:hover {
-  background-color: #b794f6;
+  background-color: rgba(157, 107, 245, 0.2);
+  color: #e0e7ff;
+  border-bottom-color: rgba(224, 231, 255, 0.5);
 }
 
 body.dark-mode .history-item a {

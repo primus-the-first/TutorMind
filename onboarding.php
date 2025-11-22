@@ -2,7 +2,7 @@
 require_once 'check_auth.php'; // Secure this page
 require_once 'db_mysql.php';
 
-$displayName = isset($_SESSION['full_name']) && !empty($_SESSION['full_name']) ? $_SESSION['full_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'there');
+$displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'there');
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
 // Check if onboarding is already completed
@@ -31,6 +31,7 @@ if ($user_id) {
     <title>Welcome to TutorMind - Let's Personalize Your Experience</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="logo.css">
     <style>
         :root {
             --primary: #7B3FF2;
@@ -94,6 +95,18 @@ if ($user_id) {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 50%;
             animation: float 6s ease-in-out infinite;
+        }
+        
+        .header .app-logo {
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header .app-logo .app-logo-text {
+            color: white;
+            background: none;
+            -webkit-text-fill-color: white;
         }
 
         @keyframes float {
@@ -294,6 +307,9 @@ if ($user_id) {
 <body>
     <div class="onboarding-container">
         <div class="header">
+            <a href="index.html" class="app-logo" style="display: inline-flex;">
+                <span class="app-logo-text">🧠 TutorMind</span>
+            </a>
             <h1>Welcome, <?= htmlspecialchars($displayName) ?>! 👋</h1>
             <p>Let's personalize your learning experience</p>
             <div class="progress-bar-container">
