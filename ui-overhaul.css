@@ -30,7 +30,13 @@ TutorMind UI Overhaul - 2025 Refresh
 body {
   font-family: "Outfit", "Source Sans Pro", -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
-  background-color: var(--bg-main);
+  background: linear-gradient(135deg, 
+    #e8e0f5 0%,
+    #ece5f7 25%,
+    #f5e8e3 50%,
+    #fceee5 75%,
+    #fff3e8 100%
+  );
   color: var(--text-primary);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
@@ -61,7 +67,12 @@ body {
 /* --- Sidebar --- */
 .sidebar {
   width: 250px;
-  background: linear-gradient(180deg, #7b3ff2 0%, #5e2ebf 100%);
+  background: linear-gradient(135deg, 
+    #7b3ff2 0%, 
+    #9d6bf5 35%, 
+    #ff8a5c 70%, 
+    #ffb347 100%
+  );
   color: var(--text-on-primary);
   display: flex;
   flex-direction: column;
@@ -326,7 +337,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: var(--bg-main);
+  background: transparent;
 }
 
 .main-chat-header {
@@ -334,9 +345,9 @@ body {
   align-items: center;
   padding: 0 1.5rem;
   height: 65px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
-  background-color: var(--bg-card);
+  background: transparent;
 }
 
 .menu-toggle {
@@ -631,8 +642,8 @@ body {
 /* --- Input Bar --- */
 .input-bar-area {
   padding: 1rem 1.5rem;
-  background-color: var(--bg-card);
-  border-top: 1px solid var(--border);
+  background: transparent;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
 }
 
@@ -645,33 +656,42 @@ body {
 }
 
 .icon-btn {
-  background: none;
-  border: none;
+  background: white;
+  border: 2px solid rgba(123, 63, 242, 0.15);
   cursor: pointer;
   color: var(--text-secondary);
   padding: 10px;
   border-radius: 50%;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
   font-size: 1.1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(123, 63, 242, 0.1);
 }
 .icon-btn:hover {
   color: var(--primary);
+  background: #faf9fc;
+  box-shadow: 0 4px 12px rgba(123, 63, 242, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
 }
+
+/* File attachment button - square style */
+label.icon-btn {
+  border-radius: 8px;
+}
+
 
 .text-input {
   flex-grow: 1;
-  border: none;
-  background: none;
+  background: white;
   font-size: 0.95rem;
   padding: 12px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 2px solid rgba(123, 63, 242, 0.2);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(123, 63, 242, 0.1);
 }
 .text-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(123, 63, 242, 0.1);
+  box-shadow: 0 4px 12px rgba(123, 63, 242, 0.2), 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .dropdown-btn {
@@ -837,34 +857,51 @@ body.dark-mode {
   --text-secondary: #9ca3af;
   --border: #333333;
   --shadow-glow: 0 0 20px rgba(123, 63, 242, 0.4);
+  
+  /* Dark mode gradient - deep purple to navy */
+  background: linear-gradient(135deg, 
+    #1a1625 0%,
+    #1f1a2e 25%,
+    #241e38 50%,
+    #2a2440 75%,
+    #2f2847 100%
+  );
 }
 
+/* Keep header and input bar transparent in dark mode too */
 body.dark-mode .main-chat-header {
-  background-color: var(--bg-card);
-  border-bottom-color: var(--border);
+  background: transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
 body.dark-mode .input-bar-area {
-  background-color: var(--bg-card);
-  border-top-color: var(--border);
+  background: transparent;
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 body.dark-mode .text-input {
-  background-color: #2a2a2a;
-  border-color: #444;
+  background-color: rgba(30, 30, 30, 0.8);
+  border: 2px solid rgba(157, 107, 245, 0.3);
   color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(157, 107, 245, 0.2);
 }
 body.dark-mode .text-input:focus {
   background-color: #1e1e1e;
   border-color: var(--primary-light);
-  box-shadow: 0 0 0 3px rgba(157, 107, 245, 0.2);
+  box-shadow: 0 4px 12px rgba(157, 107, 245, 0.3), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 body.dark-mode .icon-btn {
+  background-color: rgba(30, 30, 30, 0.8);
+  border: 2px solid rgba(157, 107, 245, 0.3);
   color: var(--text-secondary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(157, 107, 245, 0.2);
 }
 body.dark-mode .icon-btn:hover {
+  background-color: rgba(45, 45, 45, 0.9);
+  border-color: var(--primary-light);
   color: var(--primary-light);
+  box-shadow: 0 4px 12px rgba(157, 107, 245, 0.3), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
 body.dark-mode .dropdown-btn {
@@ -917,6 +954,49 @@ body.dark-mode .message-bubble pre .copy-code-btn:hover {
 body.dark-mode #attachment-preview-area .attachment-display {
   background-color: #3730a3;
   color: #e0e7ff;
+}
+
+/* Dark mode sidebar - deeper gradient */
+body.dark-mode .sidebar {
+  background: linear-gradient(160deg, 
+    #1a1625 0%,
+    #221a30 50%, 
+    #2a2040 100%
+  );
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e0e7ff;
+}
+
+body.dark-mode .new-chat-btn {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+body.dark-mode .new-chat-btn:hover {
+  background-color: #b794f6;
+}
+
+body.dark-mode .history-item a {
+  color: rgba(224, 231, 255, 0.7);
+}
+
+body.dark-mode .history-item:hover a {
+  color: #e0e7ff;
+  background-color: rgba(157, 107, 245, 0.15);
+}
+
+body.dark-mode .history-item a.active {
+  background-color: rgba(157, 107, 245, 0.25);
+  color: var(--primary-light);
+}
+
+body.dark-mode .history-item button {
+  color: rgba(224, 231, 255, 0.5);
+}
+
+body.dark-mode .history-item button:hover {
+  background-color: rgba(157, 107, 245, 0.2);
+  color: var(--primary-light);
 }
 
 /* --- Compact Mode --- */

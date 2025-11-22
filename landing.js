@@ -26,20 +26,45 @@ for (let i = 0; i < particleCount; i++) {
 
 particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
+// Function to get particle color based on theme
+function getParticleColor() {
+    const isLightMode = document.body.classList.contains('light-mode');
+    return isLightMode ? 0x9D6BF5 : 0xC4B5FD; // Lighter purple for light, Pale lavender for dark
+}
+
+// Function to update particle material based on theme
+function updateParticleMaterial() {
+    const isLightMode = document.body.classList.contains('light-mode');
+    
+    if (isLightMode) {
+        // Subtle in light mode
+        particleMaterial.opacity = 0.4;
+        particleMaterial.blending = THREE.AdditiveBlending;
+        particleMaterial.size = 0.15;
+    } else {
+        // Glowy in dark mode
+        particleMaterial.opacity = 0.8;
+        particleMaterial.blending = THREE.AdditiveBlending;
+        particleMaterial.size = 0.25;
+    }
+    particleMaterial.needsUpdate = true;
+}
+
 const particleMaterial = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 0.2,
+    color: getParticleColor(),
+    size: 0.15,
     blending: THREE.AdditiveBlending,
     transparent: true,
-    opacity: 0.8
+    opacity: 0.4
 });
+
+updateParticleMaterial();
 
 const particleSystem = new THREE.Points(particles, particleMaterial);
 scene.add(particleSystem);
 
 const linesGeometry = new THREE.BufferGeometry();
 const linePositions = [];
-const lineColors = [];
 
 const maxConnections = 2;
 const connectionDistance = 5;
@@ -57,23 +82,48 @@ for (let i = 0; i < particleCount; i++) {
         if (distance < connectionDistance && connections < maxConnections) {
             linePositions.push(positions[i3], positions[i3 + 1], positions[i3 + 2]);
             linePositions.push(positions[j3], positions[j3 + 1], positions[j3 + 2]);
-            
-            const alpha = 1.0 - (distance / connectionDistance);
-            lineColors.push(alpha, alpha, alpha, alpha, alpha, alpha);
             connections++;
         }
     }
 }
 
 linesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
-linesGeometry.setAttribute('color', new THREE.Float32BufferAttribute(lineColors, 3));
+
+// Function to update line colors based on theme
+function updateLineColors() {
+    const isLightMode = document.body.classList.contains('light-mode');
+    const lineColors = [];
+    
+    for (let i = 0; i < linePositions.length / 3; i++) {
+        if (isLightMode) {
+            // Very deep purple/indigo for bold visibility
+            lineColors.push(0.2, 0.05, 0.4); 
+        } else {
+            // Pale lavender for dark mode - shiny but thematic
+            lineColors.push(0.75, 0.7, 1.0); 
+        }
+    }
+    
+    linesGeometry.setAttribute('color', new THREE.Float32BufferAttribute(lineColors, 3));
+}
+
+updateLineColors();
+
+// Function to update line material based on theme
+function updateLineMaterial() {
+    const isLightMode = document.body.classList.contains('light-mode');
+    linesMaterial.opacity = isLightMode ? 0.6 : 0.5; // Bolder in light mode
+}
 
 const linesMaterial = new THREE.LineBasicMaterial({
     vertexColors: true,
     blending: THREE.AdditiveBlending,
     transparent: true,
-    opacity: 0.5
+    opacity: 0.6,
+    linewidth: 2 // Note: Only works in some browsers/contexts
 });
+
+updateLineMaterial();
 
 const lines = new THREE.LineSegments(linesGeometry, linesMaterial);
 scene.add(lines);
@@ -153,4 +203,23 @@ const themeToggle = document.getElementById('theme-toggle');
 themeToggle.addEventListener('click', (e) => {
     e.preventDefault();
     document.body.classList.toggle('light-mode');
+    
+    // Update particle color and material based on new theme
+    particleMaterial.color.setHex(getParticleColor());
+    updateParticleMaterial();
+    
+    // Update line colors and material based on new theme
+    updateLineColors();
+    updateLineMaterial();
+    lines.geometry.attributes.color.needsUpdate = true;
+    
+    // Update icon
+    const icon = themeToggle.querySelector('i');
+    if (document.body.classList.contains('light-mode')) {
+        icon.classList.remove('fa-moon');
+        icon.classList.add('fa-sun');
+    } else {
+        icon.classList.remove('fa-sun');
+        icon.classList.add('fa-moon');
+    }
 });
