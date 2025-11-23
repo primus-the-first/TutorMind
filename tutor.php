@@ -1,4 +1,9 @@
 <?php
+// Prevent caching - especially important for mobile browsers
+header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 require_once 'check_auth.php'; // Secure this page
 require_once 'db.php';
 

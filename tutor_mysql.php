@@ -1,4 +1,9 @@
 <?php
+// Prevent caching - especially important for mobile browsers
+header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+header("Expires: 0");
+
 require_once 'check_auth.php'; // Secure this page
 require_once 'db_mysql.php';
 
@@ -26,6 +31,9 @@ if ($user_id) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>TutorMind Chat | TutorMind</title>
     <!-- Fonts and Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -56,9 +64,9 @@ if ($user_id) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <!-- Custom Styles for the new UI Overhaul -->
-    <link rel="stylesheet" href="ui-overhaul.css">
-    <link rel="stylesheet" href="settings.css">
-    <link rel="stylesheet" href="logo.css">
+    <link rel="stylesheet" href="ui-overhaul.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="settings.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="logo.css?v=<?= time() ?>">
 </head>
 <body class="flex h-screen">
 
@@ -200,7 +208,7 @@ if ($user_id) {
     <div id="copy-toast" class="copy-toast" style="display:none;">Copied to clipboard</div>
 
     <!-- Main application script -->
-    <script src="settings.js"></script>
-    <script src="tutor_mysql.js?v=3"></script>
+    <script src="settings.js?v=<?= time() ?>"></script>
+    <script src="tutor_mysql.js?v=<?= time() ?>"></script>
 </body>
 </html>
