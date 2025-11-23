@@ -1,4 +1,12 @@
 <?php
+// Force HTTPS redirect
+if (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on') {
+    if (!headers_sent()) {
+        header("Location: https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
+        exit();
+    }
+}
+
 // Prevent caching - especially important for mobile browsers
 header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
 header("Pragma: no-cache");
