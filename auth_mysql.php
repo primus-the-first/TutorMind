@@ -103,18 +103,10 @@ switch ($request_method) {
                     http_response_code(401);
                     echo json_encode(['success' => false, 'error' => 'Invalid email or password.']);
                 }
-            } catch (PDOException $e) {
-                error_log("Login Database Error: " . $e->getMessage());
-                error_log("Login Error Code: " . $e->getCode());
-                error_log("Login Error Info: " . print_r($e->errorInfo, true));
-                http_response_code(500);
-                // In production, you might want to temporarily show this for debugging:
-                echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
             } catch (Exception $e) {
                 error_log("Login Error: " . $e->getMessage());
-                error_log("Login Error Trace: " . $e->getTraceAsString());
                 http_response_code(500);
-                echo json_encode(['success' => false, 'error' => 'Server error: ' . $e->getMessage()]);
+                echo json_encode(['success' => false, 'error' => 'A server error occurred during login.']);
             }
 
         } elseif ($action === 'change_password') {

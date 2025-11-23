@@ -32,10 +32,10 @@ body {
     "Segoe UI", Roboto, sans-serif;
   background: linear-gradient(135deg, 
     #e8e0f5 0%,
-    #ece5f7 25%,
-    #f5e8e3 50%,
-    #fceee5 75%,
-    #fff3e8 100%
+    #e8d5e0 25%,
+    #d8b5a8 50%,
+    #c88060 75%,
+    #8B4513 100%
   );
   color: var(--text-primary);
   overflow: hidden;
@@ -67,17 +67,11 @@ body {
 /* --- Sidebar --- */
 .sidebar {
   width: 260px;
-  background: linear-gradient(135deg, 
-    rgba(232, 224, 245, 0.95) 0%,
-    rgba(236, 229, 247, 0.95) 25%,
-    rgba(245, 232, 227, 0.95) 50%,
-    rgba(252, 238, 229, 0.95) 75%,
-    rgba(255, 243, 232, 0.95) 100%
-  );
-  backdrop-filter: blur(15px) saturate(180%);
-  -webkit-backdrop-filter: blur(15px) saturate(180%);
-  border-right: 1px solid rgba(200, 180, 200, 0.3);
-  box-shadow: 2px 0 15px rgba(123, 63, 242, 0.08);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 2px 0 15px rgba(0, 0, 0, 0.08);
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
