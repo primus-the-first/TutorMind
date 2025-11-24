@@ -548,7 +548,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             "Welcome back",
             "Good to see you",
             "Greetings",
-            "Hey"
+            "Hey",
+            "Ready when you are",
+            "Ready to lock in",
         ];
         
         const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
