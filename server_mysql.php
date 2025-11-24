@@ -189,6 +189,93 @@ if ($action) {
             echo json_encode(['success' => true]);
             break;
 
+        case 'generate_suggestions':
+            try {
+                $pdo = getDbConnection();
+                
+                // Fetch user's field of study
+                $stmt = $pdo->prepare("SELECT field_of_study FROM users WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                $field = $user['field_of_study'] ?? 'General Knowledge';
+                
+                // Construct prompt for Gemini
+                $prompt = "Generate 4 short, engaging, single-sentence learning tasks for a student studying '{$field}'. 
+                Return ONLY a valid JSON object with keys: 'explain', 'write', 'build', 'research'.
+                
+                Example format:
+                {
+                    \"explain\": \"Explain the concept of recursion.\",
+                    \"write\": \"Write a function to sort a list.\",
+                    \"build\": \"Build a simple calculator app.\",
+                    \"research\": \"Research the history of AI.\"
+                }
+                
+                Make the tasks specific to '{$field}' but simple enough for a chat interaction.";
+
+                // Call Gemini API (reusing the function defined later in this file, so we need to move it or duplicate logic)
+                // Since functions are global in PHP, we can call callGeminiAPI if it's defined.
+                // However, callGeminiAPI is defined at the bottom. We should move it up or just use the logic here.
+                // For safety, let's just implement the call here directly to avoid scope issues if the function isn't hoisted yet (though PHP functions are).
+                
+                // Load API Key
+                $config = null;
+                $configFiles = ['config-sql.ini', 'config.ini'];
+                foreach ($configFiles as $configFile) {
+                    if (file_exists($configFile)) {
+                        $config = parse_ini_file($configFile);
+                        if ($config !== false) break;
+                    }
+                }
+                if ($config === false || !isset($config['GEMINI_API_KEY'])) {
+                    throw new Exception('API key missing.');
+                }
+                $apiKey = $config['GEMINI_API_KEY'];
+                
+                $payload = json_encode([
+                    "contents" => [
+                        ["parts" => [["text" => $prompt]]]
+                    ],
+                    "generationConfig" => ["responseMimeType" => "application/json"]
+                ]);
+                
+                $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey;
+                
+                $ch = curl_init($apiUrl);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST => true,
+                    CURLOPT_POSTFIELDS => $payload,
+                    CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                    CURLOPT_TIMEOUT => 10
+                ]);
+                
+                $response = curl_exec($ch);
+                $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                
+                if ($http_status !== 200) {
+                    throw new Exception("Gemini API error: $http_status");
+                }
+                
+                $data = json_decode($response, true);
+                $jsonText = $data['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
+                $suggestions = json_decode($jsonText, true);
+                
+                echo json_encode(['success' => true, 'suggestions' => $suggestions]);
+                
+            } catch (Exception $e) {
+                error_log("Suggestion generation error: " . $e->getMessage());
+                // Fallback suggestions
+                echo json_encode(['success' => false, 'suggestions' => [
+                    'explain' => 'Explain a complex topic simply.',
+                    'write' => 'Write a creative story.',
+                    'build' => 'Build a study plan.',
+                    'research' => 'Research a new technology.'
+                ]]);
+            }
+            break;
+
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid action.']);

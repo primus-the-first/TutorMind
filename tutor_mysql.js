@@ -63,29 +63,160 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     // --- Function to add a message to the chat window ---
-    function addMessage(sender, messageHtml) {
+    function addMessage(sender, messageHtml, animate = false) {
         const messageWrapper = document.createElement('div');
         messageWrapper.classList.add('chat-message', `${sender}-message`);
 
         const messageBubble = document.createElement('div');
         messageBubble.classList.add('message-bubble');
-        messageBubble.innerHTML = messageHtml;
-
+        
         messageWrapper.appendChild(messageBubble);
         chatMessages.appendChild(messageWrapper);
 
-        // Add copy buttons to code blocks
-        addCopyButtonsToCodeBlocks(messageBubble);
+        if (animate && sender === 'ai') {
+            // Use typewriter effect for AI messages
+            typeWriter(messageBubble, messageHtml, 10, () => {
+                // Callback after typing finishes
+                finalizeMessage(messageBubble);
+            });
+        } else {
+            // Instant render for user messages or history
+            messageBubble.innerHTML = messageHtml;
+            finalizeMessage(messageBubble);
+        }
 
         // Scroll to the bottom
         chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
-        // If MathJax is available, typeset the new message
+    // --- Helper to finalize message (highlighting, mathjax, etc) ---
+    function finalizeMessage(messageBubble) {
+        // Add copy buttons to code blocks and trigger syntax highlighting
+        addCopyButtonsToCodeBlocks(messageBubble);
+        
+        // Scroll to the bottom one last time
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // Force MathJax to re-render the new content
         if (window.MathJax) {
-            MathJax.typesetPromise([document.getElementById('chat-container')]).catch((err) => {
-                console.error('MathJax typeset failed:', err);
-            });
+            // MathJax v3
+            if (MathJax.typesetPromise) {
+                MathJax.typesetPromise([messageBubble]).then(() => {
+                    // Scroll again after math rendering might have changed height
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }).catch((err) => {
+                    console.error('MathJax typeset failed:', err);
+                });
+            } 
+            // MathJax v2 fallback
+            else if (MathJax.Hub && MathJax.Hub.Queue) {
+                MathJax.Hub.Queue(["Typeset", MathJax.Hub, messageBubble]);
+            }
         }
+    }
+    
+    // --- Event Delegation for Chat Buttons ---
+    // This replaces attachMessageEventListeners and works for all current and future buttons
+    chatMessages.addEventListener('click', (e) => {
+        const readAloudBtn = e.target.closest('.read-aloud-btn');
+        if (readAloudBtn) {
+            handleReadAloud(readAloudBtn);
+            return;
+        }
+
+        const copyBtn = e.target.closest('.copy-btn');
+        if (copyBtn) {
+            handleCopyClick(copyBtn);
+            return;
+        }
+    });
+
+    // --- Typewriter Effect Function (DOM-based) ---
+    function typeWriter(element, html, speed, callback) {
+        // 1. Parse the HTML into a virtual DOM
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        
+        const queue = [];
+        
+        // 2. Traverse and build an action queue
+        function traverse(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent;
+                for (let char of text) {
+                    queue.push({ type: 'text', content: char });
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const tagName = node.tagName.toLowerCase();
+                const attributes = {};
+                for (let attr of node.attributes) {
+                    attributes[attr.name] = attr.value;
+                }
+                queue.push({ type: 'open', tagName, attributes });
+                
+                for (let child of node.childNodes) {
+                    traverse(child);
+                }
+                
+                queue.push({ type: 'close' });
+            }
+        }
+        
+        for (let child of tempDiv.childNodes) {
+            traverse(child);
+        }
+        
+        // 3. Process the queue to animate
+        let currentParent = element;
+        const parentStack = [element];
+        
+        function processQueue() {
+            const chunkSize = 4; // Characters per tick
+            let processed = 0;
+            
+            while (queue.length > 0) {
+                const item = queue[0]; // Peek
+                
+                if (item.type === 'open') {
+                    queue.shift();
+                    const el = document.createElement(item.tagName);
+                    for (let [key, val] of Object.entries(item.attributes)) {
+                        el.setAttribute(key, val);
+                    }
+                    currentParent.appendChild(el);
+                    currentParent = el;
+                    parentStack.push(el);
+                    // Opening tags are instant, don't count as processed chars
+                } else if (item.type === 'close') {
+                    queue.shift();
+                    parentStack.pop();
+                    currentParent = parentStack[parentStack.length - 1];
+                    // Closing tags are instant
+                } else if (item.type === 'text') {
+                    if (processed >= chunkSize) break; // Stop if chunk full
+                    queue.shift();
+                    
+                    if (currentParent.lastChild && currentParent.lastChild.nodeType === Node.TEXT_NODE) {
+                        currentParent.lastChild.nodeValue += item.content;
+                    } else {
+                        currentParent.appendChild(document.createTextNode(item.content));
+                    }
+                    processed++;
+                }
+            }
+            
+            // Scroll to bottom
+            const chatContainer = document.getElementById('chat-container');
+            if(chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            if (queue.length > 0) {
+                setTimeout(processQueue, speed);
+            } else {
+                if (callback) callback();
+            }
+        }
+        
+        processQueue();
     }
 
     // --- Function to add copy buttons to code blocks ---
@@ -129,8 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Text-to-Speech Functionality ---
-    function handleReadAloud(e) {
-        const button = e.currentTarget;
+    function handleReadAloud(button) {
         const messageBubble = button.closest('.message-bubble');
         // Clone the node to manipulate it without affecting the display
         const contentClone = messageBubble.cloneNode(true);
@@ -139,36 +269,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (footerClone) footerClone.remove();
         const textToRead = contentClone.textContent.trim();
 
-        if (speechSynthesis.speaking && button.dataset.speaking === 'true') {
-            speechSynthesis.cancel();
-            button.dataset.speaking = 'false';
-            button.innerHTML = '<i class="fas fa-volume-up"></i>';
-        } else {
-            // Cancel any previous speech
-            speechSynthesis.cancel();
-
-            // Reset all other buttons
-            document.querySelectorAll('.read-aloud-btn[data-speaking="true"]').forEach(btn => {
-                btn.dataset.speaking = 'false';
-                btn.innerHTML = '<i class="fas fa-volume-up"></i>';
-            });
-
-            const utterance = new SpeechSynthesisUtterance(textToRead);
-            utterance.onstart = () => {
-                button.dataset.speaking = 'true';
-                button.innerHTML = '<i class="fas fa-stop-circle"></i>';
-            };
-            utterance.onend = () => {
+        if ('speechSynthesis' in window) {
+            if (button.dataset.speaking === 'true') {
+                speechSynthesis.cancel();
                 button.dataset.speaking = 'false';
                 button.innerHTML = '<i class="fas fa-volume-up"></i>';
-            };
-            speechSynthesis.speak(utterance);
+            } else {
+                // Stop any current speech
+                speechSynthesis.cancel();
+                
+                // Reset all other buttons
+                document.querySelectorAll('.read-aloud-btn[data-speaking="true"]').forEach(btn => {
+                    btn.dataset.speaking = 'false';
+                    btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                });
+
+                const utterance = new SpeechSynthesisUtterance(textToRead);
+                utterance.onstart = () => {
+                    button.dataset.speaking = 'true';
+                    button.innerHTML = '<i class="fas fa-stop-circle"></i>';
+                };
+                utterance.onend = () => {
+                    button.dataset.speaking = 'false';
+                    button.innerHTML = '<i class="fas fa-volume-up"></i>';
+                };
+                speechSynthesis.speak(utterance);
+            }
         }
     }
 
     // --- Copy-to-Clipboard Functionality ---
-    function handleCopyClick(e) {
-        const button = e.currentTarget;
+    function handleCopyClick(button) {
         const messageBubble = button.closest('.message-bubble');
         if (!messageBubble) return;
         // Clone the node to avoid modifying the DOM
@@ -332,12 +463,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </button>
                     </div>
                 `;
-                addMessage('ai', messageContent);
-                // Attach event listener to the new button
-                const newButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
-                if (newButton) newButton.addEventListener('click', handleReadAloud);
-                const newCopyButton = chatMessages.lastElementChild.querySelector('.copy-btn');
-                if (newCopyButton) newCopyButton.addEventListener('click', handleCopyClick);
+                addMessage('ai', messageContent, true);
+                
+                // Event listeners are now attached in finalizeMessage after typing is complete
                 
                 // Handle conversation ID and title updates
                 if (result.conversation_id) {
@@ -389,6 +517,94 @@ document.addEventListener('DOMContentLoaded', async () => {
             conversationTitleEl.style.display = 'none';
         }
     });
+
+    // Initialize
+    loadChatHistory();
+    loadPersonalizedSuggestions();
+    typeWelcomeGreeting();
+
+    // --- Functions ---
+
+    function typeWelcomeGreeting() {
+        const greetingElement = document.getElementById('welcome-greeting');
+        if (!greetingElement) return;
+
+        const username = greetingElement.dataset.username || 'Friend';
+        const hour = new Date().getHours();
+        let timeGreeting = "Hello";
+        
+        if (hour >= 5 && hour < 12) {
+            timeGreeting = "Good morning";
+        } else if (hour >= 12 && hour < 18) {
+            timeGreeting = "Good afternoon";
+        } else {
+            timeGreeting = "Good evening";
+        }
+
+        const greetings = [
+            timeGreeting,
+            "Hello",
+            "Hi there",
+            "Welcome back",
+            "Good to see you",
+            "Greetings",
+            "Hey"
+        ];
+        
+        const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+        const fullText = `${randomGreeting}, ${username}!`;
+        
+        // Custom variable-speed typing for a smoother, more natural feel
+        let i = 0;
+        greetingElement.textContent = ''; // Clear initial content
+        
+        function typeChar() {
+            if (i < fullText.length) {
+                greetingElement.textContent += fullText.charAt(i);
+                i++;
+                // Random delay between 50ms and 150ms for natural variation
+                const delay = Math.random() * 100 + 50;
+                setTimeout(typeChar, delay);
+            }
+        }
+        
+        typeChar();
+    }
+
+    async function loadPersonalizedSuggestions() {
+        // Only load if we are on the welcome screen
+        const welcomeScreen = document.getElementById('welcome-screen');
+        if (!welcomeScreen || welcomeScreen.style.display === 'none') return;
+
+        try {
+            const response = await fetch('server_mysql.php?action=generate_suggestions');
+            const data = await response.json();
+
+            if (data.success && data.suggestions) {
+                const pills = document.querySelectorAll('.suggestion-pill');
+                
+                // Update pills based on the returned keys
+                pills.forEach(pill => {
+                    const iconText = pill.querySelector('.pill-icon').nextSibling.textContent.trim().toLowerCase();
+                    let key = '';
+                    
+                    if (iconText.includes('explain')) key = 'explain';
+                    else if (iconText.includes('write')) key = 'write';
+                    else if (iconText.includes('build')) key = 'build';
+                    else if (iconText.includes('research')) key = 'research';
+                    
+                    if (key && data.suggestions[key]) {
+                        pill.dataset.prompt = data.suggestions[key];
+                        // Optional: Add a subtle animation to show update
+                        pill.style.opacity = '0.5';
+                        setTimeout(() => pill.style.opacity = '1', 300);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load suggestions:', error);
+        }
+    }
 
     // --- Function to load chat history from server ---
     async function loadChatHistory() {
@@ -666,18 +882,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Prompt Card Click Logic ---
-    document.querySelectorAll('.prompt-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const promptText = card.dataset.prompt;
+    // --- Suggestion Pill Click Logic ---
+    document.querySelectorAll('.suggestion-card, .suggestion-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const promptText = btn.dataset.prompt;
             questionInput.value = promptText;
             questionInput.focus();
         });
-        // Add keyboard accessibility to prompt cards
-        card.addEventListener('keydown', (e) => {
+        // Add keyboard accessibility
+        btn.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                card.click();
+                btn.click();
             }
         });
     });

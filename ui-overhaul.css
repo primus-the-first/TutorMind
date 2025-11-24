@@ -70,7 +70,7 @@ body {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border-right: 1px solid rgba(255, 255, 255, 0.25);
+  border-right: 1px solid rgba(255, 255, 255, 0.1); /* More subtle border */
   box-shadow: 2px 0 15px rgba(0, 0, 0, 0.08);
   color: var(--text-primary);
   display: flex;
@@ -497,56 +497,46 @@ body {
   margin-bottom: 3rem;
 }
 
-.suggestion-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  width: 100%;
+/* Horizontal Suggestion Pills Row */
+.suggestion-pills-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 600px;
 }
 
-.suggestion-card {
-  background-color: var(--bg-card);
+.suggestion-pill {
+  background: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  text-align: left;
+  border-radius: 20px;
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  color: var(--text-primary);
   cursor: pointer;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.suggestion-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-glow);
-}
-
-.card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-  color: white;
-  font-size: 1.25rem;
-}
-.card-icon.purple {
-  background-color: var(--primary);
-}
-.card-icon.orange {
-  background-color: var(--secondary);
-}
-.card-icon.peach {
-  background-color: var(--accent);
-}
-.card-icon.light-purple {
-  background-color: var(--primary-light);
+  gap: 8px;
+  white-space: nowrap;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.suggestion-card h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-primary);
+.suggestion-pill:hover {
+  background: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(123, 63, 242, 0.2);
+  transform: translateY(-2px);
+}
+
+.suggestion-pill:active {
+  transform: translateY(0);
+}
+
+.pill-icon {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 /* Chat Messages */
@@ -624,6 +614,7 @@ body {
   line-height: 1.5;
   white-space: pre;
   max-width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle border for light mode */
 }
 
 /* Highlight.js already styles the code, we just add a subtle border */
@@ -681,8 +672,8 @@ body {
   border-bottom-right-radius: 4px;
 }
 .ai-message .message-bubble {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
+  background-color: transparent; /* Blend with main background */
+  border: 1px solid transparent; /* Remove border for seamless look */
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
 }
@@ -716,75 +707,159 @@ body {
   }
 }
 
-/* --- Input Bar --- */
+/* --- Unified Input Bar (Gemini-style) --- */
 .input-bar-area {
   padding: 1rem 1.5rem;
   background: transparent;
   flex-shrink: 0;
 }
 
-.input-form {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+.unified-input-container {
   max-width: 800px;
   margin: 0 auto;
 }
 
-.icon-btn {
-  background: white;
-  border: 2px solid rgba(123, 63, 242, 0.15);
-  cursor: pointer;
+.combined-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(123, 63, 242, 0.2);
+  border-radius: 28px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.combined-input-bar:focus-within {
+  border-color: rgba(123, 63, 242, 0.4);
+  box-shadow: 0 4px 20px rgba(123, 63, 242, 0.15);
+}
+
+/* Add button (left side) */
+.add-btn {
+  background: none;
+  border: none;
   color: var(--text-secondary);
-  padding: 10px;
-  border-radius: 50%;
-  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
   font-size: 1.1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(123, 63, 242, 0.1);
-}
-.icon-btn:hover {
-  color: var(--primary);
-  background: #faf9fc;
-  box-shadow: 0 4px 12px rgba(123, 63, 242, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* File attachment button - square style */
-label.icon-btn {
-  border-radius: 8px;
-}
-
-
-.text-input {
-  flex-grow: 1;
-  background: white;
-  font-size: 0.95rem;
-  padding: 12px;
-  border-radius: 8px;
-  border: 2px solid rgba(123, 63, 242, 0.2);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(123, 63, 242, 0.1);
-}
-.text-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(123, 63, 242, 0.2), 0 2px 6px rgba(0, 0, 0, 0.12);
-}
-
-.dropdown-btn {
-  background-color: #f3f4f6;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 0.9rem;
-  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-.dropdown-btn:hover {
-  background-color: #e5e7eb;
-  border-color: #d1d5db;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.add-btn:hover {
+  background-color: rgba(123, 63, 242, 0.1);
+  color: var(--primary);
+}
+
+/* Main text input (center) */
+.main-text-input {
+  flex-grow: 1;
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.main-text-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Controls group (right side) */
+.input-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Control buttons (Tools, Voice) */
+.control-btn {
+  background: rgba(123, 63, 242, 0.05);
+  border: 1px solid rgba(123, 63, 242, 0.15);
+  border-radius: 18px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.control-btn:hover {
+  background: rgba(123, 63, 242, 0.1);
+  border-color: rgba(123, 63, 242, 0.3);
+}
+
+.voice-btn {
+  padding: 8px;
+  border-radius: 50%;
+}
+
+.voice-btn i {
+  margin: 0;
+}
+
+/* Control dropdown (Learning Level / Speed) */
+.control-dropdown {
+  background: rgba(123, 63, 242, 0.05);
+  border: 1px solid rgba(123, 63, 242, 0.15);
+  border-radius: 18px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  outline: none;
+}
+
+.control-dropdown:hover {
+  background: rgba(123, 63, 242, 0.1);
+  border-color: rgba(123, 63, 242, 0.3);
+}
+
+/* Submit button */
+.submit-btn {
+  background-color: var(--primary);
+  color: white;
+  font-size: 1rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.submit-btn:hover {
+  background-color: var(--primary-dark);
+  transform: scale(1.05);
+}
+
+.submit-btn:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.5;
+}
+
+/* Old styles keep for backward compatibility */
 .send-btn {
   background-color: var(--primary);
   color: white;
@@ -834,8 +909,13 @@ label.icon-btn {
     left: 50%;
     transform: translateX(-50%);
   }
-  .suggestion-grid {
-    grid-template-columns: 1fr;
+  .suggestion-pills-row {
+    gap: 8px;
+    max-width: 100%;
+  }
+  .suggestion-pill {
+    font-size: 0.85rem;
+    padding: 8px 14px;
   }
   .chat-content {
     padding: 1rem;
@@ -859,6 +939,38 @@ label.icon-btn {
     padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
   }
   
+  .unified-input-container {
+    max-width: 100%;
+  }
+  
+  .combined-input-bar {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  
+  /* Hide Tools and dropdown on mobile */
+  .tools-btn,
+  .control-dropdown {
+    display: none;
+  }
+  
+  .main-text-input {
+    font-size: 0.95rem;
+    padding: 6px 8px;
+  }
+  
+  .control-btn {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+  
+  .submit-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+  
+  /* Old styles for compatibility */
   .input-form {
     gap: 0.5rem;
     max-width: 100%;
@@ -1022,9 +1134,72 @@ body.dark-mode .send-btn:disabled {
   background-color: #444;
 }
 
+/* New Unified Input Bar - Dark Mode */
+body.dark-mode .combined-input-bar {
+  background: rgba(30, 30, 30, 0.95);
+  border-color: rgba(157, 107, 245, 0.3);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .combined-input-bar:focus-within {
+  border-color: rgba(157, 107, 245, 0.5);
+  box-shadow: 0 4px 20px rgba(157, 107, 245, 0.3);
+}
+
+body.dark-mode .add-btn {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+body.dark-mode .add-btn:hover {
+  background-color: rgba(157, 107, 245, 0.15);
+  color: var(--primary-light);
+}
+
+body.dark-mode .main-text-input {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+body.dark-mode .main-text-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+body.dark-mode .control-btn {
+  background: rgba(157, 107, 245, 0.1);
+  border-color: rgba(157, 107, 245, 0.25);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+body.dark-mode .control-btn:hover {
+  background: rgba(157, 107, 245, 0.2);
+  border-color: rgba(157, 107, 245, 0.4);
+  color: var(--primary-light);
+}
+
+body.dark-mode .control-dropdown {
+  background: rgba(157, 107, 245, 0.1);
+  border-color: rgba(157, 107, 245, 0.25);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+body.dark-mode .control-dropdown:hover {
+  background: rgba(157, 107, 245, 0.2);
+  border-color: rgba(157, 107, 245, 0.4);
+}
+
+/* Style the dropdown options */
+body.dark-mode .control-dropdown option {
+  background-color: #1e1e1e;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+body.dark-mode .submit-btn:disabled {
+  background-color: #444;
+  opacity: 0.4;
+}
+
 body.dark-mode .ai-message .message-bubble {
-  background-color: var(--bg-card);
-  border-color: var(--border);
+  background-color: transparent; /* Blend with main background */
+  border-color: transparent; /* Optional: remove border for seamless look, or keep var(--border) */
 }
 
 body.dark-mode .message-footer {
@@ -1042,6 +1217,10 @@ body.dark-mode .message-footer button:hover {
 body.dark-mode .message-bubble code {
   background-color: rgba(240, 246, 252, 0.1);
   color: #ff7b72;
+}
+
+body.dark-mode .message-bubble pre {
+  border: 1px solid rgba(255, 255, 255, 0.15); /* Subtle border for dark mode */
 }
 
 body.dark-mode .message-bubble pre .copy-code-btn {
@@ -1069,7 +1248,7 @@ body.dark-mode .sidebar {
   );
   backdrop-filter: blur(15px) saturate(180%);
   -webkit-backdrop-filter: blur(15px) saturate(180%);
-  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  border-right: 1px solid rgba(255, 255, 255, 0.05); /* Very subtle border for dark mode */
   box-shadow: 2px 0 20px rgba(0, 0, 0, 0.3);
   color: #e0e7ff;
 }
@@ -1084,6 +1263,21 @@ body.dark-mode .new-chat-btn:hover {
   background-color: rgba(157, 107, 245, 0.2);
   color: #e0e7ff;
   border-bottom-color: rgba(224, 231, 255, 0.5);
+}
+
+/* Suggestion Pills - Dark Mode */
+body.dark-mode .suggestion-pill {
+  background: rgba(157, 107, 245, 0.1);
+  border-color: rgba(157, 107, 245, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .suggestion-pill:hover {
+  background: rgba(157, 107, 245, 0.2);
+  border-color: rgba(157, 107, 245, 0.4);
+  color: white;
+  box-shadow: 0 4px 12px rgba(157, 107, 245, 0.3);
 }
 
 body.dark-mode .history-item a {

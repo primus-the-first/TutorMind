@@ -19,20 +19,47 @@ $user_email = 'email@example.com';
 $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
 $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'User';
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+$user_program = null;
 
+// Fetch user data
 if ($user_id) {
     try {
         $pdo = getDbConnection();
+        
+        // Fetch email first (guaranteed to exist)
         $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($user) {
             $user_email = $user['email'];
         }
+
+        // Try to fetch program (might not exist yet if migration wasn't run)
+        try {
+            $stmt = $pdo->prepare("SELECT field_of_study FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $prog = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($prog) {
+                $user_program = $prog['field_of_study'];
+            }
+        } catch (Exception $e) {
+            // Program column might be missing, ignore this specific error
+            error_log("Program fetch error (column might be missing): " . $e->getMessage());
+        }
+        
     } catch (Exception $e) {
         error_log("Tutor page user fetch error: " . $e->getMessage());
     }
 }
+
+// Default prompts (will be updated by AI via JS)
+$selectedPrompts = [
+    'explain' => "Explain a complex topic simply.",
+    'write' => "Write a creative story or email.",
+    'build' => "Help me build a project plan.",
+    'research' => "Research a topic in depth."
+];
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -161,25 +188,23 @@ if ($user_id) {
             <!-- Welcome Screen -->
             <div id="welcome-screen" class="welcome-section">
                 <div class="gradient-orb"></div>
-                <h1>Hi there, <?= htmlspecialchars($displayName) ?></h1>
+                <h1 id="welcome-greeting" data-username="<?= htmlspecialchars($displayName) ?>"></h1>
                 <p>What would you like to know?</p>
-                <div class="suggestion-grid">
-                    <div class="suggestion-card" data-prompt="Explain the concept of photosynthesis in simple terms." role="button">
-                        <div class="card-icon purple"><i class="fas fa-leaf"></i></div>
-                        <h4>Explain a concept</h4>
-                    </div>
-                    <div class="suggestion-card" data-prompt="Help me debug this Python code that's supposed to sort a list." role="button">
-                        <div class="card-icon orange"><i class="fas fa-bug"></i></div>
-                        <h4>Help me debug code</h4>
-                    </div>
-                    <div class="suggestion-card" data-prompt="Summarize the main causes of World War I." role="button">
-                        <div class="card-icon peach"><i class="fas fa-scroll"></i></div>
-                        <h4>Summarize a topic</h4>
-                    </div>
-                    <div class="suggestion-card" data-prompt="Give me a challenging math problem about calculus." role="button">
-                        <div class="card-icon light-purple"><i class="fas fa-brain"></i></div>
-                        <h4>Give me a challenge</h4>
-                    </div>
+                
+                <!-- Horizontal Suggestion Pills -->
+                <div class="suggestion-pills-row">
+                    <button class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['explain']) ?>">
+                        <span class="pill-icon">💡</span> Explain
+                    </button>
+                    <button class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['write']) ?>">
+                        <span class="pill-icon">✍️</span> Write
+                    </button>
+                    <button class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['build']) ?>">
+                        <span class="pill-icon">🔨</span> Build
+                    </button>
+                    <button class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['research']) ?>">
+                        <span class="pill-icon">🔍</span> Deep Research
+                    </button>
                 </div>
             </div>
             <!-- Chat messages will be appended here -->
@@ -187,28 +212,48 @@ if ($user_id) {
 
         <footer class="input-bar-area">
             <div id="attachment-preview-area"></div>
-            <form id="tutorForm" class="input-form">
+            <form id="tutorForm" class="unified-input-container">
                 <input type="hidden" id="conversation_id" name="conversation_id" value="">
-                
-                <label for="file-attachment" class="icon-btn" title="Attach file">
-                    <i class="fas fa-paperclip"></i>
-                </label>
                 <input type="file" id="file-attachment" name="attachment" class="hidden-input">
-
-                <input type="text" id="question" name="question" class="text-input" placeholder="Ask about your file or anything else..." required>
                 
-                <select id="learningLevel" name="learningLevel" class="dropdown-btn" title="Select response depth">
-                    <option value="Remember">Remember</option>
-                    <option value="Understand" selected>Understand</option>
-                    <option value="Apply">Apply</option>
-                    <option value="Analyze">Analyze</option>
-                    <option value="Evaluate">Evaluate</option>
-                    <option value="Create">Create</option>
-                </select>
-
-                <button type="submit" id="ai-submit-btn" class="send-btn">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
+                <!-- Combined Input Bar -->
+                <div class="combined-input-bar">
+                    <!-- Left side: Add button -->
+                    <label for="file-attachment" class="add-btn" title="Add attachments">
+                        <i class="fas fa-plus"></i>
+                    </label>
+                    
+                    <!-- Center: Text input -->
+                    <input type="text" id="question" name="question" class="main-text-input" placeholder="Ask TutorMind" required>
+                    
+                    <!-- Right side: Controls group -->
+                    <div class="input-controls-group">
+                        <!-- Tools button (placeholder for now) -->
+                        <button type="button" class="control-btn tools-btn" title="Tools">
+                            <i class="fas fa-sliders-h"></i> Tools
+                        </button>
+                        
+                        <!-- Learning Level dropdown -->
+                        <select id="learningLevel" name="learningLevel" class="control-dropdown" title="Reasoning level">
+                            <option value="Remember">Remember</option>
+                            <option value="Understand" selected>Understand</option>
+                            <option value="Apply">Apply</option>
+                            <option value="Analyze">Analyze</option>
+                            <option value="Evaluate">Evaluate</option>
+                            <option value="Create">Create</option>
+                        </select>
+                        
+                        <!-- Voice input button -->
+                        <button type="button" class="control-btn voice-btn" title="Voice input">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        
+                        <!-- Submit button -->
+                        <button type="submit" id="ai-submit-btn" class="submit-btn" title="Send message">
+                            <i class="fas fa-arrow-up"></i>
+                        </button>
+                    </div>
+                </div>
             </form>
         </footer>
     </div>
