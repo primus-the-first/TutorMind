@@ -15,7 +15,7 @@ config-sql.ini
 # Log and output files
 test_output.txt
 *.log
-
+debug_log.txt
 # Deployment files
 #.cpanel.yml
 #deploy.php

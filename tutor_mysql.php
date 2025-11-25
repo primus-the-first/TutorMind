@@ -200,7 +200,7 @@ $selectedPrompts = [
             <div id="attachment-preview-area"></div>
             <form id="tutorForm" class="unified-input-container">
                 <input type="hidden" id="conversation_id" name="conversation_id" value="">
-                <input type="file" id="file-attachment" name="attachment" class="hidden-input">
+                <input type="file" id="file-attachment" name="attachment[]" class="hidden-input" multiple>
                 
                 <!-- Combined Input Bar -->
                 <div class="combined-input-bar">

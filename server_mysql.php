@@ -305,6 +305,11 @@ $conversation_id = $_POST['conversation_id'] ?? null;
 
 function prepareFileParts($file, $user_question) {
     $filePath = $file['tmp_name'];
+    // Check if file exists to avoid warnings
+    if (!file_exists($filePath)) {
+        throw new Exception("File upload failed: Temporary file not found.");
+    }
+    
     $fileType = mime_content_type($filePath);
     $originalName = $file['name'];
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
@@ -410,8 +415,7 @@ function prepareFileParts($file, $user_question) {
         $base64Data = base64_encode($fileData);
 
         return [
-            ['inline_data' => ['mime_type' => $fileType, 'data' => $base64Data]],
-            ['text' => $user_question]
+            'inline_data' => ['mime_type' => $fileType, 'data' => $base64Data]
         ];
     }
 
@@ -485,9 +489,9 @@ function prepareFileParts($file, $user_question) {
         $text = substr($text, 0, $maxLength) . "\n\n... [File content truncated] ...\n\n";
     }
 
-    $combined_text = "Context from uploaded file '{$originalName}':\n---\n{$text}\n---\n\nUser's question: {$user_question}";
+    $combined_text = "Context from uploaded file '{$originalName}':\n---\n{$text}\n---\n";
     return [
-        ['text' => $combined_text]
+        'text' => $combined_text
     ];
 }
 
@@ -564,12 +568,56 @@ try {
 
     $user_message_parts = [];
 
-    // Check for file upload
-    if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
-        $user_message_parts = prepareFileParts($_FILES['attachment'], $question);
-    } else {
+    // Check for file upload (Multiple files supported)
+    file_put_contents('debug_log.txt', "--- New Request ---\n", FILE_APPEND);
+    file_put_contents('debug_log.txt', "FILES: " . print_r($_FILES, true) . "\n", FILE_APPEND);
+
+    if (isset($_FILES['attachment'])) {
+        // Re-organize the $_FILES array if multiple files are uploaded
+        $files = [];
+        if (is_array($_FILES['attachment']['name'])) {
+            $count = count($_FILES['attachment']['name']);
+            for ($i = 0; $i < $count; $i++) {
+                if ($_FILES['attachment']['error'][$i] === UPLOAD_ERR_OK) {
+                    $files[] = [
+                        'name' => $_FILES['attachment']['name'][$i],
+                        'type' => $_FILES['attachment']['type'][$i],
+                        'tmp_name' => $_FILES['attachment']['tmp_name'][$i],
+                        'error' => $_FILES['attachment']['error'][$i],
+                        'size' => $_FILES['attachment']['size'][$i]
+                    ];
+                }
+            }
+        } else {
+            // Single file fallback (shouldn't happen with multiple attribute but good for safety)
+            if ($_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $files[] = $_FILES['attachment'];
+            }
+        }
+
+        file_put_contents('debug_log.txt', "Processed Files Array: " . print_r($files, true) . "\n", FILE_APPEND);
+
+        // Process each file
+        foreach ($files as $file) {
+            try {
+                $part = prepareFileParts($file, $question);
+                $user_message_parts[] = $part;
+            } catch (Exception $e) {
+                file_put_contents('debug_log.txt', "Error processing file: " . $e->getMessage() . "\n", FILE_APPEND);
+                // Instead of failing the whole request, let's add a system message to the parts
+                // so the AI (and the user) knows something went wrong with this specific file.
+                $errorMsg = "System Error: Could not process file '{$file['name']}'. Reason: " . $e->getMessage();
+                $user_message_parts[] = ['text' => $errorMsg];
+            }
+        }
+    }
+
+    // Add the text question as the final part
+    if (!empty($question)) {
         $user_message_parts[] = ['text' => $question];
     }
+    
+    file_put_contents('debug_log.txt', "User Message Parts: " . print_r($user_message_parts, true) . "\n", FILE_APPEND);
 
     // Basic validation
     $is_empty = empty($user_message_parts) || (count($user_message_parts) === 1 && empty(trim($user_message_parts[0]['text'])));

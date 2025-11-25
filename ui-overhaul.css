@@ -797,31 +797,40 @@ body.chat-empty .suggestion-pills-row {
   padding: 1rem 1.5rem;
   background: transparent;
   flex-shrink: 0;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth transition for moving */
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  transform: translateY(0); /* Default position (at bottom when chat is active) */
 }
 
-/* Gemini-style Centered Input for Empty State */
+/* Gemini-style Centered Input with Smooth Vertical Slide */
 @media (min-width: 769px) {
+  /* Base: input always at bottom in normal flow, but we'll transform it */
+  .input-bar-area {
+    position: relative;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* When chat is NOT empty: at bottom (no transform) */
+  body:not(.chat-empty) .input-bar-area {
+    transform: translateY(0);
+  }
+  
+  /* When chat is empty: slide UP to center of screen */
   body.chat-empty .input-bar-area {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -10%); /* Shift slightly down to balance with welcome text */
-    width: 100%;
-    max-width: 850px;
-    z-index: 50;
+    transform: translateY(calc(-50vh + 50%));
   }
 
   body.chat-empty .welcome-section {
-    justify-content: flex-end;
-    height: 45vh; /* Occupy top half */
-    padding-bottom: 2rem;
+    justify-content: center;
+    height: 40vh; /* Reduced to leave space for input */
+    padding-bottom: 0;
+    padding-top: 2rem;
   }
   
   body.chat-empty .gradient-orb {
     margin-bottom: 1.5rem;
   }
 }
+
 
 .unified-input-container {
   max-width: 800px;
@@ -1180,21 +1189,118 @@ body.chat-empty .suggestion-pills-row {
   background-color: rgba(255, 255, 255, 0.2);
   color: white;
 }
-#attachment-preview-area .attachment-display {
+/* --- Attachment Previews (Gemini Style) --- */
+#attachment-preview-area {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.attachment-preview-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 4px 12px 4px; /* Bottom padding for scrollbar space/shadow */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.attachment-preview-list::-webkit-scrollbar {
+  height: 6px;
+}
+
+.attachment-preview-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.attachment-card {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.attachment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.attachment-thumbnail {
+  flex-grow: 1;
+  background-color: #f3f4f6;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background-color: #eef2ff;
-  color: #4338ca;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  margin-bottom: 8px;
+  justify-content: center;
+  overflow: hidden;
 }
-#attachment-preview-area .clear-attachment {
+
+.attachment-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attachment-thumbnail i {
+  font-size: 2rem;
+  color: var(--text-secondary);
+}
+
+.attachment-info {
+  padding: 8px;
+  background: white;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+}
+
+.remove-attachment-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-weight: bold;
-  padding: 0 4px;
+  font-size: 12px;
+  border: none;
+  transition: background 0.2s;
+  z-index: 10;
+}
+
+.remove-attachment-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+/* Dark Mode Overrides for Attachments */
+body.dark-mode .attachment-card {
+  background: #2d2d2d;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .attachment-thumbnail {
+  background-color: #1e1e1e;
+}
+
+body.dark-mode .attachment-info {
+  background: #2d2d2d;
+  border-top-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
 /* --- Dark Mode Styles --- */

@@ -380,35 +380,127 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- Handle file selection ---
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files.length > 0) {
-            const fileName = fileInput.files[0].name;
-            attachmentPreviewArea.innerHTML = `
-                <div class="attachment-display">
-                    <i class="fas fa-file-alt"></i>
-                    <span>${fileName}</span>
-                    <span class="clear-attachment" title="Remove file">&times;</span>
-                </div>
-            `;
-        } else {
-            attachmentPreviewArea.innerHTML = '';
+    // --- File Attachment Manager ---
+    class FileAttachmentManager {
+        constructor(fileInput, previewArea, maxFiles = 10) {
+            this.fileInput = fileInput;
+            this.previewArea = previewArea;
+            this.maxFiles = maxFiles;
+            this.files = []; // Store File objects here
+            
+            this.init();
         }
-    });
 
-    // --- Handle clearing the attachment ---
-    attachmentPreviewArea.addEventListener('click', (e) => {
-        if (e.target.classList.contains('clear-attachment')) {
-            fileInput.value = ''; // Clear the file input
-            attachmentPreviewArea.innerHTML = ''; // Clear the preview
+        init() {
+            // Handle file selection via input
+            this.fileInput.addEventListener('change', (e) => {
+                this.handleFiles(Array.from(e.target.files));
+                // Do NOT clear the input here, as it wipes out the files we just set in updateFileInput()
+                // The input's files are managed by updateFileInput() which is called by handleFiles()
+            });
         }
-    });
+
+        handleFiles(newFiles) {
+            const totalFiles = this.files.length + newFiles.length;
+            if (totalFiles > this.maxFiles) {
+                alert(`You can only upload a maximum of ${this.maxFiles} files.`);
+                return;
+            }
+
+            // Add new files to our array
+            this.files = [...this.files, ...newFiles];
+            this.updatePreview();
+            this.updateFileInput();
+        }
+
+        removeFile(index) {
+            this.files.splice(index, 1);
+            this.updatePreview();
+            this.updateFileInput();
+        }
+
+        clear() {
+            this.files = [];
+            this.updatePreview();
+            this.updateFileInput();
+        }
+
+        updateFileInput() {
+            // Create a new DataTransfer object to update the file input's files property
+            const dataTransfer = new DataTransfer();
+            this.files.forEach(file => dataTransfer.items.add(file));
+            this.fileInput.files = dataTransfer.files;
+        }
+
+        updatePreview() {
+            this.previewArea.innerHTML = '';
+            
+            if (this.files.length === 0) return;
+
+            const list = document.createElement('div');
+            list.className = 'attachment-preview-list';
+
+            this.files.forEach((file, index) => {
+                const card = document.createElement('div');
+                card.className = 'attachment-card';
+
+                // Thumbnail
+                const thumbnail = document.createElement('div');
+                thumbnail.className = 'attachment-thumbnail';
+                
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.onload = () => URL.revokeObjectURL(img.src); // Free memory
+                    thumbnail.appendChild(img);
+                } else {
+                    const icon = document.createElement('i');
+                    icon.className = this.getFileIcon(file.type);
+                    thumbnail.appendChild(icon);
+                }
+
+                // Info (Filename)
+                const info = document.createElement('div');
+                info.className = 'attachment-info';
+                info.textContent = file.name;
+                info.title = file.name;
+
+                // Remove Button
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-attachment-btn';
+                removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                removeBtn.title = 'Remove file';
+                removeBtn.onclick = (e) => {
+                    e.preventDefault(); // Prevent form submit
+                    this.removeFile(index);
+                };
+
+                card.appendChild(thumbnail);
+                card.appendChild(info);
+                card.appendChild(removeBtn);
+                list.appendChild(card);
+            });
+
+            this.previewArea.appendChild(list);
+        }
+
+        getFileIcon(mimeType) {
+            if (mimeType.includes('pdf')) return 'fas fa-file-pdf';
+            if (mimeType.includes('word') || mimeType.includes('document')) return 'fas fa-file-word';
+            if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'fas fa-file-powerpoint';
+            if (mimeType.includes('text')) return 'fas fa-file-alt';
+            return 'fas fa-file';
+        }
+    }
+
+    // Initialize the manager
+    const attachmentManager = new FileAttachmentManager(fileInput, attachmentPreviewArea);
 
     // --- Handle form submission ---
     tutorForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const question = questionInput.value.trim();
-        if (!question && fileInput.files.length === 0) return;
+        if (!question && attachmentManager.files.length === 0) return;
 
         // --- The Fix: Capture FormData immediately ---
         // This ensures we have the question and file data before any other operations.
@@ -416,15 +508,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // --- Build and display the user's message ---
         let userMessageHtml = '';
-        // If a file is attached, create a small display for it.
-        if (fileInput.files.length > 0) {
-            const fileName = fileInput.files[0].name;
-            userMessageHtml += `
-                <div class="message-attachment-display">
-                    <i class="fas fa-file-alt"></i>
-                    <span>${fileName}</span>
-                </div>
-            `;
+        // If files are attached, create a small display for them.
+        if (attachmentManager.files.length > 0) {
+            userMessageHtml += `<div class="message-attachments-grid" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">`;
+            attachmentManager.files.forEach(file => {
+                const iconClass = attachmentManager.getFileIcon(file.type);
+                userMessageHtml += `
+                    <div class="message-attachment-pill" style="background: rgba(123, 63, 242, 0.1); padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
+                        <i class="${iconClass}"></i>
+                        <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${file.name}</span>
+                    </div>
+                `;
+            });
+            userMessageHtml += `</div>`;
         }
         const escapedQuestion = question.replace(/</g, "&lt;").replace(/>/g, "&gt;");
         addMessage('user', userMessageHtml + escapedQuestion);
@@ -436,8 +532,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Clear inputs immediately for better UX
         questionInput.value = '';
-        attachmentPreviewArea.innerHTML = '';
-        fileInput.value = '';
+        attachmentManager.clear(); // Clear the manager state and UI
 
         try {
             // Disable form and show typing indicator
@@ -680,10 +775,53 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // The user's message in history includes file context, which we don't want to re-display.
                     // We'll just show the question part.
                     if (item.role === 'user') {
-                        const userText = item.parts[0].text;
-                        const questionMatch = userText.match(/User's question: (.*)/s);
-                        const display_text = questionMatch ? questionMatch[1] : userText;
-                        addMessage('user', display_text.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+                        let userMessageHtml = '';
+                        let userQuestion = '';
+
+                        // Check if parts is an array (new format) or object (old format/single text)
+                        const parts = Array.isArray(item.parts) ? item.parts : [item.parts];
+
+                        // Build attachment pills container
+                        const attachmentPills = [];
+
+                        parts.forEach(part => {
+                            if (part.inline_data) {
+                                // Image attachment - show thumbnail
+                                const mimeType = part.inline_data.mime_type;
+                                const base64Data = part.inline_data.data;
+                                attachmentPills.push(`
+                                    <div class="history-image-container" style="width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
+                                        <img src="data:${mimeType};base64,${base64Data}" style="width: 100%; height: 100%; object-fit: cover;" alt="Attached Image">
+                                    </div>
+                                `);
+                            } else if (part.text) {
+                                if (part.text.startsWith("Context from uploaded file")) {
+                                    // Document attachment - show pill ONLY, hide the context
+                                    const match = part.text.match(/Context from uploaded file '([^']+)':/);
+                                    const filename = match ? match[1] : "Document";
+                                    attachmentPills.push(`
+                                        <div class="message-attachment-pill" style="background: rgba(123, 63, 242, 0.1); padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; margin-right: 4px; margin-bottom: 4px;">
+                                            <i class="fas fa-file-alt"></i>
+                                            <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${filename}</span>
+                                        </div>
+                                    `);
+                                    // DO NOT add this to userQuestion - it's context, not the question
+                                } else {
+                                    // This is the actual user question
+                                    userQuestion += part.text;
+                                }
+                            }
+                        });
+
+                        // Assemble the final message HTML
+                        if (attachmentPills.length > 0) {
+                            userMessageHtml += '<div class="message-attachments-grid" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">';
+                            userMessageHtml += attachmentPills.join('');
+                            userMessageHtml += '</div>';
+                        }
+
+                        // Add the user's question (escaped for safety)
+                        addMessage('user', userMessageHtml + userQuestion.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
                     } else {
                         // Add the AI message with a "Read Aloud" button when loading from history
                         const messageContent = `
