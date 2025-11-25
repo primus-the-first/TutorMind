@@ -199,27 +199,78 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Theme handling
 const themeToggle = document.getElementById('theme-toggle');
-themeToggle.addEventListener('click', (e) => {
-    e.preventDefault();
-    document.body.classList.toggle('light-mode');
+const icon = themeToggle.querySelector('i');
+
+// Function to update visual elements based on theme
+function updateThemeVisuals() {
+    const isLight = document.body.classList.contains('light-mode');
     
-    // Update particle color and material based on new theme
-    particleMaterial.color.setHex(getParticleColor());
-    updateParticleMaterial();
-    
-    // Update line colors and material based on new theme
-    updateLineColors();
-    updateLineMaterial();
-    lines.geometry.attributes.color.needsUpdate = true;
-    
-    // Update icon
-    const icon = themeToggle.querySelector('i');
-    if (document.body.classList.contains('light-mode')) {
+    // Update Icon
+    if (isLight) {
         icon.classList.remove('fa-moon');
         icon.classList.add('fa-sun');
     } else {
         icon.classList.remove('fa-sun');
         icon.classList.add('fa-moon');
+    }
+
+    // Update 3D Scene
+    particleMaterial.color.setHex(getParticleColor());
+    updateParticleMaterial();
+    updateLineColors();
+    updateLineMaterial();
+    if (lines.geometry.attributes.color) {
+        lines.geometry.attributes.color.needsUpdate = true;
+    }
+}
+
+// Initialize theme based on system preference
+function initTheme() {
+    // Check if user has a saved preference (optional, but good UX)
+    const savedTheme = localStorage.getItem('theme');
+    
+    if (savedTheme) {
+        if (savedTheme === 'light') {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+    } else {
+        // Fallback to system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+    }
+    updateThemeVisuals();
+}
+
+// Run initialization
+initTheme();
+
+// Toggle Event Listener
+themeToggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    document.body.classList.toggle('light-mode');
+    
+    // Save preference
+    const isLight = document.body.classList.contains('light-mode');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    
+    updateThemeVisuals();
+});
+
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', e => {
+    if (!localStorage.getItem('theme')) { // Only auto-switch if no manual override
+        if (e.matches) {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+        updateThemeVisuals();
     }
 });

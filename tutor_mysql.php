@@ -176,12 +176,20 @@ $selectedPrompts = [
     <!-- Main Chat Area -->
     <div class="main-chat-wrapper">
         <header class="main-chat-header">
-            <button id="mobile-menu-toggle" class="menu-toggle mobile-only">
-                <i class="fas fa-bars"></i>
-            </button>
-            <a href="index.html" style="text-decoration: none; color: inherit;">
+            <div class="header-left">
+                <button id="mobile-menu-toggle" class="menu-toggle mobile-only">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a href="index.html" class="mobile-logo-link mobile-only" style="text-decoration: none; color: inherit; margin-left: 10px;">
+                    <span class="app-logo-text" style="font-size: 1.2rem;">TutorMind</span>
+                </a>
+            </div>
+            
+            <a href="index.html" style="text-decoration: none; color: inherit;" class="desktop-only">
                 <h2 id="conversation-title" class="conversation-title">TutorMind</h2>
             </a>
+
+            <!-- Mobile User Avatar removed as requested -->
         </header>
 
         <main id="chat-container" class="chat-content">

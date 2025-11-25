@@ -193,46 +193,101 @@ body:not(.light-mode) .marker {
 }
 
 @media (max-width: 768px) {
+    /* Hide desktop-style brand name */
     .brand-name {
-        display: block;
-        writing-mode: horizontal-tb;
-        top: auto;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 24px;
+        display: none;
     }
 
+    /* Center content */
     .content-container {
         justify-content: center;
-        padding: 0 20px;
+        align-items: center;
+        padding: 0 24px;
+        height: 100vh;
     }
 
     .hero-content {
         text-align: center;
+        margin-top: -60px; /* Shift up slightly */
+        width: 100%;
     }
 
     .hero-title {
-        font-size: 3rem;
+        font-size: 3.5rem;
+        line-height: 1.1;
+        margin-bottom: 16px;
     }
 
     .hero-subtitle {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
+        margin-bottom: 40px;
+        color: var(--color-text-secondary);
     }
 
+    /* Native App-style Floating CTA */
+    .cta-button {
+        position: fixed;
+        bottom: 32px;
+        left: 24px;
+        right: 24px;
+        width: auto;
+        padding: 18px;
+        font-size: 1.1rem;
+        border-radius: 16px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(123, 63, 242, 0.4);
+        z-index: 100;
+    }
+
+    /* Simplify Header - Show Theme Toggle */
     .top-nav {
-        left: 50%;
-        transform: translateX(-50%);
-        right: auto;
-        width: 90%;
-        justify-content: space-between;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        padding: 16px 24px;
+        box-sizing: border-box; /* Fixes width calculation to prevent overflow */
+        background: transparent;
+        box-shadow: none;
+        justify-content: flex-end; /* Push items to right */
+        transform: none;
+        border-radius: 0;
+        display: flex;
+        pointer-events: none; /* Let clicks pass through empty space */
+    }
+    
+    .nav-buttons {
+        pointer-events: auto; /* Re-enable clicks for buttons */
     }
 
+    /* Hide Account link on mobile (use Get Started) */
+    .nav-buttons a[href="login.html"] {
+        display: none;
+    }
+    
+    /* Ensure Theme Toggle is visible and styled */
+    #theme-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.2); /* Increased opacity */
+        border: 1px solid rgba(255, 255, 255, 0.3); /* Added border */
+        backdrop-filter: blur(10px);
+        border-radius: 50%;
+        margin: 0;
+        font-size: 1.2rem;
+        color: var(--color-text-primary); /* Ensure icon color matches theme */
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    }
+
+    /* Adjust markers opacity */
     .marker {
-        opacity: 0.3;
+        opacity: 0.15;
     }
 
     #canvas-container {
-        opacity: 0.3;
+        opacity: 0.2;
     }
 }
