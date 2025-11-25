@@ -786,14 +786,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         parts.forEach(part => {
                             if (part.inline_data) {
-                                // Image attachment - show thumbnail
-                                const mimeType = part.inline_data.mime_type;
-                                const base64Data = part.inline_data.data;
-                                attachmentPills.push(`
-                                    <div class="history-image-container" style="width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
-                                        <img src="data:${mimeType};base64,${base64Data}" style="width: 100%; height: 100%; object-fit: cover;" alt="Attached Image">
-                                    </div>
-                                `);
+                                // Check if the data was stripped for performance
+                                if (part.inline_data._removed || !part.inline_data.data) {
+                                    // Show a lightweight placeholder pill instead of the full image
+                                    attachmentPills.push(`
+                                        <div class="message-attachment-pill" style="background: rgba(123, 63, 242, 0.1); padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; margin-right: 4px; margin-bottom: 4px;">
+                                            <i class="fas fa-image"></i>
+                                            <span>Image Attached</span>
+                                        </div>
+                                    `);
+                                } else {
+                                    // Full image data available - show thumbnail
+                                    const mimeType = part.inline_data.mime_type;
+                                    const base64Data = part.inline_data.data;
+                                    attachmentPills.push(`
+                                        <div class="history-image-container" style="width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border);">
+                                            <img src="data:${mimeType};base64,${base64Data}" style="width: 100%; height: 100%; object-fit: cover;" alt="Attached Image">
+                                        </div>
+                                    `);
+                                }
                             } else if (part.text) {
                                 if (part.text.startsWith("Context from uploaded file")) {
                                     // Document attachment - show pill ONLY, hide the context

@@ -147,6 +147,17 @@ if ($action) {
                 foreach ($messages as $message) {
                     // The 'content' is a JSON string of the 'parts' array, so we decode it.
                     $parts = json_decode($message['content'], true);
+                    
+                    // PERFORMANCE OPTIMIZATION: Strip out heavy base64 image data for history loading
+                    foreach ($parts as &$part) {
+                        if (isset($part['inline_data']['data'])) {
+                            // Replace the actual image data with a lightweight placeholder
+                            // The frontend will show a nice "Image attached" indicator instead
+                            $part['inline_data']['data'] = null; // Remove the heavy base64 string
+                            $part['inline_data']['_removed'] = true; // Flag for frontend
+                        }
+                    }
+                    
                     if ($message['role'] === 'model') {
                         $parts[0]['text'] = formatResponse($parts[0]['text']);
                     }
