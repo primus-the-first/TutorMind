@@ -37,9 +37,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // If there's no active conversation, show the welcome screen and hide title.
     if (!conversationIdInput.value) {
         welcomeScreen.style.display = 'flex';
+        document.body.classList.add('chat-empty');
         if (conversationTitleEl) conversationTitleEl.style.display = 'none';
     } else {
         welcomeScreen.style.display = 'none';
+        document.body.classList.remove('chat-empty');
         if (conversationTitleEl) conversationTitleEl.style.display = 'block';
     }
 
@@ -429,6 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Hide welcome screen on first message and show title
         if (welcomeScreen) welcomeScreen.style.display = 'none';
+        document.body.classList.remove('chat-empty');
         if (conversationTitleEl) conversationTitleEl.style.display = 'block';
 
         // Clear inputs immediately for better UX
@@ -516,6 +519,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             conversationTitleEl.textContent = 'TutorMind';
             conversationTitleEl.style.display = 'none';
         }
+        document.body.classList.add('chat-empty');
     });
 
     // Initialize
@@ -667,7 +671,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (result.success) {
                 // Hide welcome screen and clear any existing messages
+                // Hide welcome screen and clear any existing messages
                 welcomeScreen.style.display = 'none';
+                document.body.classList.remove('chat-empty');
                 chatMessages.innerHTML = '';
                 conversationIdInput.value = id;
                 result.conversation.chat_history.forEach(item => {

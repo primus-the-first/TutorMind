@@ -1,11 +1,11 @@
 <?php
 // Force HTTPS redirect
-if (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on') {
-    if (!headers_sent()) {
-        header("Location: https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
-        exit();
-    }
-}
+// if (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on') {
+//     if (!headers_sent()) {
+//         header("Location: https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
+//         exit();
+//     }
+// }
 
 // Prevent caching - especially important for mobile browsers
 header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
@@ -104,7 +104,7 @@ $selectedPrompts = [
     <link rel="stylesheet" href="settings.css?v=<?= time() ?>">
     <link rel="stylesheet" href="logo.css?v=<?= time() ?>">
 </head>
-<body class="flex h-screen">
+<body class="flex h-screen chat-empty">
 
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar">
@@ -191,21 +191,7 @@ $selectedPrompts = [
                 <h1 id="welcome-greeting" data-username="<?= htmlspecialchars($displayName) ?>"></h1>
                 <p>What would you like to know?</p>
                 
-                <!-- Horizontal Suggestion Pills -->
-                <div class="suggestion-pills-row">
-                    <button class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['explain']) ?>">
-                        <span class="pill-icon">💡</span> Explain
-                    </button>
-                    <button class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['write']) ?>">
-                        <span class="pill-icon">✍️</span> Write
-                    </button>
-                    <button class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['build']) ?>">
-                        <span class="pill-icon">🔨</span> Build
-                    </button>
-                    <button class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['research']) ?>">
-                        <span class="pill-icon">🔍</span> Deep Research
-                    </button>
-                </div>
+
             </div>
             <!-- Chat messages will be appended here -->
         </main>
@@ -253,6 +239,22 @@ $selectedPrompts = [
                             <i class="fas fa-arrow-up"></i>
                         </button>
                     </div>
+                </div>
+                
+                <!-- Horizontal Suggestion Pills (Moved here for Gemini layout) -->
+                <div class="suggestion-pills-row">
+                    <button type="button" class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['explain']) ?>">
+                        <span class="pill-icon">💡</span> Explain
+                    </button>
+                    <button type="button" class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['write']) ?>">
+                        <span class="pill-icon">✍️</span> Write
+                    </button>
+                    <button type="button" class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['build']) ?>">
+                        <span class="pill-icon">🔨</span> Build
+                    </button>
+                    <button type="button" class="suggestion-pill" data-prompt="<?= htmlspecialchars($selectedPrompts['research']) ?>">
+                        <span class="pill-icon">🔍</span> Deep Research
+                    </button>
                 </div>
             </form>
         </footer>

@@ -78,22 +78,50 @@ body {
   flex-shrink: 0;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 200;
-  overflow: hidden;
+  overflow: visible; /* Allow menu to extend beyond sidebar */
   white-space: nowrap;
 }
 
 .sidebar.collapsed {
   width: 80px;
+  overflow: visible; /* Allow modal menu to break out */
 }
 
 .sidebar.collapsed .app-logo-text,
 .sidebar.collapsed .new-chat-btn span, /* Assuming text is wrapped or I'll wrap it */
-.sidebar.collapsed .user-details,
+.sidebar.collapsed .user-info-button .user-details, /* Only hide button's user-details */
 .sidebar.collapsed #user-account-chevron,
 .sidebar.collapsed .chat-history {
   opacity: 0;
   pointer-events: none;
   display: none;
+}
+
+/* Exception: user-details inside the menu should remain visible */
+.sidebar.collapsed .user-menu .user-details {
+  opacity: 1;
+  pointer-events: auto;
+  display: block !important;
+  margin-left: 5px;
+}
+
+/* Ensure all menu CONTENT is fully visible when sidebar is collapsed and menu is shown */
+/* Don't force the menu itself to show - let JS handle that via .hidden class */
+.sidebar.collapsed .user-menu > * {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.sidebar.collapsed .user-menu * {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* Flex items need display flex */
+.sidebar.collapsed .user-menu .user-menu-header,
+.sidebar.collapsed .user-menu .user-menu-nav a,
+.sidebar.collapsed .user-menu .dark-mode-toggle {
+  display: flex !important;
 }
 
 .sidebar.collapsed .new-chat-btn {
@@ -134,32 +162,38 @@ body {
 }
 
 .new-chat-btn {
-  background-color: rgba(123, 63, 242, 0.08);
+  background: linear-gradient(135deg, rgba(123, 63, 242, 0.15), rgba(157, 107, 245, 0.12));
   color: var(--text-primary);
-  border: none;
-  border-bottom: 2px solid rgba(123, 63, 242, 0.3);
-  border-radius: 8px 8px 0 0;
-  padding: 10px 12px;
+  border: 1.5px solid rgba(123, 63, 242, 0.4);
+  border-radius: 10px;
+  padding: 12px 16px;
   width: 100%;
   font-size: 0.95rem;
-  font-weight: 400;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 10px;
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(123, 63, 242, 0.15);
 }
 
 .new-chat-btn i {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--primary);
 }
 
 .new-chat-btn:hover {
-  background-color: rgba(123, 63, 242, 0.15);
-  color: var(--primary);
-  border-bottom-color: rgba(123, 63, 242, 0.5);
+  background: linear-gradient(135deg, rgba(123, 63, 242, 0.25), rgba(157, 107, 245, 0.2));
+  border-color: rgba(123, 63, 242, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(123, 63, 242, 0.25);
+}
+
+.new-chat-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(123, 63, 242, 0.2);
 }
 
 /* Chat History */
@@ -263,6 +297,7 @@ body {
 .user-details {
   flex-grow: 1;
   overflow: hidden;
+ /* margin-left: 3px; */ 
 }
 
 .user-details h4 {
@@ -295,12 +330,27 @@ body {
   bottom: calc(100% - 0.5rem);
   left: 1.25rem;
   right: 1.25rem;
+  min-width: 260px; /* Ensure full width */
   background-color: #2c2a3e;
   border-radius: 8px;
   box-shadow: 0 -10px 25px rgba(0, 0, 0, 0.2);
-  z-index: 10;
+  z-index: 1000; /* High z-index for overlay */
   border: 1px solid rgba(255, 255, 255, 0.15);
   overflow: hidden;
+}
+
+/* When sidebar is collapsed, show menu as modal near the button */
+.sidebar.collapsed .user-menu {
+  position: fixed;
+  left: 10px; /* Slightly closer to collapsed sidebar */
+  bottom: 80px; /* Position above user profile */
+  top: auto;
+  right: auto;
+  transform: none;
+  width: 280px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  z-index: 2000; /* Above everything */
 }
 
 .user-menu-header {
@@ -395,6 +445,7 @@ body {
   flex-direction: column;
   height: 100vh;
   background: transparent;
+  position: relative;
 }
 
 .main-chat-header {
@@ -499,15 +550,24 @@ body {
 
 /* Horizontal Suggestion Pills Row */
 .suggestion-pills-row {
-  display: flex;
+  display: none; /* Hidden by default (active chat) */
   gap: 12px;
   justify-content: center;
   flex-wrap: wrap;
-  max-width: 600px;
+  max-width: 100%;
+  margin-top: 1.5rem;
+  width: 100%;
+}
+
+/* Show pills when chat is empty */
+body.chat-empty .suggestion-pills-row {
+  display: flex;
 }
 
 .suggestion-pill {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 10px 18px;
@@ -524,7 +584,7 @@ body {
 }
 
 .suggestion-pill:hover {
-  background: white;
+  background: rgba(255, 255, 255, 0.85);
   border-color: var(--primary);
   box-shadow: 0 4px 12px rgba(123, 63, 242, 0.2);
   transform: translateY(-2px);
@@ -712,6 +772,30 @@ body {
   padding: 1rem 1.5rem;
   background: transparent;
   flex-shrink: 0;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth transition for moving */
+}
+
+/* Gemini-style Centered Input for Empty State */
+@media (min-width: 769px) {
+  body.chat-empty .input-bar-area {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -10%); /* Shift slightly down to balance with welcome text */
+    width: 100%;
+    max-width: 850px;
+    z-index: 50;
+  }
+
+  body.chat-empty .welcome-section {
+    justify-content: flex-end;
+    height: 45vh; /* Occupy top half */
+    padding-bottom: 2rem;
+  }
+  
+  body.chat-empty .gradient-orb {
+    margin-bottom: 1.5rem;
+  }
 }
 
 .unified-input-container {
@@ -723,7 +807,9 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(123, 63, 242, 0.2);
   border-radius: 28px;
   padding: 8px 12px;
@@ -782,7 +868,9 @@ body {
 
 /* Control buttons (Tools, Voice) */
 .control-btn {
-  background: rgba(123, 63, 242, 0.05);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(123, 63, 242, 0.15);
   border-radius: 18px;
   padding: 6px 12px;
@@ -813,7 +901,9 @@ body {
 
 /* Control dropdown (Learning Level / Speed) */
 .control-dropdown {
-  background: rgba(123, 63, 242, 0.05);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(123, 63, 242, 0.15);
   border-radius: 18px;
   padding: 6px 12px;
@@ -888,7 +978,12 @@ body {
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
     transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .sidebar.open {
     transform: translateX(0);
@@ -912,6 +1007,15 @@ body {
   .suggestion-pills-row {
     gap: 8px;
     max-width: 100%;
+    padding: 0 0.5rem;
+    flex-wrap: nowrap; /* Scroll horizontally on mobile */
+    overflow-x: auto;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Hide scrollbar */
+  }
+  .suggestion-pills-row::-webkit-scrollbar {
+    display: none;
   }
   .suggestion-pill {
     font-size: 0.85rem;
@@ -929,9 +1033,9 @@ body {
     left: 0;
     right: 0;
     padding: 0.75rem;
-    background: rgba(249, 250, 251, 0.95);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid var(--border);
     z-index: 100;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
