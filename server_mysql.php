@@ -138,10 +138,11 @@ if ($action) {
                     break;
                 }
 
-                // Fetch all messages for this conversation
-                $stmt = $pdo->prepare("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC");
+                // PERFORMANCE: Fetch only the most recent 15 messages (visible on screen initially)
+                // We order by created_at DESC first to get the latest, then reverse in PHP
+                $stmt = $pdo->prepare("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 15");
                 $stmt->execute([$convo_id]);
-                $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $messages = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC)); // Reverse to show oldest-to-newest
 
                 $conversation['chat_history'] = [];
                 foreach ($messages as $message) {
