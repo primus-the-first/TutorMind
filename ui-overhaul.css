@@ -92,7 +92,7 @@ body {
 /* --- Sidebar --- */
 .sidebar {
   width: 260px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.75); /* Balanced blend */
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   border-right: 1px solid rgba(255, 255, 255, 0.1); /* More subtle border */
@@ -1128,29 +1128,52 @@ body.chat-empty .suggestion-pills-row {
   
   .combined-input-bar {
     margin: 0 16px;
-    background: #1e1e2e; /* Dark App Background */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.75); /* Goldilocks blend */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
     border-radius: 32px; /* Pill shape */
     padding: 8px 16px;
     gap: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    color: #fff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    color: var(--text-primary);
   }
   
-  /* Input text color on dark background */
-  .main-text-input {
+  /* Dark Mode Override for Input Bar */
+  body.dark-mode .combined-input-bar {
+    background: rgba(30, 30, 46, 0.75); /* Dark Glass */
+    border-color: rgba(255, 255, 255, 0.1);
     color: #fff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  }
+  
+  /* Input text color */
+  .main-text-input {
+    color: var(--text-primary);
     font-size: 1rem;
   }
   .main-text-input::placeholder {
+    color: var(--text-secondary);
+  }
+  
+  body.dark-mode .main-text-input {
+    color: #fff;
+  }
+  body.dark-mode .main-text-input::placeholder {
     color: rgba(255, 255, 255, 0.5);
   }
   
-  /* Icons on dark background */
+  /* Icons */
   .add-btn, .voice-btn, .submit-btn {
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--text-secondary);
     background: transparent;
     border: none;
+  }
+  
+  body.dark-mode .add-btn, 
+  body.dark-mode .voice-btn, 
+  body.dark-mode .submit-btn {
+    color: rgba(255, 255, 255, 0.8);
   }
   
   /* Hide Tools and dropdown on mobile */
@@ -1180,11 +1203,12 @@ body.chat-empty .suggestion-pills-row {
   }
   
   .suggestion-pill {
-    /* Use variable for background to adapt to light/dark mode */
-    background: var(--bg-card); 
-    border: 1px solid var(--border);
+    /* Stronger Glass effect for Light Mode */
+    background: rgba(255, 255, 255, 0.4); /* More transparent */
+    border: 1px solid rgba(255, 255, 255, 0.6); /* White border */
     color: var(--text-primary);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(20px); /* Stronger blur */
+    -webkit-backdrop-filter: blur(20px);
     border-radius: 16px;
     padding: 16px;
     text-align: left;
@@ -1194,7 +1218,13 @@ body.chat-empty .suggestion-pills-row {
     font-size: 0.9rem;
     width: 100%;
     height: 100%;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Soft shadow */
+  }
+
+  /* Glass effect for Dark Mode */
+  body.dark-mode .suggestion-pill {
+    background: rgba(30, 30, 46, 0.70);
+    border-color: rgba(255, 255, 255, 0.1);
   }
   
   .suggestion-pill .pill-icon {
