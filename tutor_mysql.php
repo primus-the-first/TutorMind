@@ -157,7 +157,7 @@ $selectedPrompts = [
                     <a href="#"><i class="fas fa-user-edit"></i> Personalization</a>
                     <a href="#" id="open-settings-btn"><i class="fas fa-cog"></i> Settings</a>
                     <a href="#"><i class="fas fa-question-circle"></i> Help</a>
-                    <a href="/TutorMind/auth_mysql?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
+                    <a href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/auth_mysql?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
                     <div class="dark-mode-toggle">
                         <span><i class="fas fa-moon"></i> Dark Mode</span>
                         <label for="darkModeToggle" class="toggle-switch">

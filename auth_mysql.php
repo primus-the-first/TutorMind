@@ -24,7 +24,7 @@ switch ($request_method) {
 
             session_unset();
             session_destroy();
-            header('Location: /TutorMind/login');
+            header('Location: login');
             exit;
         }
         break;
