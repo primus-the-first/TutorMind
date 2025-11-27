@@ -157,7 +157,7 @@ $selectedPrompts = [
                     <a href="#"><i class="fas fa-user-edit"></i> Personalization</a>
                     <a href="#" id="open-settings-btn"><i class="fas fa-cog"></i> Settings</a>
                     <a href="#"><i class="fas fa-question-circle"></i> Help</a>
-                    <a href="auth_mysql?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
+                    <a href="/TutorMind/auth_mysql?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
                     <div class="dark-mode-toggle">
                         <span><i class="fas fa-moon"></i> Dark Mode</span>
                         <label for="darkModeToggle" class="toggle-switch">
@@ -207,7 +207,7 @@ $selectedPrompts = [
         <footer class="input-bar-area">
             <div id="attachment-preview-area"></div>
             <form id="tutorForm" class="unified-input-container">
-                <input type="hidden" id="conversation_id" name="conversation_id" value="">
+                <input type="hidden" id="conversation_id" name="conversation_id" value="<?= isset($_GET['conversation_id']) ? htmlspecialchars($_GET['conversation_id']) : '' ?>">
                 <input type="file" id="file-attachment" name="attachment[]" class="hidden-input" multiple>
                 
                 <!-- Combined Input Bar -->

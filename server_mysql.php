@@ -1,4 +1,5 @@
 <?php
+ob_start(); // Start output buffering to prevent accidental output
 // Enable error reporting for debugging during development
 if (defined('PREDICTOR_SCRIPT')) {
     // This file is being included by predict.php, so just make functions available and stop.
@@ -113,6 +114,7 @@ if ($action) {
                 $stmt = $pdo->prepare("SELECT id, title FROM conversations WHERE user_id = ? ORDER BY updated_at DESC");
                 $stmt->execute([$_SESSION['user_id']]);
                 $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                ob_clean(); // Clear any previous output
                 echo json_encode(['success' => true, 'history' => $history]);
             } catch (Exception $e) {
                 http_response_code(500);
@@ -165,8 +167,10 @@ if ($action) {
                     $conversation['chat_history'][] = ['role' => $message['role'], 'parts' => $parts];
                 }
 
+                ob_clean();
                 echo json_encode(['success' => true, 'conversation' => $conversation]);
             } catch (Exception $e) {
+                ob_clean();
                 http_response_code(500);
                 echo json_encode(['success' => false, 'error' => 'Could not fetch conversation.']);
             }

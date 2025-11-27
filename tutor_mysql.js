@@ -34,15 +34,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadChatHistory();
 
     // --- Initial State ---
-    // If there's no active conversation, show the welcome screen and hide title.
-    if (!conversationIdInput.value) {
+    // If there's an active conversation ID (from URL/PHP), load it.
+    if (conversationIdInput.value) {
+        loadConversation(conversationIdInput.value);
+    } else {
+        // If there's no active conversation, show the welcome screen and hide title.
         welcomeScreen.style.display = 'flex';
         document.body.classList.add('chat-empty');
         if (conversationTitleEl) conversationTitleEl.style.display = 'none';
-    } else {
-        welcomeScreen.style.display = 'none';
-        document.body.classList.remove('chat-empty');
-        if (conversationTitleEl) conversationTitleEl.style.display = 'block';
     }
 
     // --- Dark Mode Logic ---
@@ -539,7 +538,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             submitBtn.disabled = true;
             questionInput.disabled = true;
             showTypingIndicator(true);
-            const response = await fetch('server_mysql.php', {
+            // Use absolute path for fetch
+            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const response = await fetch(fetchUrl, {
                 method: 'POST',
                 body: formData
             });
@@ -568,6 +569,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Handle conversation ID and title updates
                 if (result.conversation_id) {
                     conversationIdInput.value = result.conversation_id;
+
+                    // Update URL if we aren't already on this conversation's page
+                    if (!window.location.href.includes(`chat/${result.conversation_id}`)) {
+                        const baseUrl = window.location.pathname.split('/chat')[0];
+                        history.pushState({}, '', `${baseUrl}/chat/${result.conversation_id}`);
+                    }
                     
                     // If server generated a title, update the conversation in the sidebar
                     if (result.generated_title) {
@@ -602,6 +609,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Handle "New Chat" button ---
     newChatBtn.addEventListener('click', () => {
+        // Update URL to /chat
+        const baseUrl = window.location.pathname.split('/chat')[0];
+        history.pushState({}, '', `${baseUrl}/chat`);
+
         // Clear old messages and show the welcome screen
         chatMessages.innerHTML = '';
         chatMessages.appendChild(welcomeScreen);
@@ -678,7 +689,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!welcomeScreen || welcomeScreen.style.display === 'none') return;
 
         try {
-            const response = await fetch('server_mysql.php?action=generate_suggestions');
+            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const response = await fetch(`${fetchUrl}?action=generate_suggestions`);
             const data = await response.json();
 
             if (data.success && data.suggestions) {
@@ -710,7 +722,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Function to load chat history from server ---
     async function loadChatHistory() {
         try {
-            const response = await fetch('server_mysql.php?action=history');
+            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const response = await fetch(`${fetchUrl}?action=history`);
             const result = await response.json();
 
             if (result.success && Array.isArray(result.history)) {
@@ -760,9 +773,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Function to load a specific conversation ---
     async function loadConversation(id) {
+        // Update URL to /chat/{id}
+        const baseUrl = window.location.pathname.split('/chat')[0];
+        history.pushState({}, '', `${baseUrl}/chat/${id}`);
+
         try {
-            const response = await fetch(`server_mysql.php?action=get_conversation&id=${id}`);
-            const result = await response.json();
+            // Use absolute path for fetch to avoid issues when current URL is /chat/123
+            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const response = await fetch(`${fetchUrl}?action=get_conversation&id=${id}`);
+            const text = await response.text();
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch (e) {
+                console.error('Failed to parse JSON:', text);
+                throw new Error('Invalid server response');
+            }
 
             if (result.success) {
                 // Hide welcome screen and clear any existing messages
@@ -873,7 +899,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!confirm('Are you sure you want to delete this chat?')) return;
 
         try {
-            const response = await fetch(`server_mysql.php?action=delete_conversation&id=${id}`);
+            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const response = await fetch(`${fetchUrl}?action=delete_conversation&id=${id}`);
             const result = await response.json();
 
             if (result.success) {

@@ -7,6 +7,7 @@ RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 # Custom Routes
+RewriteRule ^chat/([0-9]+)/?$ tutor_mysql.php?conversation_id=$1 [L,NC]
 RewriteRule ^chat/?$ tutor_mysql.php [L,NC]
 RewriteRule ^login/?$ login.html [L,NC]
 RewriteRule ^register/?$ register.html [L,NC]
