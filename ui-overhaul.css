@@ -478,6 +478,7 @@ body {
   height: 100vh;
   background: transparent;
   position: relative;
+  overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
 .main-chat-header {
@@ -712,18 +713,40 @@ body.chat-empty .suggestion-pills-row {
 }
 
 /* Code blocks */
+/* Code blocks */
 .message-bubble pre {
   position: relative;
   margin: 1rem 0;
   padding: 1rem 1.25rem;
   border-radius: 8px;
   overflow-x: auto;
+  max-width: 100%; /* Ensure it doesn't overflow parent */
+  
+  /* Default desktop style: scrollable */
+  white-space: pre; 
+  
   font-family: 'Courier New', Consolas, Monaco, monospace;
   font-size: 0.9rem;
   line-height: 1.5;
-  white-space: pre;
-  max-width: 100%;
   border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle border for light mode */
+}
+
+@media (max-width: 768px) {
+  .message-bubble pre {
+    /* Mobile style: wrap text to prevent horizontal scroll breaking layout */
+    white-space: pre-wrap !important; 
+    word-break: break-all !important; /* Force break anywhere if needed */
+    overflow-wrap: break-word !important;
+    overflow-x: hidden !important; /* Hide scrollbar since we are wrapping */
+    padding: 0.75rem; /* Slightly less padding */
+    font-size: 0.85rem; /* Slightly smaller font */
+    max-width: 100% !important;
+  }
+  
+  .message-bubble pre code {
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+  }
 }
 
 /* Highlight.js already styles the code, we just add a subtle border */
@@ -1118,7 +1141,9 @@ body.chat-empty .suggestion-pills-row {
   }
   .chat-content {
     padding: 1rem;
-    padding-bottom: 80px; /* Add space at bottom to prevent content being hidden by fixed footer */
+    padding-bottom: 160px; /* More space for the floating input bar */
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    width: 100%; /* Ensure it fits width */
   }
   
   /* Fix input bar on mobile - Floating App Style */
