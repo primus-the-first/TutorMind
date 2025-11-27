@@ -9,6 +9,19 @@ switch ($request_method) {
     case 'GET':
         $action = $_GET['action'] ?? '';
         if ($action === 'logout') {
+            // Clear Remember Me
+            if (isset($_COOKIE['remember_me'])) {
+                list($selector, $validator) = explode(':', $_COOKIE['remember_me']);
+                try {
+                    $pdo = getDbConnection();
+                    $stmt = $pdo->prepare("DELETE FROM user_tokens WHERE selector = ?");
+                    $stmt->execute([$selector]);
+                } catch (Exception $e) {
+                    // Ignore error on logout
+                }
+                setcookie('remember_me', '', time() - 3600, '/', '', true, true);
+            }
+
             session_unset();
             session_destroy();
             header('Location: /TutorMind/login');
@@ -96,6 +109,21 @@ switch ($request_method) {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['first_name'] = $user['first_name'];
                     $_SESSION['last_name'] = $user['last_name'];
+
+                    // --- Remember Me Logic ---
+                    if (isset($_POST['remember'])) {
+                        $selector = bin2hex(random_bytes(16));
+                        $validator = bin2hex(random_bytes(32));
+                        $hashed_validator = password_hash($validator, PASSWORD_DEFAULT);
+                        $expires_at = date('Y-m-d H:i:s', time() + 86400 * 30); // 30 days
+
+                        $stmt = $pdo->prepare("INSERT INTO user_tokens (user_id, selector, hashed_validator, expires_at) VALUES (?, ?, ?, ?)");
+                        $stmt->execute([$user['id'], $selector, $hashed_validator, $expires_at]);
+
+                        // Set cookie: selector:validator
+                        setcookie('remember_me', "$selector:$validator", time() + 86400 * 30, '/', '', true, true);
+                    }
+
                     // Redirect based on onboarding completion status
                     $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
                     echo json_encode(['success' => true, 'redirect' => $redirect]);
