@@ -183,6 +183,132 @@ switch ($request_method) {
                 http_response_code(500);
                 echo json_encode(['success' => false, 'error' => 'An unexpected server error occurred.']);
             }
+        } elseif ($action === 'google_login') {
+            // --- Google Login Logic ---
+            $credential = $_POST['credential'] ?? '';
+
+            if (empty($credential)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'No credential provided.']);
+                exit;
+            }
+
+            // Verify the token with Google
+            $url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $credential;
+            $response = file_get_contents($url);
+            $payload = json_decode($response, true);
+
+            if (!$payload || isset($payload['error_description'])) {
+                http_response_code(401);
+                echo json_encode(['success' => false, 'error' => 'Invalid Google token.']);
+                exit;
+            }
+
+            // Token is valid, get user info
+            $google_id = $payload['sub'];
+            $email = $payload['email'];
+            $first_name = $payload['given_name'] ?? '';
+            $last_name = $payload['family_name'] ?? '';
+            $avatar_url = $payload['picture'] ?? '';
+            $username = explode('@', $email)[0]; // Default username from email
+
+            try {
+                $pdo = getDbConnection();
+                
+                // Check if user exists by google_id or email
+                $stmt = $pdo->prepare("SELECT * FROM users WHERE google_id = ? OR email = ?");
+                $stmt->execute([$google_id, $email]);
+                $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($user) {
+                    // User exists - Update google_id, avatar, and names if missing
+                    $update_fields = [];
+                    $params = [];
+
+                    // Update Google ID if missing
+                    if (empty($user['google_id'])) {
+                        $update_fields[] = "google_id = ?";
+                        $params[] = $google_id;
+                    }
+
+                    // Update Avatar if missing or changed
+                    if (empty($user['avatar_url']) || $user['avatar_url'] !== $avatar_url) {
+                        $update_fields[] = "avatar_url = ?";
+                        $params[] = $avatar_url;
+                    }
+
+                    // Update First Name if missing in DB
+                    $final_first_name = $user['first_name'];
+                    if (empty($user['first_name']) && !empty($first_name)) {
+                        $update_fields[] = "first_name = ?";
+                        $params[] = $first_name;
+                        $final_first_name = $first_name;
+                    }
+
+                    // Update Last Name if missing in DB
+                    $final_last_name = $user['last_name'];
+                    if (empty($user['last_name']) && !empty($last_name)) {
+                        $update_fields[] = "last_name = ?";
+                        $params[] = $last_name;
+                        $final_last_name = $last_name;
+                    }
+
+                    if (!empty($update_fields)) {
+                        $params[] = $user['id'];
+                        $sql = "UPDATE users SET " . implode(', ', $update_fields) . " WHERE id = ?";
+                        $stmt = $pdo->prepare($sql);
+                        $stmt->execute($params);
+                    }
+
+                    // Log the user in
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['first_name'] = $final_first_name;
+                    $_SESSION['last_name'] = $final_last_name;
+                    $_SESSION['avatar_url'] = $avatar_url; // Store avatar in session
+
+                    $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
+                    echo json_encode(['success' => true, 'redirect' => $redirect]);
+
+                } else {
+                    // New user - Create account
+                    // Ensure username is unique
+                    $base_username = $username;
+                    $counter = 1;
+                    while (true) {
+                        $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+                        $stmt->execute([$username]);
+                        if (!$stmt->fetch()) break;
+                        $username = $base_username . $counter++;
+                    }
+
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, first_name, last_name, google_id, avatar_url, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    // Use a random password for Google users (they can reset it later if they want)
+                    $random_password = bin2hex(random_bytes(16));
+                    $password_hash = password_hash($random_password, PASSWORD_ARGON2ID);
+                    
+                    if ($stmt->execute([$username, $email, $first_name, $last_name, $google_id, $avatar_url, $password_hash])) {
+                        $user_id = $pdo->lastInsertId();
+                        session_regenerate_id(true);
+                        $_SESSION['user_id'] = $user_id;
+                        $_SESSION['username'] = $username;
+                        $_SESSION['first_name'] = $first_name;
+                        $_SESSION['last_name'] = $last_name;
+                        $_SESSION['avatar_url'] = $avatar_url;
+
+                        echo json_encode(['success' => true, 'redirect' => 'onboarding']);
+                    } else {
+                        throw new Exception("Failed to create user account.");
+                    }
+                }
+
+            } catch (Exception $e) {
+                error_log("Google Login Error: " . $e->getMessage());
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Server error during Google login.']);
+            }
+
         } else {
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid POST action specified.']);

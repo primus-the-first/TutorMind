@@ -434,7 +434,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         updatePreview() {
             this.previewArea.innerHTML = '';
             
-            if (this.files.length === 0) return;
+            if (this.files.length === 0) {
+                this.previewArea.classList.remove('has-files');
+                return;
+            }
+            this.previewArea.classList.add('has-files');
 
             const list = document.createElement('div');
             list.className = 'attachment-preview-list';

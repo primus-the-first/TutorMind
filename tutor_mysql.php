@@ -131,8 +131,11 @@ $selectedPrompts = [
         <div id="user-account-dropdown" class="user-profile">
             <button id="user-account-trigger" class="user-info-button">
                 <div class="user-avatar">
-                    <?= htmlspecialchars(strtoupper(substr($displayName, 0, 1)))
-?>
+                    <?php if (isset($_SESSION['avatar_url']) && !empty($_SESSION['avatar_url'])): ?>
+                        <img src="<?= htmlspecialchars($_SESSION['avatar_url']) ?>" alt="User Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                    <?php else: ?>
+                        <?= htmlspecialchars(strtoupper(substr($displayName, 0, 1))) ?>
+                    <?php endif; ?>
                 </div>
                 <div class="user-details">
                     <h4><?= htmlspecialchars($displayName) ?></h4>
@@ -205,47 +208,52 @@ $selectedPrompts = [
         </main>
 
         <footer class="input-bar-area">
-            <div id="attachment-preview-area"></div>
             <form id="tutorForm" class="unified-input-container">
                 <input type="hidden" id="conversation_id" name="conversation_id" value="<?= isset($_GET['conversation_id']) ? htmlspecialchars($_GET['conversation_id']) : '' ?>">
                 <input type="file" id="file-attachment" name="attachment[]" class="hidden-input" multiple>
                 
                 <!-- Combined Input Bar -->
                 <div class="combined-input-bar">
-                    <!-- Left side: Add button -->
-                    <label for="file-attachment" class="add-btn" title="Add attachments">
-                        <i class="fas fa-plus"></i>
-                    </label>
-                    
-                    <!-- Center: Text input -->
-                    <input type="text" id="question" name="question" class="main-text-input" placeholder="Ask TutorMind" required>
-                    
-                    <!-- Right side: Controls group -->
-                    <div class="input-controls-group">
-                        <!-- Tools button (placeholder for now) -->
-                        <button type="button" class="control-btn tools-btn" title="Tools">
-                            <i class="fas fa-sliders-h"></i> Tools
-                        </button>
+                    <!-- Preview Area (Inside the bar now) -->
+                    <div id="attachment-preview-area"></div>
+
+                    <!-- Input Row (Buttons + Text) -->
+                    <div class="input-row">
+                        <!-- Left side: Add button -->
+                        <label for="file-attachment" class="add-btn" title="Add attachments">
+                            <i class="fas fa-plus"></i>
+                        </label>
                         
-                        <!-- Learning Level dropdown -->
-                        <select id="learningLevel" name="learningLevel" class="control-dropdown" title="Reasoning level">
-                            <option value="Remember">Remember</option>
-                            <option value="Understand" selected>Understand</option>
-                            <option value="Apply">Apply</option>
-                            <option value="Analyze">Analyze</option>
-                            <option value="Evaluate">Evaluate</option>
-                            <option value="Create">Create</option>
-                        </select>
+                        <!-- Center: Text input -->
+                        <input type="text" id="question" name="question" class="main-text-input" placeholder="Ask TutorMind" required>
                         
-                        <!-- Voice input button -->
-                        <button type="button" class="control-btn voice-btn" title="Voice input">
-                            <i class="fas fa-microphone"></i>
-                        </button>
-                        
-                        <!-- Submit button -->
-                        <button type="submit" id="ai-submit-btn" class="submit-btn" title="Send message">
-                            <i class="fas fa-arrow-up"></i>
-                        </button>
+                        <!-- Right side: Controls group -->
+                        <div class="input-controls-group">
+                            <!-- Tools button (placeholder for now) -->
+                            <button type="button" class="control-btn tools-btn" title="Tools">
+                                <i class="fas fa-sliders-h"></i> Tools
+                            </button>
+                            
+                            <!-- Learning Level dropdown -->
+                            <select id="learningLevel" name="learningLevel" class="control-dropdown" title="Reasoning level">
+                                <option value="Remember">Remember</option>
+                                <option value="Understand" selected>Understand</option>
+                                <option value="Apply">Apply</option>
+                                <option value="Analyze">Analyze</option>
+                                <option value="Evaluate">Evaluate</option>
+                                <option value="Create">Create</option>
+                            </select>
+                            
+                            <!-- Voice input button -->
+                            <button type="button" class="control-btn voice-btn" title="Voice input">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            
+                            <!-- Submit button -->
+                            <button type="submit" id="ai-submit-btn" class="submit-btn" title="Send message">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 

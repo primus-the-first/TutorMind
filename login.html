@@ -11,6 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="logo.css?v=<?php echo time(); ?>">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root {
             --primary: #7B3FF2;
@@ -380,10 +381,20 @@
 
                     <div class="divider">Or, Login with</div>
 
-                    <button type="button" class="btn-social">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google icon">
-                        Sign up with Google
-                    </button>
+                    <div id="g_id_onload"
+                         data-client_id="807658561801-fj6ujdo8dmha59gkv44mtim6ksailc5i.apps.googleusercontent.com"
+                         data-callback="handleCredentialResponse"
+                         data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin"
+                         data-type="standard"
+                         data-size="large"
+                         data-theme="outline"
+                         data-text="sign_in_with"
+                         data-shape="rectangular"
+                         data-logo_alignment="left"
+                         data-width="350">
+                    </div>
                 </form>
 
                 <footer class="login-footer">
@@ -502,6 +513,33 @@
                 }
             });
         });
+
+        // Google Sign-In Callback
+        function handleCredentialResponse(response) {
+            console.log("Encoded JWT ID token: " + response.credential);
+            
+            // Send the token to the backend
+            const formData = new FormData();
+            formData.append('action', 'google_login');
+            formData.append('credential', response.credential);
+
+            fetch('auth_mysql', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert(data.error || 'Google login failed.');
+                }
+            })
+            .catch(err => {
+                console.error('Google login error:', err);
+                alert('Could not connect to the server.');
+            });
+        }
     </script>
 </body>
 </html>
