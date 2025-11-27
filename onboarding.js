@@ -143,7 +143,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Redirect to main app after a short delay
         setTimeout(() => {
-          window.location.href = "tutor_mysql.php";
+          window.location.href = "chat";
         }, 500);
       } else {
         // Show error

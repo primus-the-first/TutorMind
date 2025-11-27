@@ -28,7 +28,7 @@ if ($user_id) {
         
         // If onboarding is already completed, redirect to main app
         if ($user && $user['onboarding_completed']) {
-            header('Location: tutor_mysql.php');
+            header('Location: chat');
             exit;
         }
     } catch (Exception $e) {
@@ -320,7 +320,7 @@ if ($user_id) {
 <body>
     <div class="onboarding-container">
         <div class="header">
-            <a href="index.html" class="app-logo" style="display: inline-flex;">
+            <a href="index" class="app-logo" style="display: inline-flex;">
                 <span class="app-logo-text">🧠 TutorMind</span>
             </a>
             <h1>Welcome, <?= htmlspecialchars($displayName) ?>! 👋</h1>

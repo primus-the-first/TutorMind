@@ -112,7 +112,7 @@ $selectedPrompts = [
             <button id="menu-toggle" class="menu-toggle">
                 <i class="fas fa-bars"></i>
             </button>
-            <a href="index.html" class="app-logo" style="margin-bottom: 0; padding: 0;">
+            <a href="index" class="app-logo" style="margin-bottom: 0; padding: 0;">
                 <span class="app-logo-text">🧠 TutorMind</span>
             </a>
         </div>
@@ -157,7 +157,7 @@ $selectedPrompts = [
                     <a href="#"><i class="fas fa-user-edit"></i> Personalization</a>
                     <a href="#" id="open-settings-btn"><i class="fas fa-cog"></i> Settings</a>
                     <a href="#"><i class="fas fa-question-circle"></i> Help</a>
-                    <a href="auth_mysql.php?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
+                    <a href="auth_mysql?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
                     <div class="dark-mode-toggle">
                         <span><i class="fas fa-moon"></i> Dark Mode</span>
                         <label for="darkModeToggle" class="toggle-switch">
@@ -180,12 +180,12 @@ $selectedPrompts = [
                 <button id="mobile-menu-toggle" class="menu-toggle mobile-only">
                     <i class="fas fa-bars"></i>
                 </button>
-                <a href="index.html" class="mobile-logo-link mobile-only" style="text-decoration: none; color: inherit; margin-left: 10px;">
+                <a href="index" class="mobile-logo-link mobile-only" style="text-decoration: none; color: inherit; margin-left: 10px;">
                     <span class="app-logo-text" style="font-size: 1.2rem;">TutorMind</span>
                 </a>
             </div>
             
-            <a href="index.html" style="text-decoration: none; color: inherit;" class="desktop-only">
+            <a href="index" style="text-decoration: none; color: inherit;" class="desktop-only">
                 <h2 id="conversation-title" class="conversation-title">TutorMind</h2>
             </a>
 

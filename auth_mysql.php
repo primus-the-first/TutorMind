@@ -11,7 +11,7 @@ switch ($request_method) {
         if ($action === 'logout') {
             session_unset();
             session_destroy();
-            header('Location: login.html');
+            header('Location: login');
             exit;
         }
         break;
@@ -63,7 +63,7 @@ switch ($request_method) {
                     $_SESSION['first_name'] = $firstName;
                     $_SESSION['last_name'] = $lastName;
 
-                    echo json_encode(['success' => true, 'redirect' => 'onboarding.php']);
+                    echo json_encode(['success' => true, 'redirect' => 'onboarding']);
                 } else {
                     throw new Exception("Failed to create user account.");
                 }
@@ -97,7 +97,7 @@ switch ($request_method) {
                     $_SESSION['first_name'] = $user['first_name'];
                     $_SESSION['last_name'] = $user['last_name'];
                     // Redirect based on onboarding completion status
-                    $redirect = ($user['onboarding_completed']) ? 'tutor_mysql.php' : 'onboarding.php';
+                    $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
                     echo json_encode(['success' => true, 'redirect' => $redirect]);
                 } else {
                     http_response_code(401);

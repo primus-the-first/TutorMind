@@ -799,7 +799,7 @@ class SettingsManager {
             if (response.ok && result.success) {
                 this.showToast('Account deleted. You will be logged out.', 'success');
                 // Redirect to login page after a short delay
-                setTimeout(() => window.location.href = 'login.html', 2000);
+                setTimeout(() => window.location.href = 'login', 2000);
             } else {
                 throw new Error(result.error || 'Failed to delete account.');
             }
