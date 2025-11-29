@@ -9,7 +9,8 @@
     <title>Create Your Account - Tutormind</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
+    <link rel="stylesheet" href="logo.css?v=<?php echo time(); ?>">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
         :root {
             --primary: #7B3FF2;
             --primary-light: #9D6BF5;
@@ -491,10 +492,23 @@
                     <span>Or, sign up with</span>
                 </div>
 
-                <button class="social-signup-btn google-btn">
-                    <i class="fab fa-google"></i>
-                    <span>Sign up with Google</span>
-                </button>
+                <div id="g_id_onload"
+                     data-client_id="807658561801-fj6ujdo8dmha59gkv44mtim6ksailc5i.apps.googleusercontent.com"
+                     data-context="signup"
+                     data-ux_mode="popup"
+                     data-callback="handleCredentialResponse"
+                     data-auto_prompt="false">
+                </div>
+
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-shape="rectangular"
+                     data-theme="outline"
+                     data-text="signup_with"
+                     data-size="large"
+                     data-logo_alignment="left"
+                     data-width="350">
+                </div>
 
                 <p class="login-link">
                     Already have an account? <a href="login">Login here</a>
@@ -699,6 +713,34 @@
             }
         });
     });
+
+    // Google Sign-In Callback
+    function handleCredentialResponse(response) {
+        console.log("Encoded JWT ID token: " + response.credential);
+        
+        // Send the token to the backend
+        const formData = new FormData();
+        formData.append('action', 'google_login');
+        formData.append('credential', response.credential);
+
+        fetch('auth_mysql.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.error || 'Google signup failed.');
+            }
+        })
+        .catch(err => {
+            console.error('Google signup error:', err);
+            alert('Could not connect to the server.');
+        });
+    }
+    
     </script>
 </body>
 </html>
