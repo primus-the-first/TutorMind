@@ -1132,7 +1132,7 @@ body.chat-empty .suggestion-pills-row {
     display: none !important;
   }
   .suggestion-pills-row {
-    display: grid !important;
+    display: none !important; /* Hidden by default even on mobile */
     grid-template-columns: 1fr 1fr; /* 2 columns */
     gap: 8px;
     max-width: 100%;
@@ -1140,6 +1140,11 @@ body.chat-empty .suggestion-pills-row {
     margin-bottom: 12px;
     overflow-x: visible; /* No scrolling needed for grid */
     justify-content: stretch;
+  }
+
+  /* Only show as grid when chat is empty */
+  body.chat-empty .suggestion-pills-row {
+    display: grid !important;
   }
   .suggestion-pills-row::-webkit-scrollbar {
     display: none;
