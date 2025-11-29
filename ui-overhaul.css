@@ -1132,27 +1132,26 @@ body.chat-empty .suggestion-pills-row {
     display: none !important;
   }
   .suggestion-pills-row {
-    display: flex !important; /* Ensure flex layout */
-    flex-direction: row !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr; /* 2 columns */
     gap: 8px;
     max-width: 100%;
     padding: 0 0.5rem;
-    flex-wrap: nowrap !important; /* Force single row */
-    overflow-x: auto;
-    justify-content: flex-start;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Hide scrollbar */
-    margin-bottom: 8px; /* Space above input */
+    margin-bottom: 12px;
+    overflow-x: visible; /* No scrolling needed for grid */
+    justify-content: stretch;
   }
   .suggestion-pills-row::-webkit-scrollbar {
     display: none;
   }
   .suggestion-pill {
-    flex: 0 0 auto !important; /* Don't grow or shrink */
-    width: auto !important; /* Don't stretch */
-    font-size: 0.85rem;
-    padding: 8px 14px;
-    white-space: nowrap !important; /* Keep text on one line */
+    width: 100% !important; /* Fill grid cell */
+    font-size: 0.8rem; /* Smaller font */
+    padding: 6px 10px; /* Smaller padding */
+    justify-content: center; /* Center content */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .chat-content {
     padding: 1rem;
