@@ -60,6 +60,69 @@ $selectedPrompts = [
     'research' => "Research a topic in depth."
 ];
 
+// --- Server-Side Rendering of Chat Messages ---
+$ssr_messages_html = '';
+$ssr_chat_active = false;
+$ssr_conversation_title = 'TutorMind';
+
+if (isset($_GET['conversation_id'])) {
+    $convo_id = $_GET['conversation_id'];
+    try {
+        require_once 'vendor/autoload.php'; // Needed for Parsedown
+        
+        // Verify ownership
+        $stmt = $pdo->prepare("SELECT title FROM conversations WHERE id = ? AND user_id = ?");
+        $stmt->execute([$convo_id, $user_id]);
+        $convo = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($convo) {
+            $ssr_chat_active = true;
+            $ssr_conversation_title = $convo['title'];
+            
+            // Fetch messages (limit 50 for initial load to be fast)
+            $stmt = $pdo->prepare("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC");
+            $stmt->execute([$convo_id]);
+            $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $Parsedown = new Parsedown();
+            $Parsedown->setBreaksEnabled(true);
+            
+            foreach ($messages as $msg) {
+                $role = $msg['role']; // 'user' or 'model' (ai)
+                $senderClass = ($role === 'user') ? 'user-message' : 'ai-message';
+                $parts = json_decode($msg['content'], true);
+                
+                $messageContentHtml = '';
+                
+                // Handle parts (text/images)
+                if (is_array($parts)) {
+                    foreach ($parts as $part) {
+                        if (isset($part['text'])) {
+                            // Simple markdown parsing for SSR (JS will re-hydrate/highlight if needed)
+                            $text = $part['text'];
+                            // Basic protection against XSS before markdown
+                            $html = $Parsedown->text($text);
+                            $messageContentHtml .= $html;
+                        }
+                        // We skip images for SSR to keep it fast/simple, or add a placeholder
+                        if (isset($part['inline_data'])) {
+                            $messageContentHtml .= '<div class="message-attachment-pill"><i class="fas fa-image"></i> Image attached</div>';
+                        }
+                    }
+                }
+                
+                $ssr_messages_html .= '
+                <div class="chat-message ' . $senderClass . '">
+                    <div class="message-bubble">
+                        ' . $messageContentHtml . '
+                    </div>
+                </div>';
+            }
+        }
+    } catch (Exception $e) {
+        error_log("SSR Error: " . $e->getMessage());
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -105,7 +168,7 @@ $selectedPrompts = [
     <link rel="stylesheet" href="settings.css?v=<?= time() ?>">
     <link rel="stylesheet" href="logo.css?v=<?= time() ?>">
 </head>
-<body class="flex h-screen chat-empty">
+<body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?>">
 
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar">
@@ -190,7 +253,7 @@ $selectedPrompts = [
             </div>
             
             <a href="index" style="text-decoration: none; color: inherit;" class="desktop-only">
-                <h2 id="conversation-title" class="conversation-title">TutorMind</h2>
+                <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
             </a>
 
             <!-- Mobile User Avatar removed as requested -->
@@ -198,7 +261,7 @@ $selectedPrompts = [
 
         <main id="chat-container" class="chat-content">
             <!-- Welcome Screen -->
-            <div id="welcome-screen" class="welcome-section">
+            <div id="welcome-screen" class="welcome-section" style="<?= $ssr_chat_active ? 'display:none' : 'display:flex' ?>">
                 <div class="gradient-orb"></div>
                 <h1 id="welcome-greeting" data-username="<?= htmlspecialchars($displayName) ?>"></h1>
                 <p>What would you like to know?</p>
@@ -206,6 +269,7 @@ $selectedPrompts = [
 
             </div>
             <!-- Chat messages will be appended here -->
+            <?= $ssr_messages_html ?>
         </main>
 
         <footer class="input-bar-area">
