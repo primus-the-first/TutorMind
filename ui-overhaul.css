@@ -1132,21 +1132,27 @@ body.chat-empty .suggestion-pills-row {
     display: none !important;
   }
   .suggestion-pills-row {
+    display: flex !important; /* Ensure flex layout */
+    flex-direction: row !important;
     gap: 8px;
     max-width: 100%;
     padding: 0 0.5rem;
-    flex-wrap: nowrap; /* Scroll horizontally on mobile */
+    flex-wrap: nowrap !important; /* Force single row */
     overflow-x: auto;
     justify-content: flex-start;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none; /* Hide scrollbar */
+    margin-bottom: 8px; /* Space above input */
   }
   .suggestion-pills-row::-webkit-scrollbar {
     display: none;
   }
   .suggestion-pill {
+    flex: 0 0 auto !important; /* Don't grow or shrink */
+    width: auto !important; /* Don't stretch */
     font-size: 0.85rem;
     padding: 8px 14px;
+    white-space: nowrap !important; /* Keep text on one line */
   }
   .chat-content {
     padding: 1rem;
