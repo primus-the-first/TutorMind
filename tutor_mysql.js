@@ -31,12 +31,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Load chat history on page load ---
-    loadChatHistory();
+    // --- Load chat history on page load ---
+    // Check if history is already SSR rendered
+    if (chatHistoryContainer.children.length === 0) {
+        loadChatHistory();
+    }
 
     // --- Initial State ---
     // If there's an active conversation ID (from URL/PHP), load it.
     if (conversationIdInput.value) {
-        loadConversation(conversationIdInput.value);
+        // Check if messages are already SSR rendered
+        const existingMessages = chatMessages.querySelectorAll('.chat-message');
+        if (existingMessages.length > 0) {
+            // Hydrate existing messages (attach listeners)
+            console.log('Hydrating SSR messages...');
+            hydrateMessages();
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        } else {
+            loadConversation(conversationIdInput.value);
+        }
     } else {
         // If there's no active conversation, show the welcome screen and hide title.
         welcomeScreen.style.display = 'flex';
@@ -88,6 +102,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Scroll to the bottom
         chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // --- Function to hydrate SSR messages ---
+    function hydrateMessages() {
+        const bubbles = chatMessages.querySelectorAll('.message-bubble');
+        bubbles.forEach(bubble => {
+            const wrapper = bubble.closest('.chat-message');
+            const isAi = wrapper.classList.contains('ai-message');
+            
+            // For AI messages, ensure footer buttons exist
+            if (isAi && !bubble.querySelector('.message-footer')) {
+                const footer = document.createElement('div');
+                footer.className = 'message-footer';
+                footer.innerHTML = `
+                    <button class="read-aloud-btn" title="Read aloud">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                    <button class="copy-btn" title="Copy response">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                `;
+                bubble.appendChild(footer);
+            }
+            
+            finalizeMessage(bubble);
+        });
     }
 
     // --- Helper to finalize message (highlighting, mathjax, etc) ---
