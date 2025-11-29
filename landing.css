@@ -261,7 +261,7 @@ body:not(.light-mode) .marker {
     }
 
     /* Hide Account link on mobile (use Get Started) */
-    .nav-buttons a[href="login.html"] {
+    .nav-buttons a[href="entry"] {
         display: none;
     }
     

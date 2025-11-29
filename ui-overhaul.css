@@ -1193,6 +1193,7 @@ body.chat-empty .suggestion-pills-row {
   }
   
   /* Mobile: Simplify user menu - hide account details, show just toggle */
+  /* Mobile: Simplify user menu - hide account details, show just toggle */
   .sidebar .user-menu-trigger .user-info {
     display: none !important; /* Hide username and email */
   }
