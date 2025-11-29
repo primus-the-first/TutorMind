@@ -615,7 +615,7 @@ body.chat-empty .suggestion-pills-row {
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   white-space: nowrap;
   font-weight: 500;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
@@ -1148,10 +1148,13 @@ body.chat-empty .suggestion-pills-row {
     width: 100% !important; /* Fill grid cell */
     font-size: 0.8rem; /* Smaller font */
     padding: 6px 10px; /* Smaller padding */
-    justify-content: center; /* Center content */
+    justify-content: center !important; /* Center content */
+    align-items: center;
+    gap: 5px !important; /* Reduce gap */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: flex !important;
   }
   .chat-content {
     padding: 1rem;
@@ -1342,7 +1345,7 @@ body.chat-empty .suggestion-pills-row {
     backdrop-filter: blur(20px); /* Stronger blur */
     -webkit-backdrop-filter: blur(20px);
     border-radius: 16px;
-    padding: 16px;
+    padding: 5px;
     text-align: left;
     display: flex;
     align-items: center;
@@ -1351,6 +1354,7 @@ body.chat-empty .suggestion-pills-row {
     width: 100%;
     height: 100%;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Soft shadow */
+    /*margin-right: 0px;*/
   }
 
   /* Glass effect for Dark Mode */
