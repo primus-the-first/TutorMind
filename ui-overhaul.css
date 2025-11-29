@@ -1250,6 +1250,29 @@ body.chat-empty .suggestion-pills-row {
     color: #fff;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   }
+
+  /* Extra responsiveness for smaller phones (iPhone 7+, etc.) */
+  @media (max-width: 480px) {
+    .combined-input-bar {
+      margin: 0 10px; /* Tighter margins */
+      padding: 8px 12px;
+    }
+    
+    .suggestion-pills-row {
+      padding: 0 10px; /* Match input bar margin */
+    }
+    
+    .chat-content {
+      padding: 0.75rem;
+      padding-bottom: 150px;
+    }
+    
+    /* Ensure user menu doesn't go off screen if opened */
+    .sidebar.collapsed .user-menu {
+      width: 260px;
+      left: 5px;
+    }
+  }
   
   /* Input text color */
   .main-text-input {
