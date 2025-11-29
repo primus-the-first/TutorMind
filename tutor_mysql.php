@@ -123,6 +123,26 @@ if (isset($_GET['conversation_id'])) {
         error_log("SSR Error: " . $e->getMessage());
     }
 }
+
+// --- Server-Side Rendering of Chat History ---
+$ssr_history_html = '';
+try {
+    $stmt = $pdo->prepare("SELECT id, title FROM conversations WHERE user_id = ? ORDER BY updated_at DESC");
+    $stmt->execute([$user_id]);
+    $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($history as $convo) {
+        $activeClass = (isset($convo_id) && $convo_id == $convo['id']) ? 'active' : '';
+        $ssr_history_html .= '
+        <div class="history-item flex justify-between items-center">
+            <a href="#" class="flex-1 truncate ' . $activeClass . '" title="' . htmlspecialchars($convo['title']) . '" data-conversation-id="' . $convo['id'] . '">' . htmlspecialchars($convo['title']) . '</a>
+            <button class="edit-btn text-gray-400 hover:text-white ml-2" title="Rename" onclick="event.stopPropagation(); enableRename(this.parentNode, ' . $convo['id'] . ', \'' . htmlspecialchars($convo['title'], ENT_QUOTES) . '\')"><i class="fas fa-pencil-alt"></i></button>
+            <button class="delete-btn text-gray-400 hover:text-white ml-2" title="Delete" onclick="event.stopPropagation(); deleteConversation(' . $convo['id'] . ')"><i class="fas fa-trash-alt"></i></button>
+        </div>';
+    }
+} catch (Exception $e) {
+    error_log("SSR History Error: " . $e->getMessage());
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -188,7 +208,7 @@ if (isset($_GET['conversation_id'])) {
         </div>
         
         <nav id="chat-history-container" class="chat-history">
-            <!-- Chat history will be dynamically populated here by tutor_mysql.js -->
+            <?= $ssr_history_html ?>
         </nav>
         
         <!-- User Profile Section -->
