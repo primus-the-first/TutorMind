@@ -1179,6 +1179,30 @@ body.chat-empty .suggestion-pills-row {
     pointer-events: auto; /* Re-enable clicks for the form */
   }
   
+  /* Mobile: Simplify user menu - hide account details, show just toggle */
+  .sidebar .user-menu-trigger .user-info {
+    display: none !important; /* Hide username and email */
+  }
+  
+  .sidebar .user-menu-trigger #user-account-chevron {
+    display: none !important; /* Hide chevron */
+  }
+  
+  .sidebar .user-menu-trigger {
+    justify-content: center; /* Center the avatar */
+    padding: 0.5rem;
+  }
+  
+  /* Make user menu dropdown simpler on mobile */
+  .user-menu-dropdown a:not(.logout-link):not(#open-settings-btn) {
+    display: none; /* Hide upgrade plan link */
+  }
+  
+  /* Keep dark mode toggle visible and styled properly */
+  .dark-mode-toggle {
+    width: 100%;
+  }
+  
   .combined-input-bar {
     margin: 0 16px;
     background: rgba(255, 255, 255, 0.75); /* Goldilocks blend */
