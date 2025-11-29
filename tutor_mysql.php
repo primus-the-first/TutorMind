@@ -135,7 +135,7 @@ try {
         $activeClass = (isset($convo_id) && $convo_id == $convo['id']) ? 'active' : '';
         $ssr_history_html .= '
         <div class="history-item flex justify-between items-center">
-            <a href="#" class="flex-1 truncate ' . $activeClass . '" title="' . htmlspecialchars($convo['title']) . '" data-conversation-id="' . $convo['id'] . '">' . htmlspecialchars($convo['title']) . '</a>
+            <a href="chat/' . $convo['id'] . '" class="flex-1 truncate ' . $activeClass . '" title="' . htmlspecialchars($convo['title']) . '" data-conversation-id="' . $convo['id'] . '" onclick="event.preventDefault(); loadConversation(' . $convo['id'] . ');">' . htmlspecialchars($convo['title']) . '</a>
             <button class="edit-btn text-gray-400 hover:text-white ml-2" title="Rename" onclick="event.stopPropagation(); enableRename(this.parentNode, ' . $convo['id'] . ', \'' . htmlspecialchars($convo['title'], ENT_QUOTES) . '\')"><i class="fas fa-pencil-alt"></i></button>
             <button class="delete-btn text-gray-400 hover:text-white ml-2" title="Delete" onclick="event.stopPropagation(); deleteConversation(' . $convo['id'] . ')"><i class="fas fa-trash-alt"></i></button>
         </div>';
