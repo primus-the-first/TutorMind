@@ -1203,6 +1203,25 @@ body.chat-empty .suggestion-pills-row {
     width: 100%;
   }
   
+  /* CRITICAL FIX: Ensure user menu is properly hidden */
+  .user-menu.hidden {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  
+  /* Adjust z-index to prevent menu from covering content */
+  .user-menu {
+    z-index: 1001; /* Below overlay but above sidebar */
+  }
+  
+  /* Ensure suggestion pills are above the menu when it's visible */
+  .suggestion-pills-row {
+    position: relative;
+    z-index: 50; /* Above chat content */
+  }
+  
   .combined-input-bar {
     margin: 0 16px;
     background: rgba(255, 255, 255, 0.75); /* Goldilocks blend */
