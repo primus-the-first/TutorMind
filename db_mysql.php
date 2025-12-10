@@ -12,14 +12,17 @@ function getDbConnection() {
     // Production (cPanel): uses config.ini
     // Check both current directory and parent directory (for API calls from subdirectories)
     $configFile = null;
-    if (file_exists('config-sql.ini')) {
-        $configFile = 'config-sql.ini';
-    } elseif (file_exists('config.ini')) {
+    // Priority: 
+    // 1. Prod config (config.ini) - Checked first to prevent local config accidental usage on prod
+    // 2. Local config (config-sql.ini)
+    if (file_exists('config.ini')) {
         $configFile = 'config.ini';
-    } elseif (file_exists('../config-sql.ini')) {
-        $configFile = '../config-sql.ini';
+    } elseif (file_exists('config-sql.ini')) {
+        $configFile = 'config-sql.ini';
     } elseif (file_exists('../config.ini')) {
         $configFile = '../config.ini';
+    } elseif (file_exists('../config-sql.ini')) {
+        $configFile = '../config-sql.ini';
     } else {
         throw new Exception("Database configuration file not found. Please ensure config-sql.ini or config.ini exists in the root directory.");
     }
