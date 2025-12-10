@@ -264,10 +264,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     function addCopyButtonsToCodeBlocks(container) {
         const codeBlocks = container.querySelectorAll('pre code');
         
-        // Apply syntax highlighting
-        if (window.hljs) {
-            codeBlocks.forEach(block => {
-                hljs.highlightElement(block);
+        // Apply syntax highlighting using lazy loader
+        if (codeBlocks.length > 0 && window.syntaxHighlighter) {
+            window.syntaxHighlighter.highlight(container).catch(err => {
+                console.warn('Syntax highlighting failed:', err);
             });
         }
         

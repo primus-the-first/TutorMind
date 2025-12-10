@@ -306,7 +306,8 @@ switch ($request_method) {
             } catch (Exception $e) {
                 error_log("Google Login Error: " . $e->getMessage());
                 http_response_code(500);
-                echo json_encode(['success' => false, 'error' => 'Server error during Google login.']);
+                // Return the actual error for debugging (remove in production later if sensitive)
+                echo json_encode(['success' => false, 'error' => 'Server error during Google login: ' . $e->getMessage()]);
             }
 
         } else {
