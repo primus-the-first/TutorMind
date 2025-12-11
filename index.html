@@ -7,6 +7,10 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>TutorMind - Next-Level Learning</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Roboto+Mono:wght@400&display=swap"
       rel="stylesheet"
@@ -15,12 +19,416 @@
       href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&display=swap"
       rel="stylesheet"
     />
+    
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      media="print" onload="this.media='all'"
     />
-    <link rel="stylesheet" href="landing.css?v=2.0" />
-    <link rel="stylesheet" href="logo.css?v=2.0" />
+    <noscript>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    </noscript>
+
+    <style>
+      /* Logo Styles - Global */
+      .app-logo {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          text-decoration: none;
+          cursor: pointer;
+          transition: transform 0.3s ease, filter 0.3s ease;
+          padding: 8px 12px;
+          border-radius: 12px;
+      }
+      
+      .app-logo:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.1);
+      }
+      
+      .app-logo img {
+          height: 32px;
+          width: auto;
+          transition: transform 0.3s ease;
+      }
+      
+      .app-logo:hover img {
+          transform: scale(1.05);
+      }
+      
+      .app-logo-text {
+          font-size: 35px;
+          font-weight: 700;
+          font-family: 'Outfit', 'Inter', sans-serif;
+          /* Default: Darker gradient for light backgrounds (Homepage, Login) */
+          background: linear-gradient(135deg, #5E2EBF 0%, #7B3FF2 50%, #9D6BF5 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          letter-spacing: -0.5px;
+      }
+      
+      /* Dark mode adjustments - Global */
+      body.dark-mode .app-logo-text,
+      .dark-mode .app-logo-text {
+          background: linear-gradient(135deg, #C4B5FD 0%, #9D6BF5 50%, #7B3FF2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+      }
+      
+      /* Logo in sidebar (for chat page) - Always needs light text due to dark sidebar bg */
+      .sidebar .app-logo {
+          padding: 16px 12px;
+          margin-bottom: 8px;
+          display: flex;
+          justify-content: center;
+          width: 100%;
+      }
+      
+      .sidebar .app-logo-text {
+          font-size: 24px; /* Slightly smaller for sidebar */
+          /* Unified Gradient for both Light and Dark modes */
+          background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          /* Add subtle shadow for extra clarity */
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+      }
+      
+      /* Dark mode sidebar - use same gradient */
+      body.dark-mode .sidebar .app-logo-text {
+          background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+      }
+      
+      /* Logo in top nav (for homepage) */
+      .top-nav .app-logo {
+          position: absolute;
+          left: 24px;
+          top: 50%;
+          transform: translateY(-50%);
+      }
+      
+      /* Logo in auth pages */
+      .auth-logo {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 32px;
+      }
+      
+      .auth-logo .app-logo {
+          padding: 12px 20px;
+      }
+      
+      .auth-logo .app-logo img {
+          height: 36px;
+      }
+      
+      .auth-logo .app-logo-text {
+          font-size: 24px;
+      }
+      
+      /* Landing CSS */
+      :root {
+        --color-primary: #7B3FF2;
+        --color-primary-light: #9D6BF5;
+        --color-primary-dark: #5E2EBF;
+        --color-secondary: #FF6B35;
+        --color-secondary-light: #FF8A5C;
+        --color-secondary-dark: #E55A2B;
+        --color-accent: #FFB347;
+        --color-accent-light: #FFC56E;
+        --color-accent-dark: #E59A33;
+        --color-bg: #000000;
+        --color-surface: #1A1A1A;
+        --color-text-primary: #FFFFFF;
+        --color-text-secondary: #B0B0B0;
+      }
+      
+      .light-mode {
+        --color-bg: linear-gradient(135deg, 
+          #e8e0f5 0%,
+          #ece5f7 25%,
+          #f5e8e3 50%,
+          #fceee5 75%,
+          #fff3e8 100%
+        );
+        --color-surface: #FFFFFF;
+        --color-text-primary: #1A1A1A;
+        --color-text-secondary: #6B7280;
+      }
+      body, html {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          font-family: 'Inter', sans-serif;
+          background: linear-gradient(135deg, 
+            #e8e0f5 0%,
+            #ece5f7 25%,
+            #f5e8e3 50%,
+            #fceee5 75%,
+            #fff3e8 100%
+          );
+          color: var(--color-text-primary);
+          overflow: hidden;
+      }
+      
+      /* Dark mode gradient */
+      body:not(.light-mode), html:not(.light-mode) {
+          background: linear-gradient(135deg, 
+            #1a1625 0%,
+            #1f1a2e 25%,
+            #241e38 50%,
+            #2a2440 75%,
+            #2f2847 100%
+          );
+      }
+      
+      #canvas-container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 1;
+      }
+      
+      .brand-name {
+          position: fixed;
+          top: 50%;
+          left: 30px;
+          transform: translateY(-50%);
+          font-family: 'Roboto Mono', monospace;
+          font-size: 48px;
+          writing-mode: vertical-rl;
+          text-orientation: mixed;
+          letter-spacing: 4px;
+          z-index: 3;
+          color: var(--color-text-secondary);
+      }
+      
+      .top-nav {
+          position: fixed;
+          top: 30px;
+          right: 30px;
+          display: flex;
+          align-items: center;
+          z-index: 3;
+          background-color: rgba(26, 26, 26, 0.5);
+          padding: 10px;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      }
+      
+      .hamburger-menu {
+          font-size: 24px;
+          margin-right: 20px;
+          cursor: pointer;
+      }
+      
+      .nav-buttons a {
+          margin-left: 20px;
+          font-family: 'Roboto Mono', monospace;
+          text-decoration: none;
+          color: var(--color-text-primary);
+          font-size: 16px;
+      }
+      
+      .content-container {
+          position: relative;
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          width: 100%;
+          height: 100%;
+          z-index: 2;
+          padding-right: 10vw;
+          box-sizing: border-box;
+      }
+      
+      .hero-content {
+          text-align: right;
+          max-width: 500px;
+      }
+      
+      .hero-title {
+          font-size: 5rem; /* Adjusted for Material scale */
+          font-weight: 900;
+          line-height: 1.1;
+          margin: 0 0 20px 0;
+      }
+      
+      .hero-subtitle {
+          font-family: 'Roboto Mono', monospace;
+          font-size: 1.2rem; /* Adjusted for Material scale */
+          color: var(--color-primary-light); /* Material Design accent color */
+          margin-bottom: 40px;
+      }
+      
+      .cta-button {
+          display: inline-block;
+          padding: 12px 32px;
+          font-size: 0.875rem; /* Material Design button font size */
+          font-weight: 700;
+          color: var(--color-text-primary);
+          background-color: var(--color-primary);
+          border: none;
+          border-radius: 4px; /* Material Design border radius */
+          text-decoration: none;
+          text-transform: uppercase;
+          letter-spacing: 1.25px; /* Material Design button letter spacing */
+          transition: background-color 0.3s ease, box-shadow 0.3s ease;
+          box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.2);
+      }
+      
+      .cta-button:hover {
+          background-color: var(--color-primary-dark);
+          color: var(--color-text-primary);
+          box-shadow: 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.2);
+      }
+      
+      .markers {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 2;
+          pointer-events: none;
+      }
+      
+      .marker {
+          position: absolute;
+          font-family: 'Roboto Mono', monospace;
+          color: rgba(123, 63, 242, 0.25);
+          font-size: 24px;
+          animation: float 5s ease-in-out infinite;
+      }
+      
+      /* Dark mode markers */
+      body:not(.light-mode) .marker {
+          color: rgba(176, 176, 176, 0.3);
+      }
+      
+      @keyframes float {
+          0% {
+              transform: translateY(0px);
+          }
+          50% {
+              transform: translateY(-20px);
+          }
+          100% {
+              transform: translateY(0px);
+          }
+      }
+      
+      @media (max-width: 768px) {
+          /* Hide desktop-style brand name */
+          .brand-name {
+              display: none;
+          }
+      
+          /* Center content */
+          .content-container {
+              justify-content: center;
+              align-items: center;
+              padding: 0 24px;
+              height: 100vh;
+          }
+      
+          .hero-content {
+              text-align: center;
+              margin-top: -60px; /* Shift up slightly */
+              width: 100%;
+          }
+      
+          .hero-title {
+              font-size: 3.5rem;
+              line-height: 1.1;
+              margin-bottom: 16px;
+          }
+      
+          .hero-subtitle {
+              font-size: 1.1rem;
+              margin-bottom: 40px;
+              color: var(--color-text-secondary);
+          }
+      
+          /* Native App-style Floating CTA */
+          .cta-button {
+              position: fixed;
+              bottom: 32px;
+              left: 24px;
+              right: 24px;
+              width: auto;
+              padding: 18px;
+              font-size: 1.1rem;
+              border-radius: 16px;
+              text-align: center;
+              box-shadow: 0 4px 20px rgba(123, 63, 242, 0.4);
+              z-index: 100;
+          }
+      
+          /* Simplify Header - Show Theme Toggle */
+          .top-nav {
+              top: 0;
+              left: 0;
+              right: 0;
+              width: 100%;
+              padding: 24px 24px; /* Match logo top position (24px) */
+              box-sizing: border-box; /* Fixes width calculation to prevent overflow */
+              background: transparent;
+              box-shadow: none;
+              justify-content: flex-end; /* Push items to right */
+              transform: none;
+              border-radius: 0;
+              display: flex;
+              pointer-events: none; /* Let clicks pass through empty space */
+          }
+          
+          .nav-buttons {
+              pointer-events: auto; /* Re-enable clicks for buttons */
+          }
+      
+          /* Hide Account link on mobile (use Get Started) */
+          .nav-buttons a[href="entry"] {
+              display: none;
+          }
+          
+          /* Ensure Theme Toggle is visible and styled */
+          #theme-toggle {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 40px;
+              height: 40px;
+              background: rgba(255, 255, 255, 0.2); /* Increased opacity */
+              border: 1px solid rgba(255, 255, 255, 0.3); /* Added border */
+              backdrop-filter: blur(10px);
+              border-radius: 50%;
+              margin-top: 10px;
+              font-size: 1.2rem;
+              color: var(--color-text-primary); /* Ensure icon color matches theme */
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+          }
+      
+          /* Adjust markers opacity */
+          .marker {
+              opacity: 0.15;
+          }
+      
+          #canvas-container {
+              opacity: 0.2;
+          }
+      }
+    </style>
 
     <script
       id="MathJax-script"
@@ -113,7 +521,7 @@
         <i class="fas fa-calculator"></i>
       </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="landing.js?v=2.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
+    <script src="landing.js?v=2.0" defer></script>
   </body>
 </html>
