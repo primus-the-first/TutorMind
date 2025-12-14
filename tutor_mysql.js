@@ -545,9 +545,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         const question = questionInput.value.trim();
         if (!question && attachmentManager.files.length === 0) return;
 
+        // --- Session Context Integration ---
+        // Extract context from the user's message
+        if (window.sessionContextManager) {
+            window.sessionContextManager.extractContextFromMessage(question);
+            window.sessionContextManager.incrementMessageCount();
+        }
+
         // --- The Fix: Capture FormData immediately ---
         // This ensures we have the question and file data before any other operations.
         const formData = new FormData(tutorForm);
+        
+        // Add session context to the request
+        if (window.sessionContextManager) {
+            const sessionContext = window.sessionContextManager.getSystemPromptContext();
+            if (sessionContext.goal) {
+                formData.append('session_goal', sessionContext.goal);
+            }
+            if (Object.keys(sessionContext.context).length > 0) {
+                formData.append('session_context', JSON.stringify(sessionContext.context));
+            }
+        }
 
         // --- Build and display the user's message ---
         let userMessageHtml = '';
@@ -572,6 +590,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (welcomeScreen) welcomeScreen.style.display = 'none';
         document.body.classList.remove('chat-empty');
         if (conversationTitleEl) conversationTitleEl.style.display = 'block';
+        
+        // Hide Quick Start overlay if visible
+        const quickStartOverlay = document.getElementById('quick-start-overlay');
+        if (quickStartOverlay && !quickStartOverlay.classList.contains('hidden')) {
+            quickStartOverlay.classList.add('hidden');
+        }
 
         // Clear inputs immediately for better UX
         questionInput.value = '';
@@ -670,6 +694,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             conversationTitleEl.style.display = 'none';
         }
         document.body.classList.add('chat-empty');
+        
+        // Clear session context
+        if (window.sessionContextManager) {
+            window.sessionContextManager.clear();
+        }
     });
 
     // Initialize
@@ -1136,6 +1165,64 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (window.settingsManager) {
                 window.settingsManager.open();
             }
+        });
+    }
+    
+    // --- Tools Dropdown Menu ---
+    const toolsBtn = document.getElementById('tools-btn');
+    const toolsMenu = document.getElementById('tools-menu');
+    
+    if (toolsBtn && toolsMenu) {
+        // Toggle menu on button click
+        toolsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = toolsMenu.classList.toggle('hidden');
+            toolsBtn.setAttribute('aria-expanded', !isHidden);
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!toolsMenu.contains(e.target) && !toolsBtn.contains(e.target)) {
+                toolsMenu.classList.add('hidden');
+                toolsBtn.setAttribute('aria-expanded', 'false');
+            }
+        });
+        
+        // Handle menu item clicks
+        const toolsMenuItems = toolsMenu.querySelectorAll('.tools-menu-item');
+        
+        // Prompt templates for each goal
+        const promptTemplates = {
+            homework_help: "Help me with my homework on ",
+            test_prep: "I have a test coming up on ",
+            explore: "I want to learn more about ",
+            practice: "Give me practice problems on "
+        };
+        
+        toolsMenuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const goal = item.dataset.goal;
+                
+                // Set the session goal using SessionContextManager
+                if (window.sessionContextManager) {
+                    window.sessionContextManager.create(goal).then(session => {
+                        if (session.id) {
+                            conversationIdInput.value = session.id;
+                        }
+                    });
+                }
+                
+                // Insert prompt template into input
+                const template = promptTemplates[goal] || '';
+                questionInput.value = template;
+                
+                // Close the menu
+                toolsMenu.classList.add('hidden');
+                
+                // Focus the input and place cursor at the end
+                questionInput.focus();
+                questionInput.setSelectionRange(template.length, template.length);
+            });
         });
     }
 });

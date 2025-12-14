@@ -317,6 +317,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES) && 
 $question = $_POST['question'] ?? '';
 $learningLevel = $_POST['learningLevel'] ?? 'Understanding';
 
+// Session context from frontend SessionContextManager
+$session_goal = $_POST['session_goal'] ?? null;
+$session_context = null;
+if (!empty($_POST['session_context'])) {
+    $session_context = json_decode($_POST['session_context'], true);
+}
+
 $conversation_id = $_POST['conversation_id'] ?? null;
 
 function prepareFileParts($file, $user_question) {
@@ -902,6 +909,84 @@ try {
     if ($user_profile && $user_profile['primary_language'] && $user_profile['primary_language'] !== 'English') {
         $personalization_context .= "- The learner's primary language is **{$user_profile['primary_language']}** (though they're learning in English). Be mindful of potential language barriers.\n";
     }
+    
+    // Session goal-based teaching instructions
+    $session_goal_instructions = "";
+    if ($session_goal) {
+        switch ($session_goal) {
+            case 'homework_help':
+                $session_goal_instructions = <<<EOT
+
+### Current Session Goal: Homework Help
+The learner is seeking help with homework. Prioritize:
+- **Step-by-step guidance** rather than just giving answers
+- **Teaching the underlying concepts** while helping solve problems
+- **Checking understanding** at each step before moving on
+- **Explaining your reasoning** so they can apply it to similar problems
+- Ask "Does this make sense?" or "Should I explain this part further?"
+EOT;
+                break;
+            case 'test_prep':
+                $session_goal_instructions = <<<EOT
+
+### Current Session Goal: Test Preparation
+The learner is preparing for an exam. Prioritize:
+- **Practice problems** at increasing difficulty levels
+- **Identifying weak areas** and focusing on them
+- **Quick review** of key concepts and formulas
+- **Exam strategies** (time management, common mistakes to avoid)
+- **Confidence building** while being honest about areas needing work
+EOT;
+                break;
+            case 'explore':
+                $session_goal_instructions = <<<EOT
+
+### Current Session Goal: Topic Exploration
+The learner wants to explore and learn something new. Prioritize:
+- **Curiosity-driven learning** - follow their interests
+- **Making connections** to things they already know
+- **Interesting examples and real-world applications**
+- **Open-ended questions** to spark deeper thinking
+- **No pressure** - this is about discovery and enjoyment
+EOT;
+                break;
+            case 'practice':
+                $session_goal_instructions = <<<EOT
+
+### Current Session Goal: Practice Session
+The learner wants to practice and reinforce skills. Prioritize:
+- **Generating practice problems** at appropriate difficulty
+- **Immediate feedback** on their attempts
+- **Identifying patterns** in their errors
+- **Building fluency** through repetition with variety
+- **Celebrating progress** and correct answers
+EOT;
+                break;
+        }
+        
+        // Add session context if available
+        if ($session_context) {
+            $context_details = [];
+            if (!empty($session_context['subject'])) {
+                $context_details[] = "Subject: **{$session_context['subject']}**";
+            }
+            if (!empty($session_context['topic'])) {
+                $context_details[] = "Topic: **{$session_context['topic']}**";
+            }
+            if (!empty($session_context['difficulty'])) {
+                $context_details[] = "Difficulty level: **{$session_context['difficulty']}**";
+            }
+            if (!empty($session_context['testDate'])) {
+                $context_details[] = "Test date: **{$session_context['testDate']}**";
+            }
+            if (!empty($context_details)) {
+                $session_goal_instructions .= "\n\n**Session Context:**\n- " . implode("\n- ", $context_details);
+            }
+        }
+    }
+    
+    // Append session goal instructions to personalization context
+    $personalization_context .= $session_goal_instructions;
 
     // System prompt
     $system_prompt = <<<PROMPT
