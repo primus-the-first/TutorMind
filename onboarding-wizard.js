@@ -8,15 +8,24 @@ class OnboardingWizard {
     this.currentScreen = 1;
     this.totalScreens = 9;
     this.profileData = {
-      // Screen 2: Subjects
-      subjects: [],
+      // Screen 3: Subjects
+      subjects: [], // Standard
       primarySubject: null,
       
-      // Screen 3: Goal
+      // Screen 3: High School (SHS)
+      shsProgram: null,
+      shsElectives: [],
+      
+      // Screen 3: University
+      universityProgram: null,
+      customSubjects: [], // List of subjects
+
+      // Screen 4: Goal
       learningGoal: null,
       
-      // Screen 4: Education
+      // Screen 2: Education
       educationLevel: null,
+      schoolName: null,
       country: null,
       curriculumSystem: null,
       
@@ -137,13 +146,13 @@ class OnboardingWizard {
         this.initScreen1Welcome();
         break;
       case 2:
-        this.initScreen2Subjects();
+        this.initScreen2Education();
         break;
       case 3:
-        this.initScreen3Goals();
+        this.initScreen3Subjects();
         break;
       case 4:
-        this.initScreen4Education();
+        this.initScreen4Goals();
         break;
       case 5:
         this.initScreen5Assessment();
@@ -232,18 +241,18 @@ class OnboardingWizard {
   
   // ==================== SCREEN-SPECIFIC METHODS (Placeholders) ====================
   
-  initScreen2Subjects() {
+  initScreen2Education() {
+    console.log('🎓 Initializing Education Screen');
+    // Will implement in next iteration
+  }
+  
+  initScreen3Subjects() {
     console.log('📚 Initializing Subjects Screen');
     // Will implement in next iteration
   }
   
-  initScreen3Goals() {
+  initScreen4Goals() {
     console.log('🎯 Initializing Goals Screen');
-    // Will implement in next iteration
-  }
-  
-  initScreen4Education() {
-    console.log('🎓 Initializing Education Screen');
     // Will implement in next iteration
   }
   
@@ -337,7 +346,8 @@ class OnboardingWizard {
 }
 
 // Initialize wizard when DOM is ready
-let wizard;
+// Initialize wizard when DOM is ready
+window.wizard = null;
 document.addEventListener('DOMContentLoaded', () => {
-  wizard = new OnboardingWizard();
+  window.wizard = new OnboardingWizard();
 });

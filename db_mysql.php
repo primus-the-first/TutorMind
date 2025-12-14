@@ -13,16 +13,20 @@ function getDbConnection() {
     // Check both current directory and parent directory (for API calls from subdirectories)
     $configFile = null;
     // Priority: 
-    // 1. Prod config (config.ini) - Checked first to prevent local config accidental usage on prod
-    // 2. Local config (config-sql.ini)
-    if (file_exists('config.ini')) {
-        $configFile = 'config.ini';
-    } elseif (file_exists('config-sql.ini')) {
+    // 1. Local/MySQL config (config-sql.ini) - Checked first for local XAMPP dev
+    // 2. Prod config (config.ini)
+    
+    // Check current directory
+    if (file_exists('config-sql.ini')) {
         $configFile = 'config-sql.ini';
-    } elseif (file_exists('../config.ini')) {
-        $configFile = '../config.ini';
+    } elseif (file_exists('config.ini')) {
+        $configFile = 'config.ini';
+    
+    // Check parent directory
     } elseif (file_exists('../config-sql.ini')) {
         $configFile = '../config-sql.ini';
+    } elseif (file_exists('../config.ini')) {
+        $configFile = '../config.ini';
     } else {
         throw new Exception("Database configuration file not found. Please ensure config-sql.ini or config.ini exists in the root directory.");
     }
@@ -47,18 +51,11 @@ function getDbConnection() {
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::ATTR_TIMEOUT => 60, // Increase timeout for large uploads
+            PDO::ATTR_TIMEOUT => 5, // 5 second timeout - fail fast
         ]);
-        
-        // Configure MySQL for handling large data transfers
-        // Note: max_allowed_packet is read-only at session level, must be set globally
-        // Increase wait timeout to prevent connection drops during image processing
-        $pdo->exec("SET SESSION wait_timeout=300"); // 5 minutes
-        $pdo->exec("SET SESSION interactive_timeout=300"); // 5 minutes
         
         return $pdo;
     } catch (PDOException $e) {
-        // In a real application, you would log this error, not display it to the user.
         throw new PDOException("Database connection failed: " . $e->getMessage());
     }
 }

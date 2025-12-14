@@ -94,8 +94,69 @@ if ($user_id) {
                 </button>
             </div>
             
-            <!-- ==================== SCREEN 2: SUBJECTS ==================== -->
+            <!-- ==================== SCREEN 2: EDUCATION ==================== -->
             <div class="screen" id="screen2">
+                <h2>What's your current education level?</h2>
+                <p class="subtitle">This helps us align with your curriculum and difficulty level.</p>
+                
+                <!-- Education Level Cards -->
+                <div class="education-grid">
+                    <!-- High School -->
+                    <div class="education-card" data-level="high">
+                        <div class="education-icon">🎓</div>
+                        <h3>High School</h3>
+                        <p>Grades 9-12</p>
+                    </div>
+                    
+                    <!-- College -->
+                    <div class="education-card" data-level="college">
+                        <div class="education-icon">🏛️</div>
+                        <h3>College/University</h3>
+                        <p>Undergraduate & Graduate</p>
+                    </div>
+                    
+                    <!-- Adult Learner -->
+                    <div class="education-card" data-level="adult">
+                        <div class="education-icon">👔</div>
+                        <h3>Adult Learner</h3>
+                        <p>Professional Development</p>
+                    </div>
+                    
+                    <!-- Other -->
+                    <div class="education-card" data-level="other">
+                        <div class="education-icon">🌍</div>
+                        <h3>Other</h3>
+                        <p>Custom / Homeschool</p>
+                    </div>
+                </div>
+
+                <!-- School/University Input -->
+                <div id="school-input-container" class="school-input-wrapper hidden" style="margin-top: 2rem;">
+                    <label id="school-input-label" for="school-name-input" style="display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 500;">School or University Name</label>
+                    <div class="input-with-icon" style="position: relative;">
+                        <input type="text" id="school-name-input" placeholder="Start typing..." style="width: 100%; padding: 1rem; border-radius: 12px; border: 2px solid var(--border-color); font-size: 1rem;">
+                    </div>
+                    <datalist id="university-list">
+                        <!-- Populated via JS -->
+                    </datalist>
+                </div>
+                
+                <!-- Error Message -->
+                <p class="error-message" id="screen2-error">Please select your education level to continue.</p>
+                
+                <!-- Navigation -->
+                <div class="screen-navigation">
+                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" id="screen2-next-btn" onclick="wizard.saveEducationAndNext()">
+                        Continue <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- ==================== SCREEN 3: SUBJECTS ==================== -->
+            <div class="screen" id="screen3">
                 <h2>Which subjects do you want help with?</h2>
                 <p class="subtitle">Don't worry, you can add or change these anytime.</p>
                 
@@ -206,6 +267,78 @@ if ($user_id) {
                     </div>
                 </div>
                 
+                <!-- ==================== GHANA SHS PROGRAM SELECTOR (High School) ==================== -->
+                <div id="shs-program-selector" class="shs-program-selector hidden">
+                    <!-- Info Banner -->
+                    <div class="info-banner">
+                        <i class="fas fa-info-circle"></i>
+                        <p><strong>You're not limited to your program!</strong> While we'll suggest topics from your subjects, you can ask questions about anything - even outside your program.</p>
+                    </div>
+
+                    <!-- Program Selection Grid -->
+                    <div id="shs-program-grid" class="shs-grid">
+                        <!-- Programs populated via JS -->
+                    </div>
+
+                    <!-- Selected Program Detail View (Initially Hidden) -->
+                    <div id="shs-program-detail" class="shs-program-detail hidden">
+                        <div class="shs-detail-header">
+                            <button class="shs-change-btn" id="shs-change-program-btn">
+                                <i class="fas fa-arrow-left"></i> Change Program
+                            </button>
+                            <div class="shs-program-title">
+                                <div id="shs-selected-icon" class="shs-icon-wrapper"></div>
+                                <div>
+                                    <h2 id="shs-selected-name">Program Name</h2>
+                                    <p id="shs-selected-desc">Description</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Core Subjects -->
+                        <div class="shs-core-subjects">
+                            <h4 class="shs-section-title">Core Subjects <span class="shs-section-subtitle">(All students take these)</span></h4>
+                            <div class="core-grid">
+                                <div class="core-item"><div class="check-circle"><i class="fas fa-check"></i></div> English Language</div>
+                                <div class="core-item"><div class="check-circle"><i class="fas fa-check"></i></div> Mathematics (Core)</div>
+                                <div class="core-item"><div class="check-circle"><i class="fas fa-check"></i></div> Integrated Science</div>
+                                <div class="core-item"><div class="check-circle"><i class="fas fa-check"></i></div> Social Studies</div>
+                            </div>
+                        </div>
+
+                        <!-- Electives -->
+                        <div class="shs-electives">
+                            <h4 class="shs-section-title">Which elective subjects are you taking?</h4>
+                            <div id="shs-electives-grid" class="electives-grid">
+                                <!-- Populated via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==================== UNIVERSITY CUSTOM FORM ==================== -->
+                <div id="university-custom-form" class="university-custom-form hidden">
+                    <h2>What are you studying at university?</h2>
+                    
+                    <label>School/University Name:</label>
+                    <input type="text" id="uni-school-name" readonly style="background: var(--bg-secondary); cursor: not-allowed;">
+                    
+                    <label>Your Program/Course:</label>
+                    <input type="text" id="uni-program-input" placeholder="e.g., BSc Computer Science, BA Economics">
+                    
+                    <label>Which subjects do you need help with?</label>
+                    <div class="uni-subject-input-group">
+                        <input type="text" id="uni-subject-entry" placeholder="e.g., Calculus II">
+                        <button type="button" id="add-uni-subject-btn" class="btn-icon-only"><i class="fas fa-plus"></i></button>
+                    </div>
+                    
+                    <div id="uni-subjects-list" class="uni-tags-container">
+                        <!-- Tags populated via JS -->
+                    </div>
+                    
+                    <p class="helper-text">Don't worry, you can add more subjects later!</p>
+                </div>
+                
                 <!-- Primary Subject Selection (appears when multiple subjects selected) -->
                 <div class="primary-subject-selector hidden" id="primary-subject-selector">
                     <p class="primary-subject-question">Which subject would you like to start with?</p>
@@ -213,7 +346,7 @@ if ($user_id) {
                 </div>
                 
                 <!-- No Selection Message -->
-                <p class="error-message" id="subjects-error">Please select at least one subject to continue.</p>
+                <p class="error-message" id="screen3-error">Please select at least one subject to continue.</p>
                 
                 <!-- Navigation -->
                 <div class="screen-navigation">
@@ -226,8 +359,8 @@ if ($user_id) {
                 </div>
             </div>
             
-            <!-- ==================== SCREEN 3: GOALS ==================== -->
-            <div class="screen" id="screen3">
+            <!-- ==================== SCREEN 4: GOALS ==================== -->
+            <div class="screen" id="screen4">
                 <h2>What brings you here today?</h2>
                 <p class="subtitle">Choose your main learning goal so we can personalize your experience.</p>
                 
@@ -277,7 +410,7 @@ if ($user_id) {
                 </div>
                 
                 <!-- Error Message -->
-                <p class="error-message" id="goals-error">Please select a goal to continue.</p>
+                <p class="error-message" id="screen4-error">Please select a goal to continue.</p>
                 
                 <!-- Navigation -->
                 <div class="screen-navigation">
@@ -285,272 +418,6 @@ if ($user_id) {
                         <i class="fas fa-arrow-left"></i> Back
                     </button>
                     <button class="btn btn-primary" id="goals-continue-btn" onclick="wizard.saveGoalAndNext()">
-                        Continue <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- ==================== SCREEN 4: EDUCATION ==================== -->
-            <div class="screen" id="screen4">
-                <h2>What's your current education level?</h2>
-                <p class="subtitle">This helps us align with your curriculum and difficulty level.</p>
-                
-                <!-- Education Level Cards -->
-                <div class="education-grid">
-                    <!-- Elementary -->
-                    <div class="education-card" data-level="elementary">
-                        <div class="education-icon">🎒</div>
-                        <h3>Elementary School</h3>
-                        <p>Grades 1-5</p>
-                    </div>
-                    
-                    <!-- Middle School -->
-                    <div class="education-card" data-level="middle">
-                        <div class="education-icon">📚</div>
-                        <h3>Middle School</h3>
-                        <p>Grades 6-8</p>
-                    </div>
-                    
-                    <!-- High School -->
-                    <div class="education-card" data-level="high">
-                        <div class="education-icon">🎓</div>
-                        <h3>High School</h3>
-                        <p>Grades 9-12</p>
-                    </div>
-                    
-                    <!-- College -->
-                    <div class="education-card" data-level="college">
-                        <div class="education-icon">🏛️</div>
-                        <h3>College/University</h3>
-                        <p>Undergraduate & Graduate</p>
-                    </div>
-                    
-                    <!-- Adult Learner -->
-                    <div class="education-card" data-level="adult">
-                        <div class="education-icon">👔</div>
-                        <h3>Adult Learner</h3>
-                        <p>Professional Development</p>
-                    </div>
-                    
-                    <!-- Other -->
-                    <div class="education-card" data-level="other">
-                        <div class="education-icon">🌍</div>
-                        <h3>Other</h3>
-                        <p>Custom / Homeschool</p>
-                    </div>
-                </div>
-                
-                <!-- Country Selector (appears after education level selected) -->
-                <div class="country-selector hidden" id="country-selector">
-                    <label for="country-select">Which country's education system are you following?</label>
-                    <select id="country-select" class="styled-select">
-                        <option value="">Select your country...</option>
-                        <option value="US">🇺🇸 United States</option>
-                        <option value="GB">🇬🇧 United Kingdom</option>
-                        <option value="CA">🇨🇦 Canada</option>
-                        <option value="AU">🇦🇺 Australia</option>
-                        <option value="IN">🇮🇳 India</option>
-                        <option value="PH">🇵🇭 Philippines</option>
-                        <option value="NG">🇳🇬 Nigeria</option>
-                        <option value="ZA">🇿🇦 South Africa</option>
-                        <option value="--" disabled>────────────</option>
-                        <option value="AF">🇦🇫 Afghanistan</option>
-                        <option value="AL">🇦🇱 Albania</option>
-                        <option value="DZ">🇩🇿 Algeria</option>
-                        <option value="AD">🇦🇩 Andorra</option>
-                        <option value="AO">🇦🇴 Angola</option>
-                        <option value="AG">🇦🇬 Antigua and Barbuda</option>
-                        <option value="AR">🇦🇷 Argentina</option>
-                        <option value="AM">🇦🇲 Armenia</option>
-                        <option value="AT">🇦🇹 Austria</option>
-                        <option value="AZ">🇦🇿 Azerbaijan</option>
-                        <option value="BS">🇧🇸 Bahamas</option>
-                        <option value="BH">🇧🇭 Bahrain</option>
-                        <option value="BD">🇧🇩 Bangladesh</option>
-                        <option value="BB">🇧🇧 Barbados</option>
-                        <option value="BY">🇧🇾 Belarus</option>
-                        <option value="BE">🇧🇪 Belgium</option>
-                        <option value="BZ">🇧🇿 Belize</option>
-                        <option value="BJ">🇧🇯 Benin</option>
-                        <option value="BT">🇧🇹 Bhutan</option>
-                        <option value="BO">🇧🇴 Bolivia</option>
-                        <option value="BA">🇧🇦 Bosnia and Herzegovina</option>
-                        <option value="BW">🇧🇼 Botswana</option>
-                        <option value="BR">🇧🇷 Brazil</option>
-                        <option value="BN">🇧🇳 Brunei</option>
-                        <option value="BG">🇧🇬 Bulgaria</option>
-                        <option value="BF">🇧🇫 Burkina Faso</option>
-                        <option value="BI">🇧🇮 Burundi</option>
-                        <option value="CV">🇨🇻 Cabo Verde</option>
-                        <option value="KH">🇰🇭 Cambodia</option>
-                        <option value="CM">🇨🇲 Cameroon</option>
-                        <option value="CF">🇨🇫 Central African Republic</option>
-                        <option value="TD">🇹🇩 Chad</option>
-                        <option value="CL">🇨🇱 Chile</option>
-                        <option value="CN">🇨🇳 China</option>
-                        <option value="CO">🇨🇴 Colombia</option>
-                        <option value="KM">🇰🇲 Comoros</option>
-                        <option value="CG">🇨🇬 Congo</option>
-                        <option value="CR">🇨🇷 Costa Rica</option>
-                        <option value="HR">🇭🇷 Croatia</option>
-                        <option value="CU">🇨🇺 Cuba</option>
-                        <option value="CY">🇨🇾 Cyprus</option>
-                        <option value="CZ">🇨🇿 Czech Republic</option>
-                        <option value="DK">🇩🇰 Denmark</option>
-                        <option value="DJ">🇩🇯 Djibouti</option>
-                        <option value="DM">🇩🇲 Dominica</option>
-                        <option value="DO">🇩🇴 Dominican Republic</option>
-                        <option value="EC">🇪🇨 Ecuador</option>
-                        <option value="EG">🇪🇬 Egypt</option>
-                        <option value="SV">🇸🇻 El Salvador</option>
-                        <option value="GQ">🇬🇶 Equatorial Guinea</option>
-                        <option value="ER">🇪🇷 Eritrea</option>
-                        <option value="EE">🇪🇪 Estonia</option>
-                        <option value="SZ">🇸🇿 Eswatini (Swaziland)</option>
-                        <option value="ET">🇪🇹 Ethiopia</option>
-                        <option value="FJ">🇫🇯 Fiji</option>
-                        <option value="FI">🇫🇮 Finland</option>
-                        <option value="FR">🇫🇷 France</option>
-                        <option value="GA">🇬🇦 Gabon</option>
-                        <option value="GM">🇬🇲 Gambia</option>
-                        <option value="GE">🇬🇪 Georgia</option>
-                        <option value="DE">🇩🇪 Germany</option>
-                        <option value="GH">🇬🇭 Ghana</option>
-                        <option value="GR">🇬🇷 Greece</option>
-                        <option value="GD">🇬🇩 Grenada</option>
-                        <option value="GT">🇬🇹 Guatemala</option>
-                        <option value="GN">🇬🇳 Guinea</option>
-                        <option value="GW">🇬🇼 Guinea-Bissau</option>
-                        <option value="GY">🇬🇾 Guyana</option>
-                        <option value="HT">🇭🇹 Haiti</option>
-                        <option value="HN">🇭🇳 Honduras</option>
-                        <option value="HU">🇭🇺 Hungary</option>
-                        <option value="IS">🇮🇸 Iceland</option>
-                        <option value="ID">🇮🇩 Indonesia</option>
-                        <option value="IR">🇮🇷 Iran</option>
-                        <option value="IQ">🇮🇶 Iraq</option>
-                        <option value="IE">🇮🇪 Ireland</option>
-                        <option value="IL">🇮🇱 Israel</option>
-                        <option value="IT">🇮🇹 Italy</option>
-                        <option value="JM">🇯🇲 Jamaica</option>
-                        <option value="JP">🇯🇵 Japan</option>
-                        <option value="JO">🇯🇴 Jordan</option>
-                        <option value="KZ">🇰🇿 Kazakhstan</option>
-                        <option value="KE">🇰🇪 Kenya</option>
-                        <option value="KI">🇰🇮 Kiribati</option>
-                        <option value="KW">🇰🇼 Kuwait</option>
-                        <option value="KG">🇰🇬 Kyrgyzstan</option>
-                        <option value="LA">🇱🇦 Laos</option>
-                        <option value="LV">🇱🇻 Latvia</option>
-                        <option value="LB">🇱🇧 Lebanon</option>
-                        <option value="LS">🇱🇸 Lesotho</option>
-                        <option value="LR">🇱🇷 Liberia</option>
-                        <option value="LY">🇱🇾 Libya</option>
-                        <option value="LI">🇱🇮 Liechtenstein</option>
-                        <option value="LT">🇱🇹 Lithuania</option>
-                        <option value="LU">🇱🇺 Luxembourg</option>
-                        <option value="MG">🇲🇬 Madagascar</option>
-                        <option value="MW">🇲🇼 Malawi</option>
-                        <option value="MY">🇲🇾 Malaysia</option>
-                        <option value="MV">🇲🇻 Maldives</option>
-                        <option value="ML">🇲🇱 Mali</option>
-                        <option value="MT">🇲🇹 Malta</option>
-                        <option value="MH">🇲🇭 Marshall Islands</option>
-                        <option value="MR">🇲🇷 Mauritania</option>
-                        <option value="MU">🇲🇺 Mauritius</option>
-                        <option value="MX">🇲🇽 Mexico</option>
-                        <option value="FM">🇫🇲 Micronesia</option>
-                        <option value="MD">🇲🇩 Moldova</option>
-                        <option value="MC">🇲🇨 Monaco</option>
-                        <option value="MN">🇲🇳 Mongolia</option>
-                        <option value="ME">🇲🇪 Montenegro</option>
-                        <option value="MA">🇲🇦 Morocco</option>
-                        <option value="MZ">🇲🇿 Mozambique</option>
-                        <option value="MM">🇲🇲 Myanmar</option>
-                        <option value="NA">🇳🇦 Namibia</option>
-                        <option value="NR">🇳🇷 Nauru</option>
-                        <option value="NP">🇳🇵 Nepal</option>
-                        <option value="NL">🇳🇱 Netherlands</option>
-                        <option value="NZ">🇳🇿 New Zealand</option>
-                        <option value="NI">🇳🇮 Nicaragua</option>
-                        <option value="NE">🇳🇪 Niger</option>
-                        <option value="KP">🇰🇵 North Korea</option>
-                        <option value="MK">🇲🇰 North Macedonia</option>
-                        <option value="NO">🇳🇴 Norway</option>
-                        <option value="OM">🇴🇲 Oman</option>
-                        <option value="PK">🇵🇰 Pakistan</option>
-                        <option value="PW">🇵🇼 Palau</option>
-                        <option value="PA">🇵🇦 Panama</option>
-                        <option value="PG">🇵🇬 Papua New Guinea</option>
-                        <option value="PY">🇵🇾 Paraguay</option>
-                        <option value="PE">🇵🇪 Peru</option>
-                        <option value="PL">🇵🇱 Poland</option>
-                        <option value="PT">🇵🇹 Portugal</option>
-                        <option value="QA">🇶🇦 Qatar</option>
-                        <option value="RO">🇷🇴 Romania</option>
-                        <option value="RU">🇷🇺 Russia</option>
-                        <option value="RW">🇷🇼 Rwanda</option>
-                        <option value="KN">🇰🇳 Saint Kitts and Nevis</option>
-                        <option value="LC">🇱🇨 Saint Lucia</option>
-                        <option value="VC">🇻🇨 Saint Vincent and the Grenadines</option>
-                        <option value="WS">🇼🇸 Samoa</option>
-                        <option value="SM">🇸🇲 San Marino</option>
-                        <option value="ST">🇸🇹 Sao Tome and Principe</option>
-                        <option value="SA">🇸🇦 Saudi Arabia</option>
-                        <option value="SN">🇸🇳 Senegal</option>
-                        <option value="RS">🇷🇸 Serbia</option>
-                        <option value="SC">🇸🇨 Seychelles</option>
-                        <option value="SL">🇸🇱 Sierra Leone</option>
-                        <option value="SG">🇸🇬 Singapore</option>
-                        <option value="SK">🇸🇰 Slovakia</option>
-                        <option value="SI">🇸🇮 Slovenia</option>
-                        <option value="SB">🇸🇧 Solomon Islands</option>
-                        <option value="SO">🇸🇴 Somalia</option>
-                        <option value="KR">🇰🇷 South Korea</option>
-                        <option value="SS">🇸🇸 South Sudan</option>
-                        <option value="ES">🇪🇸 Spain</option>
-                        <option value="LK">🇱🇰 Sri Lanka</option>
-                        <option value="SD">🇸🇩 Sudan</option>
-                        <option value="SR">🇸🇷 Suriname</option>
-                        <option value="SE">🇸🇪 Sweden</option>
-                        <option value="CH">🇨🇭 Switzerland</option>
-                        <option value="SY">🇸🇾 Syria</option>
-                        <option value="TW">🇹🇼 Taiwan</option>
-                        <option value="TJ">🇹🇯 Tajikistan</option>
-                        <option value="TZ">🇹🇿 Tanzania</option>
-                        <option value="TH">🇹🇭 Thailand</option>
-                        <option value="TL">🇹🇱 Timor-Leste</option>
-                        <option value="TG">🇹🇬 Togo</option>
-                        <option value="TO">🇹🇴 Tonga</option>
-                        <option value="TT">🇹🇹 Trinidad and Tobago</option>
-                        <option value="TN">🇹🇳 Tunisia</option>
-                        <option value="TR">🇹🇷 Turkey</option>
-                        <option value="TM">🇹🇲 Turkmenistan</option>
-                        <option value="TV">🇹🇻 Tuvalu</option>
-                        <option value="UG">🇺🇬 Uganda</option>
-                        <option value="UA">🇺🇦 Ukraine</option>
-                        <option value="AE">🇦🇪 United Arab Emirates</option>
-                        <option value="UY">🇺🇾 Uruguay</option>
-                        <option value="UZ">🇺🇿 Uzbekistan</option>
-                        <option value="VU">🇻🇺 Vanuatu</option>
-                        <option value="VE">🇻🇪 Venezuela</option>
-                        <option value="VN">🇻🇳 Vietnam</option>
-                        <option value="YE">🇾🇪 Yemen</option>
-                        <option value="ZM">🇿🇲 Zambia</option>
-                        <option value="ZW">🇿🇼 Zimbabwe</option>
-                        <option value="other">🌍 Other Country</option>
-                    </select>
-                </div>
-                
-                <!-- Error Message -->
-                <p class="error-message" id="education-error">Please select your education level to continue.</p>
-                
-                <!-- Navigation -->
-                <div class="screen-navigation">
-                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </button>
-                    <button class="btn btn-primary" id="education-continue-btn" onclick="wizard.saveEducationAndNext()">
                         Continue <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
@@ -596,36 +463,175 @@ if ($user_id) {
                 </div>
             </div>
             
-            <!-- ==================== SCREEN 6: PREFERENCES (Coming next) ==================== -->
+            <!-- ==================== SCREEN 6: PREFERENCES ==================== -->
             <div class="screen" id="screen6">
-                <h2>A few quick preferences...</h2>
-                <p style="text-align: center; color: var(--text-muted); margin-top: 3rem;">
-                    🚧 Screen under construction 🚧
-                </p>
+                <h2>How do you learn best?</h2>
+                <p class="subtitle">Customize your learning environment to fit your style.</p>
+                
+                <div class="preferences-container">
+                    <!-- Section A: Schedule -->
+                    <div class="preference-section">
+                        <h4>📅 When do you usually study?</h4>
+                        <div class="options-row">
+                            <button class="preference-btn schedule-option" data-value="weekdays">Weekdays</button>
+                            <button class="preference-btn schedule-option" data-value="weekends">Weekends</button>
+                            <button class="preference-btn schedule-option" data-value="daily">Daily</button>
+                            <button class="preference-btn schedule-option" data-value="flexible">Flexible / Whenever</button>
+                        </div>
+                    </div>
+
+                    <!-- Section B: Duration -->
+                    <div class="preference-section">
+                        <h4>⏱️ Preferred Session Length</h4>
+                        <div class="options-row">
+                            <button class="preference-btn duration-option" data-value="15m">15 mins</button>
+                            <button class="preference-btn duration-option" data-value="30m">30 mins</button>
+                            <button class="preference-btn duration-option" data-value="45m">45 mins</button>
+                            <button class="preference-btn duration-option" data-value="60m+">60+ mins</button>
+                        </div>
+                    </div>
+
+                    <!-- Section C: Style -->
+                    <div class="preference-section">
+                        <h4>🤔 Preferred Explanation Style</h4>
+                        <div class="style-grid">
+                            <div class="style-card" data-value="simple">
+                                <div class="style-icon">💡</div>
+                                <h3>Simple & Direct</h3>
+                                <p>Get straight to the point.</p>
+                            </div>
+                            <div class="style-card" data-value="detailed">
+                                <div class="style-icon">📖</div>
+                                <h3>Detailed & In-depth</h3>
+                                <p>Explain the 'why' and 'how'.</p>
+                            </div>
+                            <div class="style-card" data-value="socratic">
+                                <div class="style-icon">❓</div>
+                                <h3>Socratic</h3>
+                                <p>Guide me with questions.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <p class="error-message" id="preferences-error">Please select an option for each category.</p>
+
+                <!-- Navigation -->
+                <div class="screen-navigation">
+                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary disabled" id="preferences-continue-btn" onclick="wizard.savePreferencesAndNext()">
+                        Continue <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
             </div>
             
-            <!-- ==================== SCREEN 7: NOTIFICATIONS (Coming next) ==================== -->
+            <!-- ==================== SCREEN 7: NOTIFICATIONS ==================== -->
             <div class="screen" id="screen7">
-                <h2>Would you like study reminders?</h2>
-                <p style="text-align: center; color: var(--text-muted); margin-top: 3rem;">
-                    🚧 Screen under construction 🚧
-                </p>
+                <h2>Stay on track with reminders</h2>
+                <p class="subtitle">Building a habit is easier with a nudge. We won't spam you.</p>
+                
+                <div class="notifications-wrapper">
+                    <!-- Master Toggle -->
+                    <button id="notification-toggle" class="notification-toggle-btn active">
+                        <i class="fas fa-bell"></i>
+                        <span>Reminders Enabled</span>
+                        <div class="toggle-switch"></div>
+                    </button>
+                    
+                    <!-- Settings Container -->
+                    <div id="notification-settings-container" class="mt-4">
+                        <div class="notification-card">
+                            <div class="setting-row">
+                                <label>Frequency</label>
+                                <div class="frequency-selector">
+                                    <button class="frequency-option selected" data-value="daily">Daily</button>
+                                    <button class="frequency-option" data-value="weekdays">Weekdays</button>
+                                    <button class="frequency-option" data-value="weekends">Weekends</button>
+                                </div>
+                            </div>
+                            
+                            <div class="setting-row">
+                                <label>Time</label>
+                                <div class="time-picker-wrapper">
+                                    <input type="time" id="notification-time" value="17:00">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="notification-preview">
+                            <div class="mini-notification">
+                                <div class="notif-icon">🤖</div>
+                                <div class="notif-content">
+                                    <div class="notif-title">TutorMind</div>
+                                    <div class="notif-body">Time for your daily session! Ready to solve some problems? 🚀</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Navigation -->
+                <div class="screen-navigation">
+                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button class="btn btn-primary" id="notifications-continue-btn">
+                        Continue <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                
+                <button id="notifications-skip-btn" class="btn-text mt-2" style="width: 100%; color: var(--text-muted);">
+                    Maybe later
+                </button>
             </div>
             
-            <!-- ==================== SCREEN 8: FIRST LESSON (Coming next) ==================== -->
+            <!-- ==================== SCREEN 8: FIRST LESSON ==================== -->
             <div class="screen" id="screen8">
                 <h2>Let's solve your first problem together!</h2>
-                <p style="text-align: center; color: var(--text-muted); margin-top: 3rem;">
-                    🚧 Screen under construction 🚧
-                </p>
+                <p class="subtitle">Experience how TutorMind works in real-time.</p>
+                
+                <div class="lesson-interface-container">
+                    <div class="lesson-window">
+                        <!-- Chat Area -->
+                        <div id="lesson-chat-container" class="lesson-chat-area">
+                            <!-- Messages injected by JS -->
+                        </div>
+                        
+                        <!-- Interaction Area -->
+                        <div class="lesson-input-area">
+                            <div id="lesson-options" class="lesson-options-grid hidden">
+                                <!-- Options injected by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Navigation (Initially Hidden) -->
+                <div class="screen-navigation centered-nav">
+                   <button class="btn btn-primary hidden" id="lesson-continue-btn" onclick="wizard.finishLessonAndNext()">
+                        Continue to Summary <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
             </div>
             
-            <!-- ==================== SCREEN 9: SUMMARY (Coming next) ==================== -->
+            <!-- ==================== SCREEN 9: SUMMARY ==================== -->
             <div class="screen" id="screen9">
-                <h2>Your Learning Profile</h2>
-                <p style="text-align: center; color: var(--text-muted); margin-top: 3rem;">
-                    🚧 Screen under construction 🚧
-                </p>
+                <h2>You're all set! 🎉</h2>
+                <p class="subtitle">We've personalized TutorMind just for you.</p>
+                
+                <div id="summary-content" class="summary-wrapper">
+                    <!-- Injected by JS -->
+                </div>
+                
+                <div class="completion-actions">
+                    <p class="completion-note">Ready to start learning?</p>
+                    <button class="btn btn-primary btn-large pop-in-delay" onclick="wizard.completeOnboarding()">
+                        Go to Dashboard <i class="fas fa-rocket"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -639,16 +645,31 @@ if ($user_id) {
     <!-- Welcome Screen Animations -->
     <script src="onboarding-animations.js?v=<?= time() ?>"></script>
     
-    <!-- Screen 2: Subject Selection Logic -->
+    <!-- University Data -->
+    <script src="onboarding-universities.js?v=<?= time() ?>"></script>
+    
+    <!-- Screen 2: Education Selection Logic -->
     <script src="onboarding-screen2.js?v=<?= time() ?>"></script>
     
-    <!-- Screen 3: Goal Selection Logic -->
+    <!-- Screen 3: Subject Selection Logic -->
     <script src="onboarding-screen3.js?v=<?= time() ?>"></script>
     
-    <!-- Screen 4: Education Level Logic -->
+    <!-- Screen 4: Goal Selection Logic -->
     <script src="onboarding-screen4.js?v=<?= time() ?>"></script>
     
     <!-- Screen 5: AI Assessment Logic -->
     <script src="onboarding-screen5.js?v=<?= time() ?>"></script>
+    
+    <!-- Screen 6: Preferences Logic -->
+    <script src="onboarding-screen6.js?v=<?= time() ?>"></script>
+    
+    <!-- Screen 7: Notifications Logic -->
+    <script src="onboarding-screen7.js?v=<?= time() ?>"></script>
+    
+    <!-- Screen 8: First Lesson Logic -->
+    <script src="onboarding-screen8.js?v=<?= time() ?>"></script>
+    
+    <!-- Screen 9: Summary Logic -->
+    <script src="onboarding-screen9.js?v=<?= time() ?>"></script>
 </body>
 </html>

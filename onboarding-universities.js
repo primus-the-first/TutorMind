@@ -1,0 +1,42 @@
+/**
+ * List of Universities for Autocomplete
+ * Source: User provided list
+ */
+const universityList = [
+    "University of Ghana (UG) – Legon, Accra",
+    "Kwame Nkrumah University of Science and Technology (KNUST) – Kumasi",
+    "University of Cape Coast (UCC) – Cape Coast",
+    "University of Education, Winneba (UEW) – Winneba",
+    "University for Development Studies (UDS) – Tamale",
+    "University of Mines and Technology (UMaT) – Tarkwa",
+    "University of Health and Allied Sciences (UHAS) – Ho",
+    "University of Energy and Natural Resources (UENR) – Sunyani",
+    "University of Professional Studies, Accra (UPSA) – Legon, Accra",
+    "Ghana Institute of Management and Public Administration (GIMPA) – Legon, Accra",
+    "Ghana Communication Technology University (GCTU) – Accra",
+    "Accra Technical University (ATU)",
+    "Kumasi Technical University (KsTU)",
+    "Takoradi Technical University (TTU)",
+    "Cape Coast Technical University (CCTU)",
+    "Koforidua Technical University (KTU)",
+    "Ho Technical University (HTU)",
+    "Sunyani Technical University (STU)",
+    "Tamale Technical University (TaTU)",
+    "Bolgatanga Technical University (BTU)",
+    "Wa Technical University (WTU)",
+    "Ashesi University – Berekuso",
+    "Central University – Miotso (Tema)",
+    "Valley View University (VVU) – Oyibi",
+    "Accra Institute of Technology (AIT) – Accra",
+    "Academic City University College – Accra",
+    "All Nations University – Koforidua",
+    "Presbyterian University, Ghana – Abetifi",
+    "Methodist University Ghana – Dansoman, Accra",
+    "Catholic University of Ghana – Sunyani",
+    "Pentecost University – Sowutuom, Accra",
+    "Ghana Christian University College – Accra",
+    "Wisconsin International University College – Accra",
+    "Regent University College of Science and Technology – Accra",
+    "Kings University College – Accra",
+    "Zenith University College – Accra"
+];

@@ -21,11 +21,16 @@ $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'User';
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 $user_program = null;
 
+// Initialize Database Connection Globally
+try {
+    $pdo = getDbConnection();
+} catch (Exception $e) {
+    die("Database connection failed: " . htmlspecialchars($e->getMessage()));
+}
+
 // Fetch user data
 if ($user_id) {
     try {
-        $pdo = getDbConnection();
-        
         // Fetch email first (guaranteed to exist)
         $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
         $stmt->execute([$user_id]);

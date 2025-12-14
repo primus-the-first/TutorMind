@@ -1,250 +1,155 @@
 /**
- * Screen 2: Subject Selection Logic
- * Handles multi-select, search, and primary subject selection
+ * Screen 2: Education Level & School Selection Logic
+ * Refactored to be Screen 2 (previously Screen 4 logic + School Input)
  */
 
-// Extend the wizard with Screen 2 methods
-OnboardingWizard.prototype.initScreen2Subjects = function() {
-  console.log('📚 Initializing Subjects Screen');
+OnboardingWizard.prototype.initScreen2Education = function() {
+  console.log('🎓 Initializing Education Screen (Screen 2)');
   
-  // Set up subject card click handlers
-  const subjectCards = document.querySelectorAll('.subject-card');
-  subjectCards.forEach(card => {
-    const header = card.querySelector('.subject-card-header');
-    
-    header.addEventListener('click', () => {
-      this.toggleSubjectCard(card);
+  // 1. Education Level Selection
+  const educationCards = document.querySelectorAll('.education-card');
+  educationCards.forEach(card => {
+    card.addEventListener('click', () => {
+      this.selectEducationLevel(card);
     });
   });
-  
-  // Set up subcategory checkbox handlers
-  const subcategoryCheckboxes = document.querySelectorAll('.subcategories input[type="checkbox"]');
-  subcategoryCheckboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', (e) => {
-      e.stopPropagation(); // Prevent card toggle
-      this.updateSubjectSelection();
-    });
-  });
-  
-  // Set up search functionality
-  const searchInput = document.getElementById('subject-search');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
-      this.filterSubjects(e.target.value);
-    });
-  }
-  
-  // Load saved selections if any
-  this.loadSavedSubjects();
-};
 
-OnboardingWizard.prototype.toggleSubjectCard = function(card) {
-  const subcategories = card.querySelector('.subcategories');
-  const checkmark = card.querySelector('.checkmark');
-  
-  // Toggle subcategories visibility
-  if (subcategories.classList.contains('hidden')) {
-    subcategories.classList.remove('hidden');
-    subcategories.classList.add('visible');
-  } else {
-    // Check if any subcategories are selected
-    const selectedSubcategories = subcategories.querySelectorAll('input[type="checkbox"]:checked');
-    if (selectedSubcategories.length === 0) {
-      subcategories.classList.add('hidden');
-      subcategories.classList.remove('visible');
-      card.classList.remove('selected');
-      checkmark.classList.add('hidden');
-    }
-  }
-};
-
-OnboardingWizard.prototype.updateSubjectSelection = function() {
-  const selectedSubjects = new Map();
-  
-  // Collect all selected subcategories grouped by parent
-  const allCheckboxes = document.querySelectorAll('.subcategories input[type="checkbox"]:checked');
-  
-  allCheckboxes.forEach(checkbox => {
-    const parent = checkbox.dataset.parent;
-    const value = checkbox.value;
-    
-    if (!selectedSubjects.has(parent)) {
-      selectedSubjects.set(parent, []);
-    }
-    selectedSubjects.get(parent).push(value);
-  });
-  
-  // Update card states and checkmarks
-  document.querySelectorAll('.subject-card').forEach(card => {
-    const subject = card.dataset.subject;
-    const checkmark = card.querySelector('.checkmark');
-    
-    if (selectedSubjects.has(subject)) {
-      card.classList.add('selected');
-      checkmark.classList.remove('hidden');
-    } else {
-      card.classList.remove('selected');
-      checkmark.classList.add('hidden');
-      
-      // Collapse if no selections
-      const subcategories = card.querySelector('.subcategories');
-      subcategories.classList.add('hidden');
-      subcategories.classList.remove('visible');
-    }
-  });
-  
-  // Show/hide primary subject selector
-  this.updatePrimarySubjectSelector(selectedSubjects);
-  
-  // Update profile data
-  this.profileData.subjects = Array.from(selectedSubjects.entries()).map(([parent, subs]) => ({
-    category: parent,
-    subcategories: subs
-  }));
-  
-  this.saveProgress();
-};
-
-OnboardingWizard.prototype.updatePrimarySubjectSelector = function(selectedSubjects) {
-  const selector = document.getElementById('primary-subject-selector');
-  const buttonsContainer = document.getElementById('primary-subject-buttons');
-  
-  if (selectedSubjects.size > 1) {
-    // Show primary subject selector
-    selector.classList.remove('hidden');
-   
-    // Clear existing buttons
-    buttonsContainer.innerHTML = '';
-    
-    // Create button for each selected subject
-    selectedSubjects.forEach((subs, parent) => {
-      const btn = document.createElement('button');
-      btn.className = 'primary-subject-btn';
-      btn.textContent = this.formatSubjectName(parent);
-      btn.dataset.subject = parent;
-      
-      // Check if this is already the primary subject
-      if (this.profileData.primarySubject === parent) {
-        btn.classList.add('selected');
-      }
-      
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.selectPrimarySubject(parent);
+  // 1.5 Populate University Datalist
+  const datalist = document.getElementById('university-list');
+  if (datalist && typeof universityList !== 'undefined') {
+      // Clear existing just in case
+      datalist.innerHTML = ''; 
+      universityList.forEach(uni => {
+          const option = document.createElement('option');
+          option.value = uni;
+          datalist.appendChild(option);
       });
-      
-      buttonsContainer.appendChild(btn);
+  }
+
+  // 2. School/University Input
+  const schoolInput = document.getElementById('school-name-input');
+  if (schoolInput) {
+    schoolInput.addEventListener('input', (e) => {
+      this.profileData.schoolName = e.target.value;
+      this.saveProgress();
+      this.validateScreen2();
     });
-  } else if (selectedSubjects.size === 1) {
-    // Auto-select the only subject as primary
-    const [primarySubject] = selectedSubjects.keys();
-    this.profileData.primarySubject = primarySubject;
-    selector.classList.add('hidden');
-  } else {
-    // No subjects selected
-    selector.classList.add('hidden');
-    this.profileData.primarySubject = null;
+
+    // Handle suggestion selection specifically if needed
+    schoolInput.addEventListener('change', (e) => {
+         this.profileData.schoolName = e.target.value;
+         this.saveProgress();
+    });
+  }
+
+  // Restore state
+  if (this.profileData.educationLevel) {
+    const savedCard = document.querySelector(`.education-card[data-level="${this.profileData.educationLevel}"]`);
+    if (savedCard) {
+        this.selectEducationLevel(savedCard, false); // false = don't scroll/animate excessively
+    }
+  }
+
+  if (this.profileData.schoolName && schoolInput) {
+      schoolInput.value = this.profileData.schoolName;
   }
 };
 
-OnboardingWizard.prototype.selectPrimarySubject = function(subject) {
-  this.profileData.primarySubject = subject;
+OnboardingWizard.prototype.selectEducationLevel = function(selectedCard, animate = true) {
+  // UI Update
+  document.querySelectorAll('.education-card').forEach(card => card.classList.remove('selected'));
+  selectedCard.classList.add('selected');
   
-  // Update button states
-  document.querySelectorAll('.primary-subject-btn').forEach(btn => {
-    if (btn.dataset.subject === subject) {
-      btn.classList.add('selected');
-    } else {
-      btn.classList.remove('selected');
-    }
-  });
-  
+  // Save Data
+  const level = selectedCard.dataset.level;
+  this.profileData.educationLevel = level;
   this.saveProgress();
-};
-
-OnboardingWizard.prototype.formatSubjectName = function(subject) {
-  return subject
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-};
-
-OnboardingWizard.prototype.filterSubjects = function(searchTerm) {
-  const term = searchTerm.toLowerCase().trim();
-  const cards = document.querySelectorAll('.subject-card');
   
-  cards.forEach(card => {
-    const subjectName = card.querySelector('h3').textContent.toLowerCase();
-    const subcategoryLabels = Array.from(card.querySelectorAll('.subcategories label'))
-      .map(label => label.textContent.toLowerCase());
-    
-    const matches = subjectName.includes(term) || 
-                    subcategoryLabels.some(text => text.includes(term));
-    
-    if (matches || term === '') {
-      card.style.display = 'block';
-    } else {
-      card.style.display = 'none';
-    }
-  });
+  // Show School Input Logic
+  this.renderSchoolInput(level);
+
+  // Clear error
+  const errorMsg = document.getElementById('screen2-error');
+  if (errorMsg) errorMsg.classList.remove('show');
 };
 
-OnboardingWizard.prototype.loadSavedSubjects = function() {
-  if (this.profileData.subjects && this.profileData.subjects.length > 0) {
-    // Restore checkbox states
-    this.profileData.subjects.forEach(({ category, subcategories }) => {
-      subcategories.forEach(sub => {
-        const checkbox = document.querySelector(
-          `input[type="checkbox"][value="${sub}"][data-parent="${category}"]`
-        );
-        if (checkbox) {
-          checkbox.checked = true;
+OnboardingWizard.prototype.renderSchoolInput = function(level) {
+    const container = document.getElementById('school-input-container');
+    const input = document.getElementById('school-name-input');
+    const label = document.getElementById('school-input-label');
+    const datalist = document.getElementById('university-list');
+
+    if (!container || !input) return;
+
+    container.classList.remove('hidden');
+    input.value = ''; // Clear previous input on level change? Or keep it? Let's clear to avoid "High School" having a Uni name.
+    this.profileData.schoolName = '';
+
+    // Configure Input based on Level
+    if (level === 'college') {
+        label.textContent = "Which university or college do you attend?";
+        input.placeholder = "Start typing to search universities...";
+        input.setAttribute('list', 'university-list'); // Enable Autocomplete
+    } else if (level === 'high') {
+        label.textContent = "What is the name of your school?";
+        input.placeholder = "Enter your school name...";
+        input.removeAttribute('list'); // Disable Autocomplete (Manual Entry)
+    } else if (level === 'adult') {
+         // Optional for adults?
+        label.textContent = "Organization or Institution (Optional)";
+        input.placeholder = "Company or School name...";
+        input.removeAttribute('list');
+    } else {
+        label.textContent = "School or Institution Name";
+        input.placeholder = "Enter name...";
+        input.removeAttribute('list');
+    }
+};
+
+OnboardingWizard.prototype.validateScreen2 = function() {
+    const level = this.profileData.educationLevel;
+    const school = this.profileData.schoolName;
+    const errorMsg = document.getElementById('screen2-error');
+    const nextBtn = document.getElementById('screen2-next-btn'); // If we want to disable/enable button
+
+    if (!level) {
+        if(errorMsg) {
+            errorMsg.textContent = "Please select your education level.";
+            errorMsg.classList.add('show');
         }
-      });
-      
-      // Expand the card
-      const card = document.querySelector(`.subject-card[data-subject="${category}"]`);
-      if (card) {
-        const subcategoriesDiv = card.querySelector('.subcategories');
-        subcategoriesDiv.classList.remove('hidden');
-        subcategoriesDiv.classList.add('visible');
-      }
-    });
-    
-    // Update UI states
-    this.updateSubjectSelection();
-  }
+        return false;
+    }
+
+    // require school name for High School and College
+    if ((level === 'high' || level === 'college') && (!school || school.trim() === '')) {
+         // We might not show error immediately on typing, but on "Next" click
+         return false; 
+    }
+
+    if (errorMsg) errorMsg.classList.remove('show');
+    return true;
 };
 
-OnboardingWizard.prototype.validateSubjects = function() {
-  const errorMsg = document.getElementById('subjects-error');
-  
-  if (!this.profileData.subjects || this.profileData.subjects.length === 0) {
-    errorMsg.classList.add('show');
-    return false;
-  }
-  
-  // Check if primary subject is selected when multiple subjects chosen
-  if (this.profileData.subjects.length > 1 && !this.profileData.primarySubject) {
-    errorMsg.textContent = 'Please select which subject you\'d like to start with.';
-    errorMsg.classList.add('show');
-    return false;
-  }
-  
-  errorMsg.classList.remove('show');
-  return true;
-};
+OnboardingWizard.prototype.saveEducationAndNext = function() {
+    const level = this.profileData.educationLevel;
+    const school = this.profileData.schoolName;
+    const errorMsg = document.getElementById('screen2-error');
 
-OnboardingWizard.prototype.saveSubjectsAndNext = function() {
-  if (this.validateSubjects()) {
-    console.log('✅ Subjects saved:', this.profileData.subjects);
-    console.log('✅ Primary subject:', this.profileData.primarySubject);
+    // Validation
+    if (!level) {
+        errorMsg.textContent = "Please select an education level.";
+        errorMsg.classList.add('show');
+        return;
+    }
+
+    if ((level === 'high' || level === 'college') && (!school || school.trim() === '')) {
+        errorMsg.textContent = level === 'college' ? "Please select or type your university name." : "Please enter your school name.";
+        errorMsg.classList.add('show');
+        document.getElementById('school-name-input').focus();
+        return;
+    }
+
+    // Success
+    console.log('✅ Screen 2 Complete:', { level, school });
     this.nextScreen();
-  } else {
-    // Scroll to error message
-    document.getElementById('subjects-error').scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'center' 
-    });
-  }
 };

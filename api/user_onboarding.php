@@ -1,178 +1,73 @@
 <?php
-// api/user_onboarding.php
-// Handles user onboarding operations - checking status and saving onboarding data
-
-// --- BOOTSTRAP & AUTHENTICATION ---
-require_once '../check_auth.php';
+session_start();
+header('Content-Type: application/json');
 require_once '../db_mysql.php';
 
-// Set JSON header
-header('Content-Type: application/json');
-
-// Get the database connection
-try {
-    $pdo = getDbConnection();
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database connection failed.']);
+// Security check
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit;
 }
 
-// Get the user ID from the session
 $user_id = $_SESSION['user_id'];
+$input = json_decode(file_get_contents('php://input'), true);
+$profile_data = json_encode($input); 
 
-// --- ROUTING based on HTTP method ---
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    handleGetRequest($pdo, $user_id);
-} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    handlePostRequest($pdo, $user_id);
-} else {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Method Not Allowed']);
+// Fallback function to save to file
+function saveToFileBackup($user_id, $profile_data) {
+    $backupDir = __DIR__ . '/../user_data/profiles/';
+    if (!file_exists($backupDir)) {
+        if (!mkdir($backupDir, 0777, true)) {
+            return false;
+        }
+    }
+    return file_put_contents($backupDir . $user_id . '.json', $profile_data) !== false;
 }
 
-// --- FUNCTION DEFINITIONS ---
+$response = ['success' => false, 'errors' => []];
 
-/**
- * Handles GET requests to check onboarding status
- *
- * @param PDO $pdo The database connection object
- * @param int $user_id The ID of the logged-in user
- */
-function handleGetRequest(PDO $pdo, int $user_id): void {
+try {
+    $pdo = getDbConnection();
+    
+    // Step 1: Mark Onboarding as Complete
     try {
-        // Fetch onboarding status and existing data
-        $stmt = $pdo->prepare("
-            SELECT 
-                onboarding_completed,
-                country,
-                primary_language,
-                education_level,
-                field_of_study,
-                institution
-            FROM users 
-            WHERE id = ?
-        ");
+        $stmt = $pdo->prepare("UPDATE users SET onboarding_completed = 1 WHERE id = ?");
         $stmt->execute([$user_id]);
-        $data = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        $response['errors'][] = "Status Update Failed: " . $e->getMessage();
+        // Continue to try saving profile...
+    }
 
-        if ($data) {
-            // Convert onboarding_completed to boolean
-            $data['onboarding_completed'] = (bool)$data['onboarding_completed'];
-            
-            http_response_code(200);
-            echo json_encode(['success' => true, 'data' => $data]);
-        } else {
-            http_response_code(404);
-            echo json_encode(['success' => false, 'error' => 'User not found.']);
-        }
-    } catch (PDOException $e) {
-        error_log("Onboarding GET Error: " . $e->getMessage());
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Failed to fetch onboarding status.']);
+    // Step 2: Save Profile Data
+    try {
+        $stmt = $pdo->prepare("UPDATE users SET profile_data = ? WHERE id = ?");
+        $stmt->execute([$profile_data, $user_id]);
+        $response['success'] = true;
+    } catch (Exception $e) {
+        $response['errors'][] = "DB Profile Save Failed: " . $e->getMessage();
+        throw $e; // Trigger catch block for file backup
+    }
+
+} catch (Exception $e) {
+    // OUTER CATCH: Handles Connection Failures OR Query Failures
+    $response['errors'][] = "Critical DB Error: " . $e->getMessage();
+    
+    // Attempt File Backup
+    if (saveToFileBackup($user_id, $profile_data)) {
+        $response['success'] = true;
+        $response['errors'][] = "Saved to file backup successfully.";
+        // IMPORTANT: We update session to reflect completion so middleware respects it immediately
+        $_SESSION['onboarding_completed'] = true; // Use session flag if DB fail
+    } else {
+        $response['errors'][] = "File backup also failed.";
     }
 }
 
-/**
- * Handles POST requests to save onboarding data
- *
- * @param PDO $pdo The database connection object
- * @param int $user_id The ID of the logged-in user
- */
-function handlePostRequest(PDO $pdo, int $user_id): void {
-    // Get the JSON payload from the request
-    $input = json_decode(file_get_contents('php://input'), true);
-
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Invalid JSON payload.']);
-        return;
-    }
-
-    // --- VALIDATION ---
-    $errors = [];
-
-    // Required fields validation
-    if (empty($input['country'])) {
-        $errors[] = 'Country is required.';
-    }
-
-    if (empty($input['education_level'])) {
-        $errors[] = 'Education level is required.';
-    } else {
-        // Validate education level enum
-        $valid_levels = ['Primary', 'Secondary', 'University', 'Graduate', 'Professional', 'Other'];
-        if (!in_array($input['education_level'], $valid_levels)) {
-            $errors[] = 'Invalid education level.';
-        }
-    }
-
-    // Optional field validation
-    if (isset($input['primary_language']) && empty(trim($input['primary_language']))) {
-        $input['primary_language'] = 'English'; // Default
-    }
-
-    // Field of study is only relevant for University and above
-    if (isset($input['field_of_study']) && !empty($input['field_of_study'])) {
-        if (strlen($input['field_of_study']) > 255) {
-            $errors[] = 'Field of study is too long.';
-        }
-    }
-
-    // Institution validation
-    if (isset($input['institution']) && !empty($input['institution'])) {
-        if (strlen($input['institution']) > 255) {
-            $errors[] = 'Institution name is too long.';
-        }
-    }
-
-    // If there are validation errors, return them
-    if (!empty($errors)) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'errors' => $errors]);
-        return;
-    }
-
-    // --- DATABASE UPDATE ---
-    try {
-        $stmt = $pdo->prepare("
-            UPDATE users SET
-                country = ?,
-                primary_language = ?,
-                education_level = ?,
-                field_of_study = ?,
-                institution = ?,
-                onboarding_completed = 1,
-                updated_at = NOW()
-            WHERE id = ?
-        ");
-
-        $stmt->execute([
-            $input['country'],
-            $input['primary_language'] ?? 'English',
-            $input['education_level'],
-            $input['field_of_study'] ?? null,
-            $input['institution'] ?? null,
-            $user_id
-        ]);
-
-        if ($stmt->rowCount() > 0) {
-            // Update session variables if they exist
-            $_SESSION['onboarding_completed'] = true;
-            
-            http_response_code(200);
-            echo json_encode([
-                'success' => true, 
-                'message' => 'Onboarding completed successfully!'
-            ]);
-        } else {
-            http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Failed to save onboarding data.']);
-        }
-    } catch (PDOException $e) {
-        error_log("Onboarding POST Error: " . $e->getMessage());
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Database error occurred.']);
-    }
+if ($response['success']) {
+    echo json_encode($response);
+} else {
+    http_response_code(500);
+    echo json_encode($response);
 }
 ?>
