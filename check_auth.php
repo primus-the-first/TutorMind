@@ -35,6 +35,22 @@ if (!isset($_SESSION['user_id'])) {
     }
 
     // If we are here, authentication failed
+    // Check if this is an API request (expects JSON)
+    $isApiRequest = (
+        isset($_GET['action']) || 
+        (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) ||
+        (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false)
+    );
+    
+    if ($isApiRequest) {
+        // Return JSON error for API requests
+        header('Content-Type: application/json');
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Authentication required. Please log in.']);
+        exit;
+    }
+    
+    // Regular page request - redirect to login
     header('Location: login');
     exit;
 }
