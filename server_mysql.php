@@ -589,8 +589,8 @@ function callGeminiAPI($payload, $apiKey) {
             $retries++;
 
             // If we hit a rate limit with the experimental model, try falling back to stable 2.5-flash
-            if ($model === 'gemini-2.0-flash-exp' && $retries > 1) {
-                $model = 'gemini-3-flash-preview';
+            if ($model === 'gemini-3-flash-preview' && $retries > 1) {
+                $model = 'gemini-2.5-flash';
                 $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . $apiKey;
                 // Don't sleep, try immediately
                 continue;
