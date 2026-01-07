@@ -8,7 +8,7 @@ if (defined('PREDICTOR_SCRIPT')) {
 error_reporting(E_ALL & ~E_DEPRECATED); // Report all errors except for deprecation notices
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-
+set_time_limit(300); // Increase max execution time to 5 minutes to allow for AI API timeouts/retries
 require_once 'check_auth.php'; // Secure all API endpoints
 
 // --- ALWAYS require the autoloader first ---
@@ -255,7 +255,7 @@ if ($action) {
                     "generationConfig" => ["responseMimeType" => "application/json"]
                 ]);
                 
-                $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey;
+                $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=" . $apiKey;
                 
                 $ch = curl_init($apiUrl);
                 curl_setopt_array($ch, [
@@ -519,8 +519,8 @@ function prepareFileParts($file, $user_question) {
 }
 
 function callGeminiAPI($payload, $apiKey) {
-    // Model selection: Use gemini-2.5-flash for reliable chat with function calling
-    $model = 'gemini-2.5-flash'; 
+    // Model selection: Use gemini-3-flash-preview for improved reasoning with function calling
+    $model = 'gemini-3-flash-preview'; 
     
     // Add function calling tools for image generation
     $payloadArr = json_decode($payload, true);
@@ -583,7 +583,7 @@ function callGeminiAPI($payload, $apiKey) {
             
             // If we hit a rate limit with the experimental model, try falling back to stable 2.5-flash
             if ($model === 'gemini-2.0-flash-exp' && $retries > 1) {
-                $model = 'gemini-2.5-flash';
+                $model = 'gemini-3-flash-preview';
                 $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . $apiKey;
                 // Don't sleep, try immediately
                 continue;
