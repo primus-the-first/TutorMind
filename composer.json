@@ -1,0 +1,15 @@
+{
+    "name": "tutormind/app",
+    "description": "TutorMind AI Learning Assistant",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "erusev/parsedown": "^1.7",
+        "smalot/pdfparser": "^2.0",
+        "phpoffice/phpword": "^1.0",
+        "phpoffice/phppresentation": "^1.0"
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

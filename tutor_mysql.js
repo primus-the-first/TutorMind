@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // This ensures settings (especially dark mode) are applied before page renders
     window.settingsManager = new SettingsManager();
     window.settingsManager.init();
-    
+
     // Load settings immediately and wait for them to apply
     try {
         await window.settingsManager.loadSettings();
@@ -61,14 +61,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Dark Mode Logic ---
     // Note: Dark mode is now managed by the SettingsManager and loaded from the database.
     // The toggle in the user menu will update both the UI and the database.
-    
+
     // Listen for dark mode toggle changes in the main UI
     if (darkModeToggle) {
         darkModeToggle.addEventListener('change', async () => {
             const isDark = darkModeToggle.checked;
             document.body.classList.toggle('dark-mode', isDark);
             localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
-            
+
             // Save to database via settings manager
             if (window.settingsManager) {
                 await window.settingsManager.debouncedSave({ dark_mode: isDark });
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const messageBubble = document.createElement('div');
         messageBubble.classList.add('message-bubble');
-        
+
         messageWrapper.appendChild(messageBubble);
         chatMessages.appendChild(messageWrapper);
 
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         bubbles.forEach(bubble => {
             const wrapper = bubble.closest('.chat-message');
             const isAi = wrapper.classList.contains('ai-message');
-            
+
             // For AI messages, ensure footer buttons exist
             if (isAi && !bubble.querySelector('.message-footer')) {
                 const footer = document.createElement('div');
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
                 bubble.appendChild(footer);
             }
-            
+
             finalizeMessage(bubble);
         });
     }
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function finalizeMessage(messageBubble) {
         // Add copy buttons to code blocks and trigger syntax highlighting
         addCopyButtonsToCodeBlocks(messageBubble);
-        
+
         // Scroll to the bottom one last time
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
@@ -148,14 +148,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }).catch((err) => {
                     console.error('MathJax typeset failed:', err);
                 });
-            } 
+            }
             // MathJax v2 fallback
             else if (MathJax.Hub && MathJax.Hub.Queue) {
                 MathJax.Hub.Queue(["Typeset", MathJax.Hub, messageBubble]);
             }
         }
     }
-    
+
     // --- Event Delegation for Chat Buttons ---
     // This replaces attachMessageEventListeners and works for all current and future buttons
     chatMessages.addEventListener('click', (e) => {
@@ -177,9 +177,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // 1. Parse the HTML into a virtual DOM
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
-        
+
         const queue = [];
-        
+
         // 2. Traverse and build an action queue
         function traverse(node) {
             if (node.nodeType === Node.TEXT_NODE) {
@@ -194,30 +194,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                     attributes[attr.name] = attr.value;
                 }
                 queue.push({ type: 'open', tagName, attributes });
-                
+
                 for (let child of node.childNodes) {
                     traverse(child);
                 }
-                
+
                 queue.push({ type: 'close' });
             }
         }
-        
+
         for (let child of tempDiv.childNodes) {
             traverse(child);
         }
-        
+
         // 3. Process the queue to animate
         let currentParent = element;
         const parentStack = [element];
-        
+
         function processQueue() {
             const chunkSize = 4; // Characters per tick
             let processed = 0;
-            
+
             while (queue.length > 0) {
                 const item = queue[0]; // Peek
-                
+
                 if (item.type === 'open') {
                     queue.shift();
                     const el = document.createElement(item.tagName);
@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else if (item.type === 'text') {
                     if (processed >= chunkSize) break; // Stop if chunk full
                     queue.shift();
-                    
+
                     if (currentParent.lastChild && currentParent.lastChild.nodeType === Node.TEXT_NODE) {
                         currentParent.lastChild.nodeValue += item.content;
                     } else {
@@ -245,44 +245,44 @@ document.addEventListener('DOMContentLoaded', async () => {
                     processed++;
                 }
             }
-            
+
             // Scroll to bottom
             const chatContainer = document.getElementById('chat-container');
-            if(chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
-            
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+
             if (queue.length > 0) {
                 setTimeout(processQueue, speed);
             } else {
                 if (callback) callback();
             }
         }
-        
+
         processQueue();
     }
 
     // --- Function to add copy buttons to code blocks ---
     function addCopyButtonsToCodeBlocks(container) {
         const codeBlocks = container.querySelectorAll('pre code');
-        
+
         // Apply syntax highlighting using lazy loader
         if (codeBlocks.length > 0 && window.syntaxHighlighter) {
             window.syntaxHighlighter.highlight(container).catch(err => {
                 console.warn('Syntax highlighting failed:', err);
             });
         }
-        
+
         // Add copy buttons
         container.querySelectorAll('pre').forEach(pre => {
             // Don't add button if it already exists
             if (pre.querySelector('.copy-code-btn')) return;
-            
+
             const button = document.createElement('button');
             button.className = 'copy-code-btn';
             button.textContent = 'Copy';
             button.addEventListener('click', () => {
                 const code = pre.querySelector('code') || pre;
                 const text = code.textContent;
-                
+
                 navigator.clipboard.writeText(text).then(() => {
                     button.textContent = 'Copied!';
                     setTimeout(() => {
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }, 2000);
                 });
             });
-            
+
             pre.appendChild(button);
         });
     }
@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 // Stop any current speech
                 speechSynthesis.cancel();
-                
+
                 // Reset all other buttons
                 document.querySelectorAll('.read-aloud-btn[data-speaking="true"]').forEach(btn => {
                     btn.dataset.speaking = 'false';
@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             this.previewArea = previewArea;
             this.maxFiles = maxFiles;
             this.files = []; // Store File objects here
-            
+
             this.init();
         }
 
@@ -473,7 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         updatePreview() {
             this.previewArea.innerHTML = '';
-            
+
             if (this.files.length === 0) {
                 this.previewArea.classList.remove('has-files');
                 return;
@@ -490,7 +490,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Thumbnail
                 const thumbnail = document.createElement('div');
                 thumbnail.className = 'attachment-thumbnail';
-                
+
                 if (file.type.startsWith('image/')) {
                     const img = document.createElement('img');
                     img.src = URL.createObjectURL(file);
@@ -555,7 +555,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- The Fix: Capture FormData immediately ---
         // This ensures we have the question and file data before any other operations.
         const formData = new FormData(tutorForm);
-        
+
         // Add session context to the request
         if (window.sessionContextManager) {
             const sessionContext = window.sessionContextManager.getSystemPromptContext();
@@ -590,7 +590,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (welcomeScreen) welcomeScreen.style.display = 'none';
         document.body.classList.remove('chat-empty');
         if (conversationTitleEl) conversationTitleEl.style.display = 'block';
-        
+
         // Hide Quick Start overlay if visible
         const quickStartOverlay = document.getElementById('quick-start-overlay');
         if (quickStartOverlay && !quickStartOverlay.classList.contains('hidden')) {
@@ -631,9 +631,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 `;
                 addMessage('ai', messageContent, true);
-                
+
                 // Event listeners are now attached in finalizeMessage after typing is complete
-                
+
                 // Handle conversation ID and title updates
                 if (result.conversation_id) {
                     conversationIdInput.value = result.conversation_id;
@@ -643,7 +643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const baseUrl = window.location.pathname.split('/chat')[0];
                         history.pushState({}, '', `${baseUrl}/chat/${result.conversation_id}`);
                     }
-                    
+
                     // If server generated a title, update the conversation in the sidebar
                     if (result.generated_title) {
                         console.log('AI generated title:', result.generated_title);
@@ -658,6 +658,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                             highlightActiveConversation(result.conversation_id);
                         }
                     }
+                }
+
+                // Update session context with server-side progress data (hybrid progress with milestones)
+                if (result.progress && window.sessionContextManager) {
+                    window.sessionContextManager.updateFromServerProgress(result.progress);
+                    console.log('Progress updated:', result.progress.percentage + '%',
+                        `(${result.progress.milestonesCompleted}/${result.progress.milestonesTotal} milestones)`);
                 }
             } else {
                 addMessage('ai', `<p style="color: red;">Error: ${result.error || 'An unknown error occurred.'}</p>`);
@@ -687,14 +694,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         welcomeScreen.style.display = 'flex';
         conversationIdInput.value = '';
         highlightActiveConversation(null);
-        
+
         // Reset conversation title to default and hide it
         if (conversationTitleEl) {
             conversationTitleEl.textContent = 'TutorMind';
             conversationTitleEl.style.display = 'none';
         }
         document.body.classList.add('chat-empty');
-        
+
         // Clear session context
         if (window.sessionContextManager) {
             window.sessionContextManager.clear();
@@ -715,7 +722,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const username = greetingElement.dataset.username || 'Friend';
         const hour = new Date().getHours();
         let timeGreeting = "Hello";
-        
+
         if (hour >= 5 && hour < 12) {
             timeGreeting = "Good morning";
         } else if (hour >= 12 && hour < 18) {
@@ -735,14 +742,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             "Ready when you are",
             "Ready to lock in",
         ];
-        
+
         const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
         const fullText = `${randomGreeting}, ${username}!`;
-        
+
         // Custom variable-speed typing for a smoother, more natural feel
         let i = 0;
         greetingElement.textContent = ''; // Clear initial content
-        
+
         function typeChar() {
             if (i < fullText.length) {
                 greetingElement.textContent += fullText.charAt(i);
@@ -752,7 +759,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setTimeout(typeChar, delay);
             }
         }
-        
+
         typeChar();
     }
 
@@ -768,17 +775,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (data.success && data.suggestions) {
                 const pills = document.querySelectorAll('.suggestion-pill');
-                
+
                 // Update pills based on the returned keys
                 pills.forEach(pill => {
                     const iconText = pill.querySelector('.pill-icon').nextSibling.textContent.trim().toLowerCase();
                     let key = '';
-                    
+
                     if (iconText.includes('explain')) key = 'explain';
                     else if (iconText.includes('write')) key = 'write';
                     else if (iconText.includes('build')) key = 'build';
                     else if (iconText.includes('research')) key = 'research';
-                    
+
                     if (key && data.suggestions[key]) {
                         pill.dataset.prompt = data.suggestions[key];
                         // Optional: Add a subtle animation to show update
@@ -853,8 +860,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             // Use absolute path for fetch to avoid issues when current URL is /chat/123
             const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
-            const response = await fetch(`${fetchUrl}?action=get_conversation&id=${id}`);
+            const response = await fetch(`${fetchUrl}?action=get_conversation&id=${id}`, {
+                method: 'GET',
+                credentials: 'include', // Ensure cookies are sent
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            // Check if response is OK
+            if (!response.ok) {
+                console.error('Server returned error:', response.status, response.statusText);
+                throw new Error(`Server error: ${response.status}`);
+            }
+
             const text = await response.text();
+            console.log('Raw response:', text.substring(0, 200)); // Debug log
+
             let result;
             try {
                 result = JSON.parse(text);
@@ -949,12 +971,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // Attach event listener to the new button
                         const newButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
                         if (newButton) newButton.addEventListener('click', handleReadAloud);
-                            const newCopyButton = chatMessages.lastElementChild.querySelector('.copy-btn');
-                            if (newCopyButton) newCopyButton.addEventListener('click', handleCopyClick);
+                        const newCopyButton = chatMessages.lastElementChild.querySelector('.copy-btn');
+                        if (newCopyButton) newCopyButton.addEventListener('click', handleCopyClick);
                     }
                 });
                 highlightActiveConversation(id);
-                
+
                 // Update the conversation title in the header and show it
                 if (conversationTitleEl && result.conversation.title) {
                     conversationTitleEl.textContent = result.conversation.title;
@@ -1020,7 +1042,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     formData.append('id', id);
                     formData.append('title', newTitle);
 
-                    const response = await fetch('server_mysql.php', {
+                    const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+                    const response = await fetch(fetchUrl, {
                         method: 'POST',
                         body: formData
                     });
@@ -1064,12 +1087,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // --- Expose functions to global scope for SSR onclick handlers ---
+    window.loadConversation = loadConversation;
+    window.deleteConversation = deleteConversation;
+    window.enableRename = enableRename;
+
     // --- Sidebar Toggle (Desktop & Mobile) ---
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-    
+
     if (sidebar) {
         const overlay = document.getElementById('sidebar-overlay');
-        
+
         // Restore state from localStorage on load (Desktop only)
         if (window.innerWidth > 768) {
             const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
@@ -1105,7 +1133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             sidebar.classList.remove('open');
             overlay.classList.add('hidden');
         });
-        
+
         // Handle resize to reset states if needed
         window.addEventListener('resize', () => {
             if (window.innerWidth > 768) {
@@ -1167,11 +1195,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-    
+
     // --- Tools Dropdown Menu ---
     const toolsBtn = document.getElementById('tools-btn');
     const toolsMenu = document.getElementById('tools-menu');
-    
+
     if (toolsBtn && toolsMenu) {
         // Toggle menu on button click
         toolsBtn.addEventListener('click', (e) => {
@@ -1179,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isHidden = toolsMenu.classList.toggle('hidden');
             toolsBtn.setAttribute('aria-expanded', !isHidden);
         });
-        
+
         // Close menu when clicking outside
         document.addEventListener('click', (e) => {
             if (!toolsMenu.contains(e.target) && !toolsBtn.contains(e.target)) {
@@ -1187,10 +1215,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 toolsBtn.setAttribute('aria-expanded', 'false');
             }
         });
-        
+
         // Handle menu item clicks
         const toolsMenuItems = toolsMenu.querySelectorAll('.tools-menu-item');
-        
+
         // Prompt templates for each goal
         const promptTemplates = {
             homework_help: "Help me with my homework on ",
@@ -1198,11 +1226,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             explore: "I want to learn more about ",
             practice: "Give me practice problems on "
         };
-        
+
         toolsMenuItems.forEach(item => {
             item.addEventListener('click', () => {
                 const goal = item.dataset.goal;
-                
+
                 // Set the session goal using SessionContextManager
                 if (window.sessionContextManager) {
                     window.sessionContextManager.create(goal).then(session => {
@@ -1211,14 +1239,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                     });
                 }
-                
+
                 // Insert prompt template into input
                 const template = promptTemplates[goal] || '';
                 questionInput.value = template;
-                
+
                 // Close the menu
                 toolsMenu.classList.add('hidden');
-                
+
                 // Focus the input and place cursor at the end
                 questionInput.focus();
                 questionInput.setSelectionRange(template.length, template.length);

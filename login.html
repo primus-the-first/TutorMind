@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -124,7 +125,7 @@
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(123, 63, 242, 0.2);
         }
-        
+
         .password-wrapper {
             position: relative;
         }
@@ -165,6 +166,7 @@
             text-decoration: none;
             font-weight: 500;
         }
+
         .forgot-password:hover {
             text-decoration: underline;
         }
@@ -186,7 +188,7 @@
             background-color: var(--primary-dark);
             transform: scale(1.02);
         }
-        
+
         .btn-login:active {
             transform: scale(0.98);
         }
@@ -231,7 +233,7 @@
             gap: 0.75rem;
             transition: background-color 0.2s ease;
         }
-        
+
         .btn-social img {
             width: 20px;
             height: 20px;
@@ -253,6 +255,7 @@
             font-weight: 600;
             text-decoration: none;
         }
+
         .login-footer a:hover {
             text-decoration: underline;
         }
@@ -288,39 +291,61 @@
         }
 
         .s1 {
-            width: 400px; height: 400px;
+            width: 400px;
+            height: 400px;
             background: rgba(255, 255, 255, 0.05);
-            top: -100px; left: -150px;
+            top: -100px;
+            left: -150px;
         }
+
         .s2 {
-            width: 150px; height: 150px;
+            width: 150px;
+            height: 150px;
             background: var(--cyan);
-            bottom: 5%; right: 10%;
+            bottom: 5%;
+            right: 10%;
             animation-duration: 12s;
         }
+
         .s3 {
-            width: 80px; height: 80px;
+            width: 80px;
+            height: 80px;
             background: var(--yellow);
-            top: 20%; right: 25%;
+            top: 20%;
+            right: 25%;
             animation-duration: 18s;
         }
+
         .s4 {
-            width: 250px; height: 250px;
+            width: 250px;
+            height: 250px;
             border: 4px solid rgba(255, 255, 255, 0.2);
-            bottom: -120px; left: 10%;
+            bottom: -120px;
+            left: 10%;
             animation-duration: 20s;
         }
+
         .s5 {
-            width: 50px; height: 50px;
+            width: 50px;
+            height: 50px;
             background: var(--secondary);
-            top: 15%; left: 30%;
+            top: 15%;
+            left: 30%;
             animation-duration: 10s;
         }
-        
+
         @keyframes float {
-            0% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-30px) rotate(180deg); }
-            100% { transform: translateY(0px) rotate(360deg); }
+            0% {
+                transform: translateY(0px) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-30px) rotate(180deg);
+            }
+
+            100% {
+                transform: translateY(0px) rotate(360deg);
+            }
         }
 
         /* Responsive Design */
@@ -328,12 +353,54 @@
             .login-visual-container {
                 display: none;
             }
+
             .login-form-container {
                 flex-basis: 100%;
             }
         }
+
+        /* 720p Optimization */
+        @media (max-height: 800px) {
+            .login-form-container {
+                padding: 1rem 1.5rem;
+            }
+
+            .login-header {
+                margin-bottom: 1.5rem;
+            }
+
+            .login-header h1 {
+                font-size: 1.75rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .auth-logo {
+                margin-bottom: 1rem;
+            }
+
+            .form-group {
+                margin-bottom: 1rem;
+            }
+
+            .form-group input {
+                padding: 0.6rem 0.9rem;
+            }
+
+            .form-options {
+                margin-bottom: 1.25rem;
+            }
+
+            .divider {
+                margin: 1.5rem 0;
+            }
+
+            .login-footer {
+                margin-top: 1.5rem;
+            }
+        }
     </style>
 </head>
+
 <body>
     <div class="login-wrapper">
         <!-- Left Side: Login Form -->
@@ -361,9 +428,14 @@
                     <div class="form-group">
                         <label for="password">Password <span class="required">*</span></label>
                         <div class="password-wrapper">
-                            <input type="password" id="password" name="password" placeholder="Enter password" required autocomplete="current-password">
+                            <input type="password" id="password" name="password" placeholder="Enter password" required
+                                autocomplete="current-password">
                             <button type="button" id="togglePassword" class="password-toggle">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
                             </button>
                         </div>
                         <div class="error-message" id="password-error">Please enter your password.</div>
@@ -382,18 +454,11 @@
                     <div class="divider">Or, Login with</div>
 
                     <div id="g_id_onload"
-                         data-client_id="807658561801-fj6ujdo8dmha59gkv44mtim6ksailc5i.apps.googleusercontent.com"
-                         data-callback="handleCredentialResponse"
-                         data-auto_prompt="false">
+                        data-client_id="807658561801-fj6ujdo8dmha59gkv44mtim6ksailc5i.apps.googleusercontent.com"
+                        data-callback="handleCredentialResponse" data-auto_prompt="false">
                     </div>
-                    <div class="g_id_signin"
-                         data-type="standard"
-                         data-size="large"
-                         data-theme="outline"
-                         data-text="sign_in_with"
-                         data-shape="rectangular"
-                         data-logo_alignment="left"
-                         data-width="350">
+                    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"
+                        data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left" data-width="350">
                     </div>
                 </form>
 
@@ -416,23 +481,23 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const loginForm = document.getElementById('loginForm');
             const emailInput = document.getElementById('email');
             const passwordInput = document.getElementById('password');
             const togglePassword = document.getElementById('togglePassword');
-            
+
             const emailError = document.getElementById('email-error');
             const passwordError = document.getElementById('password-error');
 
             // Password visibility toggle
-            togglePassword.addEventListener('click', function() {
+            togglePassword.addEventListener('click', function () {
                 const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
                 passwordInput.setAttribute('type', type);
-                
+
                 // Toggle icon
-                this.innerHTML = type === 'password' 
-                    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>' 
+                this.innerHTML = type === 'password'
+                    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'
                     : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
             });
 
@@ -463,7 +528,7 @@
             emailInput.addEventListener('input', validateEmail);
             passwordInput.addEventListener('input', validatePassword);
 
-            loginForm.addEventListener('submit', async function(event) {
+            loginForm.addEventListener('submit', async function (event) {
                 event.preventDefault(); // Stop form submission to handle it with JS
 
                 const isEmailValid = validateEmail();
@@ -502,13 +567,13 @@
                     submitButton.textContent = 'Log In';
                 }
             });
-            
+
             // Allow form submission with Enter key
-            loginForm.addEventListener('keydown', function(event) {
+            loginForm.addEventListener('keydown', function (event) {
                 if (event.key === 'Enter' && !event.shiftKey) {
                     // Check if the active element is not a button to avoid double submission
-                    if(document.activeElement.type !== 'submit' && document.activeElement.type !== 'button') {
-                       loginForm.requestSubmit();
+                    if (document.activeElement.type !== 'submit' && document.activeElement.type !== 'button') {
+                        loginForm.requestSubmit();
                     }
                 }
             });
@@ -517,7 +582,7 @@
         // Google Sign-In Callback
         function handleCredentialResponse(response) {
             console.log("Encoded JWT ID token: " + response.credential);
-            
+
             // Send the token to the backend
             const formData = new FormData();
             formData.append('action', 'google_login');
@@ -527,19 +592,20 @@
                 method: 'POST',
                 body: formData
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.redirect) {
-                    window.location.href = data.redirect;
-                } else {
-                    alert(data.error || 'Google login failed.');
-                }
-            })
-            .catch(err => {
-                console.error('Google login error:', err);
-                alert('Could not connect to the server.');
-            });
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.redirect) {
+                        window.location.href = data.redirect;
+                    } else {
+                        alert(data.error || 'Google login failed.');
+                    }
+                })
+                .catch(err => {
+                    console.error('Google login error:', err);
+                    alert('Could not connect to the server.');
+                });
         }
     </script>
 </body>
+
 </html>

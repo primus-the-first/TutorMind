@@ -18,7 +18,8 @@ require 'vendor/autoload.php';
 header('Content-Type: application/json');
 
 if (!function_exists('formatResponse')) {
-    function formatResponse($text) {
+    function formatResponse($text)
+    {
         $protections = [];
         $counter = 0;
 
@@ -87,7 +88,7 @@ if (!function_exists('formatResponse')) {
                 $html = str_replace($placeholder, '<code>' . $codeContent . '</code>', $html);
             }
         }
-        
+
         // Final cleanup: remove <p> tags from around display math
         $html = preg_replace('/<p>(\s*)(\$\$.*?\$\$)(\s*)<\/p>/s', '$2', $html);
         $html = preg_replace('/<p>(\s*)(\\\\\[.*?\\\\\])(\s*)<\/p>/s', '$2', $html);
@@ -150,7 +151,7 @@ if ($action) {
                 foreach ($messages as $message) {
                     // The 'content' is a JSON string of the 'parts' array, so we decode it.
                     $parts = json_decode($message['content'], true);
-                    
+
                     // PERFORMANCE OPTIMIZATION: Strip out heavy base64 image data for history loading
                     foreach ($parts as &$part) {
                         if (isset($part['inline_data']['data'])) {
@@ -160,7 +161,7 @@ if ($action) {
                             $part['inline_data']['_removed'] = true; // Flag for frontend
                         }
                     }
-                    
+
                     if ($message['role'] === 'model') {
                         $parts[0]['text'] = formatResponse($parts[0]['text']);
                     }
@@ -183,7 +184,7 @@ if ($action) {
             $stmt->execute([$convo_id, $_SESSION['user_id']]);
             echo json_encode(['success' => true]);
             break;
-        
+
         case 'rename_conversation':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 http_response_code(405);
@@ -208,13 +209,13 @@ if ($action) {
         case 'generate_suggestions':
             try {
                 $pdo = getDbConnection();
-                
+
                 // Fetch user's field of study
                 $stmt = $pdo->prepare("SELECT field_of_study FROM users WHERE id = ?");
                 $stmt->execute([$_SESSION['user_id']]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
                 $field = $user['field_of_study'] ?? 'General Knowledge';
-                
+
                 // Construct prompt for Gemini
                 $prompt = "Generate 4 short, engaging, single-sentence learning tasks for a student studying '{$field}'. 
                 Return ONLY a valid JSON object with keys: 'explain', 'write', 'build', 'research'.
@@ -233,21 +234,22 @@ if ($action) {
                 // Since functions are global in PHP, we can call callGeminiAPI if it's defined.
                 // However, callGeminiAPI is defined at the bottom. We should move it up or just use the logic here.
                 // For safety, let's just implement the call here directly to avoid scope issues if the function isn't hoisted yet (though PHP functions are).
-                
+
                 // Load API Key
                 $config = null;
                 $configFiles = ['config-sql.ini', 'config.ini'];
                 foreach ($configFiles as $configFile) {
                     if (file_exists($configFile)) {
                         $config = parse_ini_file($configFile);
-                        if ($config !== false) break;
+                        if ($config !== false)
+                            break;
                     }
                 }
                 if ($config === false || !isset($config['GEMINI_API_KEY'])) {
                     throw new Exception('API key missing.');
                 }
                 $apiKey = $config['GEMINI_API_KEY'];
-                
+
                 $payload = json_encode([
                     "contents" => [
                         ["parts" => [["text" => $prompt]]]
@@ -265,30 +267,33 @@ if ($action) {
                     CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
                     CURLOPT_TIMEOUT => 10
                 ]);
-                
+
                 $response = curl_exec($ch);
                 $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 curl_close($ch);
-                
+
                 if ($http_status !== 200) {
                     throw new Exception("Gemini API error: $http_status");
                 }
-                
+
                 $data = json_decode($response, true);
                 $jsonText = $data['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
                 $suggestions = json_decode($jsonText, true);
-                
+
                 echo json_encode(['success' => true, 'suggestions' => $suggestions]);
-                
+
             } catch (Exception $e) {
                 error_log("Suggestion generation error: " . $e->getMessage());
                 // Fallback suggestions
-                echo json_encode(['success' => false, 'suggestions' => [
-                    'explain' => 'Explain a complex topic simply.',
-                    'write' => 'Write a creative story.',
-                    'build' => 'Build a study plan.',
-                    'research' => 'Research a new technology.'
-                ]]);
+                echo json_encode([
+                    'success' => false,
+                    'suggestions' => [
+                        'explain' => 'Explain a complex topic simply.',
+                        'write' => 'Write a creative story.',
+                        'build' => 'Build a study plan.',
+                        'research' => 'Research a new technology.'
+                    ]
+                ]);
             }
             break;
 
@@ -326,13 +331,14 @@ if (!empty($_POST['session_context'])) {
 
 $conversation_id = $_POST['conversation_id'] ?? null;
 
-function prepareFileParts($file, $user_question) {
+function prepareFileParts($file, $user_question)
+{
     $filePath = $file['tmp_name'];
     // Check if file exists to avoid warnings
     if (!file_exists($filePath)) {
         throw new Exception("File upload failed: Temporary file not found.");
     }
-    
+
     $fileType = mime_content_type($filePath);
     $originalName = $file['name'];
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
@@ -342,11 +348,11 @@ function prepareFileParts($file, $user_question) {
         'pdf' => 'application/pdf',
         'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'jpg'  => 'image/jpeg',
+        'jpg' => 'image/jpeg',
         'jpeg' => 'image/jpeg',
-        'png'  => 'image/png',
-        'gif'  => 'image/gif',
-        'bmp'  => 'image/bmp',
+        'png' => 'image/png',
+        'gif' => 'image/gif',
+        'bmp' => 'image/bmp',
         'webp' => 'image/webp',
     ];
 
@@ -357,7 +363,7 @@ function prepareFileParts($file, $user_question) {
 
     // Double-check MIME type
     if (!in_array($fileType, $allowed_types)) {
-         // Allow for some variation in MIME types reported by servers
+        // Allow for some variation in MIME types reported by servers
         if ($extension !== 'docx' || $fileType !== 'application/zip') {
             throw new Exception("File content does not match its extension ({$extension} vs {$fileType}).");
         }
@@ -368,7 +374,7 @@ function prepareFileParts($file, $user_question) {
         if (!extension_loaded('gd')) {
             throw new Exception("The 'gd' PHP extension is required to process images but it is not enabled. Please enable it in your php.ini file.");
         }
-        
+
         // Load and potentially resize the image to prevent "server has gone away" errors
         $srcImage = null;
         switch ($fileType) {
@@ -388,53 +394,53 @@ function prepareFileParts($file, $user_question) {
                 $srcImage = imagecreatefromwebp($filePath);
                 break;
         }
-        
+
         if (!$srcImage) {
             throw new Exception("Could not process the image file '{$originalName}'.");
         }
-        
+
         // Get original dimensions
         $origWidth = imagesx($srcImage);
         $origHeight = imagesy($srcImage);
-        
+
         // Resize to smaller dimensions to prevent DB packet errors
         // Most MySQL servers have max_allowed_packet around 4-16MB
         // After base64 encoding, size increases by ~33%, so we need to be conservative
         $maxWidth = 1024;  // Reduced from 1920 for better compression
         $maxHeight = 1024;
-        
+
         // Always resize and compress to JPEG for consistency and smaller size
         // Calculate new dimensions maintaining aspect ratio
         $ratio = min($maxWidth / $origWidth, $maxHeight / $origHeight);
-        $newWidth = (int)($origWidth * $ratio);
-        $newHeight = (int)($origHeight * $ratio);
-        
+        $newWidth = (int) ($origWidth * $ratio);
+        $newHeight = (int) ($origHeight * $ratio);
+
         // Create resized image
         $dstImage = imagecreatetruecolor($newWidth, $newHeight);
-        
+
         // Preserve transparency for PNG/GIF by using white background
         if ($fileType === 'image/png' || $fileType === 'image/gif') {
             $white = imagecolorallocate($dstImage, 255, 255, 255);
             imagefilledrectangle($dstImage, 0, 0, $newWidth, $newHeight, $white);
         }
-        
+
         imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
-        
+
         // Convert to JPEG with more aggressive compression
         ob_start();
         imagejpeg($dstImage, null, 75); // 75% quality - more aggressive compression
         $fileData = ob_get_clean();
         $fileType = 'image/jpeg';
-        
+
         imagedestroy($srcImage);
         imagedestroy($dstImage);
-        
+
         // Final safety check: if the image is still too large, reject it
         $maxSizeBytes = 3 * 1024 * 1024; // 3MB raw limit (becomes ~4MB after base64)
         if (strlen($fileData) > $maxSizeBytes) {
             throw new Exception("Image file is too large even after compression. Please use a smaller image.");
         }
-        
+
         $base64Data = base64_encode($fileData);
 
         return [
@@ -467,8 +473,8 @@ function prepareFileParts($file, $user_question) {
             foreach ($phpWord->getSections() as $section) {
                 foreach ($section->getElements() as $element) {
                     if ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
-                        foreach($element->getElements() as $textElement) {
-                             if ($textElement instanceof \PhpOffice\PhpWord\Element\Text) {
+                        foreach ($element->getElements() as $textElement) {
+                            if ($textElement instanceof \PhpOffice\PhpWord\Element\Text) {
                                 $text .= $textElement->getText() . ' ';
                             }
                         }
@@ -576,11 +582,12 @@ function callGeminiAPI($payload, $apiKey) {
         $curl_error = curl_error($ch);
         curl_close($ch);
 
-        if ($curl_error) throw new Exception('cURL Error: ' . $curl_error);
-        
+        if ($curl_error)
+            throw new Exception('cURL Error: ' . $curl_error);
+
         if ($http_status === 429 || $http_status === 503) {
             $retries++;
-            
+
             // If we hit a rate limit with the experimental model, try falling back to stable 2.5-flash
             if ($model === 'gemini-2.0-flash-exp' && $retries > 1) {
                 $model = 'gemini-3-flash-preview';
@@ -589,42 +596,43 @@ function callGeminiAPI($payload, $apiKey) {
                 continue;
             }
 
-            if ($retries >= $max_retries) throw new Exception('AI service rate limit exceeded. Please try again in a moment.');
+            if ($retries >= $max_retries)
+                throw new Exception('AI service rate limit exceeded. Please try again in a moment.');
             sleep($delay);
             $delay *= 2;
             continue;
         }
 
         if ($http_status !== 200) {
-             throw new Exception('AI service returned an error: HTTP ' . $http_status . ' - ' . substr($response, 0, 200));
+            throw new Exception('AI service returned an error: HTTP ' . $http_status . ' - ' . substr($response, 0, 200));
         }
 
         $responseData = json_decode($response, true);
-        
+
         // Check if AI wants to generate an image (function call)
         if (isset($responseData['candidates'][0]['content']['parts'][0]['functionCall'])) {
             $functionCall = $responseData['candidates'][0]['content']['parts'][0]['functionCall'];
             $functionName = $functionCall['name'];
-            
+
             if ($functionName === 'generate_image') {
                 $functionArgs = $functionCall['args'];
                 $imagePrompt = $functionArgs['prompt'];
                 $aspectRatio = $functionArgs['aspectRatio'] ?? '1:1';
-                
+
                 error_log("Chat Service: AI requested image generation - " . substr($imagePrompt, 0, 100));
-                
+
                 try {
                     // Call the image microservice
-                    $imageServiceUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") 
+                    $imageServiceUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http")
                         . "://{$_SERVER['HTTP_HOST']}/api/image.php";
-                    
+
                     $imagePayload = json_encode([
                         'prompt' => $imagePrompt,
                         'options' => [
                             'aspectRatio' => $aspectRatio
                         ]
                     ]);
-                    
+
                     $ch = curl_init($imageServiceUrl);
                     curl_setopt_array($ch, [
                         CURLOPT_RETURNTRANSFER => true,
@@ -636,18 +644,18 @@ function callGeminiAPI($payload, $apiKey) {
                         ],
                         CURLOPT_TIMEOUT => 90
                     ]);
-                    
+
                     $imageResponse = curl_exec($ch);
                     $imageHttpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                     curl_close($ch);
-                    
+
                     $imageResult = json_decode($imageResponse, true);
-                    
+
                     if ($imageHttpStatus === 200 && isset($imageResult['success']) && $imageResult['success']) {
                         // Image generated successfully
                         $imageData = $imageResult['imageData'];
                         error_log("Chat Service: Image generation succeeded");
-                        
+
                         return [
                             'candidates' => [
                                 [
@@ -665,7 +673,7 @@ function callGeminiAPI($payload, $apiKey) {
                         // Image service returned an error
                         $errorMsg = $imageResult['error'] ?? 'Unknown error from image service';
                         error_log("Chat Service: Image generation failed - " . $errorMsg);
-                        
+
                         return [
                             'candidates' => [
                                 [
@@ -680,10 +688,10 @@ function callGeminiAPI($payload, $apiKey) {
                             ]
                         ];
                     }
-                    
+
                 } catch (Exception $e) {
                     error_log("Chat Service: Exception calling image service - " . $e->getMessage());
-                    
+
                     return [
                         'candidates' => [
                             [
@@ -700,16 +708,17 @@ function callGeminiAPI($payload, $apiKey) {
                 }
             }
         }
-        
+
         // No function call or normal response
         return $responseData;
     }
 }
 
-function generateImageWithImagen($prompt, $apiKey) {
+function generateImageWithImagen($prompt, $apiKey)
+{
     // Use Imagen 4 Ultra endpoint (stable version)
     $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-ultra-generate-001:predict?key=" . $apiKey;
-    
+
     $payload = json_encode([
         'instances' => [
             ['prompt' => $prompt]
@@ -736,23 +745,280 @@ function generateImageWithImagen($prompt, $apiKey) {
     if ($http_status !== 200) {
         $errorBody = json_decode($response, true);
         $errorMessage = $errorBody['error']['message'] ?? substr($response, 0, 200);
-        
+
         if ($http_status === 400 && strpos($errorMessage, 'billed users') !== false) {
-             throw new Exception("Image generation requires a billed Google Cloud account. Please enable billing for your project.");
+            throw new Exception("Image generation requires a billed Google Cloud account. Please enable billing for your project.");
         }
-        
+
         throw new Exception("Imagen API Error (HTTP $http_status): " . $errorMessage);
     }
 
     $data = json_decode($response, true);
-    
+
     if (isset($data['predictions'][0]['bytesBase64Encoded'])) {
         $base64 = $data['predictions'][0]['bytesBase64Encoded'];
         $mimeType = $data['predictions'][0]['mimeType'] ?? 'image/png';
         return "data:{$mimeType};base64,{$base64}";
     }
-    
+
     throw new Exception("No image data found in response.");
+}
+
+/**
+ * Generate a structured learning outline for a topic using AI.
+ * 
+ * @param string $topic The topic to create an outline for
+ * @param string $sessionGoal The session goal (explore, test_prep, homework_help, practice)
+ * @param string $educationLevel The student's education level
+ * @param string $apiKey The Gemini API key
+ * @return array|null The learning outline with milestones, or null on failure
+ */
+function generateLearningOutline($topic, $sessionGoal, $educationLevel, $apiKey)
+{
+    // Adjust complexity based on session goal
+    $goalInstructions = [
+        'explore' => 'Create a comprehensive exploration outline. Include foundational concepts, key theories, practical applications, and interesting connections to other fields.',
+        'test_prep' => 'Create a focused study outline. Prioritize commonly tested concepts, formulas, and problem types. Include practice checkpoints.',
+        'homework_help' => 'Create a problem-solving outline. Focus on understanding the problem, required concepts, solution steps, and verification.',
+        'practice' => 'Create a skill-building outline. Start with simple examples and progressively increase difficulty. Include plenty of practice opportunities.'
+    ];
+
+    $goalInstruction = $goalInstructions[$sessionGoal] ?? $goalInstructions['explore'];
+
+    $prompt = <<<EOT
+You are a curriculum designer creating a learning outline for teaching "{$topic}" to a {$educationLevel} student.
+
+{$goalInstruction}
+
+Requirements:
+1. Break down the topic into logical milestones (minimum 4, no maximum - use as many as needed for the topic's complexity)
+2. Order milestones from foundational to advanced
+3. Each milestone should be achievable in 2-5 minutes of discussion
+4. Include practical application or synthesis as the final milestone
+5. Make milestone titles clear and specific
+
+Return ONLY a valid JSON object in this exact format:
+{
+    "topic": "{$topic}",
+    "totalMilestones": <number>,
+    "milestones": [
+        {"id": 1, "title": "...", "description": "Brief description of what will be covered", "keyPoints": ["point1", "point2"]},
+        ...
+    ]
+}
+EOT;
+
+    try {
+        $payload = json_encode([
+            "contents" => [
+                ["parts" => [["text" => $prompt]]]
+            ],
+            "generationConfig" => [
+                "responseMimeType" => "application/json",
+                "temperature" => 0.3 // Lower temperature for more consistent structure
+            ]
+        ]);
+
+        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey;
+
+        $ch = curl_init($apiUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_TIMEOUT => 15
+        ]);
+
+        $response = curl_exec($ch);
+        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($http_status !== 200) {
+            error_log("Outline generation failed: HTTP $http_status");
+            return null;
+        }
+
+        $data = json_decode($response, true);
+        $jsonText = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+
+        if (!$jsonText) {
+            error_log("Outline generation: No text in response");
+            return null;
+        }
+
+        $outline = json_decode($jsonText, true);
+
+        if (!$outline || !isset($outline['milestones'])) {
+            error_log("Outline generation: Invalid JSON structure");
+            return null;
+        }
+
+        // Initialize completion status for each milestone
+        foreach ($outline['milestones'] as &$milestone) {
+            $milestone['completed'] = false;
+            $milestone['coveredAt'] = null;
+        }
+
+        $outline['generatedAt'] = date('c');
+        $outline['lastUpdated'] = date('c');
+
+        return $outline;
+
+    } catch (Exception $e) {
+        error_log("Outline generation error: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Analyze AI response to detect which milestones were covered.
+ * 
+ * @param string $aiResponse The AI's response text
+ * @param array $milestones The current milestones array
+ * @return array Updated milestones with completion status
+ */
+function detectMilestoneCompletion($aiResponse, $milestones)
+{
+    if (empty($milestones)) {
+        return $milestones;
+    }
+
+    $lowerResponse = strtolower($aiResponse);
+
+    foreach ($milestones as &$milestone) {
+        if ($milestone['completed']) {
+            continue; // Already completed
+        }
+
+        // Check if milestone title or key points are substantially covered
+        $titleWords = preg_split('/\s+/', strtolower($milestone['title']));
+        $matchCount = 0;
+
+        foreach ($titleWords as $word) {
+            if (strlen($word) > 3 && strpos($lowerResponse, $word) !== false) {
+                $matchCount++;
+            }
+        }
+
+        // If more than 50% of significant words from title appear, consider it covered
+        $significantWords = count(array_filter($titleWords, fn($w) => strlen($w) > 3));
+        if ($significantWords > 0 && ($matchCount / $significantWords) >= 0.5) {
+            $milestone['completed'] = true;
+            $milestone['coveredAt'] = date('c');
+        }
+
+        // Also check key points if available
+        if (!$milestone['completed'] && isset($milestone['keyPoints'])) {
+            $keyPointsMatched = 0;
+            foreach ($milestone['keyPoints'] as $point) {
+                $pointWords = preg_split('/\s+/', strtolower($point));
+                foreach ($pointWords as $word) {
+                    if (strlen($word) > 3 && strpos($lowerResponse, $word) !== false) {
+                        $keyPointsMatched++;
+                        break;
+                    }
+                }
+            }
+
+            // If most key points are touched, mark as completed
+            if (
+                count($milestone['keyPoints']) > 0 &&
+                ($keyPointsMatched / count($milestone['keyPoints'])) >= 0.6
+            ) {
+                $milestone['completed'] = true;
+                $milestone['coveredAt'] = date('c');
+            }
+        }
+    }
+
+    return $milestones;
+}
+
+/**
+ * Analyze user message for comprehension signals.
+ * 
+ * @param string $userMessage The user's message
+ * @return float Comprehension delta (-0.15 to +0.15)
+ */
+function analyzeComprehension($userMessage)
+{
+    $lowerMessage = strtolower($userMessage);
+
+    // Positive signals
+    $positivePatterns = [
+        '/\bi (get|got|understand|see)\b/' => 0.10,
+        '/\bmakes sense\b/' => 0.12,
+        '/\bah+\b.*\bok\b/' => 0.08,
+        '/\bthat\'s? (clear|helpful)\b/' => 0.10,
+        '/\bthank(s| you)\b/' => 0.05,
+        '/\bnow i (know|understand)\b/' => 0.15,
+        '/\bperfect\b/' => 0.08,
+        '/\bi can (see|follow)\b/' => 0.10
+    ];
+
+    // Negative signals
+    $negativePatterns = [
+        '/\bi (don\'t|do not) (get|understand)\b/' => -0.12,
+        '/\bconfus(ed|ing)\b/' => -0.10,
+        '/\bwhat (do you mean|does that mean)\b/' => -0.05,
+        '/\bcan you explain (again|more)\b/' => -0.08,
+        '/\bi\'m (lost|stuck)\b/' => -0.10,
+        '/\bstill (don\'t|unclear)\b/' => -0.12,
+        '/\bhuh\??\b/' => -0.05,
+        '/\bwait,? what\b/' => -0.08
+    ];
+
+    $delta = 0.0;
+
+    foreach ($positivePatterns as $pattern => $score) {
+        if (preg_match($pattern, $lowerMessage)) {
+            $delta += $score;
+        }
+    }
+
+    foreach ($negativePatterns as $pattern => $score) {
+        if (preg_match($pattern, $lowerMessage)) {
+            $delta += $score; // score is already negative
+        }
+    }
+
+    // Clamp to reasonable range
+    return max(-0.15, min(0.15, $delta));
+}
+
+/**
+ * Calculate overall progress from milestones and comprehension.
+ * 
+ * @param array $contextData The session context data
+ * @return int Progress percentage (0-100)
+ */
+function calculateHybridProgress($contextData)
+{
+    $milestones = $contextData['outline']['milestones'] ?? [];
+    $comprehensionScore = $contextData['comprehensionScore'] ?? 0.5;
+    $messageCount = $contextData['messageCount'] ?? 0;
+
+    // If no milestones, use message-based progress
+    if (empty($milestones)) {
+        return min(100, intval(($messageCount / 10) * 100));
+    }
+
+    // Calculate milestone completion
+    $completedCount = count(array_filter($milestones, fn($m) => $m['completed'] ?? false));
+    $totalCount = count($milestones);
+    $milestoneProgress = ($completedCount / $totalCount) * 100;
+
+    // Calculate engagement score (capped at 1.0)
+    $engagementScore = min(1.0, $messageCount / 10);
+
+    // Weighted combination: 70% milestones, 20% comprehension, 10% engagement
+    $hybridProgress =
+        ($milestoneProgress * 0.70) +
+        ($comprehensionScore * 100 * 0.20) +
+        ($engagementScore * 100 * 0.10);
+
+    return min(100, max(0, intval($hybridProgress)));
 }
 
 try {
@@ -766,7 +1032,7 @@ try {
     // Try to load config-sql.ini first, then fall back to config.ini
     $config = null;
     $configFiles = ['config-sql.ini', 'config.ini'];
-    
+
     foreach ($configFiles as $configFile) {
         if (file_exists($configFile)) {
             $config = parse_ini_file($configFile);
@@ -775,7 +1041,7 @@ try {
             }
         }
     }
-    
+
     if ($config === false || !isset($config['GEMINI_API_KEY'])) {
         throw new Exception('API key configuration is missing or unreadable in config-sql.ini or config.ini.');
     }
@@ -835,7 +1101,7 @@ try {
     if (!empty($question)) {
         $user_message_parts[] = ['text' => $question];
     }
-    
+
     file_put_contents('debug_log.txt', "User Message Parts: " . print_r($user_message_parts, true) . "\n", FILE_APPEND);
 
     // Basic validation
@@ -909,7 +1175,7 @@ try {
     if ($user_profile && $user_profile['primary_language'] && $user_profile['primary_language'] !== 'English') {
         $personalization_context .= "- The learner's primary language is **{$user_profile['primary_language']}** (though they're learning in English). Be mindful of potential language barriers.\n";
     }
-    
+
     // Session goal-based teaching instructions
     $session_goal_instructions = "";
     if ($session_goal) {
@@ -963,7 +1229,7 @@ The learner wants to practice and reinforce skills. Prioritize:
 EOT;
                 break;
         }
-        
+
         // Add session context if available
         if ($session_context) {
             $context_details = [];
@@ -984,7 +1250,7 @@ EOT;
             }
         }
     }
-    
+
     // Append session goal instructions to personalization context
     $personalization_context .= $session_goal_instructions;
 
@@ -1220,13 +1486,95 @@ PROMPT;
         $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'model', ?)");
         $stmt->execute([$conversation_id, json_encode([['text' => $answer]])]);
 
+        // --- HYBRID PROGRESS TRACKING ---
+        // Fetch and update context_data for this conversation
+        $stmt = $pdo->prepare("SELECT context_data, session_goal FROM conversations WHERE id = ?");
+        $stmt->execute([$conversation_id]);
+        $convoData = $stmt->fetch(PDO::FETCH_ASSOC);
+        $contextData = json_decode($convoData['context_data'] ?? '{}', true) ?: [];
+        $currentSessionGoal = $convoData['session_goal'] ?? $session_goal;
+
+        // Initialize message count if not set
+        $contextData['messageCount'] = ($contextData['messageCount'] ?? 0) + 1;
+
+        // Initialize comprehension score if not set
+        if (!isset($contextData['comprehensionScore'])) {
+            $contextData['comprehensionScore'] = 0.5; // Start neutral
+        }
+
+        // Analyze user message for comprehension signals
+        $comprehensionDelta = analyzeComprehension($question);
+        $contextData['comprehensionScore'] = max(0, min(1, $contextData['comprehensionScore'] + $comprehensionDelta));
+
+        // Generate learning outline if topic detected and no outline exists
+        if (!isset($contextData['outline']) && !empty($question)) {
+            // Extract topic from user's first substantive message or session context
+            $detectedTopic = $session_context['topic'] ?? null;
+
+            // If no explicit topic, try to extract from the question
+            if (!$detectedTopic && strlen($question) > 10) {
+                // Use the question itself as the topic for outline generation
+                // This works especially well for "I want to learn about X" type messages
+                if (preg_match('/(?:learn|teach me|explain|understand|study|help with|about)\s+(.{10,100})(?:\?|$|\.)/i', $question, $matches)) {
+                    $detectedTopic = trim($matches[1]);
+                } elseif ($contextData['messageCount'] <= 2) {
+                    // For early messages, use the full question as topic hint
+                    $detectedTopic = substr($question, 0, 100);
+                }
+            }
+
+            // Generate outline if we have a topic and a session goal
+            if ($detectedTopic && $currentSessionGoal) {
+                $educationLevel = $user_profile['education_level'] ?? 'High School';
+                $outline = generateLearningOutline($detectedTopic, $currentSessionGoal, $educationLevel, GEMINI_API_KEY);
+
+                if ($outline) {
+                    $contextData['outline'] = $outline;
+                    $contextData['topic'] = $detectedTopic;
+                    error_log("Generated learning outline for: $detectedTopic with " . count($outline['milestones']) . " milestones");
+                }
+            }
+        }
+
+        // If we have milestones, detect which were covered in this response
+        if (isset($contextData['outline']['milestones'])) {
+            $contextData['outline']['milestones'] = detectMilestoneCompletion(
+                $answer,
+                $contextData['outline']['milestones']
+            );
+            $contextData['outline']['lastUpdated'] = date('c');
+
+            // Count newly completed milestones for notification
+            $completedMilestones = array_filter(
+                $contextData['outline']['milestones'],
+                fn($m) => $m['completed'] ?? false
+            );
+            $contextData['milestonesCompleted'] = count($completedMilestones);
+            $contextData['milestonesTotal'] = count($contextData['outline']['milestones']);
+        }
+
+        // Calculate hybrid progress
+        $hybridProgress = calculateHybridProgress($contextData);
+        $contextData['calculatedProgress'] = $hybridProgress;
+
+        // Save updated context and progress to database
+        $stmt = $pdo->prepare("UPDATE conversations SET context_data = ?, progress = ?, updated_at = NOW() WHERE id = ?");
+        $stmt->execute([json_encode($contextData), $hybridProgress, $conversation_id]);
+
+        // Also update session_goal if provided and not already set
+        if ($session_goal && !$convoData['session_goal']) {
+            $stmt = $pdo->prepare("UPDATE conversations SET session_goal = ? WHERE id = ?");
+            $stmt->execute([$session_goal, $conversation_id]);
+        }
+        // --- END HYBRID PROGRESS TRACKING ---
+
         // For new chats, generate an AI title
         $generated_title = null;
-        if (count($chat_history) === 1) { 
+        if (count($chat_history) === 1) {
             // This is a new chat - generate a title using AI
             try {
                 $title_prompt = "Based on this user question: \"$question\"\n\nGenerate a very concise, descriptive title for this conversation in 3-5 words maximum. The title should capture the main topic or question. Respond with ONLY the title, nothing else.";
-                
+
                 $title_payload = json_encode([
                     "contents" => [
                         [
@@ -1235,18 +1583,18 @@ PROMPT;
                         ]
                     ]
                 ]);
-                
+
                 $title_response = callGeminiAPI($title_payload, GEMINI_API_KEY);
-                
+
                 if (isset($title_response['candidates'][0]['content']['parts'][0]['text'])) {
                     $generated_title = trim($title_response['candidates'][0]['content']['parts'][0]['text']);
-                    
+
                     // Limit to 60 characters max and remove any quotes
                     $generated_title = str_replace(['"', "'"], '', $generated_title);
                     if (strlen($generated_title) > 60) {
                         $generated_title = substr($generated_title, 0, 57) . '...';
                     }
-                    
+
                     // Update the conversation title
                     $stmt = $pdo->prepare("UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ?");
                     $stmt->execute([$generated_title, $conversation_id]);
@@ -1260,12 +1608,34 @@ PROMPT;
 
         $formattedAnswer = formatResponse($answer);
         $response_payload = [
-            'success' => true, 
-            'answer' => $formattedAnswer, 
+            'success' => true,
+            'answer' => $formattedAnswer,
             'conversation_id' => $conversation_id
         ];
         if ($generated_title) {
             $response_payload['generated_title'] = $generated_title;
+        }
+
+        // Include milestone progress in response for frontend
+        if (isset($contextData['outline'])) {
+            $completedMilestones = array_filter(
+                $contextData['outline']['milestones'] ?? [],
+                fn($m) => $m['completed'] ?? false
+            );
+            $response_payload['progress'] = [
+                'percentage' => $hybridProgress,
+                'milestonesCompleted' => count($completedMilestones),
+                'milestonesTotal' => count($contextData['outline']['milestones'] ?? []),
+                'comprehensionScore' => round($contextData['comprehensionScore'] ?? 0.5, 2),
+                'topic' => $contextData['topic'] ?? null,
+                // Include recently completed milestone titles for notification
+                'recentlyCompleted' => array_values(array_filter(
+                    $contextData['outline']['milestones'] ?? [],
+                    fn($m) => ($m['completed'] ?? false) &&
+                    isset($m['coveredAt']) &&
+                    (strtotime($m['coveredAt']) > strtotime('-1 minute'))
+                ))
+            ];
         }
         if (empty($backgrounded)) {
             echo json_encode($response_payload);

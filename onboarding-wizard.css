@@ -2056,3 +2056,52 @@ body {
     from { opacity: 0; transform: scale(0.9); }
     to { opacity: 1; transform: scale(1); }
 }
+
+/* 720p Laptop Optimization (Max Height: 800px) */
+@media (max-height: 800px) {
+  #onboarding-container {
+    min-height: 500px;
+    margin: 1rem auto;
+  }
+  
+  .wizard-progress {
+      padding: 1rem 1.5rem;
+  }
+  
+  .screens-wrapper {
+      padding: 1.5rem 1.5rem;
+      min-height: 350px;
+  }
+  
+  #screen1 h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+  }
+  
+  #screen1 .subtitle {
+      font-size: 1rem;
+      margin-bottom: 2rem;
+  }
+  
+  .hero-icons {
+      margin: 2rem 0;
+  }
+  
+  .hero-icon {
+      width: 60px;
+      height: 60px;
+      font-size: 2rem;
+  }
+  
+  .screen h2 {
+      font-size: 1.75rem;
+  }
+  
+  .goal-card {
+      padding: 1.5rem 1rem;
+  }
+  
+  .goal-icon {
+      font-size: 2.5rem;
+  }
+}
