@@ -14,6 +14,8 @@ require_once 'check_auth.php'; // Secure all API endpoints
 // --- ALWAYS require the autoloader first ---
 require_once 'db_mysql.php';
 require 'vendor/autoload.php';
+require_once 'api/knowledge.php';
+require_once 'api/learning_strategies.php';
 
 header('Content-Type: application/json');
 
@@ -294,6 +296,129 @@ if ($action) {
                         'research' => 'Research a new technology.'
                     ]
                 ]);
+            }
+            break;
+
+        case 'submit_feedback':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
+                break;
+            }
+            
+            $type = $_POST['type'] ?? null; // 'message_rating' or 'general'
+            $rating = $_POST['rating'] ?? 'neutral'; // 'positive', 'negative', 'neutral'
+            $comment = trim($_POST['comment'] ?? '');
+            $conversation_id = $_POST['conversation_id'] ?? null;
+            $message_index = $_POST['message_index'] ?? null;
+            $page_url = $_POST['page_url'] ?? null;
+            $category = $_POST['category'] ?? null;
+            
+            if (!$type || !in_array($type, ['message_rating', 'general'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid feedback type.']);
+                break;
+            }
+            
+            if (!in_array($rating, ['positive', 'negative', 'neutral'])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid rating value.']);
+                break;
+            }
+            
+            try {
+                $pdo = getDbConnection();
+                $stmt = $pdo->prepare("
+                    INSERT INTO feedback (user_id, type, rating, comment, conversation_id, message_index, page_url, category)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $_SESSION['user_id'],
+                    $type,
+                    $rating,
+                    $comment ?: null,
+                    $conversation_id ?: null,
+                    $message_index !== null ? (int)$message_index : null,
+                    $page_url ?: null,
+                    $category ?: null
+                ]);
+                
+                echo json_encode(['success' => true, 'feedback_id' => $pdo->lastInsertId()]);
+            } catch (Exception $e) {
+                error_log("Feedback submission error: " . $e->getMessage());
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Could not save feedback.']);
+            }
+            break;
+
+        case 'get_feedback':
+            // For admin dashboard - retrieve feedback with optional filters
+            try {
+                $pdo = getDbConnection();
+                
+                $type_filter = $_GET['type'] ?? null;
+                $rating_filter = $_GET['rating'] ?? null;
+                $limit = min((int)($_GET['limit'] ?? 50), 200);
+                $offset = (int)($_GET['offset'] ?? 0);
+                
+                $sql = "SELECT f.*, u.username, u.email 
+                        FROM feedback f 
+                        LEFT JOIN users u ON f.user_id = u.id 
+                        WHERE 1=1";
+                $params = [];
+                
+                if ($type_filter && in_array($type_filter, ['message_rating', 'general'])) {
+                    $sql .= " AND f.type = ?";
+                    $params[] = $type_filter;
+                }
+                if ($rating_filter && in_array($rating_filter, ['positive', 'negative', 'neutral'])) {
+                    $sql .= " AND f.rating = ?";
+                    $params[] = $rating_filter;
+                }
+                
+                $sql .= " ORDER BY f.created_at DESC LIMIT ? OFFSET ?";
+                $params[] = $limit;
+                $params[] = $offset;
+                
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                $feedback = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Get total count for pagination
+                $countSql = "SELECT COUNT(*) FROM feedback WHERE 1=1";
+                $countParams = [];
+                if ($type_filter && in_array($type_filter, ['message_rating', 'general'])) {
+                    $countSql .= " AND type = ?";
+                    $countParams[] = $type_filter;
+                }
+                if ($rating_filter && in_array($rating_filter, ['positive', 'negative', 'neutral'])) {
+                    $countSql .= " AND rating = ?";
+                    $countParams[] = $rating_filter;
+                }
+                $countStmt = $pdo->prepare($countSql);
+                $countStmt->execute($countParams);
+                $total = $countStmt->fetchColumn();
+                
+                // Get summary stats
+                $statsSql = "SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN rating = 'positive' THEN 1 ELSE 0 END) as positive,
+                    SUM(CASE WHEN rating = 'negative' THEN 1 ELSE 0 END) as negative,
+                    SUM(CASE WHEN rating = 'neutral' THEN 1 ELSE 0 END) as neutral
+                    FROM feedback";
+                $statsStmt = $pdo->query($statsSql);
+                $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
+                
+                echo json_encode([
+                    'success' => true, 
+                    'feedback' => $feedback,
+                    'total' => (int)$total,
+                    'stats' => $stats
+                ]);
+            } catch (Exception $e) {
+                error_log("Feedback retrieval error: " . $e->getMessage());
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Could not retrieve feedback.']);
             }
             break;
 
@@ -1163,17 +1288,48 @@ try {
 
     // Build personalization context for the AI
     $personalization_context = "";
-    if ($user_profile && $user_profile['country']) {
-        $personalization_context .= "- The learner is from **{$user_profile['country']}**. Use culturally relevant examples and context appropriate to this region.\n";
-    }
-    if ($user_profile && $user_profile['education_level']) {
-        $personalization_context .= "- The learner's education level is **{$user_profile['education_level']}**. Adjust explanations to match this academic level.\n";
-    }
-    if ($user_profile && $user_profile['field_of_study']) {
-        $personalization_context .= "- The learner is studying **{$user_profile['field_of_study']}**. When relevant, relate concepts to their field of study.\n";
-    }
-    if ($user_profile && $user_profile['primary_language'] && $user_profile['primary_language'] !== 'English') {
-        $personalization_context .= "- The learner's primary language is **{$user_profile['primary_language']}** (though they're learning in English). Be mindful of potential language barriers.\n";
+    
+    // Only add profile context if user has profile data
+    $hasProfile = $user_profile && ($user_profile['country'] || $user_profile['education_level'] || $user_profile['field_of_study'] || $user_profile['primary_language']);
+    
+    if ($hasProfile) {
+        // CRITICAL: Add instruction to use personalization subtly
+        $personalization_context .= <<<EOT
+**⚠️ CRITICAL INSTRUCTION - READ CAREFULLY:**
+The following profile information is for YOUR INTERNAL USE ONLY to calibrate your responses. 
+
+**NEVER explicitly mention or reference this information in your responses.** Examples of what NOT to do:
+- ❌ "In the world of Information Technology..." or "As someone in IT..."
+- ❌ "Since you're studying [field]..."
+- ❌ "As a university student..."
+- ❌ "Given your background in..."
+
+**INSTEAD:** Just answer the question naturally. Use appropriate vocabulary and examples that match their level, but don't call attention to WHY you're doing it. The personalization should be invisible to the user.
+
+Profile context (USE IMPLICITLY, DO NOT MENTION):
+
+EOT;
+        
+        if ($user_profile['country']) {
+            $country = $user_profile['country'];
+            $personalization_context .= <<<EOT
+- **Region: {$country}**
+  → Use real-world examples, scenarios, and analogies from {$country}
+  → Reference local landmarks, companies, sports, foods, or cultural elements when explaining concepts
+  → Use the local currency, measurement systems, and conventions familiar to someone from {$country}
+  → Example: If explaining economics, use local businesses or industries. If explaining biology, reference local flora/fauna.
+
+EOT;
+        }
+        if ($user_profile['education_level']) {
+            $personalization_context .= "- Academic level: {$user_profile['education_level']}\n";
+        }
+        if ($user_profile['field_of_study']) {
+            $personalization_context .= "- Field: {$user_profile['field_of_study']}\n";
+        }
+        if ($user_profile['primary_language'] && $user_profile['primary_language'] !== 'English') {
+            $personalization_context .= "- Primary language: {$user_profile['primary_language']}\n";
+        }
     }
 
     // Session goal-based teaching instructions
@@ -1253,6 +1409,53 @@ EOT;
 
     // Append session goal instructions to personalization context
     $personalization_context .= $session_goal_instructions;
+
+    // --- RAG Knowledge Retrieval ---
+    // Retrieve relevant knowledge from the knowledge base
+    $knowledge_context = "";
+    try {
+        $knowledgeService = getKnowledgeService();
+        // Get the user's question text for retrieval
+        $userQuestionText = '';
+        foreach ($user_message_parts as $part) {
+            if (isset($part['text'])) {
+                $userQuestionText .= $part['text'] . ' ';
+            }
+        }
+        $userQuestionText = trim($userQuestionText);
+        
+        if (strlen($userQuestionText) > 10) {
+            $relevantKnowledge = $knowledgeService->retrieveRelevant($userQuestionText, 3);
+            
+            if (!empty($relevantKnowledge)) {
+                $knowledge_context = "\n\n## Retrieved Knowledge Context\nThe following information was retrieved from our knowledge base and may be relevant:\n\n";
+                foreach ($relevantKnowledge as $i => $chunk) {
+                    $title = $chunk['title'] ?? 'Source';
+                    $content = substr($chunk['content'], 0, 800); // Limit chunk size
+                    $knowledge_context .= "**Source " . ($i + 1) . ":** {$title}\n{$content}\n\n";
+                }
+                $knowledge_context .= "Use this information to enhance your response if relevant, but don't mention that you retrieved it from a knowledge base.\n";
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Knowledge retrieval error: " . $e->getMessage());
+    }
+    
+    // Append knowledge context to personalization
+    $personalization_context .= $knowledge_context;
+
+    // --- Learning Strategies Context ---
+    // Add evidence-based learning strategies (Justin Sung methodology)
+    try {
+        $strategiesService = getLearningStrategiesService();
+        
+        // Get relevant strategies based on user's question
+        $strategyContext = $strategiesService->generateStrategyContext($userQuestionText);
+        $personalization_context .= $strategyContext;
+        
+    } catch (Exception $e) {
+        error_log("Learning strategies error: " . $e->getMessage());
+    }
 
     // System prompt
     $system_prompt = <<<PROMPT
@@ -1604,6 +1807,53 @@ PROMPT;
                 error_log("Title generation failed: " . $e->getMessage());
                 $generated_title = "New Chat";
             }
+        }
+
+        // --- RAG: Detect and Process Resource Mentions ---
+        // Detect books, papers, articles mentioned in AI response for knowledge acquisition
+        try {
+            $resourcePatterns = [
+                // "book X by Author" or "X by Author (book)"
+                '/(?:book|textbook|text)\s+["\']?([^"\']+?)["\']?\s+by\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/i',
+                // "Author's book X"
+                '/([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)[\'s]+\s+(?:book|textbook)\s+["\']?([^"\']+)["\']?/i',
+                // Paper/article references
+                '/(?:paper|article|research)\s+(?:titled\s+)?["\']([^"\']+)["\']/i',
+                // arXiv links
+                '/arxiv\.org\/abs\/(\d+\.\d+)/i',
+            ];
+            
+            $detectedResources = [];
+            foreach ($resourcePatterns as $pattern) {
+                if (preg_match_all($pattern, $answer, $matches, PREG_SET_ORDER)) {
+                    foreach ($matches as $match) {
+                        if (count($match) >= 2) {
+                            $resourceName = $match[1];
+                            $author = $match[2] ?? null;
+                            $detectedResources[] = ['name' => $resourceName, 'author' => $author];
+                        }
+                    }
+                }
+            }
+            
+            // Process up to 2 resources asynchronously (to not slow down response)
+            if (!empty($detectedResources)) {
+                $knowledgeService = getKnowledgeService();
+                $processCount = 0;
+                foreach (array_slice($detectedResources, 0, 2) as $resource) {
+                    // Don't block - just log for now. In production, queue this.
+                    error_log("RAG: Detected resource - " . $resource['name'] . ($resource['author'] ? " by " . $resource['author'] : ""));
+                    
+                    // Process in background (PHP doesn't have true async, but we can spawn a request)
+                    // For now, process synchronously but quickly (just search, don't extract)
+                    if ($processCount < 1) { // Limit to 1 to avoid slowing down response
+                        $knowledgeService->processResourceMention($resource['name'], $resource['author']);
+                        $processCount++;
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            error_log("RAG resource detection error: " . $e->getMessage());
         }
 
         $formattedAnswer = formatResponse($answer);

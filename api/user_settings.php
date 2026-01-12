@@ -12,7 +12,7 @@ require_once '../db_mysql.php';
 $allowed_fields = [
     'first_name', 'last_name', 'email', 'username', 'learning_level', 'response_style',
     'email_notifications', 'study_reminders', 'feature_announcements', 'weekly_summary',
-    'data_sharing', 'dark_mode', 'font_size', 'chat_density'
+    'data_sharing', 'dark_mode', 'font_size', 'chat_density', 'legibility'
 ];
 
 // --- MAIN LOGIC ---
@@ -52,7 +52,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
     try {
         // Prepare and execute the query to get user settings.
         // We also fetch created_at for display purposes.
-        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $settings = $stmt->fetch(PDO::FETCH_ASSOC);
 

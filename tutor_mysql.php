@@ -245,9 +245,11 @@ try {
                     </div>
                 </div>
                 <nav class="user-menu-nav">
+                    <a href="dashboard.php" target="_blank"><i class="fas fa-chart-line"></i> Dashboard</a>
                     <a href="#"><i class="fas fa-star"></i> Upgrade plan</a>
                     <a href="#"><i class="fas fa-user-edit"></i> Personalization</a>
                     <a href="#" id="open-settings-btn"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="#" id="open-feedback-btn"><i class="fas fa-comment-dots"></i> Send Feedback</a>
                     <a href="#"><i class="fas fa-question-circle"></i> Help</a>
                     <a href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/auth_mysql?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
                     <div class="dark-mode-toggle">
@@ -374,23 +376,26 @@ try {
                     <!-- Preview Area (Inside the bar now) -->
                     <div id="attachment-preview-area"></div>
 
-                    <!-- Input Row (Buttons + Text) -->
-                    <div class="input-row">
-                        <!-- Left side: Add button -->
-                        <label for="file-attachment" class="add-btn" title="Add attachments">
-                            <i class="fas fa-plus"></i>
-                        </label>
-                        
-                        <!-- Center: Text input -->
-                        <input type="text" id="question" name="question" class="main-text-input" placeholder="Ask TutorMind" required>
-                        
-                        <!-- Right side: Controls group -->
-                        <div class="input-controls-group">
-                            <!-- Tools dropdown menu -->
+                    <!-- Input Main Area (Text) -->
+                    <div class="input-main-area">
+                         <textarea id="question" name="question" class="main-text-input" placeholder="Ask anything" rows="1" required style="resize: none; overflow-y: hidden;"></textarea>
+                    </div>
+
+                    <!-- Input Actions Row (Bottom) -->
+                    <div class="input-actions-row">
+                        <!-- Left Actions -->
+                        <div class="left-actions">
+                            <!-- Attach Button -->
+                            <label for="file-attachment" class="action-pill-btn attach-pill" title="Add attachments">
+                                <i class="fas fa-paperclip"></i> <span>Attach</span>
+                            </label>
+
+                            <!-- Tools Menu -->
                             <div class="tools-dropdown-wrapper">
-                                <button type="button" id="tools-btn" class="control-btn tools-btn" title="Tools" aria-haspopup="true" aria-expanded="false" aria-controls="tools-menu">
-                                    <i class="fas fa-sliders-h" aria-hidden="true"></i> Tools
+                                <button type="button" id="tools-btn" class="action-pill-btn tool-pill" title="Tools" aria-haspopup="true" aria-expanded="false" aria-controls="tools-menu">
+                                    <i class="fas fa-sliders-h" aria-hidden="true"></i> <span>Tools</span>
                                 </button>
+                                <!-- Tools Menu Content (Same as before) -->
                                 <div id="tools-menu" class="tools-menu hidden" role="menu" aria-labelledby="tools-btn">
                                     <button type="button" class="tools-menu-item" data-goal="homework_help">
                                         <span class="tools-menu-emoji">📚</span>
@@ -423,8 +428,8 @@ try {
                                 </div>
                             </div>
                             
-                            <!-- Learning Level dropdown -->
-                            <select id="learningLevel" name="learningLevel" class="control-dropdown" title="Reasoning level">
+                            <!-- Learning Level -->
+                             <select id="learningLevel" name="learningLevel" class="action-pill-btn tool-pill" title="Reasoning level" style="outline:none; cursor:pointer;">
                                 <option value="Remember">Remember</option>
                                 <option value="Understand" selected>Understand</option>
                                 <option value="Apply">Apply</option>
@@ -432,14 +437,20 @@ try {
                                 <option value="Evaluate">Evaluate</option>
                                 <option value="Create">Create</option>
                             </select>
-                            
-                            <!-- Voice input button -->
-                            <button type="button" class="control-btn voice-btn" title="Voice input">
-                                <i class="fas fa-microphone"></i>
+                        </div>
+
+                        <!-- Right Actions -->
+                        <div class="right-actions">
+                             <!-- Voice input (quick) -->
+                             <button type="button" class="voice-action-btn voice-btn" title="Voice input">
+                                <i class="fas fa-microphone-lines"></i> <span>Voice</span>
                             </button>
-                            
-                            <!-- Submit button -->
-                            <button type="submit" id="ai-submit-btn" class="submit-btn" title="Send message">
+                             <!-- Voice Mode (full conversation) -->
+                             <button type="button" class="voice-mode-trigger-btn" title="Voice Mode" id="voice-mode-trigger">
+                                <i class="fas fa-waveform-lines"></i>
+                            </button>
+                             <!-- Submit -->
+                            <button type="submit" id="ai-submit-btn" class="submit-circle-btn" title="Send message">
                                 <i class="fas fa-arrow-up"></i>
                             </button>
                         </div>
@@ -454,6 +465,36 @@ try {
                 </div>
             </form>
         </footer>
+    </div>
+
+    <!-- Voice Mode Overlay -->
+    <div id="voice-mode-overlay" class="voice-mode-overlay hidden">
+        <button class="voice-mode-close" id="voice-mode-close" title="Exit Voice Mode">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <div class="voice-mode-content">
+            <!-- Animated Circle -->
+            <div class="voice-mode-circle-container">
+                <div class="voice-mode-circle" id="voice-mode-circle">
+                    <div class="voice-mode-circle-inner"></div>
+                    <div class="voice-mode-ripple"></div>
+                    <div class="voice-mode-ripple"></div>
+                    <div class="voice-mode-ripple"></div>
+                </div>
+            </div>
+            
+            <!-- Status Text -->
+            <div class="voice-mode-status" id="voice-mode-status">Tap to speak</div>
+            
+            <!-- Transcript Area -->
+            <div class="voice-mode-transcript" id="voice-mode-transcript">
+                <!-- Messages will be added here dynamically -->
+            </div>
+            
+            <!-- Hint Text -->
+            <div class="voice-mode-hint">Press <kbd>Esc</kbd> to exit</div>
+        </div>
     </div>
 
     <!-- Toast for copy feedback -->

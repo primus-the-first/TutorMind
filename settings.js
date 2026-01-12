@@ -238,6 +238,23 @@ class SettingsManager {
                         <button class="option-btn active" data-value="comfortable">Comfortable</button>
                     </div>
                 </div>
+                
+                <h3 style="margin-top: 24px;">Accessibility</h3>
+                <p>Improve readability for visual comfort.</p>
+                <div class="form-group legibility-slider-group">
+                    <label for="settings-legibility">
+                        <i class="fas fa-eye"></i> Text Legibility
+                        <span class="legibility-value" id="legibility-value">100%</span>
+                    </label>
+                    <input type="range" id="settings-legibility" class="legibility-slider" 
+                           min="90" max="150" value="100" step="5" data-setting="legibility">
+                    <div class="legibility-hint">
+                        <span>Smaller</span>
+                        <span>Default</span>
+                        <span>Larger</span>
+                    </div>
+                    <p class="legibility-description">Adjusts font size and line spacing together for easier reading.</p>
+                </div>
             </div>
 
             <!-- PRIVACY PANEL -->
@@ -284,9 +301,10 @@ class SettingsManager {
      * Attaches all necessary event listeners for the modal.
      */
     attachEventListeners() {
-        // Main modal actions
+        // Main modal actions (close button and overlay)
         this.modal.addEventListener('click', (e) => {
-            if (e.target.dataset.action === 'close') {
+            const closeElement = e.target.closest('[data-action="close"]');
+            if (closeElement) {
                 this.close();
             }
         });
@@ -349,6 +367,26 @@ class SettingsManager {
                 }
             });
         });
+        
+        // Legibility slider (real-time preview + save)
+        const legibilitySlider = this.modal.querySelector('#settings-legibility');
+        if (legibilitySlider) {
+            legibilitySlider.addEventListener('input', (e) => {
+                const value = e.target.value;
+                // Update display value
+                this.modal.querySelector('#legibility-value').textContent = value + '%';
+                // Apply immediately for live preview
+                this.applyLegibility(value);
+                this.dirty = true;
+            });
+            
+            // Save on change (when user releases slider)
+            legibilitySlider.addEventListener('change', (e) => {
+                const value = parseInt(e.target.value);
+                this.debouncedSave({ legibility: value });
+                localStorage.setItem('legibility', value);
+            });
+        }
 
         // --- Security Tab Listeners ---
         this.attachSecurityListeners();
@@ -437,7 +475,8 @@ class SettingsManager {
      * @param {KeyboardEvent} e The keyboard event.
      */
     handleKeyDown(e) {
-        if (e.key === 'Escape' && this.modal.querySelector('#settings-confirm-dialog').classList.contains('hidden')) {
+        const confirmDialog = document.getElementById('settings-confirm-dialog');
+        if (e.key === 'Escape' && (!confirmDialog || confirmDialog.classList.contains('hidden'))) {
             this.close();
         }
         if (e.ctrlKey && e.key === 's') {
@@ -536,6 +575,36 @@ class SettingsManager {
              // Update localStorage to match database setting
              localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
              console.log('Dark mode applied. Body has dark-mode class:', document.body.classList.contains('dark-mode'));
+        }
+        
+        // Apply Legibility setting
+        if (settings.legibility !== undefined) {
+            this.applyLegibility(settings.legibility);
+            localStorage.setItem('legibility', settings.legibility);
+        }
+    }
+    
+    /**
+     * Applies legibility scaling (font size and line height).
+     * @param {number} value The legibility percentage (90-150).
+     */
+    applyLegibility(value) {
+        const scale = value / 100;
+        // Set CSS custom properties for legibility scaling
+        document.documentElement.style.setProperty('--legibility-scale', scale);
+        document.documentElement.style.setProperty('--legibility-font-size', `${scale}rem`);
+        document.documentElement.style.setProperty('--legibility-line-height', `${1.5 + (scale - 1) * 0.4}`);
+        
+        // Update slider value display if visible
+        const valueDisplay = document.getElementById('legibility-value');
+        if (valueDisplay) {
+            valueDisplay.textContent = value + '%';
+        }
+        
+        // Update slider position if visible
+        const slider = document.getElementById('settings-legibility');
+        if (slider) {
+            slider.value = value;
         }
     }
 
@@ -641,6 +710,16 @@ class SettingsManager {
                 changed = true;
             }
         });
+        
+        // Get legibility slider value
+        const legibilitySlider = this.modal.querySelector('#settings-legibility');
+        if (legibilitySlider) {
+            const legibilityValue = parseInt(legibilitySlider.value);
+            if (legibilityValue !== this.initialSettings.legibility) {
+                payload.legibility = legibilityValue;
+                changed = true;
+            }
+        }
 
         if (!changed) {
             this.showToast('No changes to save.', 'info');

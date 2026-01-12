@@ -17,6 +17,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const welcomeScreen = document.getElementById('welcome-screen');
     const conversationTitleEl = document.getElementById('conversation-title');
 
+    // --- Apply legibility from localStorage immediately (before settings load) ---
+    const savedLegibility = localStorage.getItem('legibility');
+    if (savedLegibility) {
+        const scale = parseInt(savedLegibility) / 100;
+        document.documentElement.style.setProperty('--legibility-scale', scale);
+        document.documentElement.style.setProperty('--legibility-line-height', `${1.5 + (scale - 1) * 0.4}`);
+    }
+
     // --- Initialize Settings Manager FIRST ---
     // This ensures settings (especially dark mode) are applied before page renders
     window.settingsManager = new SettingsManager();
@@ -76,6 +84,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // --- Helper function to get base path for fetch URLs ---
+    function getBasePath() {
+        const baseTag = document.querySelector('base');
+        if (baseTag && baseTag.href) {
+            const baseUrl = new URL(baseTag.href);
+            return baseUrl.pathname.replace(/\/$/, '');
+        }
+        // Fallback: calculate from pathname
+        const pathParts = window.location.pathname.split('/');
+        if (pathParts[pathParts.length - 1].includes('.') || 
+            pathParts[pathParts.length - 1] === 'chat' ||
+            /^\d+$/.test(pathParts[pathParts.length - 1])) {
+            pathParts.pop();
+        }
+        if (pathParts[pathParts.length - 1] === 'chat') {
+            pathParts.pop();
+        }
+        return pathParts.join('/');
+    }
+
 
     // --- Function to add a message to the chat window ---
     function addMessage(sender, messageHtml, animate = false) {
@@ -122,6 +150,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <button class="copy-btn" title="Copy response">
                         <i class="fas fa-copy"></i>
                     </button>
+                    <div class="feedback-btns">
+                        <button class="feedback-btn feedback-positive" title="Good response" data-rating="positive">
+                            <i class="fas fa-thumbs-up"></i>
+                        </button>
+                        <button class="feedback-btn feedback-negative" title="Bad response" data-rating="negative">
+                            <i class="fas fa-thumbs-down"></i>
+                        </button>
+                    </div>
                 `;
                 bubble.appendChild(footer);
             }
@@ -170,7 +206,837 @@ document.addEventListener('DOMContentLoaded', async () => {
             handleCopyClick(copyBtn);
             return;
         }
+        
+        const feedbackBtn = e.target.closest('.feedback-btn');
+        if (feedbackBtn) {
+            handleFeedbackClick(feedbackBtn);
+            return;
+        }
     });
+
+    // --- Handle Read Aloud button click ---
+    function handleReadAloud(button) {
+        const messageBubble = button.closest('.message-bubble');
+        if (!messageBubble) return;
+        
+        // Get the text content, excluding the footer buttons
+        const messageContent = messageBubble.cloneNode(true);
+        const footer = messageContent.querySelector('.message-footer');
+        if (footer) footer.remove();
+        
+        // Get plain text, stripping HTML
+        const text = messageContent.innerText.trim();
+        
+        if (text && window.VoiceManager) {
+            // Update button to show it's playing
+            button.innerHTML = '<i class="fas fa-stop"></i>';
+            button.title = 'Stop reading';
+            
+            // Speak the text
+            window.VoiceManager.speak(text).then(() => {
+                // Reset button when done
+                button.innerHTML = '<i class="fas fa-volume-up"></i>';
+                button.title = 'Read aloud';
+            }).catch(() => {
+                button.innerHTML = '<i class="fas fa-volume-up"></i>';
+                button.title = 'Read aloud';
+            });
+        }
+    }
+
+    // --- Text Selection Clarification Popup ---
+    let selectionPopup = null;
+    let selectedTextForClarification = '';
+    let quoteReference = null; // The visual quote element above input
+    
+    // Create the popup element once
+    function createSelectionPopup() {
+        if (selectionPopup) return;
+        selectionPopup = document.createElement('div');
+        selectionPopup.className = 'selection-popup';
+        selectionPopup.innerHTML = `
+            <button class="selection-popup-btn" title="Quote and reference this text">
+                <i class="fas fa-quote-left"></i> Quote & Ask
+            </button>
+        `;
+        selectionPopup.style.display = 'none';
+        document.body.appendChild(selectionPopup);
+        
+        // Handle quote button click
+        selectionPopup.querySelector('.selection-popup-btn').addEventListener('click', () => {
+            if (!selectedTextForClarification) return;
+            
+            // Save the text before hiding (hideSelectionPopup clears selectedTextForClarification)
+            const textToQuote = selectedTextForClarification;
+            
+            hideSelectionPopup();
+            showQuoteReference(textToQuote);
+            
+            // Clear selection and focus input
+            window.getSelection().removeAllRanges();
+            questionInput.focus();
+        });
+    }
+    
+    // Show the quoted text as a reference above the input
+    function showQuoteReference(text) {
+        // Remove existing quote if any
+        hideQuoteReference();
+        
+        // Truncate long quotes for display
+        const displayText = text.length > 150 ? text.substring(0, 150) + '...' : text;
+        
+        quoteReference = document.createElement('div');
+        quoteReference.className = 'quote-reference';
+        quoteReference.innerHTML = `
+            <div class="quote-reference-content">
+                <i class="fas fa-quote-left quote-icon"></i>
+                <span class="quote-text">${displayText}</span>
+                <button class="quote-remove" title="Remove quote">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        // Store full text as data attribute for sending
+        quoteReference.dataset.fullQuote = text;
+        
+        // Insert above the form (tutorForm is defined at module scope)
+        tutorForm.parentElement.insertBefore(quoteReference, tutorForm);
+        
+        // Handle remove button
+        quoteReference.querySelector('.quote-remove').addEventListener('click', hideQuoteReference);
+    }
+    
+    function hideQuoteReference() {
+        if (quoteReference) {
+            quoteReference.remove();
+            quoteReference = null;
+        }
+    }
+    
+    // Expose for use in form submission
+    window.getQuoteReference = function() {
+        if (quoteReference) {
+            return quoteReference.dataset.fullQuote;
+        }
+        return null;
+    };
+    
+    window.clearQuoteReference = hideQuoteReference;
+    
+    function showSelectionPopup(x, y) {
+        if (!selectionPopup) createSelectionPopup();
+        
+        // Position popup near selection
+        const popupWidth = 140;
+        const popupHeight = 40;
+        
+        // Keep popup within viewport
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        let posX = x - popupWidth / 2;
+        let posY = y - popupHeight - 10; // Above selection
+        
+        // Clamp to viewport
+        posX = Math.max(10, Math.min(posX, viewportWidth - popupWidth - 10));
+        if (posY < 10) posY = y + 25; // Below selection if no room above
+        
+        selectionPopup.style.left = posX + 'px';
+        selectionPopup.style.top = posY + 'px';
+        selectionPopup.style.display = 'block';
+    }
+    
+    function hideSelectionPopup() {
+        if (selectionPopup) {
+            selectionPopup.style.display = 'none';
+        }
+        selectedTextForClarification = '';
+    }
+    
+    // Listen for text selection in AI messages
+    document.addEventListener('mouseup', (e) => {
+        // Ignore if clicking the popup itself
+        if (selectionPopup && selectionPopup.contains(e.target)) return;
+        
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+        
+        // Check if selection is within an AI message bubble
+        if (selectedText.length > 3 && selectedText.length < 500) {
+            const anchorNode = selection.anchorNode;
+            const focusNode = selection.focusNode;
+            
+            // Find if selection is within a message bubble
+            const bubble = anchorNode?.parentElement?.closest('.ai-message .message-bubble') 
+                        || focusNode?.parentElement?.closest('.ai-message .message-bubble');
+            
+            if (bubble) {
+                selectedTextForClarification = selectedText;
+                
+                // Get selection position
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                
+                showSelectionPopup(rect.left + rect.width / 2, rect.top);
+                return;
+            }
+        }
+        
+        // Hide popup if no valid selection
+        hideSelectionPopup();
+    });
+    
+    // Hide popup when clicking elsewhere
+    document.addEventListener('mousedown', (e) => {
+        if (selectionPopup && !selectionPopup.contains(e.target)) {
+            // Small delay to allow selection to complete
+            setTimeout(() => {
+                const selection = window.getSelection();
+                if (!selection.toString().trim()) {
+                    hideSelectionPopup();
+                }
+            }, 10);
+        }
+    });
+
+    // --- Voice Input/Output Manager ---
+    const VoiceManager = {
+        recognition: null,
+        isListening: false,
+        autoReadEnabled: localStorage.getItem('autoReadEnabled') === 'true',
+        currentAudio: null,
+        
+        init() {
+            // Check for Speech Recognition support
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (SpeechRecognition) {
+                this.recognition = new SpeechRecognition();
+                this.recognition.continuous = true; // Keep listening until manually stopped
+                this.recognition.interimResults = true;
+                this.recognition.lang = 'en-US';
+                this.recognition.maxAlternatives = 1;
+                
+                this.recognition.onresult = (event) => {
+                    console.log('Speech result received:', event);
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                    console.log('Transcript:', transcript);
+                    questionInput.value = transcript;
+                };
+                
+                this.recognition.onstart = () => {
+                    console.log('Speech recognition started');
+                    this.isListening = true;
+                    this.updateMicButton();
+                };
+                
+                this.recognition.onend = () => {
+                    console.log('Speech recognition ended');
+                    this.isListening = false;
+                    this.updateMicButton();
+                };
+                
+                this.recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error, event);
+                    this.isListening = false;
+                    this.updateMicButton();
+                    
+                    if (event.error === 'not-allowed') {
+                        alert('Microphone access denied. Please enable it in your browser settings.');
+                    } else if (event.error === 'no-speech') {
+                        console.log('No speech detected. Try speaking louder or closer to the mic.');
+                    } else if (event.error === 'network') {
+                        alert('Network error. Speech recognition requires an internet connection.');
+                    }
+                };
+                
+                console.log('Speech recognition initialized successfully');
+            } else {
+                console.warn('Speech Recognition API not supported in this browser');
+            }
+            
+            // Set up mic button
+            const voiceBtn = document.querySelector('.voice-btn');
+            if (voiceBtn) {
+                // FORCE SHOW button for debugging
+                voiceBtn.style.display = 'flex'; 
+                
+                voiceBtn.addEventListener('click', () => {
+                    if (!this.recognition) {
+                         alert('Voice input is not supported in this browser. Please use Chrome, Edge, or Safari.');
+                         return;
+                    }
+                    this.toggleListening();
+                });
+            }
+        },
+        
+        toggleListening() {
+            if (!this.recognition) return;
+            
+            if (this.isListening) {
+                this.recognition.stop();
+            } else {
+                // Stop any playing audio first
+                this.stopAudio();
+                this.recognition.start();
+            }
+        },
+        
+        updateMicButton() {
+            const voiceBtn = document.querySelector('.voice-btn');
+            if (!voiceBtn) return;
+            
+            if (this.isListening) {
+                voiceBtn.classList.add('recording');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> <span>Stop</span>';
+                voiceBtn.title = 'Stop listening';
+            } else {
+                voiceBtn.classList.remove('recording');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone-lines"></i> <span>Voice</span>';
+                voiceBtn.title = 'Voice input';
+            }
+        },
+        
+        async speak(text) {
+            if (!text || text.trim().length === 0) return;
+            
+            // Stop any current audio
+            this.stopAudio();
+            
+            try {
+                // Try ElevenLabs TTS first
+                const response = await fetch('api/tts.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.audio) {
+                    // Play ElevenLabs audio
+                    const audioBlob = this.base64ToBlob(data.audio, data.contentType);
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    this.currentAudio = new Audio(audioUrl);
+                    this.currentAudio.play();
+                } else if (data.fallback) {
+                    // Fallback to browser TTS
+                    this.browserSpeak(data.text || text);
+                }
+            } catch (error) {
+                console.error('TTS error:', error);
+                // Fallback to browser TTS
+                this.browserSpeak(text);
+            }
+        },
+        
+        browserSpeak(text) {
+            if (!window.speechSynthesis) return;
+            
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            
+            // Try to use a better voice if available
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => 
+                v.name.includes('Google') || 
+                v.name.includes('Microsoft') || 
+                v.name.includes('Samantha')
+            );
+            if (preferredVoice) utterance.voice = preferredVoice;
+            
+            window.speechSynthesis.speak(utterance);
+        },
+        
+        stopAudio() {
+            if (this.currentAudio) {
+                this.currentAudio.pause();
+                this.currentAudio = null;
+            }
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+            }
+        },
+        
+        base64ToBlob(base64, contentType) {
+            const byteCharacters = atob(base64);
+            const byteArrays = [];
+            
+            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                const slice = byteCharacters.slice(offset, offset + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            
+            return new Blob(byteArrays, { type: contentType });
+        },
+        
+        toggleAutoRead() {
+            this.autoReadEnabled = !this.autoReadEnabled;
+            localStorage.setItem('autoReadEnabled', this.autoReadEnabled);
+            return this.autoReadEnabled;
+        }
+    };
+    
+    // Initialize voice manager
+    VoiceManager.init();
+    
+    // Expose for use in other parts of the app
+    window.VoiceManager = VoiceManager;
+
+    // --- Voice Mode Manager (ChatGPT-style full conversation mode) ---
+    const VoiceModeManager = {
+        state: 'idle', // idle | listening | processing | speaking
+        overlay: null,
+        circle: null,
+        statusEl: null,
+        transcriptEl: null,
+        recognition: null,
+        currentTranscript: '',
+        conversationHistory: [],
+        isActive: false,
+        silenceTimeout: null,
+        
+        init() {
+            this.overlay = document.getElementById('voice-mode-overlay');
+            this.circle = document.getElementById('voice-mode-circle');
+            this.statusEl = document.getElementById('voice-mode-status');
+            this.transcriptEl = document.getElementById('voice-mode-transcript');
+            
+            // Set up trigger button
+            const triggerBtn = document.getElementById('voice-mode-trigger');
+            if (triggerBtn) {
+                triggerBtn.addEventListener('click', () => this.open());
+            }
+            
+            // Set up close button
+            const closeBtn = document.getElementById('voice-mode-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => this.close());
+            }
+            
+            // Escape key to close
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.isActive) {
+                    this.close();
+                }
+            });
+            
+            // Click on circle to toggle listening
+            if (this.circle) {
+                this.circle.addEventListener('click', () => {
+                    if (this.state === 'idle') {
+                        this.startListening();
+                    } else if (this.state === 'listening') {
+                        this.stopListening();
+                    } else if (this.state === 'speaking') {
+                        // Stop speaking and go to listening
+                        VoiceManager.stopAudio();
+                        this.startListening();
+                    }
+                });
+            }
+            
+            // Set up speech recognition
+            this.setupRecognition();
+        },
+        
+        setupRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.warn('Speech Recognition not supported');
+                return;
+            }
+            
+            this.recognition = new SpeechRecognition();
+            this.recognition.continuous = true;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'en-US';
+            
+            this.recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                // Show interim results
+                this.currentTranscript = finalTranscript + interimTranscript;
+                this.statusEl.textContent = this.currentTranscript || 'Listening...';
+                
+                // Reset silence detection on any speech
+                this.resetSilenceTimeout();
+                
+                // If we got a final result, process after brief pause
+                if (finalTranscript) {
+                    this.handleFinalTranscript(finalTranscript);
+                }
+            };
+            
+            this.recognition.onstart = () => {
+                console.log('Voice Mode: Recognition started');
+                this.setState('listening');
+                this.resetSilenceTimeout();
+            };
+            
+            this.recognition.onend = () => {
+                console.log('Voice Mode: Recognition ended');
+                // If still listening state, it ended unexpectedly - restart
+                if (this.state === 'listening' && this.isActive) {
+                    console.log('Voice Mode: Restarting recognition');
+                    setTimeout(() => {
+                        if (this.isActive && this.state === 'listening') {
+                            this.recognition.start();
+                        }
+                    }, 100);
+                }
+            };
+            
+            this.recognition.onerror = (event) => {
+                console.error('Voice Mode: Recognition error:', event.error);
+                if (event.error === 'not-allowed') {
+                    this.statusEl.textContent = 'Microphone access denied';
+                    this.setState('idle');
+                }
+            };
+        },
+        
+        resetSilenceTimeout() {
+            if (this.silenceTimeout) {
+                clearTimeout(this.silenceTimeout);
+            }
+            // If no speech for 2 seconds after final result, submit
+            this.silenceTimeout = setTimeout(() => {
+                if (this.currentTranscript && this.state === 'listening') {
+                    this.processInput();
+                }
+            }, 2000);
+        },
+        
+        handleFinalTranscript(text) {
+            // User said something - wait a moment then process
+            console.log('Voice Mode: Final transcript:', text);
+        },
+        
+        open() {
+            if (!this.overlay) return;
+            
+            this.isActive = true;
+            this.overlay.classList.remove('hidden');
+            this.conversationHistory = [];
+            this.transcriptEl.innerHTML = '';
+            this.setState('idle');
+            this.statusEl.textContent = 'Tap to speak';
+            
+            // Auto-start listening after a brief delay
+            setTimeout(() => {
+                if (this.isActive) {
+                    this.startListening();
+                }
+            }, 500);
+        },
+        
+        close() {
+            if (!this.overlay) return;
+            
+            this.isActive = false;
+            this.overlay.classList.add('hidden');
+            this.stopListening();
+            VoiceManager.stopAudio();
+            this.setState('idle');
+            this.currentTranscript = '';
+            
+            if (this.silenceTimeout) {
+                clearTimeout(this.silenceTimeout);
+            }
+        },
+        
+        startListening() {
+            if (!this.recognition) {
+                this.statusEl.textContent = 'Speech not supported';
+                return;
+            }
+            
+            this.currentTranscript = '';
+            this.statusEl.textContent = 'Listening...';
+            
+            try {
+                this.recognition.start();
+            } catch (e) {
+                // Already started - ignore
+            }
+        },
+        
+        stopListening() {
+            if (this.recognition) {
+                try {
+                    this.recognition.stop();
+                } catch (e) {
+                    // Already stopped - ignore
+                }
+            }
+            
+            if (this.silenceTimeout) {
+                clearTimeout(this.silenceTimeout);
+            }
+        },
+        
+        setState(newState) {
+            this.state = newState;
+            
+            // Update circle state classes
+            if (this.circle) {
+                this.circle.className = 'voice-mode-circle ' + newState;
+            }
+            
+            // Update status text based on state
+            switch (newState) {
+                case 'idle':
+                    if (this.isActive) {
+                        this.statusEl.textContent = 'Tap to speak';
+                    }
+                    break;
+                case 'listening':
+                    this.statusEl.textContent = 'Listening...';
+                    break;
+                case 'processing':
+                    this.statusEl.textContent = 'Thinking...';
+                    break;
+                case 'speaking':
+                    this.statusEl.textContent = 'Speaking...';
+                    break;
+            }
+        },
+        
+        async processInput() {
+            if (!this.currentTranscript.trim()) {
+                this.startListening();
+                return;
+            }
+            
+            const userMessage = this.currentTranscript.trim();
+            this.currentTranscript = '';
+            
+            // Stop listening during processing
+            this.stopListening();
+            this.setState('processing');
+            
+            // Add user message to transcript
+            this.addTranscriptMessage(userMessage, 'user');
+            
+            try {
+                // Build form data like the main form
+                const formData = new FormData();
+                formData.append('question', userMessage);
+                formData.append('learningLevel', document.getElementById('learningLevel')?.value || 'Understand');
+                
+                const conversationId = document.getElementById('conversation_id')?.value;
+                if (conversationId) {
+                    formData.append('conversation_id', conversationId);
+                }
+                
+                // Submit to server
+                const fetchUrl = getBasePath() + '/server_mysql.php';
+                const response = await fetch(fetchUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Extract plain text from answer (strip HTML)
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = result.answer;
+                    const plainText = tempDiv.textContent || tempDiv.innerText;
+                    
+                    // Update conversation ID if new
+                    if (result.conversation_id) {
+                        const convInput = document.getElementById('conversation_id');
+                        if (convInput) convInput.value = result.conversation_id;
+                    }
+                    
+                    // Add AI response to transcript
+                    this.addTranscriptMessage(plainText.substring(0, 200) + (plainText.length > 200 ? '...' : ''), 'ai');
+                    
+                    // Also add to main chat (so it's not lost)
+                    addMessage('user', userMessage);
+                    const messageContent = `
+                        ${result.answer}
+                        <div class="message-footer">
+                            <button class="read-aloud-btn" title="Read aloud">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                            <button class="copy-btn" title="Copy response">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    `;
+                    addMessage('ai', messageContent, false);
+                    
+                    // Speak the response
+                    await this.speakResponse(plainText);
+                } else {
+                    this.statusEl.textContent = 'Error: ' + (result.error || 'Unknown error');
+                    this.addTranscriptMessage('Error: ' + (result.error || 'Unknown error'), 'ai');
+                    setTimeout(() => this.startListening(), 2000);
+                }
+            } catch (error) {
+                console.error('Voice Mode: Fetch error:', error);
+                this.statusEl.textContent = 'Connection error';
+                setTimeout(() => this.startListening(), 2000);
+            }
+        },
+        
+        async speakResponse(text) {
+            this.setState('speaking');
+            
+            try {
+                // Try ElevenLabs first via existing API
+                const response = await fetch(getBasePath() + '/api/tts.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.audio) {
+                    // Play ElevenLabs audio
+                    const audioBlob = VoiceManager.base64ToBlob(data.audio, data.contentType);
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+                    
+                    await new Promise((resolve) => {
+                        audio.onended = resolve;
+                        audio.onerror = resolve;
+                        audio.play();
+                    });
+                } else {
+                    // Browser TTS fallback
+                    await this.browserSpeak(text);
+                }
+            } catch (error) {
+                console.error('Voice Mode: TTS error:', error);
+                await this.browserSpeak(text);
+            }
+            
+            // After speaking, return to listening
+            if (this.isActive) {
+                this.startListening();
+            }
+        },
+        
+        browserSpeak(text) {
+            return new Promise((resolve) => {
+                if (!window.speechSynthesis) {
+                    resolve();
+                    return;
+                }
+                
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                utterance.onend = resolve;
+                utterance.onerror = resolve;
+                
+                // Try to use a better voice
+                const voices = window.speechSynthesis.getVoices();
+                const preferredVoice = voices.find(v => 
+                    v.name.includes('Google') || 
+                    v.name.includes('Microsoft') || 
+                    v.name.includes('Samantha')
+                );
+                if (preferredVoice) utterance.voice = preferredVoice;
+                
+                window.speechSynthesis.speak(utterance);
+            });
+        },
+        
+        addTranscriptMessage(text, sender) {
+            const msg = document.createElement('div');
+            msg.className = `voice-mode-transcript-message ${sender}`;
+            msg.textContent = text;
+            this.transcriptEl.appendChild(msg);
+            this.transcriptEl.scrollTop = this.transcriptEl.scrollHeight;
+        }
+    };
+    
+    // Initialize Voice Mode
+    VoiceModeManager.init();
+    window.VoiceModeManager = VoiceModeManager;
+
+    // --- Auto-Resize Textarea Logic ---
+    function setupAutoResizeTextarea() {
+        if (!questionInput || questionInput.tagName !== 'TEXTAREA') return;
+
+        const MIN_HEIGHT = 24; // Approximate height of one line (1.5rem line-height at 16px font)
+
+        function resize() {
+            // Reset height to allow shrinking
+            questionInput.style.height = 'auto';
+            
+            // Set new height based on scrollHeight
+            // We subtract padding if box-sizing is border-box, but here it seems simple enough
+            const newHeight = questionInput.scrollHeight;
+            questionInput.style.height = `${newHeight}px`;
+            
+            // Optional: Toggle scrolling if max-height is reached
+            if (newHeight > 200) {
+                questionInput.style.overflowY = 'auto';
+            } else {
+                questionInput.style.overflowY = 'hidden';
+            }
+        }
+
+        questionInput.addEventListener('input', resize);
+        
+        // Initial resize in case there's content (e.g. from speech recognition)
+        resize();
+        
+        // Handle Enter key
+        questionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                // Trigger form submit
+                // we trigger the button click to ensure any button-bound logic runs
+                submitBtn.click();
+            }
+        });
+        
+        // Hook into VoiceManager to resize after speech
+        const originalOnResult = VoiceManager.recognition ? VoiceManager.recognition.onresult : null;
+        if (VoiceManager.recognition) {
+            VoiceManager.recognition.onresult = (event) => {
+                if (originalOnResult) originalOnResult(event);
+                resize(); // Resize after text insertion
+            };
+        }
+    }
+    
+    // Call it immediately
+    setupAutoResizeTextarea();
 
     // --- Typewriter Effect Function (DOM-based) ---
     function typeWriter(element, html, speed, callback) {
@@ -394,6 +1260,110 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 1100);
     }
 
+    // --- Feedback Button Handler ---
+    async function handleFeedbackClick(button) {
+        const rating = button.dataset.rating; // 'positive' or 'negative'
+        const messageWrapper = button.closest('.chat-message');
+        const feedbackBtns = button.closest('.feedback-btns');
+        
+        // Get message index (position in chat)
+        const allMessages = Array.from(chatMessages.querySelectorAll('.chat-message.ai-message'));
+        const messageIndex = allMessages.indexOf(messageWrapper);
+        
+        // Check if already rated
+        if (feedbackBtns.classList.contains('rated')) {
+            showCopyToast('Already rated');
+            return;
+        }
+        
+        // Visual feedback immediately
+        button.classList.add('selected');
+        feedbackBtns.classList.add('rated');
+        
+        // Show comment modal for negative feedback
+        let comment = null;
+        if (rating === 'negative') {
+            comment = await showFeedbackModal();
+        }
+        
+        // Submit to server
+        try {
+            const formData = new FormData();
+            formData.append('action', 'submit_feedback');
+            formData.append('type', 'message_rating');
+            formData.append('rating', rating);
+            formData.append('conversation_id', conversationIdInput.value || '');
+            formData.append('message_index', messageIndex);
+            if (comment) {
+                formData.append('comment', comment);
+            }
+            
+            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const response = await fetch(fetchUrl, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                showCopyToast(rating === 'positive' ? 'Thanks for the feedback!' : 'Feedback recorded');
+            } else {
+                console.error('Feedback error:', result.error);
+                // Revert visual state
+                button.classList.remove('selected');
+                feedbackBtns.classList.remove('rated');
+            }
+        } catch (error) {
+            console.error('Feedback submission failed:', error);
+            button.classList.remove('selected');
+            feedbackBtns.classList.remove('rated');
+        }
+    }
+    
+    // --- Feedback Comment Modal ---
+    function showFeedbackModal() {
+        return new Promise((resolve) => {
+            // Create modal
+            const modal = document.createElement('div');
+            modal.className = 'feedback-modal-overlay';
+            modal.innerHTML = `
+                <div class="feedback-modal">
+                    <h3>What went wrong?</h3>
+                    <p>Your feedback helps us improve TutorMind.</p>
+                    <textarea id="feedback-comment" placeholder="Tell us what could be better..." rows="4"></textarea>
+                    <div class="feedback-modal-actions">
+                        <button class="feedback-modal-skip">Skip</button>
+                        <button class="feedback-modal-submit">Submit</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Focus textarea
+            setTimeout(() => modal.querySelector('textarea').focus(), 100);
+            
+            // Handle actions
+            modal.querySelector('.feedback-modal-skip').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                resolve(null);
+            });
+            
+            modal.querySelector('.feedback-modal-submit').addEventListener('click', () => {
+                const comment = modal.querySelector('textarea').value.trim();
+                document.body.removeChild(modal);
+                resolve(comment || null);
+            });
+            
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                    resolve(null);
+                }
+            });
+        });
+    }
+
     // --- Function to show/hide the typing indicator ---
     function showTypingIndicator(show) {
         let indicator = document.getElementById('typing-indicator');
@@ -539,11 +1509,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize the manager
     const attachmentManager = new FileAttachmentManager(fileInput, attachmentPreviewArea);
 
+    // --- Enter Key Handler (Fix for file upload issue) ---
+    // Explicitly handle Enter key to ensure form submission works correctly with files
+    questionInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            // Trigger the same submit handler
+            tutorForm.requestSubmit(submitBtn);
+        }
+    });
+
     // --- Handle form submission ---
     tutorForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const question = questionInput.value.trim();
+        let question = questionInput.value.trim();
         if (!question && attachmentManager.files.length === 0) return;
+
+        // --- Quote Reference Integration ---
+        // If there's a quoted reference, prepend it to the question
+        const quoteText = window.getQuoteReference ? window.getQuoteReference() : null;
+        if (quoteText) {
+            question = `Regarding this passage: "${quoteText}"\n\n${question || 'Please explain this in simpler terms.'}`;
+            if (window.clearQuoteReference) window.clearQuoteReference();
+        }
 
         // --- Session Context Integration ---
         // Extract context from the user's message
@@ -552,9 +1540,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.sessionContextManager.incrementMessageCount();
         }
 
-        // --- The Fix: Capture FormData immediately ---
-        // This ensures we have the question and file data before any other operations.
+        // --- The Fix: Capture FormData and explicitly add files ---
+        // Using FormData(tutorForm) may not reliably pick up files set via DataTransfer.
+        // We explicitly add files from the attachment manager to guarantee they're included.
         const formData = new FormData(tutorForm);
+        
+        // Override the question field with the potentially modified question (with quote)
+        formData.set('question', question);
+        // Remove any potentially empty/stale attachment entries from native serialization
+        formData.delete('attachment[]');
+        
+        // Explicitly add files from the manager
+        attachmentManager.files.forEach(file => {
+            formData.append('attachment[]', file);
+        });
 
         // Add session context to the request
         if (window.sessionContextManager) {
@@ -606,14 +1605,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             submitBtn.disabled = true;
             questionInput.disabled = true;
             showTypingIndicator(true);
-            // Use absolute path for fetch
-            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            // Use getBasePath helper for consistent URL construction
+            const fetchUrl = getBasePath() + '/server_mysql.php';
+            console.log('Fetching from:', fetchUrl);
             const response = await fetch(fetchUrl, {
                 method: 'POST',
                 body: formData
             });
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+            // Check if response is actually JSON before parsing
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Expected JSON but got:', text.substring(0, 200));
+                throw new Error('Server returned non-JSON response. Check server logs.');
+            }
 
             const result = await response.json();
 
@@ -769,7 +1777,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!welcomeScreen || welcomeScreen.style.display === 'none') return;
 
         try {
-            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const fetchUrl = getBasePath() + '/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=generate_suggestions`);
             const data = await response.json();
 
@@ -802,7 +1810,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Function to load chat history from server ---
     async function loadChatHistory() {
         try {
-            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const fetchUrl = getBasePath() + '/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=history`);
             const result = await response.json();
 
@@ -853,13 +1861,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Function to load a specific conversation ---
     async function loadConversation(id) {
+        // Get base path for URL construction
+        const basePath = getBasePath();
         // Update URL to /chat/{id}
-        const baseUrl = window.location.pathname.split('/chat')[0];
-        history.pushState({}, '', `${baseUrl}/chat/${id}`);
+        history.pushState({}, '', `${basePath}/chat/${id}`);
 
         try {
-            // Use absolute path for fetch to avoid issues when current URL is /chat/123
-            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            // Use absolute path for fetch
+            const fetchUrl = basePath + '/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=get_conversation&id=${id}`, {
                 method: 'GET',
                 credentials: 'include', // Ensure cookies are sent
@@ -1192,6 +2201,121 @@ document.addEventListener('DOMContentLoaded', async () => {
             // The settingsManager is created and attached to the window by settings.js
             if (window.settingsManager) {
                 window.settingsManager.open();
+            }
+        });
+    }
+
+    // --- General Feedback Modal Trigger ---
+    const openFeedbackBtn = document.getElementById('open-feedback-btn');
+    if (openFeedbackBtn) {
+        openFeedbackBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            showGeneralFeedbackModal();
+        });
+    }
+
+    // --- General Feedback Modal ---
+    async function showGeneralFeedbackModal() {
+        const modal = document.createElement('div');
+        modal.className = 'feedback-modal-overlay';
+        modal.innerHTML = `
+            <div class="feedback-modal general-feedback-modal">
+                <h3><i class="fas fa-comment-dots"></i> Send Feedback</h3>
+                <p>Help us improve TutorMind! Share your thoughts, suggestions, or report issues.</p>
+                
+                <div class="feedback-category-select">
+                    <label>Category</label>
+                    <select id="general-feedback-category">
+                        <option value="suggestion">💡 Suggestion</option>
+                        <option value="bug">🐛 Bug Report</option>
+                        <option value="feature">✨ Feature Request</option>
+                        <option value="other">📝 Other</option>
+                    </select>
+                </div>
+                
+                <div class="feedback-rating-select">
+                    <label>How would you rate your experience?</label>
+                    <div class="rating-options">
+                        <button type="button" class="rating-option" data-rating="positive" title="Great">😊</button>
+                        <button type="button" class="rating-option" data-rating="neutral" title="Okay">😐</button>
+                        <button type="button" class="rating-option" data-rating="negative" title="Needs improvement">😞</button>
+                    </div>
+                </div>
+                
+                <textarea id="general-feedback-comment" placeholder="Tell us more..." rows="4"></textarea>
+                
+                <div class="feedback-modal-actions">
+                    <button class="feedback-modal-skip">Cancel</button>
+                    <button class="feedback-modal-submit">Send Feedback</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Handle rating selection
+        let selectedRating = 'neutral';
+        modal.querySelectorAll('.rating-option').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.querySelectorAll('.rating-option').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedRating = btn.dataset.rating;
+            });
+        });
+        
+        // Focus textarea
+        setTimeout(() => modal.querySelector('textarea').focus(), 100);
+        
+        // Handle cancel
+        modal.querySelector('.feedback-modal-skip').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        
+        // Handle submit
+        modal.querySelector('.feedback-modal-submit').addEventListener('click', async () => {
+            const category = modal.querySelector('#general-feedback-category').value;
+            const comment = modal.querySelector('#general-feedback-comment').value.trim();
+            
+            if (!comment) {
+                modal.querySelector('textarea').focus();
+                modal.querySelector('textarea').placeholder = 'Please enter your feedback...';
+                return;
+            }
+            
+            // Submit to server
+            try {
+                const formData = new FormData();
+                formData.append('action', 'submit_feedback');
+                formData.append('type', 'general');
+                formData.append('rating', selectedRating);
+                formData.append('comment', comment);
+                formData.append('category', category);
+                formData.append('page_url', window.location.href);
+                
+                const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+                const response = await fetch(fetchUrl, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                document.body.removeChild(modal);
+                
+                if (result.success) {
+                    showCopyToast('Thank you for your feedback!');
+                } else {
+                    showCopyToast('Could not submit feedback');
+                }
+            } catch (error) {
+                console.error('Feedback submission failed:', error);
+                document.body.removeChild(modal);
+                showCopyToast('Could not submit feedback');
+            }
+        });
+        
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
             }
         });
     }
