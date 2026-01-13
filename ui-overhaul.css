@@ -4,21 +4,23 @@ TutorMind UI Overhaul - 2025 Refresh
 
 /* --- Root Variables & Base Styles --- */
 :root {
-  --primary: #7b3ff2;
-  --primary-light: #9d6bf5;
-  --primary-dark: #5e2ebf;
+  --primary: #7C3AED;
+  --primary-light: #A78BFA;
+  --primary-dark: #5B21B6;
   --secondary: #ff6b35;
   --secondary-light: #ff8a5c;
   --accent: #ffb347;
-  --bg-main: #f9fafb;
+  --cta: #F59E0B;
+  --cta-hover: #D97706;
+  --bg-main: #F5F3FF;
   --bg-card: #ffffff;
-  --text-primary: #1a1a1a;
+  --text-primary: #1F2937;
   --text-secondary: #6b7280;
   --text-on-primary: #ffffff;
   --border: #e5e7eb;
   --shadow-sm: 0 4px 6px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 10px 20px rgba(123, 63, 242, 0.1);
-  --shadow-glow: 0 0 20px rgba(123, 63, 242, 0.3);
+  --shadow-md: 0 10px 20px rgba(124, 58, 237, 0.1);
+  --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.3);
 }
 
 * {
@@ -30,12 +32,7 @@ TutorMind UI Overhaul - 2025 Refresh
 body {
   font-family: "Outfit", "Source Sans Pro", -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
-  background: linear-gradient(135deg,
-      #e8e0f5 0%,
-      #e8d5e0 25%,
-      #d8b5a8 50%,
-      #c88060 75%,
-      #8B4513 100%);
+  background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 50%, #F3E8FF 100%);
   color: var(--text-primary);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;

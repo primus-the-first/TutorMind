@@ -139,32 +139,30 @@
       
       /* Landing CSS */
       :root {
-        --color-primary: #7B3FF2;
-        --color-primary-light: #9D6BF5;
-        --color-primary-dark: #5E2EBF;
+        --color-primary: #7C3AED;
+        --color-primary-light: #A78BFA;
+        --color-primary-dark: #5B21B6;
         --color-secondary: #FF6B35;
         --color-secondary-light: #FF8A5C;
         --color-secondary-dark: #E55A2B;
         --color-accent: #FFB347;
         --color-accent-light: #FFC56E;
         --color-accent-dark: #E59A33;
+        --color-cta: #F59E0B;
+        --color-cta-hover: #D97706;
         --color-bg: #000000;
         --color-surface: #1A1A1A;
         --color-text-primary: #FFFFFF;
         --color-text-secondary: #B0B0B0;
+        --color-border: #E5E7EB;
       }
       
       .light-mode {
-        --color-bg: linear-gradient(135deg, 
-          #e8e0f5 0%,
-          #ece5f7 25%,
-          #f5e8e3 50%,
-          #fceee5 75%,
-          #fff3e8 100%
-        );
+        --color-bg: #F5F3FF;
         --color-surface: #FFFFFF;
-        --color-text-primary: #1A1A1A;
+        --color-text-primary: #1F2937;
         --color-text-secondary: #6B7280;
+        --color-border: #E5E7EB;
       }
       body, html {
           margin: 0;
@@ -172,13 +170,7 @@
           width: 100%;
           height: 100%;
           font-family: 'Inter', sans-serif;
-          background: linear-gradient(135deg, 
-            #e8e0f5 0%,
-            #ece5f7 25%,
-            #f5e8e3 50%,
-            #fceee5 75%,
-            #fff3e8 100%
-          );
+          background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 50%, #F3E8FF 100%);
           color: var(--color-text-primary);
           overflow: hidden;
       }
@@ -224,10 +216,13 @@
           display: flex;
           align-items: center;
           z-index: 3;
-          background-color: rgba(26, 26, 26, 0.5);
-          padding: 10px;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+          background-color: rgba(255, 255, 255, 0.8);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          padding: 8px 16px;
+          border-radius: 50px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+          border: 1px solid rgba(124, 58, 237, 0.15);
       }
       
       .hamburger-menu {
@@ -237,11 +232,35 @@
       }
       
       .nav-buttons a {
-          margin-left: 20px;
-          font-family: 'Roboto Mono', monospace;
+          margin-left: 16px;
+          font-family: 'Inter', sans-serif;
           text-decoration: none;
           color: var(--color-text-primary);
-          font-size: 16px;
+          font-size: 14px;
+          font-weight: 500;
+          padding: 8px 16px;
+          border-radius: 20px;
+          transition: all 0.2s ease;
+      }
+      
+      .nav-buttons a:hover {
+          background-color: rgba(124, 58, 237, 0.1);
+          color: var(--color-primary);
+      }
+      
+      /* Dark mode overrides for nav */
+      body:not(.light-mode) .top-nav {
+          background-color: rgba(26, 26, 26, 0.8);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      
+      body:not(.light-mode) .nav-buttons a {
+          color: #FFFFFF;
+      }
+      
+      body:not(.light-mode) .nav-buttons a:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+          color: #A78BFA;
       }
       
       .content-container {
@@ -276,25 +295,39 @@
       }
       
       .cta-button {
-          display: inline-block;
-          padding: 12px 32px;
-          font-size: 0.875rem; /* Material Design button font size */
-          font-weight: 700;
-          color: var(--color-text-primary);
-          background-color: var(--color-primary);
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 14px 28px;
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: #1F2937;
+          background-color: var(--color-cta);
           border: none;
-          border-radius: 4px; /* Material Design border radius */
+          border-radius: 12px;
           text-decoration: none;
-          text-transform: uppercase;
-          letter-spacing: 1.25px; /* Material Design button letter spacing */
-          transition: background-color 0.3s ease, box-shadow 0.3s ease;
-          box-shadow: 0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.12), 0 1px 5px 0 rgba(0,0,0,0.2);
+          letter-spacing: 0.5px;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
       }
       
       .cta-button:hover {
+          background-color: var(--color-cta-hover);
+          color: #1F2937;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+      }
+      
+      /* Dark mode CTA - keep original purple styling */
+      body:not(.light-mode) .cta-button {
+          background-color: var(--color-primary);
+          color: #FFFFFF;
+          box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+      }
+      
+      body:not(.light-mode) .cta-button:hover {
           background-color: var(--color-primary-dark);
-          color: var(--color-text-primary);
-          box-shadow: 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12), 0 2px 4px -1px rgba(0,0,0,0.2);
+          box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
       }
       
       .markers {
@@ -431,6 +464,379 @@
               opacity: 0.2;
           }
       }
+      
+      /* ===== New Landing Page Components ===== */
+      
+      /* Main landing wrapper - scrollable */
+      .landing-wrapper {
+          position: relative;
+          width: 100%;
+          height: 100vh;
+          overflow-y: auto;
+          overflow-x: hidden;
+          z-index: 2;
+      }
+      
+      /* Hero Section - Two Column Layout */
+      .hero-section {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 100px 80px 60px;
+          min-height: 60vh;
+          gap: 80px;
+      }
+      
+      .hero-left {
+          flex: 1;
+          max-width: 550px;
+      }
+      
+      .hero-right {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+      }
+      
+      .hero-illustration {
+          position: relative;
+          width: 100%;
+          max-width: 500px;
+      }
+      
+      .student-image {
+          width: 100%;
+          max-width: 400px;
+          border-radius: 20px;
+      }
+      
+      .bot-image {
+          position: absolute;
+          top: -30px;
+          left: -50px;
+          width: 120px;
+          animation: float 4s ease-in-out infinite;
+      }
+      
+      .chat-bubble {
+          position: absolute;
+          top: 0;
+          left: 80px;
+          background: white;
+          padding: 12px 18px;
+          border-radius: 16px;
+          border-bottom-left-radius: 4px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+          font-size: 0.85rem;
+          color: var(--color-text-primary);
+          max-width: 200px;
+          z-index: 10;
+      }
+      
+      /* Thought bubble for equation - near the student */
+      .equation-bubble {
+          position: absolute;
+          top: 20px;
+          right: 10px;
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(10px);
+          padding: 12px 18px;
+          border-radius: 20px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+          font-family: 'Roboto Mono', monospace;
+          font-size: 1.1rem;
+          color: var(--color-primary);
+      }
+      
+      /* Thought bubble dots */
+      .equation-bubble::before {
+          content: '';
+          position: absolute;
+          bottom: -12px;
+          left: 30px;
+          width: 10px;
+          height: 10px;
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 50%;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+      
+      .equation-bubble::after {
+          content: '';
+          position: absolute;
+          bottom: -22px;
+          left: 20px;
+          width: 6px;
+          height: 6px;
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      
+      .hero-subtext {
+          font-size: 1rem;
+          color: var(--color-text-secondary);
+          margin-bottom: 30px;
+      }
+      
+      .see-how-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: var(--color-text-secondary);
+          text-decoration: none;
+          font-size: 0.9rem;
+          margin-top: 16px;
+          transition: color 0.2s;
+      }
+      
+      .see-how-link:hover {
+          color: var(--color-primary);
+      }
+      
+      /* Rating Bar */
+      .rating-bar {
+          background: rgba(255, 255, 255, 0.6);
+          backdrop-filter: blur(12px);
+          border-top: 1px solid rgba(124, 58, 237, 0.1);
+          padding: 20px 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+      }
+      
+      .rating-stars {
+          color: #F59E0B;
+          font-size: 1.1rem;
+      }
+      
+      .rating-text {
+          color: var(--color-text-secondary);
+          font-size: 0.95rem;
+      }
+      
+      /* Feature Cards Section */
+      .features-section {
+          background: rgba(255, 255, 255, 0.4);
+          backdrop-filter: blur(20px);
+          padding: 40px;
+      }
+      
+      .features-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 24px;
+          max-width: 1200px;
+          margin: 0 auto;
+      }
+      
+      .feature-card {
+          background: white;
+          border-radius: 16px;
+          padding: 24px;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+          transition: transform 0.3s, box-shadow 0.3s;
+          border: 1px solid rgba(124, 58, 237, 0.08);
+      }
+      
+      .feature-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 25px rgba(124, 58, 237, 0.12);
+      }
+      
+      .feature-icon {
+          width: 48px;
+          height: 48px;
+          background: linear-gradient(135deg, #EDE9FE, #F3E8FF);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.4rem;
+          margin-bottom: 16px;
+      }
+      
+      .feature-title {
+          font-weight: 600;
+          color: var(--color-text-primary);
+          margin-bottom: 8px;
+          font-size: 1rem;
+      }
+      
+      .feature-desc {
+          color: var(--color-text-secondary);
+          font-size: 0.85rem;
+          line-height: 1.5;
+      }
+      
+      .feature-link {
+          color: var(--color-primary);
+          font-size: 0.85rem;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 12px;
+      }
+      
+      .feature-link:hover {
+          text-decoration: underline;
+      }
+      
+      /* Bottom Bar - Testimonial & CTA */
+      .bottom-bar {
+          background: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(20px);
+          padding: 24px 40px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-top: 1px solid rgba(124, 58, 237, 0.08);
+      }
+      
+      .testimonial {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: var(--color-text-secondary);
+          font-size: 0.9rem;
+      }
+      
+      .testimonial-avatar {
+          width: 36px;
+          height: 36px;
+          background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 0.9rem;
+      }
+      
+      .social-icons {
+          display: flex;
+          gap: 16px;
+      }
+      
+      .social-icons a {
+          width: 40px;
+          height: 40px;
+          background: rgba(124, 58, 237, 0.08);
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--color-primary);
+          text-decoration: none;
+          transition: all 0.2s;
+      }
+      
+      .social-icons a:hover {
+          background: var(--color-primary);
+          color: white;
+          transform: translateY(-2px);
+      }
+      
+      .bottom-cta {
+          padding: 12px 24px;
+          font-size: 0.9rem;
+      }
+      
+      /* Responsive - Mobile */
+      @media (max-width: 900px) {
+          .hero-section {
+              flex-direction: column;
+              text-align: center;
+              padding: 100px 24px 40px;
+              min-height: auto;
+          }
+          
+          .hero-left {
+              max-width: 100%;
+          }
+          
+          .hero-title {
+              font-size: 2.8rem;
+          }
+          
+          .hero-right {
+              margin-top: 40px;
+          }
+          
+          .bot-image {
+              left: 0;
+              top: -20px;
+              width: 80px;
+          }
+          
+          .chat-bubble {
+              display: none;
+          }
+          
+          .features-grid {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 16px;
+          }
+          
+          .bottom-bar {
+              flex-direction: column;
+              gap: 20px;
+              text-align: center;
+          }
+          
+          .social-icons {
+              order: -1;
+          }
+      }
+      
+      @media (max-width: 600px) {
+          .features-grid {
+              grid-template-columns: 1fr;
+          }
+          
+          .hero-section {
+              padding-top: 80px;
+          }
+          
+          .cta-button {
+              position: static;
+              width: 100%;
+          }
+      }
+      
+      /* Dark mode overrides for new components */
+      body:not(.light-mode) .rating-bar,
+      body:not(.light-mode) .features-section,
+      body:not(.light-mode) .bottom-bar {
+          background: rgba(30, 25, 50, 0.8);
+          border-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      body:not(.light-mode) .feature-card {
+          background: rgba(40, 35, 60, 0.9);
+          border-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      body:not(.light-mode) .feature-icon {
+          background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(167, 139, 250, 0.2));
+      }
+      
+      body:not(.light-mode) .chat-bubble,
+      body:not(.light-mode) .equation-bubble {
+          background: rgba(40, 35, 60, 0.95);
+          color: #FFFFFF;
+      }
+      
+      body:not(.light-mode) .social-icons a {
+          background: rgba(255, 255, 255, 0.1);
+          color: #A78BFA;
+      }
     </style>
 
     <script
@@ -440,28 +846,114 @@
     ></script>
   </head>
   <body class="light-mode">
+    <!-- Particles disabled for now
     <div id="canvas-container"></div>
+    -->
+    
+    <!-- Logo -->
     <a href="index" class="app-logo" style="position: absolute; left: 24px; top: 24px; z-index: 1001;">
         <span class="app-logo-text">🧠 TutorMind</span>
     </a>
+    
+    <!-- Navigation -->
     <nav class="top-nav">
-      <!--<div class="hamburger-menu">
-            <i class="fas fa-bars"></i>
-        </div>-->
       <div class="nav-buttons">
-        <a href="#" class="nav-button" id="theme-toggle"
-          ><i class="fas fa-sun"></i
-        ></a>
-        <a href="entry" class="nav-button">Account</a>
+        <a href="#features" class="nav-button">Features</a>
+        <a href="#" class="nav-button">Subjects</a>
+        <a href="#" class="nav-button">Pricing</a>
+        <a href="#" class="nav-button">About</a>
+        <a href="#" class="nav-button" id="theme-toggle"><i class="fas fa-sun"></i></a>
+        <a href="entry" class="nav-button" style="background: var(--color-cta); color: #1F2937; border-radius: 20px;">Get Started</a>
       </div>
     </nav>
-    <div class="content-container">
-      <div class="hero-content">
-        <h1 class="hero-title">Next-Level<br />Learning</h1>
-        <p class="hero-subtitle">Stop guessing. Start knowing.</p>
-        <a href="entry" class="cta-button">Get Started</a>
+    
+    <!-- Main Landing Content -->
+    <div class="landing-wrapper">
+      
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="hero-left">
+          <h1 class="hero-title">Next-Level<br/>Learning</h1>
+          <p class="hero-subtitle">Stop guessing. Start knowing.</p>
+          <p class="hero-subtext">Instant step-by-step help from verified tutors</p>
+          <a href="entry" class="cta-button">Get Started <i class="fas fa-chevron-right"></i></a>
+          <a href="#features" class="see-how-link"><i class="fas fa-play-circle"></i> See how it works <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="hero-right">
+          <div class="hero-illustration">
+            <img src="assets/ai_tutor_bot.png" alt="AI Tutor Bot" class="bot-image" />
+            <div class="chat-bubble">
+              <i class="fas fa-comment-dots" style="color: var(--color-primary); margin-right: 6px;"></i>
+              Let me help you with this equation!
+            </div>
+            <img src="assets/student_studying.png" alt="Student studying" class="student-image" />
+            <div class="equation-bubble">
+              \(a^2 + b^2 = c^2\)
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Rating Bar -->
+      <div class="rating-bar">
+        <span class="rating-stars">
+          <i class="fas fa-star"></i>
+          <i class="fas fa-star"></i>
+          <i class="fas fa-star"></i>
+          <i class="fas fa-star"></i>
+          <i class="fas fa-star-half-alt"></i>
+        </span>
+        <span class="rating-text"><strong>4.9/5</strong> from 12,400+ students</span>
       </div>
+      
+      <!-- Features Section -->
+      <section class="features-section" id="features">
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">❓</div>
+            <h3 class="feature-title">Ask your question</h3>
+            <p class="feature-desc">Snap a pic or type it in</p>
+            <a href="entry" class="feature-link">Try it <i class="fas fa-chevron-right"></i></a>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📝</div>
+            <h3 class="feature-title">Get step-by-step solution</h3>
+            <p class="feature-desc">Tutors & AI provide clear step-by-step solutions</p>
+            <a href="entry" class="feature-link">Learn more <i class="fas fa-chevron-right"></i></a>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3 class="feature-title">AI-Powered Learning</h3>
+            <p class="feature-desc">Personalized AI tutoring that adapts to you</p>
+            <a href="entry" class="feature-link">Explore <i class="fas fa-chevron-right"></i></a>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📚</div>
+            <h3 class="feature-title">Save notes & practice</h3>
+            <p class="feature-desc">Build your personal study library</p>
+            <a href="entry" class="feature-link">More... <i class="fas fa-chevron-right"></i></a>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Bottom Bar -->
+      <div class="bottom-bar">
+        <div class="testimonial">
+          <div class="testimonial-avatar"><i class="fas fa-user"></i></div>
+          <span>"TutorMind saved my grades in calculus! Highly recommend"</span>
+        </div>
+        <div class="social-icons">
+          <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+          <a href="#" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+          <a href="#" aria-label="Email"><i class="fas fa-envelope"></i></a>
+        </div>
+        <a href="entry" class="cta-button bottom-cta">Get Started <i class="fas fa-chevron-right"></i></a>
+      </div>
+      
     </div>
+    
+    <!-- Floating Equation Markers (preserved) -->
     <div class="markers">
       <div class="marker" style="top: 20%; left: 15%; animation-delay: -1.2s">
         \(a^2 + b^2 = c^2\)
@@ -478,17 +970,8 @@
       <div class="marker" style="top: 55%; left: 35%; animation-delay: -2.1s">
         \(\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}\)
       </div>
-      <div class="marker" style="top: 25%; left: 40%; animation-delay: -0.3s">
-        63
-      </div>
       <div class="marker" style="top: 10%; left: 50%; animation-delay: -4.8s">
-        91
-      </div>
-      <div class="marker" style="top: 85%; left: 10%; animation-delay: -1.9s">
-        47
-      </div>
-      <div class="marker" style="top: 60%; left: 60%; animation-delay: -2.7s">
-        19
+        <i class="fas fa-brain"></i>
       </div>
       <div class="marker" style="top: 30%; left: 70%; animation-delay: -3.1s">
         <i class="fas fa-book"></i>
@@ -499,32 +982,72 @@
       <div class="marker" style="top: 75%; left: 75%; animation-delay: -1.5s">
         <i class="fas fa-graduation-cap"></i>
       </div>
-      <div class="marker" style="top: 15%; left: 5%; animation-delay: -2.8s">
-        <i class="fas fa-microscope"></i>
-      </div>
-      <div class="marker" style="top: 90%; left: 80%; animation-delay: -4.5s">
-        <i class="fas fa-chart-bar"></i>
-      </div>
-      <div class="marker" style="top: 5%; left: 30%; animation-delay: -0.5s">
-        <i class="fas fa-brain"></i>
-      </div>
-      <div class="marker" style="top: 45%; left: 80%; animation-delay: -5.2s">
-        88
-      </div>
-      <div class="marker" style="top: 65%; left: 25%; animation-delay: -6.1s">
-        42
-      </div>
       <div class="marker" style="top: 15%; left: 65%; animation-delay: -5.8s">
         <i class="fas fa-atom"></i>
       </div>
-      <div class="marker" style="top: 75%; left: 5%; animation-delay: -6.5s">
-        99
-      </div>
-      <div class="marker" style="top: 35%; left: 90%; animation-delay: -5.5s">
-        <i class="fas fa-calculator"></i>
-      </div>
     </div>
+    
+    <!-- Particles disabled for now
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
     <script src="landing.js?v=2.0" defer></script>
+    -->
+    
+    <!-- Theme Toggle Script (extracted from landing.js) -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const themeToggle = document.getElementById('theme-toggle');
+        const icon = themeToggle.querySelector('i');
+        
+        // Update icon based on current theme
+        function updateIcon() {
+          const isLight = document.body.classList.contains('light-mode');
+          if (isLight) {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+          } else {
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+          }
+        }
+        
+        // Initialize theme from localStorage or system preference
+        function initTheme() {
+          const savedTheme = localStorage.getItem('theme');
+          if (savedTheme) {
+            if (savedTheme === 'light') {
+              document.body.classList.add('light-mode');
+            } else {
+              document.body.classList.remove('light-mode');
+            }
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.body.classList.remove('light-mode');
+          }
+          updateIcon();
+        }
+        
+        initTheme();
+        
+        // Toggle theme on click
+        themeToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          document.body.classList.toggle('light-mode');
+          const isLight = document.body.classList.contains('light-mode');
+          localStorage.setItem('theme', isLight ? 'light' : 'dark');
+          updateIcon();
+        });
+        
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+          if (!localStorage.getItem('theme')) {
+            if (e.matches) {
+              document.body.classList.remove('light-mode');
+            } else {
+              document.body.classList.add('light-mode');
+            }
+            updateIcon();
+          }
+        });
+      });
+    </script>
   </body>
 </html>
