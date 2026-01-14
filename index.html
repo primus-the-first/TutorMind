@@ -343,14 +343,14 @@
       .marker {
           position: absolute;
           font-family: 'Roboto Mono', monospace;
-          color: rgba(123, 63, 242, 0.25);
+          color: rgba(123, 63, 242, 0.18);
           font-size: 24px;
           animation: float 5s ease-in-out infinite;
       }
       
       /* Dark mode markers */
       body:not(.light-mode) .marker {
-          color: rgba(176, 176, 176, 0.3);
+           color: rgba(176, 176, 176, 0.21);
       }
       
       @keyframes float {
@@ -456,8 +456,8 @@
           }
       
           /* Adjust markers opacity */
-          .marker {
-              opacity: 0.15;
+           .marker {
+              opacity: 0.1;
           }
       
           #canvas-container {
@@ -824,7 +824,7 @@
       
       .mobile-menu-btn {
           top: 20px;
-          right: 70px;
+          right: 20px;
       }
       
       .mobile-theme-toggle {
@@ -1282,9 +1282,11 @@
     </button>
     
     <!-- Mobile: Theme Toggle (Top Right) -->
-    <button class="mobile-theme-toggle" id="mobile-theme-toggle" aria-label="Toggle Theme">
+    <!-- Mobile: Theme Toggle (Top Right)
+    <button class="mobile-theme-toggle" id="mobile-theme-toggle" aria-label="Toggle Theme" style="display: none !important;">
       <i class="fas fa-sun"></i>
     </button>
+    -->
     
     <!-- Mobile Menu Overlay -->
     <div class="mobile-menu-overlay" id="mobile-menu-overlay">
@@ -1297,6 +1299,10 @@
           <a href="#" class="mobile-nav-link">Subjects</a>
           <a href="#" class="mobile-nav-link">Pricing</a>
           <a href="#" class="mobile-nav-link">About</a>
+          <a href="#" class="mobile-nav-link" id="menu-theme-toggle" style="display: flex; align-items: center; justify-content: space-between;">
+            <span>Theme</span>
+            <i class="fas fa-sun"></i>
+          </a>
           <a href="entry" class="mobile-nav-link mobile-nav-cta">Get Started</a>
         </nav>
       </div>
@@ -1445,8 +1451,10 @@
         // Theme Toggle Elements
         const themeToggle = document.getElementById('theme-toggle');
         const mobileThemeToggle = document.getElementById('mobile-theme-toggle');
+        const menuThemeToggle = document.getElementById('menu-theme-toggle');
         const icon = themeToggle ? themeToggle.querySelector('i') : null;
         const mobileIcon = mobileThemeToggle ? mobileThemeToggle.querySelector('i') : null;
+        const menuIcon = menuThemeToggle ? menuThemeToggle.querySelector('i') : null;
         
         // Mobile Menu Elements
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
@@ -1473,6 +1481,15 @@
             } else {
               mobileIcon.classList.remove('fa-sun');
               mobileIcon.classList.add('fa-moon');
+            }
+          }
+          if (menuIcon) {
+            if (isLight) {
+              menuIcon.classList.remove('fa-moon');
+              menuIcon.classList.add('fa-sun');
+            } else {
+              menuIcon.classList.remove('fa-sun');
+              menuIcon.classList.add('fa-moon');
             }
           }
         }
@@ -1508,9 +1525,14 @@
           themeToggle.addEventListener('click', toggleTheme);
         }
         
-        // Mobile theme toggle
+        // Mobile theme toggle (original fixed button)
         if (mobileThemeToggle) {
           mobileThemeToggle.addEventListener('click', toggleTheme);
+        }
+        
+        // Menu theme toggle (inside hamburger menu)
+        if (menuThemeToggle) {
+          menuThemeToggle.addEventListener('click', toggleTheme);
         }
         
         // Listen for system theme changes
@@ -1572,6 +1594,59 @@
             closeMobileMenu();
           }
         });
+        
+        // Scroll Hide/Show Navigation
+        const landingWrapper = document.querySelector('.landing-wrapper');
+        const topNav = document.querySelector('.top-nav');
+        const appLogo = document.querySelector('.app-logo');
+        
+        function handleScrollVisibility() {
+          if (!landingWrapper) return;
+          
+          const scrollTop = landingWrapper.scrollTop;
+          const threshold = 50; // pixels
+          const isHidden = scrollTop > threshold;
+          
+          // Common styles for transition including filter for logo brightness
+          const transitionStyle = 'opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease, filter 0.3s ease';
+          
+          if (topNav) {
+            topNav.style.transition = transitionStyle;
+            if (isHidden) {
+              topNav.style.opacity = '0';
+              topNav.style.visibility = 'hidden';
+              topNav.style.transform = 'translateY(-20px)';
+              topNav.style.pointerEvents = 'none'; // Prevent clicks when hidden
+            } else {
+              topNav.style.opacity = '1';
+              topNav.style.visibility = 'visible';
+              topNav.style.transform = 'translateY(0)';
+              topNav.style.pointerEvents = ''; // Revert to CSS (important for mobile layout)
+            }
+          }
+          
+          if (appLogo) {
+            appLogo.style.transition = transitionStyle;
+            if (isHidden) {
+              appLogo.style.opacity = '0';
+              appLogo.style.visibility = 'hidden';
+              appLogo.style.transform = 'translateY(-20px)';
+              appLogo.style.pointerEvents = 'none';
+            } else {
+              appLogo.style.opacity = '1';
+              appLogo.style.visibility = 'visible';
+              // Clear transform to allow CSS hover effects to work
+              appLogo.style.transform = ''; 
+              appLogo.style.pointerEvents = '';
+            }
+          }
+        }
+        
+        if (landingWrapper) {
+          landingWrapper.addEventListener('scroll', handleScrollVisibility);
+          // Initial check for reload/restore
+          handleScrollVisibility();
+        }
       });
     </script>
   </body>

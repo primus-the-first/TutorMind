@@ -441,13 +441,14 @@ try {
 
                         <!-- Right Actions -->
                         <div class="right-actions">
-                             <!-- Voice input (quick) -->
-                             <button type="button" class="voice-action-btn voice-btn" title="Voice input">
+                             <!-- Voice input (quick) - Moved
+                             <button type="button" class="voice-action-btn voice-btn" title="Voice input" style="display:none">
                                 <i class="fas fa-microphone-lines"></i> <span>Voice</span>
                             </button>
+                             -->
                              <!-- Voice Mode (full conversation) -->
                              <button type="button" class="voice-mode-trigger-btn" title="Voice Mode" id="voice-mode-trigger">
-                                <i class="fas fa-waveform-lines"></i>
+                                <i class="fas fa-waveform-lines"></i> <span>Voice Mode</span>
                             </button>
                              <!-- Submit -->
                             <button type="submit" id="ai-submit-btn" class="submit-circle-btn" title="Send message">

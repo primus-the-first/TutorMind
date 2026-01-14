@@ -91,13 +91,13 @@ body {
 /* --- Sidebar --- */
 .sidebar {
   width: 260px;
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.1);
   /* Balanced blend */
   backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   /* More subtle border */
-  box-shadow: 2px 0 15px rgba(0, 0, 0, 0.08);
+  box-shadow: none;
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
@@ -1033,20 +1033,37 @@ body.chat-empty .suggestion-pills-row {
 
 /* Voice btn specific */
 .voice-action-btn {
-    background-color: rgba(0, 0, 0, 0.05);
+    /* Glassmorphism Base */
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    
     border-radius: 20px;
     padding: 8px 16px;
-    color: var(--text-primary);
-    border: none;
+    color: var(--primary);
+    
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 0.9rem;
     font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Initial Glow */
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.15);
+    
+    /* Pulse Animation */
+    animation: glass-pulse 3s infinite;
 }
+
 .voice-action-btn:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.35);
+    color: var(--primary-dark);
+    border-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.3);
 }
 
 /* Submit button */
@@ -3562,29 +3579,67 @@ body:has(.quick-start-overlay:not(.hidden)) .suggestion-pills-row {
    VOICE MODE OVERLAY
    ======================================== */
 
-/* Voice Mode Trigger Button */
+/* Voice Mode Trigger Button - Glass with Pulse (Pill Shape) */
 .voice-mode-trigger-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    color: white;
-    border: none;
+    /* Shape & Size */
+    border-radius: 20px;
+    padding: 8px 16px;
+    width: auto;
+    height: auto;
+    
+    /* Glassmorphism Base */
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    
+    /* Content & Layout */
+    color: var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(123, 63, 242, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Initial Glow */
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.15);
+    
+    /* Pulse Animation */
+    animation: glass-pulse 3s infinite;
 }
 
 .voice-mode-trigger-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 16px rgba(123, 63, 242, 0.5);
+    transform: scale(1.05) translateY(-2px);
+    background: rgba(255, 255, 255, 0.35);
+    color: var(--primary-dark);
+    border-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.3);
+}
+
+.voice-mode-trigger-btn:active {
+    transform: scale(0.98);
 }
 
 .voice-mode-trigger-btn i {
-    font-size: 0.9rem;
+    font-size: 1.1rem;
+    filter: drop-shadow(0 2px 4px rgba(124, 58, 237, 0.2));
+}
+
+@keyframes glass-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 12px rgba(124, 58, 237, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
+    }
 }
 
 /* Full-screen Overlay */
