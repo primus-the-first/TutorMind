@@ -450,7 +450,9 @@ try {
                              -->
                              <!-- Voice Mode (full conversation) -->
                              <button type="button" class="voice-mode-trigger-btn" title="Voice Mode" id="voice-mode-trigger">
-                                <i class="fas fa-waveform-lines"></i> <span>Voice Mode</span>
+                                <i class="fas fa-waveform-lines default-voice-icon"></i>
+                                <i class="fas fa-microphone mobile-voice-icon" style="display:none"></i> 
+                                <span>Voice Mode</span>
                             </button>
                              <!-- Submit -->
                             <button type="submit" id="ai-submit-btn" class="submit-circle-btn" title="Send message">

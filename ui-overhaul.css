@@ -1380,11 +1380,89 @@ body:not(.chat-empty) .setup-link-row {
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.3);
   }
 
+  /* Light Mode Mobile Sidebar Styles */
+  body:not(.dark-mode) .sidebar {
+    background: linear-gradient(180deg, 
+      rgba(245, 243, 255, 0.98) 0%, 
+      rgba(237, 233, 254, 0.98) 50%, 
+      rgba(243, 232, 255, 0.98) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(124, 58, 237, 0.1);
+    color: var(--text-primary);
+  }
+
+  body:not(.dark-mode) .sidebar.open {
+    box-shadow: 4px 0 30px rgba(124, 58, 237, 0.12);
+  }
+
+  /* Light mode sidebar text colors */
+  body:not(.dark-mode) .sidebar .history-item a {
+    color: #4B5563;
+  }
+
+  body:not(.dark-mode) .sidebar .history-item:hover a {
+    color: var(--primary);
+    background-color: rgba(124, 58, 237, 0.08);
+  }
+
+  body:not(.dark-mode) .sidebar .history-item a.active {
+    background-color: rgba(124, 58, 237, 0.12);
+    color: var(--primary);
+  }
+
+  /* Light mode new chat button */
+  body:not(.dark-mode) .sidebar .new-chat-btn {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(167, 139, 250, 0.10));
+    border-color: rgba(124, 58, 237, 0.25);
+    color: #374151;
+  }
+
+  body:not(.dark-mode) .sidebar .new-chat-btn:hover {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(167, 139, 250, 0.15));
+    border-color: rgba(124, 58, 237, 0.4);
+  }
+
+  /* Light mode sidebar header/logo */
+  body:not(.dark-mode) .sidebar .app-logo-text {
+    background: linear-gradient(135deg, #5B21B6 0%, #7C3AED 50%, #A78BFA 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Light mode user profile section */
+  body:not(.dark-mode) .sidebar .user-profile {
+    border-top: 1px solid rgba(124, 58, 237, 0.1);
+  }
+
+  body:not(.dark-mode) .sidebar .user-info-button:hover {
+    background-color: rgba(124, 58, 237, 0.08);
+  }
+
+  body:not(.dark-mode) .sidebar .user-details h4 {
+    color: #1F2937;
+  }
+
+  body:not(.dark-mode) .sidebar .user-details p {
+    color: #6B7280;
+  }
+
+  /* Light mode chat history section title */
+  body:not(.dark-mode) .sidebar .history-section-title {
+    color: #6B7280;
+  }
+
   .sidebar-overlay {
     position: fixed;
     inset: 0;
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 199;
+  }
+
+  /* Light mode overlay is slightly less dark */
+  body:not(.dark-mode) .sidebar-overlay {
+    background-color: rgba(0, 0, 0, 0.3);
   }
 
   .menu-toggle {
@@ -1514,6 +1592,67 @@ body:not(.chat-empty) .setup-link-row {
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
     pointer-events: auto;
     /* Re-enable clicks for the form */
+  }
+
+  /* --- Mobile Input Area Optimizations --- */
+  
+  /* Hide text labels to save space */
+  .action-pill-btn span, 
+  .voice-mode-trigger-btn span {
+    display: none !important;
+  }
+  
+  /* Compact container layout */
+  .input-actions-row {
+    padding: 4px 8px !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+  }
+  
+  .left-actions, .right-actions {
+    gap: 6px !important;
+  }
+  
+  /* Compact reasoning level dropdown */
+  #learningLevel {
+    padding: 6px 4px !important;
+    max-width: 90px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  /* Icon-only voice mode button */
+  .voice-mode-trigger-btn {
+    padding: 8px !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+    justify-content: center !important;
+  }
+  
+  .voice-mode-trigger-btn i {
+    margin: 0 !important;
+  }
+  
+  /* Ensure everything fits on one row */
+  .combined-input-bar {
+    margin: 0 10px !important;
+    padding-right: 8px !important;
+  }
+  
+  /* Prevent send button from shrinking or disappearing */
+  .submit-circle-btn {
+    flex-shrink: 0 !important;
+  }
+  
+  /* Voice Mode Icon Toggling */
+  .default-voice-icon {
+    display: none !important;
+  }
+  
+  .mobile-voice-icon {
+    display: inline-block !important;
+    font-size: 1.1rem;
+    margin-right: 0 !important; /* Ensure no extra margin */
   }
 
   /* Mobile: Simplify user menu - hide account details, show just toggle */
