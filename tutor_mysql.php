@@ -159,6 +159,8 @@ try {
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>TutorMind Chat | TutorMind</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/favicon.png">
     <base href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/">
     <!-- Fonts and Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
