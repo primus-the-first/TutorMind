@@ -284,7 +284,7 @@ body.dark-mode .equation-marker {
     align-items: center;
     gap: 8px;
     padding: 16px 32px;
-    background: linear-gradient(135deg, var(--amber-500), var(--amber-400));
+    background: var(--amber-500);
     color: white;
     font-size: 1rem;
     font-weight: 600;
@@ -292,13 +292,14 @@ body.dark-mode .equation-marker {
     border-radius: 14px;
     cursor: pointer;
     text-decoration: none;
-    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
-    transition: all 0.3s ease;
+    box-shadow: none;
+    transition: all 0.2s ease;
 }
 
 .cta-primary:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 8px 30px rgba(245, 158, 11, 0.45);
+    background: var(--amber-600);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .cta-primary svg,
