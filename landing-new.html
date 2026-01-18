@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="TutorMind - Your Personal AI Tutor available 24/7. Get instant help, step-by-step explanations, and personalized learning.">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    
+    <title>TutorMind - Your Personal AI Tutor</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/favicon.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- MathJax for LaTeX equations -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)']],
+                displayMath: [['$$', '$$']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea']
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="landing-new.css">
+</head>
+<body class="light-mode">
+    
+    <!-- =============================================
+         NAVIGATION
+         ============================================= -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index" class="navbar-logo">
+                🧠 TutorMind
+            </a>
+            
+            <div class="navbar-nav">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#how-it-works" class="nav-link">How it works</a>
+                <a href="login" class="nav-link">Login</a>
+                <a href="register" class="nav-btn">Get Started</a>
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay" id="mobile-menu-overlay">
+        <div class="mobile-menu">
+            <div class="mobile-menu-header">
+                <span class="navbar-logo">🧠 TutorMind</span>
+                <button class="mobile-menu-close" id="mobile-menu-close" aria-label="Close menu">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <nav class="mobile-menu-nav">
+                <a href="#features" class="mobile-nav-link">Features</a>
+                <a href="#how-it-works" class="mobile-nav-link">How it works</a>
+                <a href="login" class="mobile-nav-link">Login</a>
+                <a href="register" class="mobile-nav-link primary">Get Started Free</a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- =============================================
+         HERO SECTION
+         ============================================= -->
+    <section class="hero-section">
+        <!-- Floating LaTeX Equation Markers -->
+        <div class="floating-equations">
+            <div class="equation-marker" style="top: 20%; left: 10%; animation-delay: -1.2s;">
+                \(a^2 + b^2 = c^2\)
+            </div>
+            <div class="equation-marker" style="top: 35%; left: 5%; animation-delay: -3.5s;">
+                \(E = mc^2\)
+            </div>
+            <div class="equation-marker" style="top: 65%; left: 15%; animation-delay: -0.8s;">
+                \(\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}\)
+            </div>
+            <div class="equation-marker" style="top: 80%; left: 40%; animation-delay: -4.2s;">
+                \(e^{i\pi} + 1 = 0\)
+            </div>
+            <div class="equation-marker" style="top: 50%; left: 3%; animation-delay: -2.1s;">
+                \(\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}\)
+            </div>
+            <div class="equation-marker" style="top: 15%; right: 8%; animation-delay: -4.8s;">
+                <i class="fas fa-brain"></i>
+            </div>
+            <div class="equation-marker" style="top: 45%; right: 5%; animation-delay: -3.1s;">
+                <i class="fas fa-flask"></i>
+            </div>
+            <div class="equation-marker" style="top: 75%; right: 12%; animation-delay: -1.5s;">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <div class="equation-marker" style="top: 25%; right: 15%; animation-delay: -5.8s;">
+                <i class="fas fa-atom"></i>
+            </div>
+        </div>
+        
+        <div class="hero-container">
+            <div class="hero-grid">
+                <!-- Left Side - Content -->
+                <div class="hero-content">
+                    <h1 class="hero-title">
+                        Your Personal 
+                        <span class="hero-title-gradient">AI Tutor</span>, 
+                        Available 24/7
+                    </h1>
+                    <p class="hero-subtitle">
+                        Get instant help, step-by-step explanations, and 
+                        practice tailored to your learning style
+                    </p>
+                    
+                    <div class="hero-actions">
+                        <a href="register" class="cta-primary">
+                            Start Learning Free
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        <a href="#features" class="cta-secondary">
+                            See how it works
+                            <i class="fas fa-chevron-down"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Right Side - Illustration -->
+                <div class="hero-illustration">
+                    <div class="illustration-container">
+                        <!-- Student Image -->
+                        <div class="student-image-wrapper">
+                            <img 
+                                src="assets/student_studying.png" 
+                                alt="Student learning with TutorMind" 
+                                class="student-image"
+                            >
+                        </div>
+                        
+                        <!-- Floating Chat Bubble -->
+                        <div class="chat-bubble">
+                            <div class="chat-bubble-header">
+                                <div class="chat-bubble-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <span class="chat-bubble-name">TutorMind AI</span>
+                            </div>
+                            <p class="chat-bubble-text">How can I help you today? 📚</p>
+                        </div>
+                        
+                        <!-- Floating Math Bubble -->
+                        <div class="math-bubble">
+                            <span class="math-bubble-content">x² + 5x = 12</span>
+                        </div>
+                        
+                        <!-- Floating AI Bot -->
+                        <div class="ai-bot-bubble">
+                            <span>🤖</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =============================================
+         SOCIAL PROOF BAR
+         ============================================= -->
+    <div class="social-proof-bar">
+        <div class="rating-stars">
+            <i class="fas fa-star"></i>
+            <i class="fas fa-star"></i>
+            <i class="fas fa-star"></i>
+            <i class="fas fa-star"></i>
+            <i class="fas fa-star-half-alt"></i>
+        </div>
+        <span class="rating-text">
+            <strong>4.9/5</strong> from 12,400+ students
+        </span>
+    </div>
+
+    <!-- =============================================
+         FEATURES SECTION
+         ============================================= -->
+    <section class="features-section" id="features">
+        <div class="features-container">
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon">❓</div>
+                    <h3 class="feature-title">Ask Your Question</h3>
+                    <p class="feature-desc">Snap a photo or type it in - we understand both!</p>
+                    <a href="register" class="feature-link">
+                        Try it <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+                
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3 class="feature-title">Step-by-Step Solutions</h3>
+                    <p class="feature-desc">Clear explanations that actually make sense</p>
+                    <a href="register" class="feature-link">
+                        Learn more <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+                
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3 class="feature-title">AI-Powered Tutoring</h3>
+                    <p class="feature-desc">Personalized learning that adapts to you</p>
+                    <a href="register" class="feature-link">
+                        Explore <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+                
+                <!-- Feature 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon">📚</div>
+                    <h3 class="feature-title">Save & Practice</h3>
+                    <p class="feature-desc">Build your personal study library</p>
+                    <a href="register" class="feature-link">
+                        Start now <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =============================================
+         BOTTOM BAR
+         ============================================= -->
+    <div class="bottom-bar">
+        <div class="testimonial">
+            <div class="testimonial-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <span>"TutorMind saved my grades in calculus! Highly recommend."</span>
+        </div>
+        
+        <div class="social-links">
+            <a href="#" class="social-link" aria-label="Twitter">
+                <i class="fab fa-twitter"></i>
+            </a>
+            <a href="#" class="social-link" aria-label="Facebook">
+                <i class="fab fa-facebook-f"></i>
+            </a>
+            <a href="#" class="social-link" aria-label="Instagram">
+                <i class="fab fa-instagram"></i>
+            </a>
+            <a href="#" class="social-link" aria-label="Email">
+                <i class="fas fa-envelope"></i>
+            </a>
+        </div>
+        
+        <a href="register" class="cta-primary" style="padding: 12px 24px; font-size: 0.9rem;">
+            Get Started <i class="fas fa-chevron-right"></i>
+        </a>
+    </div>
+
+    <!-- =============================================
+         SCRIPTS
+         ============================================= -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme Toggle
+            const themeToggle = document.getElementById('theme-toggle');
+            const body = document.body;
+            const icon = themeToggle.querySelector('i');
+            
+            // Load saved theme
+            const savedTheme = localStorage.getItem('tutormind-theme');
+            if (savedTheme === 'dark') {
+                body.classList.remove('light-mode');
+                body.classList.add('dark-mode');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+            
+            themeToggle.addEventListener('click', function() {
+                body.classList.toggle('dark-mode');
+                body.classList.toggle('light-mode');
+                
+                if (body.classList.contains('dark-mode')) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                    localStorage.setItem('tutormind-theme', 'dark');
+                } else {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                    localStorage.setItem('tutormind-theme', 'light');
+                }
+            });
+            
+            // Smooth scroll for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+            
+            // Navbar background on scroll
+            const navbar = document.querySelector('.navbar');
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 50) {
+                    navbar.style.background = 'var(--card-bg)';
+                } else {
+                    navbar.style.background = 'transparent';
+                }
+            });
+            
+            // Mobile Menu
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+            const mobileMenuClose = document.getElementById('mobile-menu-close');
+            const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+            
+            function openMobileMenu() {
+                mobileMenuOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+            
+            function closeMobileMenu() {
+                mobileMenuOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            mobileMenuBtn.addEventListener('click', openMobileMenu);
+            mobileMenuClose.addEventListener('click', closeMobileMenu);
+            
+            // Close menu when clicking overlay background
+            mobileMenuOverlay.addEventListener('click', function(e) {
+                if (e.target === mobileMenuOverlay) {
+                    closeMobileMenu();
+                }
+            });
+            
+            // Close menu when clicking nav links
+            mobileNavLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    closeMobileMenu();
+                });
+            });
+            
+            // Close menu on escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && mobileMenuOverlay.classList.contains('active')) {
+                    closeMobileMenu();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
