@@ -2,6 +2,8 @@
 session_start();
 header('Content-Type: application/json');
 require_once 'db_mysql.php';
+require_once 'csrf.php';
+require_once 'rate_limiter.php';
 
 $request_method = $_SERVER['REQUEST_METHOD'];
 
@@ -19,7 +21,13 @@ switch ($request_method) {
                 } catch (Exception $e) {
                     // Ignore error on logout
                 }
-                setcookie('remember_me', '', time() - 3600, '/', '', true, true);
+                setcookie('remember_me', '', [
+                    'expires' => time() - 3600,
+                    'path' => '/',
+                    'secure' => true,
+                    'httponly' => true,
+                    'samesite' => 'Lax'
+                ]);
             }
 
             session_unset();
@@ -33,6 +41,8 @@ switch ($request_method) {
         $action = $_POST['action'] ?? '';
         if ($action === 'register') {
             // --- Registration Logic ---
+            requireCSRFToken(); // Validate CSRF token
+            
             $firstName = trim($_POST['firstName'] ?? '');
             $lastName = trim($_POST['lastName'] ?? '');
             $username = trim($_POST['username'] ?? '');
@@ -88,12 +98,28 @@ switch ($request_method) {
 
         } elseif ($action === 'login') {
             // --- Login Logic ---
+            requireCSRFToken(); // Validate CSRF token
+            
             $identifier = $_POST['email'] ?? ''; // Can be email or username
             $password = $_POST['password'] ?? '';
+            $clientIP = getClientIP();
 
             if (empty($identifier) || empty($password)) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Email and password are required.']);
+                exit;
+            }
+
+            // Check rate limiting before processing login
+            $rateLimit = isRateLimited($clientIP, $identifier);
+            if ($rateLimit['limited']) {
+                $minutes = ceil($rateLimit['retry_after'] / 60);
+                http_response_code(429);
+                echo json_encode([
+                    'success' => false, 
+                    'error' => "Too many login attempts. Please try again in $minutes minute(s).",
+                    'retry_after' => $rateLimit['retry_after']
+                ]);
                 exit;
             }
 
@@ -104,6 +130,9 @@ switch ($request_method) {
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($user && password_verify($password, $user['password_hash'])) {
+                    // Clear failed attempts on successful login
+                    clearLoginAttempts($clientIP, $identifier);
+                    
                     session_regenerate_id(true);
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
@@ -120,14 +149,23 @@ switch ($request_method) {
                         $stmt = $pdo->prepare("INSERT INTO user_tokens (user_id, selector, hashed_validator, expires_at) VALUES (?, ?, ?, ?)");
                         $stmt->execute([$user['id'], $selector, $hashed_validator, $expires_at]);
 
-                        // Set cookie: selector:validator
-                        setcookie('remember_me', "$selector:$validator", time() + 86400 * 30, '/', '', true, true);
+                        // Set cookie: selector:validator with SameSite
+                        setcookie('remember_me', "$selector:$validator", [
+                            'expires' => time() + 86400 * 30,
+                            'path' => '/',
+                            'secure' => true,
+                            'httponly' => true,
+                            'samesite' => 'Lax'
+                        ]);
                     }
 
                     // Redirect based on onboarding completion status
                     $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
                     echo json_encode(['success' => true, 'redirect' => $redirect]);
                 } else {
+                    // Record failed attempt for rate limiting
+                    recordFailedAttempt($clientIP, $identifier);
+                    
                     http_response_code(401);
                     echo json_encode(['success' => false, 'error' => 'Invalid email or password.']);
                 }
@@ -139,6 +177,8 @@ switch ($request_method) {
 
         } elseif ($action === 'change_password') {
             // --- Password Change Logic ---
+            requireCSRFToken(); // Validate CSRF token
+            
             if (!isset($_SESSION['user_id'])) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'You must be logged in to change your password.']);

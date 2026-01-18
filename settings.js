@@ -831,9 +831,14 @@ class SettingsManager {
         changeBtn.querySelector('.btn-text').textContent = 'Updating...';
 
         try {
+            // Fetch CSRF token before submitting
+            const tokenResponse = await fetch('csrf.php?action=get_token');
+            const tokenData = await tokenResponse.json();
+
             const formData = new FormData();
             formData.append('current_password', currentPassword);
             formData.append('new_password', newPassword);
+            formData.append('csrf_token', tokenData.token);
 
             const response = await fetch('auth_mysql.php?action=change_password', {
                 method: 'POST',

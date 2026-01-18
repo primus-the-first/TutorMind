@@ -39,7 +39,28 @@ RewriteRule ^([^\.]+)$ $1.html [NC,L]
     
     # Referrer policy
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Content Security Policy
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' accounts.google.com cdn.jsdelivr.net cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com cdn.jsdelivr.net; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com cdn.jsdelivr.net; img-src 'self' data: https:; connect-src 'self' generativelanguage.googleapis.com oauth2.googleapis.com api.elevenlabs.io serpapi.com; frame-src accounts.google.com; frame-ancestors 'self';"
+    
+    # Permissions Policy
+    Header always set Permissions-Policy "geolocation=(), microphone=(self), camera=()"
 </IfModule>
+
+# Block access to sensitive files
+<FilesMatch "\.(log|ini|sql|md|bak|yml|yaml)$">
+    Require all denied
+</FilesMatch>
+
+# Block access to hidden files (starting with .)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Allow specific text files that are needed
+<FilesMatch "^(robots\.txt|sitemap\.xml)$">
+    Require all granted
+</FilesMatch>
 
 <IfModule mod_expires.c>
     ExpiresActive On

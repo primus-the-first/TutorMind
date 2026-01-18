@@ -9,6 +9,11 @@ error_reporting(E_ALL & ~E_DEPRECATED); // Report all errors except for deprecat
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 set_time_limit(300); // Increase max execution time to 5 minutes to allow for AI API timeouts/retries
+
+// --- PERFORMANCE: Debug Mode ---
+// Set to false in production to disable debug logging (saves disk I/O)
+define('DEBUG_MODE', false);
+
 require_once 'check_auth.php'; // Secure all API endpoints
 
 // --- ALWAYS require the autoloader first ---
@@ -145,11 +150,14 @@ if ($action) {
 
                 // PERFORMANCE: Fetch only the most recent 15 messages (visible on screen initially)
                 // We order by created_at DESC first to get the latest, then reverse in PHP
-                $stmt = $pdo->prepare("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 15");
+                // Also fetch content_html cache column for faster rendering
+                $stmt = $pdo->prepare("SELECT id, role, content, content_html FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 15");
                 $stmt->execute([$convo_id]);
                 $messages = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC)); // Reverse to show oldest-to-newest
 
                 $conversation['chat_history'] = [];
+                $messagesToCache = []; // Track messages that need their HTML cached
+                
                 foreach ($messages as $message) {
                     // The 'content' is a JSON string of the 'parts' array, so we decode it.
                     $parts = json_decode($message['content'], true);
@@ -165,9 +173,25 @@ if ($action) {
                     }
 
                     if ($message['role'] === 'model') {
-                        $parts[0]['text'] = formatResponse($parts[0]['text']);
+                        // PERFORMANCE: Use cached HTML if available, otherwise generate and cache
+                        if (!empty($message['content_html'])) {
+                            $parts[0]['text'] = $message['content_html'];
+                        } else {
+                            $formattedHtml = formatResponse($parts[0]['text']);
+                            $parts[0]['text'] = $formattedHtml;
+                            // Queue for async caching (don't slow down response)
+                            $messagesToCache[] = ['id' => $message['id'], 'html' => $formattedHtml];
+                        }
                     }
                     $conversation['chat_history'][] = ['role' => $message['role'], 'parts' => $parts];
+                }
+                
+                // PERFORMANCE: Cache formatted HTML for future requests (batch update)
+                if (!empty($messagesToCache)) {
+                    $cacheStmt = $pdo->prepare("UPDATE messages SET content_html = ? WHERE id = ?");
+                    foreach ($messagesToCache as $toCache) {
+                        $cacheStmt->execute([$toCache['html'], $toCache['id']]);
+                    }
                 }
 
                 ob_clean();
@@ -551,11 +575,18 @@ function prepareFileParts($file, $user_question)
 
         imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
 
-        // Convert to JPEG with more aggressive compression
+        // PERFORMANCE: Use WebP for ~30% smaller file sizes (with JPEG fallback)
         ob_start();
-        imagejpeg($dstImage, null, 75); // 75% quality - more aggressive compression
-        $fileData = ob_get_clean();
-        $fileType = 'image/jpeg';
+        if (function_exists('imagewebp')) {
+            imagewebp($dstImage, null, 75); // 75% quality WebP - much smaller than JPEG
+            $fileData = ob_get_clean();
+            $fileType = 'image/webp';
+        } else {
+            // Fallback to JPEG if WebP not supported
+            imagejpeg($dstImage, null, 75);
+            $fileData = ob_get_clean();
+            $fileType = 'image/jpeg';
+        }
 
         imagedestroy($srcImage);
         imagedestroy($dstImage);
@@ -649,9 +680,189 @@ function prepareFileParts($file, $user_question)
     ];
 }
 
+/**
+ * Call Groq API as free fallback.
+ * Groq uses OpenAI-compatible API format with fast inference.
+ * 
+ * @param array $chatHistory The conversation history in Gemini format
+ * @param string $systemPrompt The system prompt
+ * @param string $apiKey The Groq API key
+ * @return array Response in Gemini-compatible format
+ */
+function callGroqAPI($chatHistory, $systemPrompt, $apiKey) {
+    $apiUrl = "https://api.groq.com/openai/v1/chat/completions";
+    
+    // Convert Gemini format to OpenAI format
+    $messages = [
+        ['role' => 'system', 'content' => $systemPrompt]
+    ];
+    
+    foreach ($chatHistory as $msg) {
+        $role = $msg['role'] === 'model' ? 'assistant' : 'user';
+        $content = '';
+        
+        if (isset($msg['parts'])) {
+            foreach ($msg['parts'] as $part) {
+                if (isset($part['text'])) {
+                    $content .= $part['text'] . "\n";
+                }
+            }
+        }
+        
+        if (!empty(trim($content))) {
+            $messages[] = ['role' => $role, 'content' => trim($content)];
+        }
+    }
+    
+    $payload = json_encode([
+        'model' => 'llama-3.3-70b-versatile',
+        'messages' => $messages,
+        'max_tokens' => 8192,
+        'temperature' => 0.7,
+        'stream' => false
+    ]);
+    
+    $ch = curl_init($apiUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey
+        ],
+        CURLOPT_TIMEOUT => 90
+    ]);
+    
+    $response = curl_exec($ch);
+    $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    curl_close($ch);
+    
+    if ($curl_error) {
+        throw new Exception('Groq cURL Error: ' . $curl_error);
+    }
+    
+    if ($http_status !== 200) {
+        $errorData = json_decode($response, true);
+        $errorMsg = $errorData['error']['message'] ?? substr($response, 0, 200);
+        throw new Exception('Groq API Error (HTTP ' . $http_status . '): ' . $errorMsg);
+    }
+    
+    $data = json_decode($response, true);
+    
+    if (isset($data['choices'][0]['message']['content'])) {
+        return [
+            'candidates' => [
+                [
+                    'content' => [
+                        'parts' => [
+                            ['text' => $data['choices'][0]['message']['content']]
+                        ]
+                    ]
+                ]
+            ],
+            'usedFallback' => 'groq'
+        ];
+    }
+    
+    throw new Exception('Groq returned unexpected response structure.');
+}
+
+/**
+ * Call DeepSeek API as fallback when Gemini hits rate limits.
+ * DeepSeek uses OpenAI-compatible API format.
+ * 
+ * @param array $chatHistory The conversation history in Gemini format
+ * @param string $systemPrompt The system prompt
+ * @param string $apiKey The DeepSeek API key
+ * @return array Response in Gemini-compatible format
+ */
+function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
+    $apiUrl = "https://api.deepseek.com/v1/chat/completions";
+    
+    // Convert Gemini format to OpenAI format
+    $messages = [
+        ['role' => 'system', 'content' => $systemPrompt]
+    ];
+    
+    foreach ($chatHistory as $msg) {
+        $role = $msg['role'] === 'model' ? 'assistant' : 'user';
+        $content = '';
+        
+        // Extract text from parts
+        if (isset($msg['parts'])) {
+            foreach ($msg['parts'] as $part) {
+                if (isset($part['text'])) {
+                    $content .= $part['text'] . "\n";
+                }
+            }
+        }
+        
+        if (!empty(trim($content))) {
+            $messages[] = ['role' => $role, 'content' => trim($content)];
+        }
+    }
+    
+    $payload = json_encode([
+        'model' => 'deepseek-chat',
+        'messages' => $messages,
+        'max_tokens' => 8192,
+        'temperature' => 0.7,
+        'stream' => false
+    ]);
+    
+    $ch = curl_init($apiUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey
+        ],
+        CURLOPT_TIMEOUT => 90
+    ]);
+    
+    $response = curl_exec($ch);
+    $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    curl_close($ch);
+    
+    if ($curl_error) {
+        throw new Exception('DeepSeek cURL Error: ' . $curl_error);
+    }
+    
+    if ($http_status !== 200) {
+        $errorData = json_decode($response, true);
+        $errorMsg = $errorData['error']['message'] ?? substr($response, 0, 200);
+        throw new Exception('DeepSeek API Error (HTTP ' . $http_status . '): ' . $errorMsg);
+    }
+    
+    $data = json_decode($response, true);
+    
+    if (isset($data['choices'][0]['message']['content'])) {
+        // Convert OpenAI format back to Gemini format for compatibility
+        return [
+            'candidates' => [
+                [
+                    'content' => [
+                        'parts' => [
+                            ['text' => $data['choices'][0]['message']['content']]
+                        ]
+                    ]
+                ]
+            ],
+            'usedFallback' => 'deepseek'
+        ];
+    }
+    
+    throw new Exception('DeepSeek returned unexpected response structure.');
+}
+
 function callGeminiAPI($payload, $apiKey) {
-    // Model selection: Use gemini-3-flash-preview for improved reasoning with function calling
-    $model = 'gemini-3-flash-preview'; 
+    // Model selection: Use gemini-2.5-flash for higher rate limits (500 RPD vs 20 RPD)
+    $model = 'gemini-2.5-flash'; 
     
     // Add function calling tools for image generation
     $payloadArr = json_decode($payload, true);
@@ -1171,6 +1382,16 @@ try {
         throw new Exception('API key configuration is missing or unreadable in config-sql.ini or config.ini.');
     }
     define('GEMINI_API_KEY', $config['GEMINI_API_KEY']);
+    
+    // Load Groq API key for fallback (free tier)
+    if (isset($config['GROQ_API_KEY']) && !empty($config['GROQ_API_KEY'])) {
+        define('GROQ_API_KEY', $config['GROQ_API_KEY']);
+    }
+    
+    // Load DeepSeek API key for fallback (paid)
+    if (isset($config['DEEPSEEK_API_KEY']) && !empty($config['DEEPSEEK_API_KEY'])) {
+        define('DEEPSEEK_API_KEY', $config['DEEPSEEK_API_KEY']);
+    }
 
     if (GEMINI_API_KEY === 'YOUR_ACTUAL_GEMINI_API_KEY_HERE' || empty(GEMINI_API_KEY)) {
         throw new Exception('Gemini API Key is not configured in config.ini.');
@@ -1179,8 +1400,10 @@ try {
     $user_message_parts = [];
 
     // Check for file upload (Multiple files supported)
-    file_put_contents('debug_log.txt', "--- New Request ---\n", FILE_APPEND);
-    file_put_contents('debug_log.txt', "FILES: " . print_r($_FILES, true) . "\n", FILE_APPEND);
+    if (DEBUG_MODE) {
+        file_put_contents('debug_log.txt', "--- New Request ---\n", FILE_APPEND);
+        file_put_contents('debug_log.txt', "FILES: " . print_r($_FILES, true) . "\n", FILE_APPEND);
+    }
 
     if (isset($_FILES['attachment'])) {
         // Re-organize the $_FILES array if multiple files are uploaded
@@ -1205,7 +1428,9 @@ try {
             }
         }
 
-        file_put_contents('debug_log.txt', "Processed Files Array: " . print_r($files, true) . "\n", FILE_APPEND);
+        if (DEBUG_MODE) {
+            file_put_contents('debug_log.txt', "Processed Files Array: " . print_r($files, true) . "\n", FILE_APPEND);
+        }
 
         // Process each file
         foreach ($files as $file) {
@@ -1213,7 +1438,9 @@ try {
                 $part = prepareFileParts($file, $question);
                 $user_message_parts[] = $part;
             } catch (Exception $e) {
-                file_put_contents('debug_log.txt', "Error processing file: " . $e->getMessage() . "\n", FILE_APPEND);
+                if (DEBUG_MODE) {
+                    file_put_contents('debug_log.txt', "Error processing file: " . $e->getMessage() . "\n", FILE_APPEND);
+                }
                 // Instead of failing the whole request, let's add a system message to the parts
                 // so the AI (and the user) knows something went wrong with this specific file.
                 $errorMsg = "System Error: Could not process file '{$file['name']}'. Reason: " . $e->getMessage();
@@ -1227,7 +1454,9 @@ try {
         $user_message_parts[] = ['text' => $question];
     }
 
-    file_put_contents('debug_log.txt', "User Message Parts: " . print_r($user_message_parts, true) . "\n", FILE_APPEND);
+    if (DEBUG_MODE) {
+        file_put_contents('debug_log.txt', "User Message Parts: " . print_r($user_message_parts, true) . "\n", FILE_APPEND);
+    }
 
     // Basic validation
     $is_empty = empty($user_message_parts) || (count($user_message_parts) === 1 && empty(trim($user_message_parts[0]['text'])));
@@ -1620,6 +1849,13 @@ When you detect the subject area, apply these additional strategies on top of yo
     3.  **Strategic Hint**: "Try breaking this into smaller steps."
     4.  **Partial Solution**: "Let's start with... can you continue?"
     5.  **Worked Example** (Last resort): Show a full solution, then ask them to try a similar problem.
+- **Tables**: When presenting comparisons or structured data, ALWAYS use proper markdown table syntax with pipe characters:
+  ```
+  | Header 1 | Header 2 | Header 3 |
+  |----------|----------|----------|
+  | Data 1   | Data 2   | Data 3   |
+  ```
+  Never use plain-text aligned columns without pipes - they will not render correctly.
 
 ---
 
@@ -1680,14 +1916,73 @@ PROMPT;
         ]
     ]);
 
-    $responseData = callGeminiAPI($payload, GEMINI_API_KEY);
+    // Cascade fallback: Gemini → Groq (free) → DeepSeek (paid)
+    $usedFallback = false;
+    $fallbackProvider = null;
+    
+    try {
+        $responseData = callGeminiAPI($payload, GEMINI_API_KEY);
+    } catch (Exception $geminiError) {
+        $isRateLimitError = strpos($geminiError->getMessage(), 'rate limit') !== false || 
+                           strpos($geminiError->getMessage(), '429') !== false ||
+                           strpos($geminiError->getMessage(), '503') !== false;
+        
+        if (!$isRateLimitError) {
+            throw $geminiError;
+        }
+        
+        error_log("Gemini error, trying fallbacks: " . $geminiError->getMessage());
+        
+        // Try Groq first (free tier)
+        if (defined('GROQ_API_KEY')) {
+            try {
+                error_log("Attempting Groq fallback...");
+                $responseData = callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY);
+                $usedFallback = true;
+                $fallbackProvider = 'groq';
+            } catch (Exception $groqError) {
+                error_log("Groq fallback failed: " . $groqError->getMessage());
+                
+                // Try DeepSeek as last resort (paid)
+                if (defined('DEEPSEEK_API_KEY')) {
+                    try {
+                        error_log("Attempting DeepSeek fallback...");
+                        $responseData = callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY);
+                        $usedFallback = true;
+                        $fallbackProvider = 'deepseek';
+                    } catch (Exception $deepseekError) {
+                        error_log("DeepSeek fallback failed: " . $deepseekError->getMessage());
+                        throw new Exception("All AI providers failed. Gemini: {$geminiError->getMessage()}");
+                    }
+                } else {
+                    throw new Exception("Groq fallback failed and DeepSeek not configured. Error: " . $groqError->getMessage());
+                }
+            }
+        } elseif (defined('DEEPSEEK_API_KEY')) {
+            // No Groq, try DeepSeek directly
+            try {
+                error_log("Attempting DeepSeek fallback (no Groq configured)...");
+                $responseData = callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY);
+                $usedFallback = true;
+                $fallbackProvider = 'deepseek';
+            } catch (Exception $deepseekError) {
+                error_log("DeepSeek fallback failed: " . $deepseekError->getMessage());
+                throw new Exception("All AI providers failed. Error: " . $geminiError->getMessage());
+            }
+        } else {
+            throw $geminiError; // No fallbacks configured
+        }
+    }
 
     if (isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
         $answer = $responseData['candidates'][0]['content']['parts'][0]['text'];
+        
+        // PERFORMANCE: Pre-format HTML and cache it immediately
+        $formattedAnswer = formatResponse($answer);
 
-        // Save AI response to the database
-        $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'model', ?)");
-        $stmt->execute([$conversation_id, json_encode([['text' => $answer]])]);
+        // Save AI response to the database with cached HTML
+        $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content, content_html) VALUES (?, 'model', ?, ?)");
+        $stmt->execute([$conversation_id, json_encode([['text' => $answer]]), $formattedAnswer]);
 
         // --- HYBRID PROGRESS TRACKING ---
         // Fetch and update context_data for this conversation
@@ -1856,7 +2151,7 @@ PROMPT;
             error_log("RAG resource detection error: " . $e->getMessage());
         }
 
-        $formattedAnswer = formatResponse($answer);
+        // $formattedAnswer already computed above when saving to DB
         $response_payload = [
             'success' => true,
             'answer' => $formattedAnswer,
@@ -1897,6 +2192,46 @@ PROMPT;
             return;
         }
     } else {
+        // Detailed error logging for debugging
+        $errorDetails = [];
+        
+        // Check if response was blocked due to safety settings
+        if (isset($responseData['promptFeedback']['blockReason'])) {
+            $blockReason = $responseData['promptFeedback']['blockReason'];
+            error_log("Gemini API: Prompt blocked - Reason: " . $blockReason);
+            throw new Exception("Your message was blocked due to content safety policies. Please try rephrasing your question.");
+        }
+        
+        // Check if candidates array exists but is empty
+        if (isset($responseData['candidates']) && empty($responseData['candidates'])) {
+            error_log("Gemini API: Empty candidates array");
+            throw new Exception("The AI could not generate a response. Please try again.");
+        }
+        
+        // Check if candidates exist but content is missing (finish reason issues)
+        if (isset($responseData['candidates'][0])) {
+            $candidate = $responseData['candidates'][0];
+            
+            if (isset($candidate['finishReason']) && $candidate['finishReason'] !== 'STOP') {
+                $finishReason = $candidate['finishReason'];
+                error_log("Gemini API: Non-standard finish reason - " . $finishReason);
+                
+                if ($finishReason === 'SAFETY') {
+                    throw new Exception("The AI response was blocked due to safety settings. Please try a different question.");
+                } elseif ($finishReason === 'MAX_TOKENS') {
+                    throw new Exception("The AI response was too long. Please ask a more specific question.");
+                } elseif ($finishReason === 'RECITATION') {
+                    throw new Exception("Response blocked due to content policies. Please try rephrasing.");
+                }
+            }
+            
+            if (!isset($candidate['content'])) {
+                error_log("Gemini API: No content in candidate - " . print_r($candidate, true));
+                throw new Exception("The AI returned an empty response. Please try again.");
+            }
+        }
+        
+        // Log full response for debugging unknown issues
         error_log("Gemini API: Unexpected response structure - " . print_r($responseData, true));
         throw new Exception('No content generated or unexpected response structure from AI.');
     }

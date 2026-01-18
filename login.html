@@ -418,6 +418,7 @@
 
                 <form id="loginForm" action="auth_mysql" method="POST" novalidate autocomplete="off">
                     <input type="hidden" name="action" value="login">
+                    <input type="hidden" name="csrf_token" id="csrf_token" value="">
 
                     <div class="form-group">
                         <label for="email">Email or Username <span class="required">*</span></label>
@@ -544,6 +545,11 @@
                 submitButton.textContent = 'Logging in...';
 
                 try {
+                    // Fetch CSRF token before submitting
+                    const tokenResponse = await fetch('csrf.php?action=get_token');
+                    const tokenData = await tokenResponse.json();
+                    formData.set('csrf_token', tokenData.token);
+
                     const response = await fetch(loginForm.getAttribute('action'), {
                         method: 'POST',
                         body: formData
@@ -588,6 +594,7 @@
             formData.append('action', 'google_login');
             formData.append('credential', response.credential);
 
+            // Google login doesn't require CSRF (it has its own token validation)
             fetch('auth_mysql', {
                 method: 'POST',
                 body: formData

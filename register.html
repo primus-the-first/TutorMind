@@ -567,6 +567,7 @@
                 <p class="subtitle">Join Tutormind to unlock unlimited learning.</p>
 
                 <form id="registerForm" action="auth_mysql" method="POST" novalidate>
+                    <input type="hidden" name="csrf_token" id="csrf_token" value="">
                     <div class="input-group">
                         <label for="fullName">Full Name</label>
                         <div class="input-wrapper">
@@ -824,6 +825,11 @@
                 formData.append('action', 'register');
 
                 try {
+                    // Fetch CSRF token before submitting
+                    const tokenResponse = await fetch('csrf.php?action=get_token');
+                    const tokenData = await tokenResponse.json();
+                    formData.set('csrf_token', tokenData.token);
+
                     const response = await fetch(registerForm.action, {
                         method: 'POST',
                         body: formData

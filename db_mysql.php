@@ -2,11 +2,19 @@
 
 /**
  * Establishes a connection to the MySQL database.
+ * Uses singleton pattern to reuse connection within a single request.
  *
  * @return PDO A PDO database connection object.
  * @throws PDOException If the connection fails.
  */
 function getDbConnection() {
+    // PERFORMANCE: Singleton pattern - reuse connection within same request
+    static $pdo = null;
+    
+    if ($pdo !== null) {
+        return $pdo;
+    }
+    
     // Automatically detect which config file to use based on environment
     // Local (XAMPP): uses config-sql.ini
     // Production (cPanel): uses config.ini
@@ -52,6 +60,7 @@ function getDbConnection() {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
             PDO::ATTR_TIMEOUT => 5, // 5 second timeout - fail fast
+            PDO::ATTR_PERSISTENT => false, // Explicit: don't use persistent connections
         ]);
         
         return $pdo;
