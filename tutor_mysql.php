@@ -94,7 +94,8 @@ if (isset($_GET['conversation_id'])) {
             
             foreach ($messages as $msg) {
                 $role = $msg['role']; // 'user' or 'model' (ai)
-                $senderClass = ($role === 'user') ? 'user-message' : 'ai-message';
+                $roleClass = ($role === 'user') ? 'user' : 'ai';
+                $avatar = ($role === 'user') ? '👤' : '🤖';
                 $parts = json_decode($msg['content'], true);
                 
                 $messageContentHtml = '';
@@ -117,8 +118,9 @@ if (isset($_GET['conversation_id'])) {
                 }
                 
                 $ssr_messages_html .= '
-                <div class="chat-message ' . $senderClass . '">
-                    <div class="message-bubble">
+                <div class="message ' . $roleClass . '">
+                    <div class="message-avatar">' . $avatar . '</div>
+                    <div class="message-content">
                         ' . $messageContentHtml . '
                     </div>
                 </div>';
@@ -190,7 +192,7 @@ try {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
-    <!-- Custom Styles for the new UI Overhaul -->
+    <!-- Custom Styles -->
     <link rel="stylesheet" href="ui-overhaul.css?v=<?= time() ?>">
     <link rel="stylesheet" href="settings.css?v=<?= time() ?>">
     <link rel="stylesheet" href="logo.css?v=<?= time() ?>">
@@ -213,6 +215,8 @@ try {
                 <i class="fas fa-pen"></i> <span>New chat</span>
             </button>
         </div>
+
+        <h3 class="sidebar-section-title">Recent Conversations</h3>
         
         <nav id="chat-history-container" class="chat-history">
             <?= $ssr_history_html ?>
@@ -271,73 +275,7 @@ try {
 
     <!-- Main Chat Area -->
     <div class="main-chat-wrapper">
-        <!-- Quick Start Overlay (inside wrapper for chat-area-only positioning) -->
-        <div id="quick-start-overlay" class="quick-start-overlay <?= $ssr_chat_active ? 'hidden' : '' ?>">
-            <div class="quick-start-content">
-                <!-- Glowing Orb Effect -->
-                <div class="quick-start-orb"></div>
-                
-                <!-- Welcome Header -->
-                <h1 class="quick-start-title">
-                    <span class="text-blue">Welcome back,</span>
-                    <span class="text-purple"><?= htmlspecialchars($displayName) ?>!</span>
-                </h1>
-                <p class="quick-start-subtitle">What would you like to know?</p>
-                
-                <!-- Continue Learning Card (populated by JS) -->
-                <div id="continue-learning-card" class="continue-card hidden">
-                    <div class="continue-card-icon">
-                        <i class="fas fa-lightbulb"></i>
-                    </div>
-                    <div class="continue-card-content">
-                        <span class="continue-card-label">Continue Learning</span>
-                        <span id="continue-card-topic" class="continue-card-topic">Topic • 0% complete</span>
-                    </div>
-                    <i class="fas fa-chevron-right continue-card-arrow"></i>
-                </div>
-                
-                <!-- Upcoming Test Alert (populated by JS) -->
-                <div id="upcoming-test-alert" class="test-alert hidden">
-                    <div class="test-alert-icon">
-                        <i class="fas fa-bullseye"></i>
-                    </div>
-                    <div class="test-alert-content">
-                        <span class="test-alert-label">Test Coming Up!</span>
-                        <span id="test-alert-info" class="test-alert-info">Subject in X days</span>
-                    </div>
-                    <button id="test-alert-prepare-btn" class="test-alert-prepare">Prepare</button>
-                </div>
-                
-                <!-- Quick Action Grid -->
-                <div class="quick-action-grid">
-                    <button class="quick-action-card" data-goal="homework_help">
-                        <span class="quick-action-emoji">📚</span>
-                        <span class="quick-action-title">Homework Help</span>
-                        <span class="quick-action-desc">Get step-by-step guidance</span>
-                    </button>
-                    <button class="quick-action-card" data-goal="test_prep">
-                        <span class="quick-action-emoji">🎯</span>
-                        <span class="quick-action-title">Test Prep</span>
-                        <span class="quick-action-desc">Prepare for exams</span>
-                    </button>
-                    <button class="quick-action-card" data-goal="explore">
-                        <span class="quick-action-emoji">💡</span>
-                        <span class="quick-action-title">Explore Topic</span>
-                        <span class="quick-action-desc">Learn something new</span>
-                    </button>
-                    <button class="quick-action-card" data-goal="practice">
-                        <span class="quick-action-emoji">✏️</span>
-                        <span class="quick-action-title">Practice</span>
-                        <span class="quick-action-desc">Solve problems</span>
-                    </button>
-                </div>
-                
-                <!-- Dismiss Option -->
-                <button id="quick-start-dismiss" class="quick-start-dismiss">
-                    Or just start typing below...
-                </button>
-            </div>
-        </div>
+        <!-- Quick Start Overlay Removed (Merged into Welcome Screen) -->
         <header class="main-chat-header">
             <div class="header-left">
                 <button id="mobile-menu-toggle" class="menu-toggle mobile-only">
@@ -352,17 +290,29 @@ try {
                 <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
             </a>
 
-            <!-- Mobile User Avatar removed as requested -->
+            <!-- Dark Mode Toggle (New!) -->
+            <button class="icon-btn dark-mode-toggle" id="dark-mode-toggle" title="Toggle Dark Mode" style="position: absolute; right: 20px;">
+                <i class="fas fa-moon"></i>
+            </button>
         </header>
 
         <main id="chat-container" class="chat-content">
-            <!-- Welcome Screen -->
+            <!-- Welcome Screen (Now contains the Quick Start content) -->
             <div id="welcome-screen" class="welcome-section" style="<?= $ssr_chat_active ? 'display:none' : 'display:flex' ?>">
-                <div class="gradient-orb"></div>
-                <h1 id="welcome-greeting" data-username="<?= htmlspecialchars($displayName) ?>"></h1>
-                <p>What would you like to know?</p>
-                
+                <div class="quick-start-content">
+                    <!-- Glowing Orb Effect -->
+                    <div class="quick-start-orb"></div>
 
+                    <!-- Welcome Header with Typewriter Effect -->
+                    <h1 class="quick-start-title">
+                        <span id="welcome-greeting" data-username="<?= htmlspecialchars($displayName) ?>">Welcome back, <?= htmlspecialchars($displayName) ?>!</span>
+                    </h1>
+                    <p class="quick-start-subtitle">What would you like to know?</p>
+                    
+
+                    
+
+                </div>
             </div>
             <!-- Chat messages will be appended here -->
             <?= $ssr_messages_html ?>
@@ -455,8 +405,8 @@ try {
                                 <span>Voice Mode</span>
                             </button>
                              <!-- Submit -->
-                            <button type="submit" id="ai-submit-btn" class="submit-circle-btn" title="Send message">
-                                <i class="fas fa-arrow-up"></i>
+                            <button type="submit" id="ai-submit-btn" class="submit-circle-btn" title="Send message" aria-label="Send message">
+                                <i class="fas fa-arrow-up" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
@@ -513,5 +463,16 @@ try {
     <script src="session-context.js?v=<?= time() ?>"></script>
     <script src="quick-start.js?v=<?= time() ?>"></script>
     <script src="tutor_mysql.js?v=<?= time() ?>"></script>
+    
+    <!-- Initialize Highlight.js -->
+    <script>
+        if (typeof hljs !== 'undefined') {
+            hljs.highlightAll();
+        }
+    </script>
+    
+    <!-- Enhanced Chat Interface (New!) -->
+    <script src="chat-interface.js?v=<?= time() ?>"></script>
 </body>
 </html>
+

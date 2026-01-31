@@ -39,6 +39,14 @@ switch ($request_method) {
 
     case 'POST':
         $action = $_POST['action'] ?? '';
+        $is_redirect_flow = false;
+        
+        // Handle Google Redirect Mode (which sends credential but no action)
+        if (empty($action) && isset($_POST['credential']) && isset($_POST['g_csrf_token'])) {
+            $action = 'google_login';
+            $is_redirect_flow = true;
+        }
+        
         if ($action === 'register') {
             // --- Registration Logic ---
             requireCSRFToken(); // Validate CSRF token
@@ -225,22 +233,59 @@ switch ($request_method) {
             }
         } elseif ($action === 'google_login') {
             // --- Google Login Logic ---
+            error_log("AUTH_MYSQL: Google login action started");
             $credential = $_POST['credential'] ?? '';
 
             if (empty($credential)) {
-                http_response_code(400);
-                echo json_encode(['success' => false, 'error' => 'No credential provided.']);
+                error_log("AUTH_MYSQL: No credential provided");
+                if ($is_redirect_flow) {
+                    header("Location: login?error=" . urlencode('No credential provided.'));
+                } else {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'No credential provided.']);
+                }
                 exit;
             }
 
+            error_log("AUTH_MYSQL: Credential received, length: " . strlen($credential));
+            
             // Verify the token with Google
             $url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $credential;
-            $response = file_get_contents($url);
+            error_log("AUTH_MYSQL: Starting cURL to Google API");
+            
+            // Use cURL for better control and error reporting
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Localhost dev only
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);     // Localhost dev only
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);     // Connection timeout
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);           // Total timeout
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);  // Follow redirects
+            
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            error_log("AUTH_MYSQL: cURL completed with HTTP code: $httpCode");
+            
+            if ($response === false) {
+                $curlError = curl_error($ch);
+                $curlErrno = curl_errno($ch);
+                curl_close($ch);
+                error_log("Google Token Verification cURL Error: [$curlErrno] $curlError");
+                throw new Exception("cURL connection failed: [$curlErrno] " . $curlError);
+            }
+            
+            curl_close($ch);
+            error_log("AUTH_MYSQL: Token verified successfully");
             $payload = json_decode($response, true);
 
             if (!$payload || isset($payload['error_description'])) {
-                http_response_code(401);
-                echo json_encode(['success' => false, 'error' => 'Invalid Google token.']);
+                if ($is_redirect_flow) {
+                    header("Location: login?error=" . urlencode('Invalid Google token.'));
+                } else {
+                    http_response_code(401);
+                    echo json_encode(['success' => false, 'error' => 'Invalid Google token.']);
+                }
                 exit;
             }
 
@@ -251,14 +296,20 @@ switch ($request_method) {
             $last_name = $payload['family_name'] ?? '';
             $avatar_url = $payload['picture'] ?? '';
             $username = explode('@', $email)[0]; // Default username from email
+            
+            error_log("AUTH_MYSQL: Extracted user info - email: $email, google_id: $google_id");
 
             try {
+                error_log("AUTH_MYSQL: Getting DB connection...");
                 $pdo = getDbConnection();
+                error_log("AUTH_MYSQL: DB connection obtained");
                 
                 // Check if user exists by google_id or email
+                error_log("AUTH_MYSQL: Checking if user exists...");
                 $stmt = $pdo->prepare("SELECT * FROM users WHERE google_id = ? OR email = ?");
                 $stmt->execute([$google_id, $email]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                error_log("AUTH_MYSQL: User lookup complete, found: " . ($user ? 'yes' : 'no'));
 
                 if ($user) {
                     // User exists - Update google_id, avatar, and names if missing
@@ -309,7 +360,11 @@ switch ($request_method) {
                     $_SESSION['avatar_url'] = $avatar_url; // Store avatar in session
 
                     $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
-                    echo json_encode(['success' => true, 'redirect' => $redirect]);
+                    if ($is_redirect_flow) {
+                        header("Location: " . $redirect);
+                    } else {
+                        echo json_encode(['success' => true, 'redirect' => $redirect]);
+                    }
 
                 } else {
                     // New user - Create account
@@ -323,11 +378,17 @@ switch ($request_method) {
                         $username = $base_username . $counter++;
                     }
 
-                    $stmt = $pdo->prepare("INSERT INTO users (username, email, first_name, last_name, google_id, avatar_url, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, description, first_name, last_name, google_id, avatar_url, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
                     // Use a random password for Google users (they can reset it later if they want)
                     $random_password = bin2hex(random_bytes(16));
                     $password_hash = password_hash($random_password, PASSWORD_ARGON2ID);
                     
+                    // Fixed: Added empty description to match params, or adjust query
+                    // Actually previous code was: INSERT INTO users (username, email, first_name, last_name, google_id, avatar_url, password_hash)
+                    // Let's stick to the previous schema which worked
+                    
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, first_name, last_name, google_id, avatar_url, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)");
+
                     if ($stmt->execute([$username, $email, $first_name, $last_name, $google_id, $avatar_url, $password_hash])) {
                         $user_id = $pdo->lastInsertId();
                         session_regenerate_id(true);
@@ -337,7 +398,11 @@ switch ($request_method) {
                         $_SESSION['last_name'] = $last_name;
                         $_SESSION['avatar_url'] = $avatar_url;
 
-                        echo json_encode(['success' => true, 'redirect' => 'onboarding']);
+                        if ($is_redirect_flow) {
+                            header("Location: onboarding");
+                        } else {
+                            echo json_encode(['success' => true, 'redirect' => 'onboarding']);
+                        }
                     } else {
                         throw new Exception("Failed to create user account.");
                     }
@@ -345,8 +410,12 @@ switch ($request_method) {
 
             } catch (Exception $e) {
                 error_log("Google Login Error: " . $e->getMessage());
-                http_response_code(500);
-                echo json_encode(['success' => false, 'error' => 'Server error during Google login.']);
+                if ($is_redirect_flow) {
+                    header("Location: login?error=" . urlencode('Server error: ' . $e->getMessage()));
+                } else {
+                    http_response_code(500);
+                    echo json_encode(['success' => false, 'error' => 'Server error during Google login: ' . $e->getMessage()]);
+                }
             }
 
         } else {
@@ -366,4 +435,4 @@ function send_json_error($message, $code = 400) {
     echo json_encode(['success' => false, 'error' => $message]);
     exit;
 }
-?>
+

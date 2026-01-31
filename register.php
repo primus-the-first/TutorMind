@@ -1,9 +1,31 @@
+<?php
+// Set Security Headers - Using unsafe-none for localhost popup compatibility
+header("Cross-Origin-Opener-Policy: unsafe-none");
+// CSP: Allow Google Sign-In resources
+$csp = "default-src 'self'; ";
+$csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; ";
+$csp .= "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; ";
+$csp .= "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; ";
+$csp .= "img-src 'self' data: https: blob:; ";
+$csp .= "connect-src 'self' https://accounts.google.com https://generativelanguage.googleapis.com https://oauth2.googleapis.com https://api.elevenlabs.io https://serpapi.com; ";
+$csp .= "frame-src 'self' https://accounts.google.com; ";
+$csp .= "frame-ancestors 'self';";
+header("Content-Security-Policy: " . $csp);
+
+header("Cache-Control: no-cache, no-store, must-revalidate");
+
+// Robust Google Login URI Generation
+$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+$host = $_SERVER['HTTP_HOST'];
+$scriptDir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+$scriptDir = str_replace('\\', '/', $scriptDir); // Ensure forward slashes for Windows
+$google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>Register - TutorMind</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
     
@@ -21,7 +43,7 @@
     <div class="auth-wrapper">
         <!-- Left Side: Register Form -->
         <div class="auth-form-side">
-            <div class="auth-header" style="text-align: left; margin-bottom: 2rem;">
+             <div class="auth-header" style="text-align: left; margin-bottom: 2rem;">
                 <a href="index" class="auth-brand" style="justify-content: flex-start;">
                     🧠 TutorMind
                 </a>
@@ -92,9 +114,12 @@
                     <span>Or sign up with</span>
                 </div>
 
+                <!-- Google Sign In Button - Redirect Mode for HTTPS -->
                 <div id="g_id_onload"
-                     data-client_id="807658561801-fj6ujdo8dmha59gkv44mtim6ksailc5i.apps.googleusercontent.com"
-                     data-context="signup" data-ux_mode="popup" data-callback="handleCredentialResponse"
+                     data-client_id="1083917773706-gc0f400l24eavps3ckcnj04581gj3plk.apps.googleusercontent.com"
+                     data-context="signup" 
+                     data-ux_mode="redirect"
+                     data-login_uri="https://localhost/TutorMind/auth_mysql.php"
                      data-auto_prompt="false">
                 </div>
                 <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
@@ -111,105 +136,8 @@
         <div class="auth-visual-side">
             <div class="auth-polaroid" style="transform: rotate(2deg);">
                 <div class="auth-tape" style="transform: translateX(-50%) rotate(-3deg);"></div>
-                <!-- Custom SVG Illustration -->
-                <svg viewBox="0 0 518 345" fill="none" xmlns="http://www.w3.org/2000/svg" class="auth-visual-img" style="width: 100%; height: auto;">
-                    <!-- Background gradient -->
-                    <defs>
-                        <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style="stop-color:#7C3AED;stop-opacity:0.3" />
-                            <stop offset="100%" style="stop-color:#F5F3FF;stop-opacity:1" />
-                        </linearGradient>
-                    </defs>
-                    <rect width="518" height="345" fill="url(#skyGradient)"/>
-
-                    <!-- Sun -->
-                    <circle cx="420" cy="80" r="45" fill="#F59E0B" opacity="0.8"/>
-                    <circle cx="420" cy="80" r="55" fill="#F59E0B" opacity="0.2"/>
-                    <circle cx="420" cy="80" r="65" fill="#F59E0B" opacity="0.1"/>
-
-                    <!-- Clouds -->
-                    <ellipse cx="100" cy="60" rx="40" ry="20" fill="white" opacity="0.8"/>
-                    <ellipse cx="130" cy="55" rx="30" ry="18" fill="white" opacity="0.8"/>
-                    <ellipse cx="70" cy="65" rx="25" ry="15" fill="white" opacity="0.8"/>
-
-                    <ellipse cx="300" cy="45" rx="35" ry="18" fill="white" opacity="0.7"/>
-                    <ellipse cx="330" cy="40" rx="25" ry="15" fill="white" opacity="0.7"/>
-
-                    <!-- Ground/Path -->
-                    <ellipse cx="259" cy="340" rx="250" ry="40" fill="#A78BFA" opacity="0.3"/>
-                    <path d="M200 345 Q259 280 318 345" fill="#7C3AED" opacity="0.2"/>
-
-                    <!-- Large open door/gateway -->
-                    <rect x="180" y="120" width="160" height="200" rx="8" fill="#2D2438"/>
-                    <rect x="190" y="130" width="140" height="180" rx="4" fill="#F5F3FF"/>
-
-                    <!-- Door arch decoration -->
-                    <path d="M180 120 Q260 80 340 120" stroke="#F59E0B" stroke-width="4" fill="none"/>
-
-                    <!-- Inside the door - bright learning world -->
-                    <rect x="195" y="135" width="130" height="170" fill="#7C3AED" opacity="0.1"/>
-
-                    <!-- Books inside -->
-                    <rect x="210" y="250" width="15" height="45" rx="2" fill="#7C3AED"/>
-                    <rect x="230" y="255" width="12" height="40" rx="2" fill="#F59E0B"/>
-                    <rect x="247" y="248" width="14" height="47" rx="2" fill="#A78BFA"/>
-                    <rect x="266" y="260" width="12" height="35" rx="2" fill="#2D2438"/>
-                    <rect x="283" y="252" width="15" height="43" rx="2" fill="#7C3AED" opacity="0.7"/>
-
-                    <!-- Light rays from door -->
-                    <path d="M260 150 L200 80" stroke="#F59E0B" stroke-width="2" opacity="0.3"/>
-                    <path d="M260 150 L260 60" stroke="#F59E0B" stroke-width="2" opacity="0.3"/>
-                    <path d="M260 150 L320 80" stroke="#F59E0B" stroke-width="2" opacity="0.3"/>
-                    <path d="M260 150 L150 120" stroke="#F59E0B" stroke-width="1" opacity="0.2"/>
-                    <path d="M260 150 L370 120" stroke="#F59E0B" stroke-width="1" opacity="0.2"/>
-
-                    <!-- TutorMind brain icon inside -->
-                    <circle cx="260" cy="180" r="30" fill="#7C3AED" opacity="0.2"/>
-                    <circle cx="260" cy="180" r="22" fill="#7C3AED" opacity="0.3"/>
-                    <text x="260" y="188" text-anchor="middle" font-size="28">🧠</text>
-
-                    <!-- Welcome text inside -->
-                    <rect x="215" y="215" width="90" height="22" rx="11" fill="#F59E0B"/>
-                    <text x="260" y="230" text-anchor="middle" font-size="11" fill="#2D2438" font-weight="bold">WELCOME</text>
-
-                    <!-- Person walking towards door -->
-                    <!-- Body -->
-                    <ellipse cx="100" cy="260" rx="20" ry="25" fill="#374151"/>
-                    <!-- Head -->
-                    <circle cx="100" cy="225" r="18" fill="#374151"/>
-                    <!-- Hair -->
-                    <path d="M82 215 Q100 200 118 215 Q120 225 115 230 Q105 218 100 218 Q95 218 85 230 Q80 225 82 215" fill="#1F2937"/>
-                    <!-- Arm pointing forward -->
-                    <path d="M115 250 Q140 240 160 230" stroke="#374151" stroke-width="8" stroke-linecap="round"/>
-                    <!-- Legs walking -->
-                    <path d="M90 280 L80 320" stroke="#374151" stroke-width="10" stroke-linecap="round"/>
-                    <path d="M110 280 L130 315" stroke="#374151" stroke-width="10" stroke-linecap="round"/>
-
-                    <!-- Backpack -->
-                    <rect x="85" y="245" width="25" height="30" rx="5" fill="#F59E0B"/>
-                    <rect x="90" y="250" width="15" height="8" rx="2" fill="#D97706"/>
-
-                    <!-- Sparkles around -->
-                    <path d="M50 150 L55 155 L50 160 L45 155 Z" fill="#F59E0B"/>
-                    <path d="M450 180 L456 186 L450 192 L444 186 Z" fill="#7C3AED"/>
-                    <path d="M380 250 L384 255 L380 260 L376 255 Z" fill="#F59E0B"/>
-                    <path d="M140 180 L144 185 L140 190 L136 185 Z" fill="#7C3AED"/>
-
-                    <!-- Flying elements (graduation cap, star) -->
-                    <path d="M430 150 L450 160 L430 170 L410 160 Z" fill="#2D2438"/>
-                    <rect x="425" y="160" width="10" height="15" fill="#2D2438"/>
-                    <circle cx="430" cy="175" r="3" fill="#F59E0B"/>
-
-                    <!-- Small decorative stars -->
-                    <circle cx="480" cy="120" r="4" fill="#F59E0B" opacity="0.6"/>
-                    <circle cx="60" cy="100" r="3" fill="#7C3AED" opacity="0.5"/>
-                    <circle cx="350" cy="150" r="3" fill="#F59E0B" opacity="0.4"/>
-
-                    <!-- Math symbols floating -->
-                    <text x="40" y="200" font-size="16" fill="#7C3AED" opacity="0.4">∞</text>
-                    <text x="470" cy="220" font-size="14" fill="#F59E0B" opacity="0.4">+</text>
-                    <text x="150" y="100" font-size="12" fill="#7C3AED" opacity="0.3">√</text>
-                </svg>
+                <!-- Updated Image -->
+                <img src="assets/register_illustration.png" alt="Join TutorMind" class="auth-visual-img" width="518" height="345">
                 <div class="math-bubble" style="bottom: -20px; right: -20px; background: var(--sticky-yellow); color: var(--text-primary); transform: rotate(5deg);">
                      <span style="font-weight: 700;">Welcome!</span> 👋
                 </div>
@@ -262,11 +190,25 @@
                     const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
                     passwordInput.setAttribute('type', type);
                     confirmPasswordInput.setAttribute('type', type); // Toggle both
-                    const icon = this.querySelector('i');
-                    icon.classList.toggle('fa-eye');
-                    icon.classList.toggle('fa-eye-slash');
+                    this.classList.toggle('fa-eye');
+                    this.classList.toggle('fa-eye-slash');
                 });
              }
+
+            // Check for URL errors (e.g. from Google Redirect)
+            const urlParams = new URLSearchParams(window.location.search);
+            const errorMsg = urlParams.get('error');
+            if (errorMsg) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-banner';
+                errorDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; border: 1px solid #fecaca; display: flex; align-items: center; gap: 0.5rem;';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>' + decodeURIComponent(errorMsg).replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</span>';
+                
+                registerForm.insertBefore(errorDiv, registerForm.firstChild);
+                
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
 
             const validators = {
                 username: {

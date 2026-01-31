@@ -84,4 +84,4 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_token') {
     echo json_encode(['token' => generateCSRFToken()]);
     exit;
 }
-?>
+

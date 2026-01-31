@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="TutorMind Features - Discover powerful AI tutoring tools including voice input, knowledge base, step-by-step explanations, and personalized learning.">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+
+    <title>Features - TutorMind</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/favicon.png">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- MathJax for LaTeX equations -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)']],
+                displayMath: [['$$', '$$']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea']
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="landing.css">
+    <style>
+        /* Features Page Specific Styles */
+
+        /* Hero Section */
+        .features-hero {
+            padding: 160px 40px 80px;
+            text-align: center;
+            position: relative;
+            background: var(--paper-bg);
+        }
+
+        .features-hero-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .features-hero-title {
+            font-family: var(--font-heading);
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            color: var(--primary-ink);
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .features-hero-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.7;
+        }
+
+        /* Feature Blocks */
+        .feature-blocks {
+            background: var(--paper-bg);
+        }
+
+        .feature-block {
+            padding: 100px 40px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .feature-block:nth-child(even) {
+            background: var(--card-bg);
+        }
+
+        .feature-block-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .feature-block:nth-child(even) .feature-block-container {
+            direction: rtl;
+        }
+
+        .feature-block:nth-child(even) .feature-block-container > * {
+            direction: ltr;
+        }
+
+        .feature-block-content {
+            text-align: left;
+        }
+
+        .feature-block-icon {
+            font-size: 3rem;
+            margin-bottom: 24px;
+            display: inline-block;
+        }
+
+        .feature-block-title {
+            font-family: var(--font-heading);
+            font-size: 2.2rem;
+            color: var(--primary-ink);
+            margin-bottom: 12px;
+            line-height: 1.2;
+        }
+
+        .feature-block-tagline {
+            color: var(--accent-gold);
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .feature-block-description {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 28px;
+            font-size: 1.05rem;
+        }
+
+        .feature-benefits {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .feature-benefits li {
+            padding: 10px 0;
+            padding-left: 32px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .feature-benefits li::before {
+            content: '\f00c';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            color: var(--accent-purple);
+            font-size: 0.9rem;
+        }
+
+        .feature-block-visual {
+            background: var(--card-bg);
+            padding: 24px;
+            border: 2px solid var(--border-color);
+            box-shadow: 8px 8px 0px var(--primary-ink);
+            transform: rotate(1deg);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-block:nth-child(even) .feature-block-visual {
+            transform: rotate(-1deg);
+        }
+
+        .feature-block-visual:hover {
+            transform: rotate(0deg) translateY(-4px);
+            box-shadow: 12px 12px 0px var(--primary-ink);
+        }
+
+        .feature-visual-content {
+            background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%);
+            border: 1px solid var(--border-color);
+            padding: 32px;
+            text-align: center;
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body.dark-mode .feature-visual-content {
+            background: linear-gradient(135deg, #1A1625 0%, #241E32 100%);
+        }
+
+        .feature-visual-content svg {
+            width: 100%;
+            max-width: 280px;
+            height: auto;
+        }
+
+        /* CTA Section */
+        .features-cta {
+            padding: 120px 40px;
+            text-align: center;
+            background: var(--primary-ink);
+            position: relative;
+        }
+
+        .features-cta-container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .features-cta-title {
+            font-family: var(--font-heading);
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            color: #fff;
+            margin-bottom: 16px;
+        }
+
+        .features-cta-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.15rem;
+            margin-bottom: 36px;
+            line-height: 1.7;
+        }
+
+        .features-cta .cta-primary {
+            background: var(--accent-gold);
+            color: var(--primary-ink);
+            border-color: var(--accent-gold);
+        }
+
+        .features-cta .cta-primary:hover {
+            background: #FCD34D;
+        }
+
+        .features-cta .cta-secondary {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .features-cta .cta-secondary:hover {
+            color: #fff;
+        }
+
+        .cta-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .feature-block-container {
+                grid-template-columns: 1fr;
+                gap: 48px;
+                text-align: center;
+            }
+
+            .feature-block:nth-child(even) .feature-block-container {
+                direction: ltr;
+            }
+
+            .feature-block-content {
+                text-align: center;
+            }
+
+            .feature-benefits {
+                display: inline-block;
+                text-align: left;
+            }
+
+            .feature-block-visual {
+                max-width: 450px;
+                margin: 0 auto;
+                transform: rotate(0deg);
+            }
+
+            .feature-block:nth-child(even) .feature-block-visual {
+                transform: rotate(0deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .features-hero {
+                padding: 140px 24px 60px;
+            }
+
+            .feature-block {
+                padding: 70px 24px;
+            }
+
+            .feature-block-container {
+                gap: 36px;
+            }
+
+            .feature-block-title {
+                font-size: 1.75rem;
+            }
+
+            .feature-block-icon {
+                font-size: 2.5rem;
+            }
+
+            .features-cta {
+                padding: 80px 24px;
+            }
+
+            .feature-block-visual {
+                box-shadow: 6px 6px 0px var(--primary-ink);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .features-hero {
+                padding: 130px 16px 50px;
+            }
+
+            .feature-block {
+                padding: 50px 16px;
+            }
+
+            .feature-visual-content {
+                padding: 24px 16px;
+                min-height: 160px;
+            }
+
+            .feature-visual-icon {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body class="light-mode">
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index" class="navbar-logo">
+                🧠 TutorMind
+            </a>
+
+            <div class="navbar-nav">
+                <a href="features" class="nav-link active">Features</a>
+                <a href="index#how-it-works" class="nav-link">How it works</a>
+                <a href="login" class="nav-link">Login</a>
+                <a href="register" class="nav-btn">Get Started</a>
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay" id="mobile-menu-overlay">
+        <div class="mobile-menu">
+            <div class="mobile-menu-header">
+                <span class="navbar-logo">🧠 TutorMind</span>
+                <button class="mobile-menu-close" id="mobile-menu-close" aria-label="Close menu">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <nav class="mobile-menu-nav">
+                <a href="features" class="mobile-nav-link">Features</a>
+                <a href="index#how-it-works" class="mobile-nav-link">How it works</a>
+                <a href="login" class="mobile-nav-link">Login</a>
+                <a href="register" class="mobile-nav-link primary">Get Your AI Tutor</a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="features-hero">
+        <!-- Floating LaTeX Equation Markers -->
+        <div class="floating-equations">
+            <div class="equation-marker" style="top: 25%; left: 8%; animation-delay: -1.2s;">
+                \(f(x) = mx + b\)
+            </div>
+            <div class="equation-marker" style="top: 60%; left: 5%; animation-delay: -3.5s;">
+                \(\Delta\)
+            </div>
+            <div class="equation-marker" style="top: 40%; right: 10%; animation-delay: -2.1s;">
+                learn
+            </div>
+            <div class="equation-marker" style="top: 70%; right: 6%; animation-delay: -4.8s;">
+                \(\infty\)
+            </div>
+        </div>
+
+        <div class="features-hero-container">
+            <h1 class="features-hero-title">Powerful Features for Smarter Learning</h1>
+            <p class="features-hero-subtitle">
+                Everything you need to master any subject, all in one place.
+                Discover how TutorMind transforms the way you learn.
+            </p>
+        </div>
+    </section>
+
+    <!-- Feature Blocks -->
+    <main class="feature-blocks">
+
+        <!-- Feature 1: Ask Your Question -->
+        <section class="feature-block">
+            <div class="feature-block-container">
+                <div class="feature-block-content">
+                    <div class="feature-block-icon">?</div>
+                    <h2 class="feature-block-title">Ask Your Question</h2>
+                    <p class="feature-block-tagline">Any format, any subject, anytime.</p>
+                    <p class="feature-block-description">
+                        Whether you snap a photo of your textbook, type out a complex equation,
+                        or describe a concept you're struggling with - TutorMind understands it all.
+                        Our advanced AI processes images, handwritten notes, and text with equal precision.
+                    </p>
+                    <ul class="feature-benefits">
+                        <li>Photo recognition for textbook problems</li>
+                        <li>Full LaTeX and equation support</li>
+                        <li>Natural language understanding</li>
+                        <li>Works with any subject matter</li>
+                    </ul>
+                </div>
+                <div class="feature-block-visual">
+                    <div class="feature-visual-content">
+                        <svg viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Phone Frame -->
+                            <rect x="70" y="10" width="140" height="200" rx="16" fill="#2D2438" stroke="#7C3AED" stroke-width="3"/>
+                            <rect x="80" y="25" width="120" height="170" rx="4" fill="#F5F3FF"/>
+                            <!-- Camera Icon -->
+                            <circle cx="140" cy="75" r="25" fill="#7C3AED" opacity="0.2"/>
+                            <circle cx="140" cy="75" r="18" stroke="#7C3AED" stroke-width="3" fill="none"/>
+                            <circle cx="140" cy="75" r="8" fill="#7C3AED"/>
+                            <!-- Math Equation floating -->
+                            <rect x="90" y="110" width="100" height="35" rx="6" fill="#F59E0B" opacity="0.15"/>
+                            <text x="140" y="133" text-anchor="middle" font-family="serif" font-size="16" fill="#2D2438" font-style="italic">x² + 5x = 12</text>
+                            <!-- Floating elements -->
+                            <circle cx="45" cy="50" r="20" fill="#7C3AED" opacity="0.1"/>
+                            <text x="45" y="55" text-anchor="middle" font-size="18" fill="#7C3AED">?</text>
+                            <circle cx="235" cy="160" r="18" fill="#F59E0B" opacity="0.15"/>
+                            <text x="235" y="166" text-anchor="middle" font-size="14" fill="#F59E0B">📷</text>
+                            <!-- Sparkles -->
+                            <path d="M50 120 L55 125 L50 130 L45 125 Z" fill="#7C3AED"/>
+                            <path d="M230 60 L233 65 L230 70 L227 65 Z" fill="#F59E0B"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature 2: Step-by-Step -->
+        <section class="feature-block">
+            <div class="feature-block-container">
+                <div class="feature-block-content">
+                    <div class="feature-block-icon">📝</div>
+                    <h2 class="feature-block-title">Step-by-Step Explanations</h2>
+                    <p class="feature-block-tagline">Understanding, not just answers.</p>
+                    <p class="feature-block-description">
+                        We don't just give you the answer - we show you exactly how to get there.
+                        Every solution is broken down into clear, logical steps that help you truly
+                        understand the underlying concepts and methods.
+                    </p>
+                    <ul class="feature-benefits">
+                        <li>Detailed solution breakdowns</li>
+                        <li>Concept explanations at each step</li>
+                        <li>Alternative approaches when helpful</li>
+                        <li>Visual diagrams and illustrations</li>
+                    </ul>
+                </div>
+                <div class="feature-block-visual">
+                    <div class="feature-visual-content">
+                        <svg viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Step Cards -->
+                            <!-- Step 1 -->
+                            <rect x="30" y="20" width="90" height="50" rx="8" fill="white" stroke="#7C3AED" stroke-width="2"/>
+                            <circle cx="55" cy="45" r="12" fill="#7C3AED"/>
+                            <text x="55" y="50" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1</text>
+                            <rect x="75" y="35" width="35" height="6" rx="3" fill="#E5E7EB"/>
+                            <rect x="75" y="47" width="25" height="4" rx="2" fill="#E5E7EB"/>
+
+                            <!-- Arrow 1 -->
+                            <path d="M125 45 L145 45" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+                            <path d="M140 40 L148 45 L140 50" fill="#F59E0B"/>
+
+                            <!-- Step 2 -->
+                            <rect x="155" y="20" width="90" height="50" rx="8" fill="white" stroke="#7C3AED" stroke-width="2"/>
+                            <circle cx="180" cy="45" r="12" fill="#7C3AED"/>
+                            <text x="180" y="50" text-anchor="middle" font-size="14" fill="white" font-weight="bold">2</text>
+                            <rect x="200" y="35" width="35" height="6" rx="3" fill="#E5E7EB"/>
+                            <rect x="200" y="47" width="25" height="4" rx="2" fill="#E5E7EB"/>
+
+                            <!-- Arrow 2 -->
+                            <path d="M200 75 L200 95" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+                            <path d="M195 90 L200 98 L205 90" fill="#F59E0B"/>
+
+                            <!-- Step 3 -->
+                            <rect x="155" y="105" width="90" height="50" rx="8" fill="white" stroke="#7C3AED" stroke-width="2"/>
+                            <circle cx="180" cy="130" r="12" fill="#7C3AED"/>
+                            <text x="180" y="135" text-anchor="middle" font-size="14" fill="white" font-weight="bold">3</text>
+                            <rect x="200" y="120" width="35" height="6" rx="3" fill="#E5E7EB"/>
+                            <rect x="200" y="132" width="25" height="4" rx="2" fill="#E5E7EB"/>
+
+                            <!-- Arrow 3 -->
+                            <path d="M150 130 L130 130" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+                            <path d="M135 125 L127 130 L135 135" fill="#F59E0B"/>
+
+                            <!-- Solution -->
+                            <rect x="30" y="105" width="90" height="50" rx="8" fill="#F59E0B" stroke="#2D2438" stroke-width="2"/>
+                            <text x="75" y="125" text-anchor="middle" font-size="11" fill="#2D2438" font-weight="bold">SOLUTION</text>
+                            <text x="75" y="143" text-anchor="middle" font-size="12" fill="#2D2438">✓ x = 2</text>
+
+                            <!-- Decorative -->
+                            <circle cx="260" cy="180" r="15" fill="#7C3AED" opacity="0.1"/>
+                            <circle cx="20" cy="180" r="12" fill="#F59E0B" opacity="0.15"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature 3: AI Tutoring -->
+        <section class="feature-block">
+            <div class="feature-block-container">
+                <div class="feature-block-content">
+                    <div class="feature-block-icon">🤖</div>
+                    <h2 class="feature-block-title">Personalized AI Tutoring</h2>
+                    <p class="feature-block-tagline">A tutor that adapts to you.</p>
+                    <p class="feature-block-description">
+                        Our AI learns your strengths, weaknesses, and learning style.
+                        It adjusts explanations to match your pace, revisits topics you struggle with,
+                        and challenges you when you're ready for more.
+                    </p>
+                    <ul class="feature-benefits">
+                        <li>Adaptive difficulty levels</li>
+                        <li>Personalized learning paths</li>
+                        <li>24/7 availability</li>
+                        <li>Infinite patience</li>
+                    </ul>
+                </div>
+                <div class="feature-block-visual">
+                    <div class="feature-visual-content">
+                        <svg viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- AI Brain -->
+                            <ellipse cx="140" cy="100" rx="55" ry="50" fill="#7C3AED" opacity="0.15"/>
+                            <ellipse cx="140" cy="100" rx="45" ry="40" fill="#7C3AED" opacity="0.2"/>
+
+                            <!-- Brain Pattern -->
+                            <path d="M115 85 Q125 70 140 75 Q155 70 165 85" stroke="#7C3AED" stroke-width="3" fill="none" stroke-linecap="round"/>
+                            <path d="M110 100 Q120 90 140 95 Q160 90 170 100" stroke="#7C3AED" stroke-width="3" fill="none" stroke-linecap="round"/>
+                            <path d="M115 115 Q125 125 140 120 Q155 125 165 115" stroke="#7C3AED" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+                            <!-- Neural Connections -->
+                            <circle cx="100" cy="70" r="8" fill="#F59E0B"/>
+                            <line x1="108" y1="75" x2="125" y2="85" stroke="#F59E0B" stroke-width="2"/>
+
+                            <circle cx="180" cy="70" r="8" fill="#F59E0B"/>
+                            <line x1="172" y1="75" x2="155" y2="85" stroke="#F59E0B" stroke-width="2"/>
+
+                            <circle cx="85" cy="110" r="6" fill="#7C3AED"/>
+                            <line x1="91" y1="110" x2="110" y2="100" stroke="#7C3AED" stroke-width="2"/>
+
+                            <circle cx="195" cy="110" r="6" fill="#7C3AED"/>
+                            <line x1="189" y1="110" x2="170" y2="100" stroke="#7C3AED" stroke-width="2"/>
+
+                            <circle cx="100" cy="140" r="7" fill="#F59E0B"/>
+                            <line x1="107" y1="135" x2="125" y2="120" stroke="#F59E0B" stroke-width="2"/>
+
+                            <circle cx="180" cy="140" r="7" fill="#F59E0B"/>
+                            <line x1="173" y1="135" x2="155" y2="120" stroke="#F59E0B" stroke-width="2"/>
+
+                            <!-- Center Glow -->
+                            <circle cx="140" cy="100" r="15" fill="#7C3AED" opacity="0.4"/>
+                            <circle cx="140" cy="100" r="8" fill="#F59E0B"/>
+
+                            <!-- 24/7 Badge -->
+                            <rect x="190" y="160" width="50" height="24" rx="12" fill="#2D2438"/>
+                            <text x="215" y="176" text-anchor="middle" font-size="11" fill="white" font-weight="bold">24/7</text>
+
+                            <!-- Sparkle Effects -->
+                            <path d="M60 50 L65 55 L60 60 L55 55 Z" fill="#F59E0B"/>
+                            <path d="M220 45 L224 50 L220 55 L216 50 Z" fill="#7C3AED"/>
+                            <path d="M50 150 L53 155 L50 160 L47 155 Z" fill="#7C3AED"/>
+
+                            <!-- Personalized Label -->
+                            <rect x="35" y="165" width="80" height="22" rx="11" fill="#7C3AED" opacity="0.15"/>
+                            <text x="75" y="180" text-anchor="middle" font-size="10" fill="#7C3AED" font-weight="600">Personalized</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature 4: Save & Practice -->
+        <section class="feature-block">
+            <div class="feature-block-container">
+                <div class="feature-block-content">
+                    <div class="feature-block-icon">📚</div>
+                    <h2 class="feature-block-title">Save & Practice</h2>
+                    <p class="feature-block-tagline">Build your personal study library.</p>
+                    <p class="feature-block-description">
+                        Save problems, solutions, and explanations to your personal library.
+                        Review them anytime, generate practice questions on similar topics,
+                        and track your progress over time.
+                    </p>
+                    <ul class="feature-benefits">
+                        <li>Personal study library</li>
+                        <li>Practice question generation</li>
+                        <li>Progress tracking</li>
+                        <li>Spaced repetition support</li>
+                    </ul>
+                </div>
+                <div class="feature-block-visual">
+                    <div class="feature-visual-content">
+                        <svg viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Bookshelf -->
+                            <rect x="40" y="30" width="200" height="160" rx="8" fill="white" stroke="#2D2438" stroke-width="3"/>
+
+                            <!-- Shelf Lines -->
+                            <line x1="40" y1="80" x2="240" y2="80" stroke="#2D2438" stroke-width="2"/>
+                            <line x1="40" y1="130" x2="240" y2="130" stroke="#2D2438" stroke-width="2"/>
+
+                            <!-- Top Shelf Books -->
+                            <rect x="55" y="40" width="20" height="35" rx="2" fill="#7C3AED"/>
+                            <rect x="80" y="45" width="18" height="30" rx="2" fill="#F59E0B"/>
+                            <rect x="103" y="42" width="22" height="33" rx="2" fill="#A78BFA"/>
+                            <rect x="130" y="48" width="16" height="27" rx="2" fill="#7C3AED" opacity="0.7"/>
+                            <rect x="150" y="40" width="24" height="35" rx="2" fill="#2D2438"/>
+                            <rect x="179" y="45" width="18" height="30" rx="2" fill="#F59E0B" opacity="0.8"/>
+                            <rect x="202" y="42" width="20" height="33" rx="2" fill="#7C3AED"/>
+
+                            <!-- Middle Shelf Books -->
+                            <rect x="55" y="90" width="25" height="35" rx="2" fill="#F59E0B"/>
+                            <rect x="85" y="95" width="18" height="30" rx="2" fill="#7C3AED"/>
+                            <rect x="108" y="92" width="22" height="33" rx="2" fill="#2D2438"/>
+                            <rect x="135" y="88" width="20" height="37" rx="2" fill="#A78BFA"/>
+                            <rect x="160" y="95" width="16" height="30" rx="2" fill="#F59E0B" opacity="0.7"/>
+                            <rect x="181" y="90" width="24" height="35" rx="2" fill="#7C3AED"/>
+                            <rect x="210" y="93" width="15" height="32" rx="2" fill="#2D2438" opacity="0.7"/>
+
+                            <!-- Bottom Shelf - Folders/Notes -->
+                            <rect x="55" y="140" width="35" height="40" rx="3" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1"/>
+                            <rect x="60" y="145" width="25" height="3" rx="1" fill="#F59E0B" opacity="0.5"/>
+                            <rect x="60" y="152" width="20" height="2" rx="1" fill="#E5E7EB"/>
+                            <rect x="60" y="158" width="22" height="2" rx="1" fill="#E5E7EB"/>
+
+                            <rect x="100" y="140" width="35" height="40" rx="3" fill="#E0E7FF" stroke="#7C3AED" stroke-width="1"/>
+                            <rect x="105" y="145" width="25" height="3" rx="1" fill="#7C3AED" opacity="0.5"/>
+                            <rect x="105" y="152" width="20" height="2" rx="1" fill="#E5E7EB"/>
+
+                            <rect x="145" y="140" width="35" height="40" rx="3" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1"/>
+                            <rect x="190" y="140" width="35" height="40" rx="3" fill="#E0E7FF" stroke="#7C3AED" stroke-width="1"/>
+
+                            <!-- Bookmark Icon -->
+                            <path d="M255 25 L255 55 L265 48 L275 55 L275 25 Z" fill="#F59E0B" stroke="#2D2438" stroke-width="2"/>
+
+                            <!-- Progress Circle -->
+                            <circle cx="30" cy="190" r="18" fill="none" stroke="#E5E7EB" stroke-width="4"/>
+                            <circle cx="30" cy="190" r="18" fill="none" stroke="#7C3AED" stroke-width="4" stroke-dasharray="85 113" transform="rotate(-90 30 190)"/>
+                            <text x="30" y="194" text-anchor="middle" font-size="10" fill="#7C3AED" font-weight="bold">75%</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature 5: Voice Input/Output -->
+        <section class="feature-block">
+            <div class="feature-block-container">
+                <div class="feature-block-content">
+                    <div class="feature-block-icon">🎤</div>
+                    <h2 class="feature-block-title">Voice Input & Output</h2>
+                    <p class="feature-block-tagline">Learn hands-free, anywhere.</p>
+                    <p class="feature-block-description">
+                        Speak your questions naturally and hear explanations read aloud.
+                        Perfect for studying on the go, accessibility needs, or when you
+                        simply prefer listening over reading.
+                    </p>
+                    <ul class="feature-benefits">
+                        <li>Natural voice recognition</li>
+                        <li>Text-to-speech explanations</li>
+                        <li>Hands-free learning mode</li>
+                        <li>Multiple language support</li>
+                    </ul>
+                </div>
+                <div class="feature-block-visual">
+                    <div class="feature-visual-content">
+                        <svg viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Central Microphone -->
+                            <rect x="120" y="50" width="40" height="70" rx="20" fill="#7C3AED"/>
+                            <rect x="130" y="60" width="20" height="10" rx="5" fill="#A78BFA"/>
+
+                            <!-- Microphone Stand -->
+                            <path d="M110 100 Q110 140 140 140 Q170 140 170 100" stroke="#2D2438" stroke-width="4" fill="none"/>
+                            <line x1="140" y1="140" x2="140" y2="170" stroke="#2D2438" stroke-width="4"/>
+                            <line x1="120" y1="170" x2="160" y2="170" stroke="#2D2438" stroke-width="4" stroke-linecap="round"/>
+
+                            <!-- Sound Waves Left -->
+                            <path d="M95 75 Q85 90 95 105" stroke="#F59E0B" stroke-width="3" fill="none" stroke-linecap="round"/>
+                            <path d="M80 65 Q65 90 80 115" stroke="#F59E0B" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+                            <path d="M65 55 Q45 90 65 125" stroke="#F59E0B" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.4"/>
+
+                            <!-- Sound Waves Right -->
+                            <path d="M185 75 Q195 90 185 105" stroke="#F59E0B" stroke-width="3" fill="none" stroke-linecap="round"/>
+                            <path d="M200 65 Q215 90 200 115" stroke="#F59E0B" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+                            <path d="M215 55 Q235 90 215 125" stroke="#F59E0B" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.4"/>
+
+                            <!-- Speech Bubble -->
+                            <rect x="170" y="25" width="90" height="45" rx="8" fill="white" stroke="#7C3AED" stroke-width="2"/>
+                            <path d="M175 60 L165 70 L180 60" fill="white" stroke="#7C3AED" stroke-width="2"/>
+                            <text x="215" y="45" text-anchor="middle" font-size="9" fill="#2D2438" font-style="italic">"Explain this</text>
+                            <text x="215" y="58" text-anchor="middle" font-size="9" fill="#2D2438" font-style="italic">equation..."</text>
+
+                            <!-- Response Bubble -->
+                            <rect x="20" y="140" width="85" height="50" rx="8" fill="#7C3AED"/>
+                            <path d="M95 175 L105 185 L95 180" fill="#7C3AED"/>
+                            <text x="62" y="160" text-anchor="middle" font-size="9" fill="white">The answer is</text>
+                            <text x="62" y="175" text-anchor="middle" font-size="11" fill="#F59E0B" font-weight="bold">x = 4</text>
+
+                            <!-- Speaker Icon -->
+                            <circle cx="240" cy="170" r="20" fill="#F59E0B" opacity="0.15"/>
+                            <rect x="232" y="163" width="8" height="14" rx="2" fill="#F59E0B"/>
+                            <path d="M242 160 L252 155 L252 185 L242 180 Z" fill="#F59E0B"/>
+                            <path d="M258 162 Q265 170 258 178" stroke="#F59E0B" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+                            <!-- Decorative -->
+                            <circle cx="40" cy="45" r="10" fill="#7C3AED" opacity="0.1"/>
+                            <path d="M35 45 L40 40 L45 45 L40 50 Z" fill="#7C3AED" opacity="0.5"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature 6: Knowledge Base -->
+        <section class="feature-block">
+            <div class="feature-block-container">
+                <div class="feature-block-content">
+                    <div class="feature-block-icon">📄</div>
+                    <h2 class="feature-block-title">Knowledge Base</h2>
+                    <p class="feature-block-tagline">Your documents, supercharged.</p>
+                    <p class="feature-block-description">
+                        Upload your PDFs, lecture notes, or study materials. TutorMind
+                        learns from your content to provide personalized answers that
+                        reference your specific course materials.
+                    </p>
+                    <ul class="feature-benefits">
+                        <li>PDF and document uploads</li>
+                        <li>Context-aware responses</li>
+                        <li>Course-specific tutoring</li>
+                        <li>Quick reference search</li>
+                    </ul>
+                </div>
+                <div class="feature-block-visual">
+                    <div class="feature-visual-content">
+                        <svg viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Cloud Upload Area -->
+                            <ellipse cx="140" cy="50" rx="80" ry="35" fill="#7C3AED" opacity="0.1"/>
+                            <path d="M100 55 Q100 30 130 30 Q135 15 155 20 Q175 15 180 35 Q200 35 195 55" stroke="#7C3AED" stroke-width="3" fill="white"/>
+                            <path d="M130 55 L140 40 L150 55 M140 40 L140 70" stroke="#7C3AED" stroke-width="3" stroke-linecap="round"/>
+
+                            <!-- Documents Stack -->
+                            <!-- Back Doc -->
+                            <rect x="55" y="95" width="70" height="90" rx="4" fill="#E5E7EB" stroke="#9CA3AF" stroke-width="2"/>
+
+                            <!-- Middle Doc (PDF) -->
+                            <rect x="70" y="85" width="70" height="90" rx="4" fill="white" stroke="#EF4444" stroke-width="2"/>
+                            <rect x="75" y="90" width="25" height="12" rx="2" fill="#EF4444"/>
+                            <text x="87" y="99" text-anchor="middle" font-size="7" fill="white" font-weight="bold">PDF</text>
+                            <rect x="75" y="108" width="55" height="4" rx="2" fill="#E5E7EB"/>
+                            <rect x="75" y="117" width="45" height="4" rx="2" fill="#E5E7EB"/>
+                            <rect x="75" y="126" width="50" height="4" rx="2" fill="#E5E7EB"/>
+                            <rect x="75" y="135" width="40" height="4" rx="2" fill="#E5E7EB"/>
+                            <rect x="75" y="150" width="55" height="18" rx="2" fill="#FEF3C7"/>
+                            <text x="102" y="162" text-anchor="middle" font-size="8" fill="#92400E">Notes</text>
+
+                            <!-- Front Doc -->
+                            <rect x="85" y="75" width="70" height="90" rx="4" fill="white" stroke="#7C3AED" stroke-width="2"/>
+                            <path d="M135 75 L155 75 L155 95 L135 95 Z" fill="#7C3AED" opacity="0.2"/>
+                            <path d="M135 75 L135 95 L155 95" stroke="#7C3AED" stroke-width="2" fill="none"/>
+                            <rect x="95" y="105" width="50" height="4" rx="2" fill="#7C3AED" opacity="0.3"/>
+                            <rect x="95" y="115" width="40" height="3" rx="1" fill="#E5E7EB"/>
+                            <rect x="95" y="123" width="45" height="3" rx="1" fill="#E5E7EB"/>
+                            <rect x="95" y="131" width="35" height="3" rx="1" fill="#E5E7EB"/>
+                            <rect x="95" y="145" width="50" height="12" rx="2" fill="#F59E0B" opacity="0.2"/>
+                            <text x="120" y="154" text-anchor="middle" font-size="7" fill="#92400E">Highlighted</text>
+
+                            <!-- AI Processing Arrow -->
+                            <path d="M165 125 L190 125" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
+                            <path d="M185 120 L193 125 L185 130" fill="#F59E0B"/>
+
+                            <!-- AI Brain Response -->
+                            <circle cx="225" cy="125" r="35" fill="#7C3AED" opacity="0.1"/>
+                            <circle cx="225" cy="125" r="25" fill="#7C3AED" opacity="0.2"/>
+                            <text x="225" y="120" text-anchor="middle" font-size="24">🧠</text>
+                            <text x="225" y="145" text-anchor="middle" font-size="8" fill="#7C3AED" font-weight="600">Context</text>
+                            <text x="225" y="155" text-anchor="middle" font-size="8" fill="#7C3AED" font-weight="600">Aware</text>
+
+                            <!-- Checkmarks -->
+                            <circle cx="55" y="190" r="12" fill="#10B981" opacity="0.15"/>
+                            <path d="M50 190 L54 194 L62 186" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <text x="80" y="193" font-size="9" fill="#6B7280">Uploaded</text>
+
+                            <!-- Decorative -->
+                            <path d="M250 60 L255 65 L250 70 L245 65 Z" fill="#F59E0B"/>
+                            <circle cx="35" cy="70" r="8" fill="#7C3AED" opacity="0.15"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- CTA Section -->
+    <section class="features-cta">
+        <div class="features-cta-container">
+            <h2 class="features-cta-title">Ready to Transform Your Learning?</h2>
+            <p class="features-cta-subtitle">
+                Join thousands of students who are already learning smarter with TutorMind.
+            </p>
+            <div class="cta-actions">
+                <a href="register" class="cta-primary">
+                    Get Started Free
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+                <a href="login" class="cta-secondary">
+                    Already have an account?
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+        <div class="testimonial">
+            <span class="quote-mark">"</span>
+            <span>"TutorMind saved my grades in calculus! Highly recommend."</span>
+        </div>
+
+        <div class="social-links">
+            <a href="#" class="social-link" aria-label="Twitter">
+                <i class="fab fa-twitter"></i>
+            </a>
+            <a href="#" class="social-link" aria-label="Facebook">
+                <i class="fab fa-facebook-f"></i>
+            </a>
+            <a href="#" class="social-link" aria-label="Instagram">
+                <i class="fab fa-instagram"></i>
+            </a>
+            <a href="#" class="social-link" aria-label="Email">
+                <i class="fas fa-envelope"></i>
+            </a>
+        </div>
+
+        <a href="register" class="cta-primary small">
+            Get Started
+        </a>
+    </div>
+
+    <!-- Scripts -->
+    <script src="landing.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme Toggle
+            const themeToggle = document.getElementById('theme-toggle');
+            const body = document.body;
+            const icon = themeToggle.querySelector('i');
+
+            // Load saved theme
+            const savedTheme = localStorage.getItem('tutormind-theme');
+            if (savedTheme === 'dark') {
+                body.classList.remove('light-mode');
+                body.classList.add('dark-mode');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+
+            themeToggle.addEventListener('click', function() {
+                body.classList.toggle('dark-mode');
+                body.classList.toggle('light-mode');
+
+                if (body.classList.contains('dark-mode')) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                    localStorage.setItem('tutormind-theme', 'dark');
+                } else {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                    localStorage.setItem('tutormind-theme', 'light');
+                }
+            });
+
+            // Mobile Menu
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+            const mobileMenuClose = document.getElementById('mobile-menu-close');
+            const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+
+            function openMobileMenu() {
+                mobileMenuOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeMobileMenu() {
+                mobileMenuOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            if(mobileMenuBtn) mobileMenuBtn.addEventListener('click', openMobileMenu);
+            if(mobileMenuClose) mobileMenuClose.addEventListener('click', closeMobileMenu);
+
+            mobileMenuOverlay.addEventListener('click', function(e) {
+                if (e.target === mobileMenuOverlay) {
+                    closeMobileMenu();
+                }
+            });
+
+            mobileNavLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    closeMobileMenu();
+                });
+            });
+        });
+    </script>
+</body>
+</html>

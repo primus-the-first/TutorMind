@@ -7,39 +7,37 @@
 
 class QuickStartManager {
     constructor() {
-        this.overlay = document.getElementById('quick-start-overlay');
+        // We no longer have a separate overlay wrapper
+        this.welcomeScreen = document.getElementById('welcome-screen');
+        // The container of the quick start content (optional to track)
+        this.contentContainer = document.querySelector('.quick-start-content');
+        
         this.continueCard = document.getElementById('continue-learning-card');
         this.testAlert = document.getElementById('upcoming-test-alert');
-        this.dismissBtn = document.getElementById('quick-start-dismiss');
         this.quickActionCards = document.querySelectorAll('.quick-action-card');
 
         this.sessionData = null;
         this.testData = null;
-        this.dismissed = false;
 
         this.init();
     }
 
     init() {
-        if (!this.overlay) return;
+        // If no welcome screen, likely not on the correct page
+        if (!this.welcomeScreen) return;
 
-        // Check if overlay should be shown
-        const hasActiveChat = document.getElementById('conversation_id')?.value;
-        if (hasActiveChat) {
-            this.hide();
-            return;
-        }
-
+        // Check if we are active (welcome screen visible)
+        // If conversation already exists, welcome screen is hidden by CSS/PHP
+        
         // Load recent activity
         this.loadRecentActivity();
 
         // Bind event listeners
         this.bindEvents();
 
-        // Animate entrance if visible
-        if (!this.overlay.classList.contains('hidden')) {
-            this.animateEntrance();
-        }
+        // Animate entrance? 
+        // We can still animate the content inside welcome screen
+        this.animateEntrance();
     }
 
     bindEvents() {
@@ -73,23 +71,6 @@ class QuickStartManager {
                 this.handleTestPrepClick();
             });
         }
-
-        // Dismiss button
-        if (this.dismissBtn) {
-            this.dismissBtn.addEventListener('click', () => {
-                this.dismiss();
-            });
-        }
-
-        // Also dismiss when user starts typing
-        const questionInput = document.getElementById('question');
-        if (questionInput) {
-            questionInput.addEventListener('focus', () => {
-                if (!this.dismissed) {
-                    this.dismiss();
-                }
-            });
-        }
     }
 
     async loadRecentActivity() {
@@ -98,24 +79,26 @@ class QuickStartManager {
             const data = await response.json();
 
             if (data.success) {
-                // Show continue learning if incomplete session exists
-                if (data.recentSessions && data.recentSessions.length > 0) {
-                    this.sessionData = data.recentSessions[0];
-                    this.renderContinueLearning(this.sessionData);
+                // Check if we have a recent active session to continue
+                // Logic: if last session was < 24h ago and not marked 'completed'
+                if (data.lastSession) {
+                    this.sessionData = data.lastSession;
+                    this.renderContinueCard(data.lastSession);
                 }
 
-                // Show upcoming test alert
-                if (data.upcomingTests && data.upcomingTests.length > 0) {
-                    this.testData = data.upcomingTests[0];
-                    this.renderUpcomingTest(this.testData);
+                // Check for upcoming test
+                if (data.upcomingTest) {
+                    this.testData = data.upcomingTest;
+                    this.renderUpcomingTest(data.upcomingTest);
                 }
             }
         } catch (error) {
-            console.error('Failed to load recent activity:', error);
+            // Silently fail - just don't show dynamic cards
+            console.warn('Could not load recent activity', error);
         }
     }
 
-    renderContinueLearning(session) {
+    renderContinueCard(session) {
         if (!this.continueCard || !session) return;
 
         const topicEl = document.getElementById('continue-card-topic');
@@ -176,14 +159,13 @@ class QuickStartManager {
     }
 
     animateEntrance() {
-        if (typeof gsap === 'undefined') return;
+        if (typeof gsap === 'undefined' || !this.contentContainer) return;
 
-        const content = this.overlay.querySelector('.quick-start-content');
-        const orb = this.overlay.querySelector('.quick-start-orb');
-        const title = this.overlay.querySelector('.quick-start-title');
-        const subtitle = this.overlay.querySelector('.quick-start-subtitle');
-        const cards = this.overlay.querySelectorAll('.quick-action-card');
-        const dismiss = this.overlay.querySelector('.quick-start-dismiss');
+        const content = this.contentContainer; // Use the container we found
+        const orb = content.querySelector('.quick-start-orb');
+        const title = content.querySelector('.quick-start-title');
+        const subtitle = content.querySelector('.quick-start-subtitle');
+        const cards = content.querySelectorAll('.quick-action-card');
 
         // Timeline for orchestrated animation
         const tl = gsap.timeline();
@@ -228,15 +210,6 @@ class QuickStartManager {
                     ease: 'power2.out'
                 },
                 0.5
-            );
-        }
-
-        // Dismiss button
-        if (dismiss) {
-            tl.fromTo(dismiss,
-                { opacity: 0 },
-                { opacity: 1, duration: 0.3 },
-                0.9
             );
         }
     }
@@ -440,23 +413,7 @@ class QuickStartManager {
     }
 
     dismiss() {
-        if (this.dismissed) return;
-        this.dismissed = true;
-
-        if (typeof gsap !== 'undefined') {
-            gsap.to(this.overlay, {
-                opacity: 0,
-                duration: 0.3,
-                onComplete: () => {
-                    this.overlay.classList.add('hidden');
-                    this.overlay.style.opacity = '';
-                }
-            });
-        } else {
-            this.overlay.classList.add('hidden');
-        }
-
-        // Focus the input
+        // Just focus the input
         const questionInput = document.getElementById('question');
         if (questionInput) {
             setTimeout(() => questionInput.focus(), 100);
@@ -464,22 +421,17 @@ class QuickStartManager {
     }
 
     show(chatAreaOnly = false) {
-        this.dismissed = false;
-        this.overlay.classList.remove('hidden');
-
-        // Toggle between full-screen and chat-area-only modes
-        if (chatAreaOnly) {
-            this.overlay.classList.add('chat-area-only');
-        } else {
-            this.overlay.classList.remove('chat-area-only');
+        // No longer applicable in the same way, but ensuring welcome screen is visible
+        if (this.welcomeScreen) {
+            this.welcomeScreen.style.display = 'flex';
+            this.animateEntrance();
         }
-
-        this.animateEntrance();
     }
 
     hide() {
-        this.overlay.classList.add('hidden');
-        this.dismissed = true;
+        if (this.welcomeScreen) {
+            this.welcomeScreen.style.display = 'none';
+        }
     }
 }
 

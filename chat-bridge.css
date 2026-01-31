@@ -1,0 +1,195 @@
+/**
+ * TutorMind - Chat Interface Bridge
+ * Ensures new Modern Scholar design overrides old ui-overhaul.css
+ */
+
+/* Force new chat interface styles to take priority */
+body {
+    background: var(--paper-bg, #FFFEF9) !important;
+    font-family: var(--font-body, 'Inter', sans-serif) !important;
+}
+
+/* Override old sidebar styles */
+.sidebar,
+#sidebar {
+    background: var(--chat-sidebar-bg, var(--card-bg)) !important;
+    border-right: 2px solid var(--border-color) !important;
+}
+
+.new-chat-btn,
+#newChatBtn {
+    background: var(--accent-gold, #F59E0B) !important;
+    border: 2px solid var(--primary-ink, #1F2937) !important;
+    box-shadow: 4px 4px 0px var(--primary-ink, #1F2937) !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    padding: 12px 16px !important;
+}
+
+.new-chat-btn:hover,
+#newChatBtn:hover {
+    transform: translate(-2px, -2px) !important;
+    box-shadow: 6px 6px 0px var(--primary-ink, #1F2937) !important;
+}
+
+/* Override old message styles - CRITICAL */
+.chat-message,
+.message {
+    display: flex !important;
+    gap: 12px !important;
+    margin-bottom: 1.5rem !important;
+    animation: fadeInUp 0.3s ease !important;
+}
+
+.chat-message.user-message,
+.message.user {
+    flex-direction: row-reverse !important;
+}
+
+/* Ensure message bubbles use new styling */
+.message-bubble,
+.message-content {
+    max-width: 70% !important;
+    background: var(--chat-ai-bg, var(--paper-bg)) !important;
+    border: 2px solid var(--chat-border, var(--border-color)) !important;
+    border-radius: 12px !important;
+    padding: 1rem 1.25rem !important;
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.1) !important;
+    line-height: 1.6 !important;
+}
+
+.chat-message.user-message .message-bubble,
+.message.user .message-content {
+    background: var(--chat-user-bg, var(--accent-purple)) !important;
+    color: white !important;
+    border-color: var(--accent-purple, #6D28D9) !important;
+    border-bottom-right-radius: 2px !important;
+}
+
+.chat-message.ai-message .message-bubble,
+.message.ai .message-content {
+    border-bottom-left-radius: 2px !important;
+}
+
+/* Add avatars if they don't exist */
+.message-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    background: var(--accent-gold, #F59E0B) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+    flex-shrink: 0 !important;
+    border: 2px solid var(--primary-ink, #1F2937) !important;
+    box-shadow: 2px 2px 0px var(--primary-ink, #1F2937) !important;
+}
+
+.message.user .message-avatar {
+    background: var(--accent-purple, #6D28D9) !important;
+    color: white !important;
+}
+
+/* Override main chat area */
+.main-chat-wrapper,
+.chat-content {
+    background: var(--chat-bg, var(--paper-bg)) !important;
+    background-image: radial-gradient(var(--border-color, #E5E7EB) 1px, transparent 1px) !important;
+    background-size: 20px 20px !important;
+}
+
+/* History items */
+.history-item a {
+    padding: 12px 14px !important;
+    border: 2px solid transparent !important;
+    border-radius: 4px !important;
+    transition: all 0.2s !important;
+    background: white !important;
+    display: block !important;
+    margin-bottom: 8px !important;
+}
+
+body.dark-mode .history-item a {
+    background: var(--chat-input-bg, #2a2a2a) !important;
+}
+
+.history-item a:hover {
+    border-color: var(--accent-purple, #6D28D9) !important;
+    transform: translateX(4px) !important;
+}
+
+.history-item a.active {
+    background: rgba(109, 40, 217, 0.1) !important;
+    border-color: var(--accent-purple, #6D28D9) !important;
+}
+
+/* Code blocks */
+pre code {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+    display: block !important;
+    padding: 1rem !important;
+    border-radius: 4px !important;
+    overflow-x: auto !important;
+    font-family: 'Roboto Mono', 'Courier New', monospace !important;
+}
+
+/* Input area */
+.input-bar-area,
+.chat-input-area {
+    background: var(--chat-header-bg, var(--card-bg)) !important;
+    border-top: 3px solid var(--primary-ink, #1F2937) !important;
+    box-shadow: 0 -4px 12px var(--chat-shadow, rgba(0,0,0,0.08)) !important;
+}
+
+/* Header */
+.main-chat-header {
+    background: var(--chat-header-bg, var(--card-bg)) !important;
+    border-bottom: 3px solid var(--primary-ink, #1F2937) !important;
+    box-shadow: 0 4px 12px var(--chat-shadow, rgba(0,0,0,0.08)) !important;
+}
+
+/* Dark mode toggle button styling */
+.icon-btn,
+.dark-mode-toggle {
+    width: 40px !important;
+    height: 40px !important;
+    border: 2px solid var(--border-color, #E5E7EB) !important;
+    background: white !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s !important;
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.1) !important;
+}
+
+.icon-btn:hover,
+.dark-mode-toggle:hover {
+    transform: translate(-2px, -2px) !important;
+    box-shadow: 4px 4px 0px var(--accent-gold, #F59E0B) !important;
+    border-color: var(--primary-ink, #1F2937) !important;
+}
+
+body.dark-mode .icon-btn,
+body.dark-mode .dark-mode-toggle {
+    background: var(--chat-input-bg, #2a2a2a) !important;
+    border-color: var(--chat-border, #3a3a3a) !important;
+}
+
+/* Ensure proper text colors */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading, 'Playfair Display', serif) !important;
+    color: var(--text-primary, #1F2937) !important;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+    color: var(--text-primary, #F9FAFB) !important;
+}

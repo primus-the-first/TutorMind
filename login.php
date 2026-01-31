@@ -1,9 +1,31 @@
+<?php
+// Set Security Headers - Using unsafe-none for localhost popup compatibility
+header("Cross-Origin-Opener-Policy: unsafe-none");
+// CSP: Allow Google Sign-In resources
+$csp = "default-src 'self'; ";
+$csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; ";
+$csp .= "style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; ";
+$csp .= "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; ";
+$csp .= "img-src 'self' data: https: blob:; ";
+$csp .= "connect-src 'self' https://accounts.google.com https://generativelanguage.googleapis.com https://oauth2.googleapis.com https://api.elevenlabs.io https://serpapi.com; ";
+$csp .= "frame-src 'self' https://accounts.google.com; ";
+$csp .= "frame-ancestors 'self';";
+header("Content-Security-Policy: " . $csp);
+
+header("Cache-Control: no-cache, no-store, must-revalidate");
+
+// Robust Google Login URI Generation
+$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+$host = $_SERVER['HTTP_HOST'];
+$scriptDir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
+$scriptDir = str_replace('\\', '/', $scriptDir); // Ensure forward slashes for Windows
+$google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>Login - TutorMind</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
     
@@ -14,7 +36,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Main Creative Styles -->
-    <link rel="stylesheet" href="landing.css?v=2">
+    <link rel="stylesheet" href="landing.css?v=3">
     
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -67,11 +89,15 @@
                     <span>Or login with</span>
                 </div>
 
-                <!-- Google Sign In Button -->
+                <!-- Google Sign In Button - Redirect Mode for HTTPS -->
                 <div id="g_id_onload"
-                    data-client_id="807658561801-fj6ujdo8dmha59gkv44mtim6ksailc5i.apps.googleusercontent.com"
-                    data-callback="handleCredentialResponse" data-auto_prompt="false">
+                    data-client_id="1083917773706-gc0f400l24eavps3ckcnj04581gj3plk.apps.googleusercontent.com"
+                    data-context="signin"
+                    data-ux_mode="redirect"
+                    data-login_uri="https://localhost/TutorMind/auth_mysql.php"
+                    data-auto_prompt="false">
                 </div>
+                
                 <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"
                     data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left" data-width="100%">
                 </div>
@@ -86,14 +112,14 @@
         <div class="auth-visual-side">
             <div class="auth-polaroid">
                 <div class="auth-tape"></div>
-                <!-- PNG Illustration - Late Night Study -->
-                <img src="assets/login_illustration.png" alt="Late Night Study" class="auth-visual-img" style="width: 100%; height: auto; aspect-ratio: 1/1; object-fit: cover; display: block;">
+                <!-- Updated Image -->
+                <img src="assets/login_illustration.png" alt="Late Night Study" class="auth-visual-img" width="518" height="345">
                 <div class="chat-bubble" style="top: -20px; left: -20px; transform: rotate(-5deg);">
                     <span class="chat-bubble-name">TutorMind</span>
                     <br>Late night study session? 🌙
                 </div>
             </div>
-
+            
             <!-- Floating Elements -->
             <div class="equation-marker" style="top: 20%; right: 10%; opacity: 0.1;">
                 \( P \implies Q \)
@@ -138,6 +164,22 @@
                 this.querySelector('i').classList.toggle('fa-eye-slash');
             });
 
+            // Check for URL errors (e.g. from Google Redirect)
+            const urlParams = new URLSearchParams(window.location.search);
+            const errorMsg = urlParams.get('error');
+            if (errorMsg) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-banner';
+                // Basic styling for the error banner
+                errorDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; border: 1px solid #fecaca; display: flex; align-items: center; gap: 0.5rem;';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>' + decodeURIComponent(errorMsg).replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</span>';
+                
+                loginForm.insertBefore(errorDiv, loginForm.firstChild);
+                
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
             // Form Submit Logic (Kept mostly same but updated selectors/visuals)
             loginForm.addEventListener('submit', async function (event) {
                 event.preventDefault();
@@ -167,7 +209,7 @@
                          } else {
                              alert(result.error || 'Login failed');
                              btn.disabled = false;
-                             btn.textContent = 'Log In';
+                            btn.textContent = 'Log In';
                          }
                     } catch(e) {
                         console.error("Invalid JSON", responseText);

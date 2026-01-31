@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="404 - Page Not Found | TutorMind">
+    
+    <title>404: Synapse Misfire - TutorMind</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- MathJax for LaTeX equations -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)']],
+                displayMath: [['$$', '$$']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea']
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="landing-new.css">
+    <style>
+        /* 404 Specific Styles */
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .error-page-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 120px 20px 60px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .error-content-wrapper {
+            max-width: 1000px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .error-illustration {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .error-illustration img {
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(0 20px 40px rgba(102, 126, 234, 0.2));
+        }
+
+        .error-text {
+            text-align: left;
+        }
+
+        .error-code {
+            font-family: 'Outfit', sans-serif;
+            font-size: 8rem;
+            font-weight: 700;
+            line-height: 1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .error-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .error-subtitle {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 30px;
+            max-width: 450px;
+            line-height: 1.6;
+        }
+
+        .error-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        /* Dark mode adjustments */
+        body.dark-mode .error-title {
+            color: #fff;
+        }
+
+        body.dark-mode .error-subtitle {
+            color: #a0a0a0;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(1deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .error-content-wrapper {
+                grid-template-columns: 1fr;
+                text-align: center;
+                gap: 30px;
+            }
+
+            .error-text {
+                text-align: center;
+                order: 2;
+            }
+
+            .error-illustration {
+                order: 1;
+                max-width: 300px;
+            }
+
+            .error-code {
+                font-size: 6rem;
+            }
+
+            .error-title {
+                font-size: 2rem;
+            }
+
+            .error-subtitle {
+                margin-left: auto;
+                margin-right: auto;
+            }
+
+            .error-actions {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body class="light-mode">
+    
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="index" class="navbar-logo">
+                🧠 TutorMind
+            </a>
+            
+            <div class="navbar-nav">
+                <a href="index#features" class="nav-link">Features</a>
+                <a href="index#how-it-works" class="nav-link">How it works</a>
+                <a href="login" class="nav-link">Login</a>
+                <a href="register" class="nav-btn">Get Started</a>
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="error-page-container">
+        <!-- Background Elements -->
+        <div class="floating-equations">
+            <div class="equation-marker" style="top: 20%; left: 10%; animation-delay: -1.2s;">\(404\)</div>
+            <div class="equation-marker" style="top: 65%; left: 15%; animation-delay: -0.8s;">\(\varnothing\)</div>
+            <div class="equation-marker" style="top: 80%; left: 40%; animation-delay: -4.2s;">\(e^{i\pi} + 1 = 0\)</div>
+            <div class="equation-marker" style="top: 15%; right: 8%; animation-delay: -4.8s;"><i class="fas fa-unlink"></i></div>
+            <div class="equation-marker" style="top: 45%; right: 5%; animation-delay: -3.1s;"><i class="fas fa-robot"></i></div>
+        </div>
+
+        <div class="error-content-wrapper">
+            <div class="error-text">
+                <div class="error-code">404</div>
+                <h1 class="error-title">Synapse Misfire!</h1>
+                <p class="error-subtitle">
+                    Oops! It seems this neural pathway leads nowhere. The page you're looking for might have been moved, deleted, or never existed in this dimension.
+                </p>
+                <div class="error-actions">
+                    <a href="index" class="cta-primary">
+                        <i class="fas fa-home"></i> Return Home
+                    </a>
+                    <a href="javascript:history.back()" class="cta-secondary">
+                        <i class="fas fa-arrow-left"></i> Go Back
+                    </a>
+                </div>
+            </div>
+
+            <div class="error-illustration">
+                <img src="assets/404_illustration.png" alt="Confused Robot Brain holding a disconnected plug">
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme Toggle Logic (Shared)
+            const themeToggle = document.getElementById('theme-toggle');
+            const body = document.body;
+            const icon = themeToggle.querySelector('i');
+            
+            const savedTheme = localStorage.getItem('tutormind-theme');
+            if (savedTheme === 'dark') {
+                body.classList.remove('light-mode');
+                body.classList.add('dark-mode');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+            
+            themeToggle.addEventListener('click', function() {
+                body.classList.toggle('dark-mode');
+                body.classList.toggle('light-mode');
+                
+                if (body.classList.contains('dark-mode')) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                    localStorage.setItem('tutormind-theme', 'dark');
+                } else {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                    localStorage.setItem('tutormind-theme', 'light');
+                }
+            });
+
+            // Navbar background
+            const navbar = document.querySelector('.navbar');
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 20) {
+                    navbar.style.background = 'var(--card-bg)';
+                } else {
+                    navbar.style.background = 'transparent';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

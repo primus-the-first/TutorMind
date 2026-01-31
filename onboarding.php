@@ -3,7 +3,7 @@
 $isLocalhost = in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1', '::1']);
 if (!$isLocalhost && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on')) {
     if (!headers_sent()) {
-        header("Location: https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
+//         header("Location: https://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], true, 301);
         exit();
     }
 }
@@ -54,6 +54,9 @@ if ($user_id) {
     
     <!-- Logo Styles -->
     <link rel="stylesheet" href="logo.css?v=<?= time() ?>">
+
+    <!-- Main Design System -->
+    <link rel="stylesheet" href="landing.css?v=<?= time() ?>">
     
     <!-- Wizard Styles -->
     <link rel="stylesheet" href="onboarding-wizard.css?v=<?= time() ?>">
@@ -455,7 +458,7 @@ if ($user_id) {
                         </button>
                     </div>
                     
-                    <button class="btn-text" onclick="wizard.skipAssessment()" style="margin-top: 1rem; color: var(--text-muted); font-size: 0.9rem;">
+                    <button class="btn-text mt-2" onclick="wizard.skipAssessment()">
                         Skip assessment for now
                     </button>
                 </div>
@@ -581,7 +584,7 @@ if ($user_id) {
                     </button>
                 </div>
                 
-                <button id="notifications-skip-btn" class="btn-text mt-2" style="width: 100%; color: var(--text-muted);">
+                <button id="notifications-skip-btn" class="btn-text mt-2">
                     Maybe later
                 </button>
             </div>
@@ -637,37 +640,7 @@ if ($user_id) {
     <!-- GSAP Animation Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
     
-    <!-- Core Wizard Logic -->
-    <script src="onboarding-wizard.js?v=<?= time() ?>"></script>
-    
-    <!-- Welcome Screen Animations -->
-    <script src="onboarding-animations.js?v=<?= time() ?>"></script>
-    
-    <!-- University Data -->
-    <script src="onboarding-universities.js?v=<?= time() ?>"></script>
-    
-    <!-- Screen 2: Education Selection Logic -->
-    <script src="onboarding-screen2.js?v=<?= time() ?>"></script>
-    
-    <!-- Screen 3: Subject Selection Logic -->
-    <script src="onboarding-screen3.js?v=<?= time() ?>"></script>
-    
-    <!-- Screen 4: Goal Selection Logic -->
-    <script src="onboarding-screen4.js?v=<?= time() ?>"></script>
-    
-    <!-- Screen 5: AI Assessment Logic -->
-    <script src="onboarding-screen5.js?v=<?= time() ?>"></script>
-    
-    <!-- Screen 6: Preferences Logic -->
-    <script src="onboarding-screen6.js?v=<?= time() ?>"></script>
-    
-    <!-- Screen 7: Notifications Logic -->
-    <script src="onboarding-screen7.js?v=<?= time() ?>"></script>
-    
-    <!-- Screen 8: First Lesson Logic -->
-    <script src="onboarding-screen8.js?v=<?= time() ?>"></script>
-    
-    <!-- Screen 9: Summary Logic -->
-    <script src="onboarding-screen9.js?v=<?= time() ?>"></script>
+    <!-- Consolidated Wizard Logic and Animations -->
+    <script src="onboarding-bundle.js?v=<?= time() ?>"></script>
 </body>
 </html>

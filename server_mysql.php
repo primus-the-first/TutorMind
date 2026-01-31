@@ -110,7 +110,7 @@ $action = $_REQUEST['action'] ?? null; // Use $_REQUEST to handle GET and POST a
 if ($action === 'logout') {
     session_unset();
     session_destroy();
-    header('Location: login.html');
+    header('Location: login');
     exit;
 }
 
@@ -274,7 +274,11 @@ if ($action) {
                 if ($config === false || !isset($config['GEMINI_API_KEY'])) {
                     throw new Exception('API key missing.');
                 }
-                $apiKey = $config['GEMINI_API_KEY'];
+                
+                // Use Quiz/Task specific key if available, otherwise fallback to main key
+                $apiKey = (isset($config['QUIZ_API_KEY']) && !empty($config['QUIZ_API_KEY'])) 
+                    ? $config['QUIZ_API_KEY'] 
+                    : $config['GEMINI_API_KEY'];
 
                 $payload = json_encode([
                     "contents" => [
@@ -1383,6 +1387,11 @@ try {
     }
     define('GEMINI_API_KEY', $config['GEMINI_API_KEY']);
     
+    // Load Quiz/Test Prep API Key
+    if (isset($config['QUIZ_API_KEY']) && !empty($config['QUIZ_API_KEY'])) {
+        define('QUIZ_API_KEY', $config['QUIZ_API_KEY']);
+    }
+    
     // Load Groq API key for fallback (free tier)
     if (isset($config['GROQ_API_KEY']) && !empty($config['GROQ_API_KEY'])) {
         define('GROQ_API_KEY', $config['GROQ_API_KEY']);
@@ -1916,12 +1925,21 @@ PROMPT;
         ]
     ]);
 
+    // Determine which API key to use based on session goal
+    $activeApiKey = GEMINI_API_KEY;
+    if (($session_goal === 'test_prep' || $session_goal === 'practice') && defined('QUIZ_API_KEY')) {
+        $activeApiKey = QUIZ_API_KEY;
+        if (DEBUG_MODE) {
+            error_log("Using dedicated QUIZ_API_KEY for session goal: $session_goal");
+        }
+    }
+
     // Cascade fallback: Gemini → Groq (free) → DeepSeek (paid)
     $usedFallback = false;
     $fallbackProvider = null;
     
     try {
-        $responseData = callGeminiAPI($payload, GEMINI_API_KEY);
+        $responseData = callGeminiAPI($payload, $activeApiKey);
     } catch (Exception $geminiError) {
         $isRateLimitError = strpos($geminiError->getMessage(), 'rate limit') !== false || 
                            strpos($geminiError->getMessage(), '429') !== false ||
@@ -2024,7 +2042,8 @@ PROMPT;
             // Generate outline if we have a topic and a session goal
             if ($detectedTopic && $currentSessionGoal) {
                 $educationLevel = $user_profile['education_level'] ?? 'High School';
-                $outline = generateLearningOutline($detectedTopic, $currentSessionGoal, $educationLevel, GEMINI_API_KEY);
+                // Also use the active API key for outline generation if relevant
+                $outline = generateLearningOutline($detectedTopic, $currentSessionGoal, $educationLevel, $activeApiKey);
 
                 if ($outline) {
                     $contextData['outline'] = $outline;

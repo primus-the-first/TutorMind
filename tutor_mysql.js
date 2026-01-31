@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // If there's an active conversation ID (from URL/PHP), load it.
     if (conversationIdInput.value) {
         // Check if messages are already SSR rendered
-        const existingMessages = chatMessages.querySelectorAll('.chat-message');
+        const existingMessages = chatMessages.querySelectorAll('.message');
         if (existingMessages.length > 0) {
             // Hydrate existing messages (attach listeners)
             console.log('Hydrating SSR messages...');
@@ -76,6 +76,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isDark = darkModeToggle.checked;
             document.body.classList.toggle('dark-mode', isDark);
             localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+
+            // Update header button icon to stay in sync
+            const headerIcon = document.querySelector('#dark-mode-toggle i');
+            if (headerIcon) {
+                headerIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+            }
+
+            // Update TutorMindChat instance state if it exists
+            if (window.chatApp) {
+                window.chatApp.darkMode = isDark;
+            }
 
             // Save to database via settings manager
             if (window.settingsManager) {
@@ -108,10 +119,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Function to add a message to the chat window ---
     function addMessage(sender, messageHtml, animate = false) {
         const messageWrapper = document.createElement('div');
-        messageWrapper.classList.add('chat-message', `${sender}-message`);
+        messageWrapper.classList.add('message', sender); // 'message ai' or 'message user'
+
+        // Add avatar
+        const avatar = document.createElement('div');
+        avatar.classList.add('message-avatar');
+        avatar.textContent = sender === 'ai' ? '🤖' : '👤';
+        messageWrapper.appendChild(avatar);
 
         const messageBubble = document.createElement('div');
-        messageBubble.classList.add('message-bubble');
+        messageBubble.classList.add('message-content');
 
         messageWrapper.appendChild(messageBubble);
         chatMessages.appendChild(messageWrapper);
@@ -134,10 +151,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Function to hydrate SSR messages ---
     function hydrateMessages() {
-        const bubbles = chatMessages.querySelectorAll('.message-bubble');
+        const bubbles = chatMessages.querySelectorAll('.message-content');
         bubbles.forEach(bubble => {
-            const wrapper = bubble.closest('.chat-message');
-            const isAi = wrapper.classList.contains('ai-message');
+            const wrapper = bubble.closest('.message');
+            const isAi = wrapper.classList.contains('ai');
 
             // For AI messages, ensure footer buttons exist
             if (isAi && !bubble.querySelector('.message-footer')) {
@@ -216,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Handle Read Aloud button click ---
     function handleReadAloud(button) {
-        const messageBubble = button.closest('.message-bubble');
+        const messageBubble = button.closest('.message-content');
         if (!messageBubble) return;
         
         // Get the text content, excluding the footer buttons
@@ -369,8 +386,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const focusNode = selection.focusNode;
             
             // Find if selection is within a message bubble
-            const bubble = anchorNode?.parentElement?.closest('.ai-message .message-bubble') 
-                        || focusNode?.parentElement?.closest('.ai-message .message-bubble');
+            const bubble = anchorNode?.parentElement?.closest('.message.ai .message-content') 
+                        || focusNode?.parentElement?.closest('.message.ai .message-content');
             
             if (bubble) {
                 selectedTextForClarification = selectedText;
@@ -1137,38 +1154,68 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
 
-        // Add copy buttons
+        // Wrap pre elements in code-block structure with header
         container.querySelectorAll('pre').forEach(pre => {
-            // Don't add button if it already exists
-            if (pre.querySelector('.copy-code-btn')) return;
+            // Don't process if already wrapped
+            if (pre.parentElement?.classList.contains('code-block')) return;
 
-            const button = document.createElement('button');
-            button.className = 'copy-code-btn';
-            button.textContent = 'Copy';
-            button.addEventListener('click', () => {
+            // Detect language from code element class
+            const codeEl = pre.querySelector('code');
+            let language = 'Code';
+            if (codeEl) {
+                const langClass = Array.from(codeEl.classList).find(c => c.startsWith('language-'));
+                if (langClass) {
+                    language = langClass.replace('language-', '').toUpperCase();
+                }
+            }
+
+            // Create wrapper structure
+            const wrapper = document.createElement('div');
+            wrapper.className = 'code-block';
+
+            // Create header with language and copy button
+            const header = document.createElement('div');
+            header.className = 'code-header';
+
+            const langSpan = document.createElement('span');
+            langSpan.className = 'code-language';
+            langSpan.textContent = language;
+
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-code-btn';
+            copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+            copyBtn.addEventListener('click', () => {
                 const code = pre.querySelector('code') || pre;
                 const text = code.textContent;
 
                 navigator.clipboard.writeText(text).then(() => {
-                    button.textContent = 'Copied!';
+                    copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    copyBtn.classList.add('copied');
                     setTimeout(() => {
-                        button.textContent = 'Copy';
+                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                        copyBtn.classList.remove('copied');
                     }, 2000);
                 }).catch(() => {
-                    button.textContent = 'Failed';
+                    copyBtn.textContent = 'Failed';
                     setTimeout(() => {
-                        button.textContent = 'Copy';
+                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
                     }, 2000);
                 });
             });
 
-            pre.appendChild(button);
+            header.appendChild(langSpan);
+            header.appendChild(copyBtn);
+
+            // Wrap the pre element
+            pre.parentNode.insertBefore(wrapper, pre);
+            wrapper.appendChild(header);
+            wrapper.appendChild(pre);
         });
     }
 
     // --- Text-to-Speech Functionality ---
     function handleReadAloud(button) {
-        const messageBubble = button.closest('.message-bubble');
+        const messageBubble = button.closest('.message-content');
         // Clone the node to manipulate it without affecting the display
         const contentClone = messageBubble.cloneNode(true);
         // Remove the button from the clone so its text isn't read
@@ -1207,7 +1254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Copy-to-Clipboard Functionality ---
     function handleCopyClick(button) {
-        const messageBubble = button.closest('.message-bubble');
+        const messageBubble = button.closest('.message-content');
         if (!messageBubble) return;
         // Clone the node to avoid modifying the DOM
         const contentClone = messageBubble.cloneNode(true);
@@ -1263,11 +1310,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Feedback Button Handler ---
     async function handleFeedbackClick(button) {
         const rating = button.dataset.rating; // 'positive' or 'negative'
-        const messageWrapper = button.closest('.chat-message');
+        const messageWrapper = button.closest('.message');
         const feedbackBtns = button.closest('.feedback-btns');
-        
+
         // Get message index (position in chat)
-        const allMessages = Array.from(chatMessages.querySelectorAll('.chat-message.ai-message'));
+        const allMessages = Array.from(chatMessages.querySelectorAll('.message.ai'));
         const messageIndex = allMessages.indexOf(messageWrapper);
         
         // Check if already rated
@@ -1371,9 +1418,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!indicator) {
                 const indicatorWrapper = document.createElement('div');
                 indicatorWrapper.id = 'typing-indicator';
-                indicatorWrapper.classList.add('chat-message', 'ai-message');
+                indicatorWrapper.classList.add('message', 'ai');
                 indicatorWrapper.innerHTML = `
-                    <div class="message-bubble">
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
                         <div class="typing-indicator">
                             <span></span><span></span><span></span>
                         </div>
@@ -1765,6 +1813,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Random delay between 50ms and 150ms for natural variation
                 const delay = Math.random() * 100 + 50;
                 setTimeout(typeChar, delay);
+            } else {
+                // Typing done - hide the cursor after a brief pause
+                setTimeout(() => {
+                    greetingElement.classList.add('typing-done');
+                }, 1500);
             }
         }
 
@@ -2112,6 +2165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
             if (isCollapsed) {
                 sidebar.classList.add('collapsed');
+                document.body.classList.add('sidebar-collapsed');
             }
         }
 
@@ -2121,6 +2175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (window.innerWidth > 768) {
                     // Desktop: Toggle collapse
                     sidebar.classList.toggle('collapsed');
+                    document.body.classList.toggle('sidebar-collapsed');
                     localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
                 } else {
                     // Mobile: Close sidebar
@@ -2151,8 +2206,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Restore collapsed state
                 const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
                 sidebar.classList.toggle('collapsed', isCollapsed);
+                document.body.classList.toggle('sidebar-collapsed', isCollapsed);
             } else {
                 sidebar.classList.remove('collapsed');
+                document.body.classList.remove('sidebar-collapsed');
             }
         });
     }

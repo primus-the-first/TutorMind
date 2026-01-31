@@ -20,6 +20,9 @@ debug_log.txt
 #.cpanel.yml
 #deploy.php
 
+# Agent session files
+.agent/
+
 # Other
 ttt.yml
 A.html
@@ -29,4 +32,20 @@ test_*.php
 NAME_ATOMIZATION_GUIDE.md
 CODE_CHANGES_GUIDE.md
 *.sql
-*.md
+
+# Backups and Temp files
+*.bak
+*backup*
+diff_summary.txt
+temp_diff.txt
+
+# Test and Demo files
+nuclear-test.css
+chat-demo-fix.css
+chat-demo.html
+creative-demo.*
+
+# IDE and Tools
+.claude/
+.idea/
+.vscode/

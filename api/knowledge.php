@@ -32,7 +32,9 @@ class KnowledgeService {
         }
         
         $this->serpApiKey = $config['SERP_API_KEY'] ?? null;
-        $this->geminiApiKey = $config['GEMINI_API_KEY'] ?? null;
+        // Allow using QUIZ_API_KEY for embeddings if GEMINI_API_KEY is not set or if specifically requested (future)
+        // For now, continue to use GEMINI_API_KEY as primary for knowledge base, but be aware of others
+        $this->geminiApiKey = $config['GEMINI_API_KEY'] ?? ($config['QUIZ_API_KEY'] ?? null);
     }
     
     /**
