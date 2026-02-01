@@ -6,31 +6,32 @@
     text-decoration: none;
     cursor: pointer;
     transition: transform 0.3s ease, filter 0.3s ease;
-    padding: 8px 12px;
+    padding: 8px 0; /* Removing horizontal padding to align better with layout boundaries */
     border-radius: 12px;
 }
 
 .app-logo:hover {
     transform: translateY(-2px);
-    filter: brightness(1.1);
 }
 
-.app-logo img {
+.app-logo img, 
+.app-logo svg {
     height: 32px;
     width: auto;
     transition: transform 0.3s ease;
 }
 
-.app-logo:hover img {
+.app-logo:hover img,
+.app-logo:hover svg {
     transform: scale(1.05);
 }
 
 .app-logo-text {
-    font-size: 35px;
+    font-size: 26px; /* Adjusted size */
     font-weight: 700;
     font-family: 'Outfit', 'Inter', sans-serif;
     /* Default: Darker gradient for light backgrounds (Homepage, Login) */
-    background: linear-gradient(135deg, #5E2EBF 0%, #7B3FF2 50%, #9D6BF5 100%);
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

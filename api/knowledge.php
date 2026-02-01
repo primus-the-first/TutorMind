@@ -142,18 +142,25 @@ class KnowledgeService {
      * Parse HTML to plain text, extracting main content
      */
     private function parseHtmlToText($html) {
+        // Ensure valid UTF-8 encoding
+        if (!mb_check_encoding($html, 'UTF-8')) {
+            $html = mb_convert_encoding($html, 'UTF-8', 'auto');
+        }
+        // Remove invalid UTF-8 sequences
+        $html = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $html) ?? $html;
+        
         // Remove script and style elements
-        $html = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $html);
-        $html = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $html);
-        $html = preg_replace('/<nav[^>]*>.*?<\/nav>/is', '', $html);
-        $html = preg_replace('/<header[^>]*>.*?<\/header>/is', '', $html);
-        $html = preg_replace('/<footer[^>]*>.*?<\/footer>/is', '', $html);
+        $html = preg_replace('/<script[^>]*>.*?<\/script>/is', '', $html) ?? $html;
+        $html = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $html) ?? $html;
+        $html = preg_replace('/<nav[^>]*>.*?<\/nav>/is', '', $html) ?? $html;
+        $html = preg_replace('/<header[^>]*>.*?<\/header>/is', '', $html) ?? $html;
+        $html = preg_replace('/<footer[^>]*>.*?<\/footer>/is', '', $html) ?? $html;
         
         // Convert to text
         $text = strip_tags($html);
         
         // Clean up whitespace
-        $text = preg_replace('/\s+/', ' ', $text);
+        $text = preg_replace('/\s+/', ' ', $text) ?? $text;
         $text = trim($text);
         
         // Limit to reasonable size (first 10000 chars)
@@ -173,28 +180,61 @@ class KnowledgeService {
      * @return array Array of text chunks
      */
     public function chunkContent($text, $chunkSize = 1500, $overlap = 200) {
+        // Ensure text is a valid string
+        if ($text === null || !is_string($text)) {
+            error_log("KnowledgeService: chunkContent received non-string input: " . gettype($text));
+            return [];
+        }
+        
+        // Ensure valid UTF-8
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = mb_convert_encoding($text, 'UTF-8', 'auto');
+        }
+        
         $chunks = [];
         $start = 0;
         $textLen = strlen($text);
+        
+        if ($textLen === 0) {
+            return [];
+        }
+        
+        // Ensure overlap is less than chunkSize
+        $overlap = min($overlap, $chunkSize - 1);
         
         while ($start < $textLen) {
             $end = min($start + $chunkSize, $textLen);
             
             // Try to break at sentence boundary
             if ($end < $textLen) {
-                $lastPeriod = strrpos(substr($text, $start, $chunkSize), '. ');
-                if ($lastPeriod !== false && $lastPeriod > $chunkSize * 0.5) {
-                    $end = $start + $lastPeriod + 1;
+                $substring = substr($text, $start, $chunkSize);
+                if ($substring !== false) {
+                    $lastPeriod = strrpos($substring, '. ');
+                    if ($lastPeriod !== false && $lastPeriod > $chunkSize * 0.5) {
+                        $end = $start + $lastPeriod + 1;
+                    }
                 }
             }
             
-            $chunk = trim(substr($text, $start, $end - $start));
-            if (strlen($chunk) > 50) { // Only keep meaningful chunks
-                $chunks[] = $chunk;
+            $chunk = substr($text, $start, $end - $start);
+            if ($chunk !== false) {
+                $chunk = trim($chunk);
+                if (strlen($chunk) > 50) { // Only keep meaningful chunks
+                    $chunks[] = $chunk;
+                }
             }
             
-            $start = $end - $overlap;
-            if ($start < 0) $start = 0;
+            // Move start forward, ensuring progress
+            $newStart = $end - $overlap;
+            if ($newStart <= $start) {
+                // Ensure we always move forward by at least 1 character
+                $start = $end;
+            } else {
+                $start = $newStart;
+            }
+            
+            // Safety: break if we've reached the end
+            if ($start >= $textLen) break;
         }
         
         return $chunks;

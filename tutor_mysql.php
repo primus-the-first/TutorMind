@@ -206,7 +206,8 @@ try {
                 <i class="fas fa-bars"></i>
             </button>
             <a href="index" class="app-logo" style="margin-bottom: 0; padding: 0;">
-                <span class="app-logo-text">🧠 TutorMind</span>
+                <img src="assets/logo-bridge.svg" alt="TutorMind" class="w-8 h-8"> 
+                <span class="app-logo-text">TutorMind</span>
             </a>
         </div>
         
@@ -281,7 +282,8 @@ try {
                 <button id="mobile-menu-toggle" class="menu-toggle mobile-only">
                     <i class="fas fa-bars"></i>
                 </button>
-                <a href="index" class="mobile-logo-link mobile-only" style="text-decoration: none; color: inherit; margin-left: 10px;">
+                <a href="index" class="mobile-logo-link mobile-only" style="text-decoration: none; color: inherit; margin-left: 10px; display: flex; align-items: center;">
+                    <img src="assets/logo-bridge.svg" alt="TutorMind" style="height: 24px; width: auto; margin-right: 6px;">
                     <span class="app-logo-text" style="font-size: 1.2rem;">TutorMind</span>
                 </a>
             </div>

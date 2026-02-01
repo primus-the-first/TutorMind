@@ -47,7 +47,8 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
         <div class="auth-form-side">
             <div class="auth-header">
                 <a href="index" class="auth-brand">
-                    🧠 TutorMind
+                    <img src="assets/logo-bridge.svg?v=2" alt="TutorMind" style="height: 32px; width: auto; margin-right: 12px;">
+                    TutorMind
                 </a>
                 <h1 class="auth-title">Welcome back!</h1>
                 <p class="auth-subtitle">Time to learn something new today.</p>
