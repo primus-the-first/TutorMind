@@ -725,6 +725,13 @@ class OnboardingWizard {
         }, delay);
     }
 
+    finishLessonAndNext() {
+        console.log('✅ First lesson completed');
+        this.profileData.firstLessonCompleted = true;
+        this.saveProgress();
+        this.nextScreen();
+    }
+
     /* ==================== SCREEN 9: SUMMARY ==================== */
     initSummary() {
         const container = document.getElementById('summary-content');
