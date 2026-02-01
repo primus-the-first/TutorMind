@@ -1214,7 +1214,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Text-to-Speech Functionality ---
-    function handleReadAloud(button) {
+    // Current audio element for stopping playback
+    let currentTTSAudio = null;
+
+    async function handleReadAloud(button) {
         const messageBubble = button.closest('.message-content');
         // Clone the node to manipulate it without affecting the display
         const contentClone = messageBubble.cloneNode(true);
@@ -1223,33 +1226,119 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (footerClone) footerClone.remove();
         const textToRead = contentClone.textContent.trim();
 
-        if ('speechSynthesis' in window) {
-            if (button.dataset.speaking === 'true') {
-                speechSynthesis.cancel();
-                button.dataset.speaking = 'false';
-                button.innerHTML = '<i class="fas fa-volume-up"></i>';
-            } else {
-                // Stop any current speech
-                speechSynthesis.cancel();
+        // If currently speaking, stop
+        if (button.dataset.speaking === 'true') {
+            stopTTS();
+            button.dataset.speaking = 'false';
+            button.innerHTML = '<i class="fas fa-volume-up"></i>';
+            return;
+        }
 
-                // Reset all other buttons
-                document.querySelectorAll('.read-aloud-btn[data-speaking="true"]').forEach(btn => {
-                    btn.dataset.speaking = 'false';
-                    btn.innerHTML = '<i class="fas fa-volume-up"></i>';
-                });
+        // Stop any current speech and reset other buttons
+        stopTTS();
+        document.querySelectorAll('.read-aloud-btn[data-speaking="true"]').forEach(btn => {
+            btn.dataset.speaking = 'false';
+            btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+        });
 
-                const utterance = new SpeechSynthesisUtterance(textToRead);
-                utterance.onstart = () => {
-                    button.dataset.speaking = 'true';
+        // Set speaking state
+        button.dataset.speaking = 'true';
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            // Try ElevenLabs TTS first
+            const response = await fetch('api/tts.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: textToRead })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.audio) {
+                // Play ElevenLabs audio
+                const audioBlob = base64ToBlob(data.audio, data.contentType);
+                const audioUrl = URL.createObjectURL(audioBlob);
+                currentTTSAudio = new Audio(audioUrl);
+
+                currentTTSAudio.onplay = () => {
                     button.innerHTML = '<i class="fas fa-stop-circle"></i>';
                 };
-                utterance.onend = () => {
+                currentTTSAudio.onended = () => {
                     button.dataset.speaking = 'false';
                     button.innerHTML = '<i class="fas fa-volume-up"></i>';
+                    currentTTSAudio = null;
                 };
-                speechSynthesis.speak(utterance);
+                currentTTSAudio.onerror = () => {
+                    // Fallback to browser TTS on error
+                    browserSpeak(textToRead, button);
+                };
+
+                currentTTSAudio.play();
+            } else if (data.fallback) {
+                // Use browser TTS fallback
+                browserSpeak(data.text || textToRead, button);
+            } else {
+                throw new Error('TTS failed');
             }
+        } catch (error) {
+            console.error('TTS error:', error);
+            // Fallback to browser TTS
+            browserSpeak(textToRead, button);
         }
+    }
+
+    function browserSpeak(text, button) {
+        if (!window.speechSynthesis) {
+            button.dataset.speaking = 'false';
+            button.innerHTML = '<i class="fas fa-volume-up"></i>';
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        // Try to use a better voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v =>
+            v.name.includes('Google') ||
+            v.name.includes('Microsoft') ||
+            v.name.includes('Samantha')
+        );
+        if (preferredVoice) utterance.voice = preferredVoice;
+
+        utterance.onstart = () => {
+            button.innerHTML = '<i class="fas fa-stop-circle"></i>';
+        };
+        utterance.onend = () => {
+            button.dataset.speaking = 'false';
+            button.innerHTML = '<i class="fas fa-volume-up"></i>';
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function stopTTS() {
+        if (currentTTSAudio) {
+            currentTTSAudio.pause();
+            currentTTSAudio = null;
+        }
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+    }
+
+    function base64ToBlob(base64, contentType) {
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: contentType });
     }
 
     // --- Copy-to-Clipboard Functionality ---
