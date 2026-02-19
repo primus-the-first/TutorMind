@@ -484,6 +484,311 @@ if (!empty($_POST['session_context'])) {
 
 $conversation_id = $_POST['conversation_id'] ?? null;
 
+/**
+ * OCR a PDF file with fallback chain: Google Cloud Vision → OCR.space → Tesseract
+ *
+ * @param string $pdfPath Path to the PDF file
+ * @param string $originalName Original filename for error messages
+ * @return string Extracted text from OCR
+ * @throws Exception If all OCR methods fail
+ */
+function ocrImageBasedPdf($pdfPath, $originalName) {
+    // Load config for API keys
+    $config = null;
+    foreach (['config-sql.ini', 'config.ini'] as $configFile) {
+        if (file_exists($configFile)) {
+            $config = parse_ini_file($configFile);
+            if ($config !== false) break;
+        }
+    }
+
+    $errors = [];
+
+    // 1. Try Google Cloud Vision API (primary)
+    if (!empty($config['GOOGLE_CLOUD_VISION_API_KEY'])) {
+        try {
+            $text = ocrWithGoogleCloudVision($pdfPath, $config['GOOGLE_CLOUD_VISION_API_KEY']);
+            if (!empty(trim($text))) {
+                error_log("OCR [{$originalName}]: Success with Google Cloud Vision");
+                return $text;
+            }
+        } catch (Exception $e) {
+            $errors[] = "Google Cloud Vision: " . $e->getMessage();
+            error_log("Google Cloud Vision OCR failed: " . $e->getMessage());
+        }
+    }
+
+    // 2. Try OCR.space API (fallback)
+    if (!empty($config['OCR_SPACE_API_KEY'])) {
+        try {
+            $text = ocrWithOcrSpace($pdfPath, $config['OCR_SPACE_API_KEY']);
+            if (!empty(trim($text))) {
+                error_log("OCR [{$originalName}]: Success with OCR.space");
+                return $text;
+            }
+        } catch (Exception $e) {
+            $errors[] = "OCR.space: " . $e->getMessage();
+            error_log("OCR.space OCR failed: " . $e->getMessage());
+        }
+    }
+
+    // 3. Try Tesseract (local fallback - last resort)
+    try {
+        $text = ocrWithTesseract($pdfPath, $originalName);
+        if (!empty(trim($text))) {
+            error_log("OCR [{$originalName}]: Success with Tesseract (local)");
+            return $text;
+        }
+    } catch (Exception $e) {
+        $errors[] = "Tesseract: " . $e->getMessage();
+        error_log("Tesseract OCR failed: " . $e->getMessage());
+    }
+
+    // All methods failed
+    if (empty($config['GOOGLE_CLOUD_VISION_API_KEY']) && empty($config['OCR_SPACE_API_KEY'])) {
+        throw new Exception("This PDF appears to be image-based (scanned). To process it, add your OCR API keys to config.ini (GOOGLE_CLOUD_VISION_API_KEY or OCR_SPACE_API_KEY).");
+    }
+
+    throw new Exception("Could not extract text from '{$originalName}'. All OCR methods failed. The document may be blank or unreadable.");
+}
+
+/**
+ * OCR using Google Cloud Vision API
+ */
+function ocrWithGoogleCloudVision($pdfPath, $apiKey) {
+    $fileData = base64_encode(file_get_contents($pdfPath));
+    $fileSize = filesize($pdfPath);
+
+    // Cloud Vision has a 20MB limit for sync requests
+    if ($fileSize > 20 * 1024 * 1024) {
+        throw new Exception("PDF too large for Cloud Vision API (max 20MB)");
+    }
+
+    $url = "https://vision.googleapis.com/v1/files:annotate?key=" . urlencode($apiKey);
+
+    $requestBody = [
+        'requests' => [
+            [
+                'inputConfig' => [
+                    'mimeType' => 'application/pdf',
+                    'content' => $fileData
+                ],
+                'features' => [
+                    ['type' => 'DOCUMENT_TEXT_DETECTION']
+                ],
+                'outputConfig' => [
+                    'pageCount' => 5 // Process up to 5 pages per request
+                ]
+            ]
+        ]
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($requestBody),
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 120
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200) {
+        $error = json_decode($response, true);
+        throw new Exception($error['error']['message'] ?? "API returned HTTP {$httpCode}");
+    }
+
+    $result = json_decode($response, true);
+    $fullText = '';
+
+    if (isset($result['responses'])) {
+        foreach ($result['responses'] as $pageResponse) {
+            if (isset($pageResponse['fullTextAnnotation']['text'])) {
+                $fullText .= $pageResponse['fullTextAnnotation']['text'] . "\n\n";
+            }
+        }
+    }
+
+    return trim($fullText);
+}
+
+/**
+ * OCR using OCR.space API (supports PDF directly)
+ */
+function ocrWithOcrSpace($pdfPath, $apiKey) {
+    $fileSize = filesize($pdfPath);
+
+    // OCR.space free tier limit is 1MB, paid is 5MB
+    if ($fileSize > 5 * 1024 * 1024) {
+        throw new Exception("PDF too large for OCR.space API (max 5MB)");
+    }
+
+    $url = "https://api.ocr.space/parse/image";
+
+    // Use CURLFile for file upload
+    $cfile = new CURLFile($pdfPath, 'application/pdf', basename($pdfPath));
+
+    $postData = [
+        'apikey' => $apiKey,
+        'file' => $cfile,
+        'language' => 'eng',
+        'isOverlayRequired' => 'false',
+        'filetype' => 'PDF',
+        'detectOrientation' => 'true',
+        'scale' => 'true',
+        'OCREngine' => '2' // Engine 2 is better for dense text
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $postData,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 120
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200) {
+        throw new Exception("OCR.space API returned HTTP {$httpCode}");
+    }
+
+    $result = json_decode($response, true);
+
+    if (isset($result['IsErroredOnProcessing']) && $result['IsErroredOnProcessing']) {
+        throw new Exception($result['ErrorMessage'][0] ?? 'Unknown OCR.space error');
+    }
+
+    $fullText = '';
+    if (isset($result['ParsedResults'])) {
+        foreach ($result['ParsedResults'] as $page) {
+            if (isset($page['ParsedText'])) {
+                $fullText .= $page['ParsedText'] . "\n\n";
+            }
+        }
+    }
+
+    return trim($fullText);
+}
+
+/**
+ * OCR using local Tesseract (requires Tesseract + Ghostscript installed)
+ */
+function ocrWithTesseract($pdfPath, $originalName) {
+    // Check if Tesseract is available
+    $tesseractPath = '';
+    $possiblePaths = [
+        'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+        'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
+        '/usr/bin/tesseract',
+        '/usr/local/bin/tesseract',
+        'tesseract'
+    ];
+
+    foreach ($possiblePaths as $path) {
+        if ($path === 'tesseract' || $path === '/usr/bin/tesseract' || $path === '/usr/local/bin/tesseract') {
+            exec("{$path} --version 2>&1", $output, $returnCode);
+            if ($returnCode === 0) {
+                $tesseractPath = $path;
+                break;
+            }
+        } elseif (file_exists($path)) {
+            $tesseractPath = $path;
+            break;
+        }
+    }
+
+    if (empty($tesseractPath)) {
+        throw new Exception("Tesseract OCR not installed");
+    }
+
+    // Check if Ghostscript is available
+    $gsPath = '';
+    $gsPaths = [
+        'C:\\Program Files\\gs\\gs10.04.0\\bin\\gswin64c.exe',
+        'C:\\Program Files\\gs\\gs10.03.1\\bin\\gswin64c.exe',
+        'C:\\Program Files\\gs\\gs10.02.1\\bin\\gswin64c.exe',
+        'C:\\Program Files (x86)\\gs\\gs10.04.0\\bin\\gswin32c.exe',
+        '/usr/bin/gs',
+        '/usr/local/bin/gs',
+        'gswin64c', 'gswin32c', 'gs'
+    ];
+
+    foreach ($gsPaths as $path) {
+        if (in_array($path, ['gswin64c', 'gswin32c', 'gs', '/usr/bin/gs', '/usr/local/bin/gs'])) {
+            exec("{$path} --version 2>&1", $output, $returnCode);
+            if ($returnCode === 0) {
+                $gsPath = $path;
+                break;
+            }
+        } elseif (file_exists($path)) {
+            $gsPath = $path;
+            break;
+        }
+    }
+
+    if (empty($gsPath)) {
+        throw new Exception("Ghostscript not installed (required for PDF to image conversion)");
+    }
+
+    // Create temp directory
+    $tempDir = sys_get_temp_dir() . '/tutormind_ocr_' . uniqid();
+    if (!mkdir($tempDir, 0755, true)) {
+        throw new Exception("Could not create temp directory");
+    }
+
+    try {
+        // Convert PDF to images
+        $imagePrefix = $tempDir . '/page';
+        $gsCmd = sprintf(
+            '"%s" -dNOPAUSE -dBATCH -sDEVICE=png16m -r200 -sOutputFile="%s-%%03d.png" "%s" 2>&1',
+            $gsPath, $imagePrefix, $pdfPath
+        );
+
+        exec($gsCmd, $gsOutput, $gsReturnCode);
+
+        if ($gsReturnCode !== 0) {
+            throw new Exception("Ghostscript failed: " . implode(" ", $gsOutput));
+        }
+
+        $images = glob($tempDir . '/page-*.png');
+        if (empty($images)) {
+            throw new Exception("No pages extracted from PDF");
+        }
+
+        sort($images);
+        $fullText = '';
+        $tesseract = new \thiagoalessio\TesseractOCR\TesseractOCR();
+
+        foreach ($images as $index => $imagePath) {
+            try {
+                $tesseract->image($imagePath);
+                if (strpos($tesseractPath, 'tesseract') === false || file_exists($tesseractPath)) {
+                    $tesseract->executable($tesseractPath);
+                }
+                $pageText = $tesseract->run();
+
+                if (!empty(trim($pageText))) {
+                    $fullText .= "--- Page " . ($index + 1) . " ---\n" . $pageText . "\n\n";
+                }
+            } catch (Exception $e) {
+                error_log("Tesseract page " . ($index + 1) . " error: " . $e->getMessage());
+            }
+            @unlink($imagePath);
+        }
+
+        return trim($fullText);
+
+    } finally {
+        @rmdir($tempDir);
+    }
+}
+
 function prepareFileParts($file, $user_question)
 {
     $filePath = $file['tmp_name'];
@@ -620,6 +925,22 @@ function prepareFileParts($file, $user_question)
             $parser = new \Smalot\PdfParser\Parser();
             $pdf = $parser->parseFile($filePath);
             $text = $pdf->getText();
+
+            // DEBUG: Log PDF parsing details
+            $pageCount = count($pdf->getPages());
+            error_log("PDF [{$originalName}]: {$pageCount} pages, " . strlen($text) . " chars extracted");
+
+            // If text is empty but we have pages, try page-by-page extraction
+            if (empty(trim($text)) && $pageCount > 0) {
+                foreach ($pdf->getPages() as $page) {
+                    $text .= $page->getText() . "\n\n";
+                }
+            }
+
+            // If still empty, this is likely an image-based PDF - try OCR
+            if (empty(trim($text))) {
+                $text = ocrImageBasedPdf($filePath, $originalName);
+            }
             break;
         case 'docx':
             if (!class_exists('\PhpOffice\PhpWord\IOFactory')) {
@@ -668,8 +989,11 @@ function prepareFileParts($file, $user_question)
             break;
     }
 
+    // Trim whitespace and check for empty content
+    $text = trim($text);
     if (empty($text)) {
-        throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based, or corrupted.");
+        error_log("Empty text extraction for [{$originalName}], extension: {$extension}");
+        throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based (scanned), or use fonts that cannot be parsed.");
     }
 
     // Truncate to a reasonable length to avoid excessive API costs/limits

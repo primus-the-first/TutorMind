@@ -59,8 +59,29 @@ if ($user_id) {
     
     <!-- Wizard Styles -->
     <link rel="stylesheet" href="onboarding-wizard.css?v=<?= time() ?>">
+
+    <!-- Dark Mode Init (must run before body renders to prevent flash) -->
+    <script>
+    (function() {
+        var theme = localStorage.getItem('tutormind-theme');
+        var darkMode = localStorage.getItem('darkMode');
+        var isDark = (theme === 'dark') || (darkMode === 'enabled');
+        if (isDark) {
+            document.documentElement.classList.add('dark-mode');
+            // Sync both keys so they stay consistent across pages
+            if (theme !== 'dark') localStorage.setItem('tutormind-theme', 'dark');
+            if (darkMode !== 'enabled') localStorage.setItem('darkMode', 'enabled');
+        }
+    })();
+    </script>
 </head>
 <body>
+    <script>
+    // Apply dark-mode class to body as well (CSS targets body.dark-mode)
+    if (document.documentElement.classList.contains('dark-mode')) {
+        document.body.classList.add('dark-mode');
+    }
+    </script>
     <div id="onboarding-container">
         <!-- Progress Bar -->
         <div class="wizard-progress">

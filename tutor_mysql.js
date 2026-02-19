@@ -45,6 +45,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadChatHistory();
     }
 
+    // --- Smart Scroll System ---
+    // Tracks whether user has manually scrolled up, preventing auto-scroll from fighting them
+    let userHasScrolledUp = false;
+    const SCROLL_THRESHOLD = 100; // pixels from bottom to consider "at bottom"
+
+    // Create scroll-to-bottom button
+    const scrollToBottomBtn = document.createElement('button');
+    scrollToBottomBtn.className = 'scroll-to-bottom-btn';
+    scrollToBottomBtn.innerHTML = '<i class="fas fa-arrow-down"></i>';
+    scrollToBottomBtn.title = 'Scroll to bottom';
+    scrollToBottomBtn.style.display = 'none';
+    chatMessages.parentElement.appendChild(scrollToBottomBtn);
+
+    scrollToBottomBtn.addEventListener('click', () => {
+        userHasScrolledUp = false;
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        scrollToBottomBtn.style.display = 'none';
+    });
+
+    // Detect user scroll
+    chatMessages.addEventListener('scroll', () => {
+        const distanceFromBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight;
+        if (distanceFromBottom > SCROLL_THRESHOLD) {
+            userHasScrolledUp = true;
+            scrollToBottomBtn.style.display = 'flex';
+        } else {
+            userHasScrolledUp = false;
+            scrollToBottomBtn.style.display = 'none';
+        }
+    });
+
+    // Smart scroll function - only scrolls if user hasn't scrolled up
+    function smartScrollToBottom(force) {
+        if (force || !userHasScrolledUp) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
     // --- Initial State ---
     // If there's an active conversation ID (from URL/PHP), load it.
     if (conversationIdInput.value) {
@@ -54,7 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Hydrate existing messages (attach listeners)
             console.log('Hydrating SSR messages...');
             hydrateMessages();
-            // Scroll to bottom
+            // Scroll to bottom (forced on initial load)
             chatMessages.scrollTop = chatMessages.scrollHeight;
         } else {
             loadConversation(conversationIdInput.value);
@@ -145,8 +183,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             finalizeMessage(messageBubble);
         }
 
-        // Scroll to the bottom
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Scroll to the bottom (respects user scroll position)
+        smartScrollToBottom();
     }
 
     // --- Function to hydrate SSR messages ---
@@ -188,8 +226,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Add copy buttons to code blocks and trigger syntax highlighting
         addCopyButtonsToCodeBlocks(messageBubble);
 
-        // Scroll to the bottom one last time
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Scroll to the bottom (respects user scroll position)
+        smartScrollToBottom();
 
         // Force MathJax to re-render the new content
         if (window.MathJax) {
@@ -197,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (MathJax.typesetPromise) {
                 MathJax.typesetPromise([messageBubble]).then(() => {
                     // Scroll again after math rendering might have changed height
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    smartScrollToBottom();
                 }).catch((err) => {
                     console.error('MathJax typeset failed:', err);
                 });
@@ -1129,9 +1167,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // Scroll to bottom
-            const chatContainer = document.getElementById('chat-container');
-            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Scroll to bottom (respects user scroll position)
+            smartScrollToBottom();
 
             if (queue.length > 0) {
                 setTimeout(processQueue, speed);
@@ -1517,7 +1554,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 `;
                 chatMessages.appendChild(indicatorWrapper);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+                smartScrollToBottom();
             }
         } else {
             if (indicator) {
@@ -1661,6 +1698,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         let question = questionInput.value.trim();
         if (!question && attachmentManager.files.length === 0) return;
+
+        // Reset scroll flag when user sends message - they want to see the response
+        userHasScrolledUp = false;
+        scrollToBottomBtn.style.display = 'none';
 
         // --- Quote Reference Integration ---
         // If there's a quoted reference, prepend it to the question

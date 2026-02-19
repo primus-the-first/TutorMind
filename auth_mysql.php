@@ -378,15 +378,10 @@ switch ($request_method) {
                         $username = $base_username . $counter++;
                     }
 
-                    $stmt = $pdo->prepare("INSERT INTO users (username, email, description, first_name, last_name, google_id, avatar_url, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
                     // Use a random password for Google users (they can reset it later if they want)
                     $random_password = bin2hex(random_bytes(16));
                     $password_hash = password_hash($random_password, PASSWORD_ARGON2ID);
-                    
-                    // Fixed: Added empty description to match params, or adjust query
-                    // Actually previous code was: INSERT INTO users (username, email, first_name, last_name, google_id, avatar_url, password_hash)
-                    // Let's stick to the previous schema which worked
-                    
+
                     $stmt = $pdo->prepare("INSERT INTO users (username, email, first_name, last_name, google_id, avatar_url, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)");
 
                     if ($stmt->execute([$username, $email, $first_name, $last_name, $google_id, $avatar_url, $password_hash])) {

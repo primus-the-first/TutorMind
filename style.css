@@ -1618,3 +1618,52 @@ body.login-page {
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     border-color: #d1d5db;
 }
+
+/* --- Scroll to Bottom Button --- */
+.scroll-to-bottom-btn {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #667eea;
+    color: white;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    animation: scrollBtnAppear 0.2s ease;
+}
+
+.scroll-to-bottom-btn:hover {
+    background: #5a67d8;
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+}
+
+.scroll-to-bottom-btn:active {
+    transform: translateX(-50%) translateY(0);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+@keyframes scrollBtnAppear {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+body.dark-mode .scroll-to-bottom-btn {
+    background: #7c3aed;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+}
+
+body.dark-mode .scroll-to-bottom-btn:hover {
+    background: #6d28d9;
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.5);
+}

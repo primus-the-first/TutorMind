@@ -279,22 +279,22 @@ try {
         <!-- Quick Start Overlay Removed (Merged into Welcome Screen) -->
         <header class="main-chat-header">
             <div class="header-left">
-                <button id="mobile-menu-toggle" class="menu-toggle mobile-only">
-                    <i class="fas fa-bars"></i>
+                <button id="mobile-menu-toggle" class="menu-toggle mobile-only" aria-label="Open menu">
+                    <i class="fas fa-bars" aria-hidden="true"></i>
                 </button>
-                <a href="index" class="mobile-logo-link mobile-only" style="text-decoration: none; color: inherit; margin-left: 10px; display: flex; align-items: center;">
-                    <img src="assets/logo-bridge.svg" alt="TutorMind" style="height: 24px; width: auto; margin-right: 6px;">
-                    <span class="app-logo-text" style="font-size: 1.2rem;">TutorMind</span>
+                <a href="index" class="mobile-logo-link mobile-only">
+                    <img src="assets/logo-bridge.svg" alt="" aria-hidden="true">
+                    <span class="app-logo-text">TutorMind</span>
                 </a>
             </div>
-            
-            <a href="index" style="text-decoration: none; color: inherit;" class="desktop-only">
+
+            <a href="index" class="desktop-only">
                 <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
             </a>
 
-            <!-- Dark Mode Toggle (New!) -->
-            <button class="icon-btn dark-mode-toggle" id="dark-mode-toggle" title="Toggle Dark Mode" style="position: absolute; right: 20px;">
-                <i class="fas fa-moon"></i>
+            <!-- Dark Mode Toggle -->
+            <button class="icon-btn" id="dark-mode-toggle" title="Toggle Dark Mode" aria-label="Toggle dark mode">
+                <i class="fas fa-moon" aria-hidden="true"></i>
             </button>
         </header>
 

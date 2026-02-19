@@ -507,20 +507,33 @@ body {
 .menu-toggle {
   display: block;
   background: none;
-  border: none;
+  border: 2px solid transparent;
   cursor: pointer;
   color: var(--text-secondary);
   font-size: 1.25rem;
-  padding: 8px;
-  min-width: 40px;
-  min-height: 40px;
-  border-radius: 50%;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  padding: 10px;
+  min-width: 44px; /* Touch target minimum per WCAG */
+  min-height: 44px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  touch-action: manipulation; /* Prevent double-tap zoom delay */
+  -webkit-tap-highlight-color: rgba(123, 63, 242, 0.2);
 }
 
 .menu-toggle:hover {
   color: var(--primary);
   background-color: rgba(123, 63, 242, 0.1);
+}
+
+.menu-toggle:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(123, 63, 242, 0.3);
+}
+
+.menu-toggle:active {
+  background-color: rgba(123, 63, 242, 0.2);
+  transform: scale(0.95);
 }
 
 .sidebar.collapsed .app-logo {
@@ -541,6 +554,12 @@ body {
   font-size: 1.1rem;
   font-weight: 600;
   margin-left: 1rem;
+}
+
+/* Desktop title link */
+a.desktop-only {
+  text-decoration: none;
+  color: inherit;
 }
 
 .chat-content {
@@ -1482,6 +1501,19 @@ body:not(.chat-empty) .setup-link-row {
 
 /* --- Responsive Design --- */
 @media (max-width: 768px) {
+  /* Global mobile touch optimizations */
+  button, a, [role="button"], input[type="submit"], .clickable {
+    touch-action: manipulation; /* Prevent double-tap zoom delay */
+  }
+
+  /* Ensure minimum touch targets for all interactive elements */
+  button:not(.suggestion-pill):not(.action-pill-btn),
+  .icon-btn,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   .sidebar {
     position: fixed;
     top: 0;
@@ -1490,6 +1522,8 @@ body:not(.chat-empty) .setup-link-row {
     z-index: 1000;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .sidebar.open {
@@ -1575,6 +1609,8 @@ body:not(.chat-empty) .setup-link-row {
     inset: 0;
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 199;
+    overscroll-behavior: contain; /* Prevent scroll chaining to background */
+    touch-action: none; /* Prevent any touch interactions passing through */
   }
 
   /* Light mode overlay is slightly less dark */
@@ -1590,10 +1626,14 @@ body:not(.chat-empty) .setup-link-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem;
-    background: transparent;
+    padding: 0.75rem 1rem;
+    padding-top: calc(0.75rem + env(safe-area-inset-top, 0px)); /* Notch accommodation */
+    padding-left: calc(1rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(1rem + env(safe-area-inset-right, 0px));
+    background: var(--card-bg);
+    border-bottom: 2px solid var(--border-color, #e5e7eb);
     position: relative;
-    /* For absolute centering of logo */
+    min-height: 56px;
   }
 
   .header-left {
@@ -1601,31 +1641,79 @@ body:not(.chat-empty) .setup-link-row {
     align-items: center;
     gap: 12px;
     z-index: 10;
-    /* Ensure button is clickable */
+    flex: 1;
   }
 
-  /* Center the logo absolutely */
+  /* Logo stays in flow next to hamburger */
   .mobile-logo-link {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    margin: 0;
-    text-align: center;
-    z-index: 5;
+    position: static !important;
+    transform: none !important;
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    margin-left: 4px;
+    touch-action: manipulation;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .mobile-logo-link img {
+    height: 24px;
+    width: auto;
+    flex-shrink: 0;
   }
 
   .mobile-logo-link .app-logo-text {
-    background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570);
+    background: linear-gradient(135deg, var(--primary, #7B3FF2) 0%, var(--accent-gold, #F59E0B) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     font-weight: 600;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+    font-family: 'Playfair Display', serif;
+    white-space: nowrap;
+    line-height: 1.2;
   }
 
   .conversation-title {
     display: none;
     /* Hide default title on mobile */
+  }
+
+  /* Mobile header dark mode toggle - keep absolute positioning */
+  .main-chat-header > .icon-btn,
+  .main-chat-header > .dark-mode-toggle,
+  #dark-mode-toggle {
+    position: absolute !important;
+    right: calc(1rem + env(safe-area-inset-right, 0px)) !important;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background: rgba(123, 63, 242, 0.08);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(123, 63, 242, 0.2);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .main-chat-header .icon-btn:active,
+  .main-chat-header .dark-mode-toggle:active {
+    background: rgba(123, 63, 242, 0.2);
+    transform: scale(0.95);
+  }
+
+  .main-chat-header .icon-btn:focus-visible,
+  .main-chat-header .dark-mode-toggle:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(123, 63, 242, 0.3);
   }
 
   /* Hide desktop elements */
