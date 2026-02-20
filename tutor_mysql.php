@@ -101,21 +101,39 @@ if (isset($_GET['conversation_id'])) {
                 $messageContentHtml = '';
                 
                 // Handle parts (text/images)
+                // For user messages, file context is stored as text starting with
+                // "Context from uploaded file '...':" — show a pill instead of the full text
+                $attachmentPillsHtml = '';
+                $questionHtml = '';
+                
                 if (is_array($parts)) {
                     foreach ($parts as $part) {
                         if (isset($part['text'])) {
-                            // Simple markdown parsing for SSR (JS will re-hydrate/highlight if needed)
-                            $text = $part['text'];
-                            // Basic protection against XSS before markdown
-                            $html = $Parsedown->text($text);
-                            $messageContentHtml .= $html;
+                            if ($role === 'user' && strpos($part['text'], "Context from uploaded file '") === 0) {
+                                // Extract filename from the context prefix
+                                if (preg_match("/Context from uploaded file '([^']+)':/", $part['text'], $matches)) {
+                                    $filename = htmlspecialchars($matches[1]);
+                                } else {
+                                    $filename = 'Document';
+                                }
+                                $attachmentPillsHtml .= '<div class="message-attachment-pill"><i class="fas fa-file-alt"></i> ' . $filename . '</div>';
+                            } else {
+                                // Normal text (user question or AI response)
+                                $html = $Parsedown->text($part['text']);
+                                $questionHtml .= $html;
+                            }
                         }
-                        // We skip images for SSR to keep it fast/simple, or add a placeholder
                         if (isset($part['inline_data'])) {
-                            $messageContentHtml .= '<div class="message-attachment-pill"><i class="fas fa-image"></i> Image attached</div>';
+                            $attachmentPillsHtml .= '<div class="message-attachment-pill"><i class="fas fa-image"></i> Image attached</div>';
                         }
                     }
                 }
+                
+                // Show attachment pills first, then the actual message
+                if (!empty($attachmentPillsHtml)) {
+                    $messageContentHtml .= '<div class="message-attachments-grid">' . $attachmentPillsHtml . '</div>';
+                }
+                $messageContentHtml .= $questionHtml;
                 
                 $ssr_messages_html .= '
                 <div class="message ' . $roleClass . '">

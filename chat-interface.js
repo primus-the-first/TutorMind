@@ -439,7 +439,11 @@ class TutorMindChat {
     scrollToBottom() {
         const messagesContainer = document.querySelector('.chat-messages');
         if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            // Only auto-scroll if user is near the bottom (not reading earlier messages)
+            const distanceFromBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+            if (distanceFromBottom < 100) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
         }
     }
 
