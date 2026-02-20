@@ -116,15 +116,17 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                 </div>
 
                 <!-- Google Sign In Button - Redirect Mode for HTTPS -->
-                <div id="g_id_onload"
-                     data-client_id="1083917773706-gc0f400l24eavps3ckcnj04581gj3plk.apps.googleusercontent.com"
-                     data-context="signup" 
-                     data-ux_mode="redirect"
-                     data-login_uri="https://localhost/TutorMind/auth_mysql.php"
-                     data-auto_prompt="false">
-                </div>
-                <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
-                     data-text="signup_with" data-size="large" data-logo_alignment="left" data-width="100%">
+                <div style="display: flex; justify-content: center;">
+                    <div id="g_id_onload"
+                         data-client_id="1083917773706-gc0f400l24eavps3ckcnj04581gj3plk.apps.googleusercontent.com"
+                         data-context="signup" 
+                         data-ux_mode="redirect"
+                         data-login_uri="https://localhost/TutorMind/auth_mysql.php"
+                         data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                         data-text="signup_with" data-size="large" data-logo_alignment="left">
+                    </div>
                 </div>
 
                 <p style="text-align: center; margin-top: 1.5rem;">
