@@ -2252,6 +2252,51 @@ body:not(.chat-empty) .setup-link-row {
   opacity: 1;
 }
 
+/* --- Message Attachment Pills (shown in history for uploaded files/images) --- */
+.message-attachments-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.message-attachment-pill {
+  background: rgba(123, 63, 242, 0.1);
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  border: 1px solid rgba(123, 63, 242, 0.15);
+}
+
+.message-attachment-pill i {
+  color: var(--primary, #7B3FF2);
+  font-size: 0.75rem;
+}
+
+.message.user .message-attachment-pill {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.message.user .message-attachment-pill i {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+body.dark-mode .message.ai .message-attachment-pill {
+  background: rgba(157, 107, 245, 0.12);
+  border-color: rgba(157, 107, 245, 0.2);
+  color: var(--text-secondary);
+}
+
+body.dark-mode .message.ai .message-attachment-pill i {
+  color: var(--primary-light, #9D6BF5);
+}
+
 .message-footer {
   margin-top: 10px;
   padding-top: 10px;

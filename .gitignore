@@ -3,14 +3,14 @@ composer.phar
 
 # Commit your application's lock file https://getcomposer.org/doc/01-basic-usage.md#commit-your-composer-lock-file-to-version-control
 # You may choose to ignore a library lock file http://getcomposer.org/doc/02-libraries.md#lock-file
-# composer.lock
+composer.lock
 
 # Configuration files
 config.ini
 config-sql.ini
 
 #Database files
-#tutodtoo_tutordb.sql
+tutodtoo_tutordb.sql
 
 # Log and output files
 test_output.txt
@@ -25,8 +25,20 @@ debug_log.txt
 
 # Other
 ttt.yml
+nul
+#onboarding-bundle.js
+migrations/MIGRATION_COMPLETE.md
+git_status_output.txt
+claude.md
 A.html
 index.php
+CONTRIBUTING.md
+PERFORMANCE_QUICK_WINS.md
+composer.json
+
+composer.lock
+config-sql.ini.example
+config.ini.example
 # Test files
 test_*.php
 NAME_ATOMIZATION_GUIDE.md

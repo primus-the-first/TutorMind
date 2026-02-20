@@ -1064,3 +1064,223 @@ body.dark-mode .style-card.selected { background: #2D2438; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-4 { margin-top: 1rem; }
 .text-center { text-align: center; }
+
+/* ==================== DARK MODE ==================== */
+/* Variable overrides (landing.css is not loaded on this page) */
+body.dark-mode {
+    --paper-bg: #1A1625;
+    --card-bg: #241E32;
+    --border-color: #3E3454;
+    --border-strong: #E5E0D8;
+    --text-primary: #F3E8FF;
+    --text-secondary: #B9B4C7;
+    --primary-ink: #F3E8FF;
+    --bg-surface: #1E1830;
+}
+
+/* Body & Container */
+body.dark-mode {
+    background-color: #1A1625;
+}
+
+body.dark-mode #onboarding-container {
+    background: #241E32;
+    border-color: #3E3454;
+    box-shadow: 12px 12px 0px rgba(0,0,0,0.5);
+}
+
+/* Progress Bar */
+body.dark-mode .wizard-progress {
+    background: #241E32;
+    border-bottom-color: #3E3454;
+}
+
+body.dark-mode .wizard-progress-bar-container {
+    background: #1E1830;
+    border-color: #3E3454;
+}
+
+/* Cards hover */
+body.dark-mode .education-card:hover,
+body.dark-mode .subject-card:hover,
+body.dark-mode .goal-card:hover {
+    background: #1E1830;
+}
+
+/* Buttons */
+body.dark-mode .btn-primary {
+    background: #F3E8FF;
+    color: #1A1625;
+    border-color: #F3E8FF;
+}
+
+body.dark-mode .btn-primary:hover {
+    background: #DDD0F5;
+}
+
+body.dark-mode .btn-text {
+    border-color: #3E3454;
+    color: #B9B4C7;
+}
+
+body.dark-mode .btn-text:hover {
+    border-color: #B9B4C7;
+    color: #F3E8FF;
+    background: rgba(255,255,255,0.03);
+}
+
+/* Search inputs */
+body.dark-mode .subject-search-input {
+    background: #1E1830;
+    border-color: #3E3454;
+    color: #F3E8FF;
+}
+
+body.dark-mode .subject-search-input:focus {
+    border-color: var(--accent-purple);
+    box-shadow: 4px 4px 0px var(--accent-purple);
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="email"],
+body.dark-mode input[type="time"] {
+    background: #1E1830;
+    border-color: #3E3454;
+    color: #F3E8FF;
+}
+
+/* Question card */
+body.dark-mode .question-card {
+    background: #241E32;
+    border-color: #3E3454;
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .question-card h3 {
+    color: #F3E8FF;
+}
+
+/* Option buttons */
+body.dark-mode .option-btn {
+    background: #241E32;
+    border-color: #3E3454;
+    color: #F3E8FF;
+}
+
+body.dark-mode .option-btn:hover {
+    border-color: var(--accent-purple);
+}
+
+body.dark-mode .option-btn.selected {
+    background: rgba(109, 40, 217, 0.15);
+}
+
+body.dark-mode .option-btn.selected::before {
+    box-shadow: inset 0 0 0 4px #241E32;
+}
+
+/* Notification card & toggle */
+body.dark-mode .notification-card {
+    background: #241E32;
+    border-color: #3E3454;
+}
+
+body.dark-mode .notification-toggle-btn {
+    background: #241E32;
+    border-color: #3E3454;
+    color: #F3E8FF;
+}
+
+body.dark-mode .notification-toggle-btn .toggle-switch {
+    background: #3E3454;
+    border-color: #584F66;
+}
+
+/* Lesson window */
+body.dark-mode .lesson-window {
+    background: #241E32;
+    border-color: #3E3454;
+    box-shadow: 8px 8px 0px rgba(0,0,0,0.4);
+}
+
+body.dark-mode .lesson-chat-area {
+    background-image: radial-gradient(#3E3454 1px, transparent 1px);
+}
+
+body.dark-mode .chat-message.ai {
+    background: #1E1830;
+    border-color: #3E3454;
+    color: #F3E8FF;
+}
+
+body.dark-mode .lesson-input-area {
+    background: #1E1830;
+}
+
+body.dark-mode .lesson-option-btn {
+    background: #241E32;
+    color: var(--accent-purple);
+    border-color: var(--accent-purple);
+}
+
+body.dark-mode .lesson-option-btn:hover {
+    background: var(--accent-purple);
+    color: white;
+}
+
+/* Summary screen */
+body.dark-mode .summary-wrapper {
+    background: #241E32;
+    border-color: #3E3454;
+    box-shadow: 8px 8px 0px #F59E0B;
+}
+
+body.dark-mode .summary-wrapper::before {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.05);
+}
+
+/* Navigation border */
+body.dark-mode .screen-navigation {
+    border-top-color: #3E3454;
+}
+
+/* Preference btns */
+body.dark-mode .preference-btn,
+body.dark-mode .frequency-option {
+    background: #241E32;
+    border-color: #3E3454;
+    color: #F3E8FF;
+}
+
+/* Style card */
+body.dark-mode .style-card {
+    background: #241E32;
+    border-color: #3E3454;
+}
+
+body.dark-mode .style-card:hover {
+    box-shadow: 4px 4px 0px rgba(0,0,0,0.4);
+}
+
+/* University form */
+body.dark-mode .btn-icon-only {
+    background: #F59E0B;
+    border-color: #F3E8FF;
+    box-shadow: 2px 2px 0px #F3E8FF;
+}
+
+body.dark-mode .uni-subject-tag {
+    background: rgba(109, 40, 217, 0.2);
+}
+
+/* AI spinner */
+body.dark-mode .ai-spinner {
+    border-color: #3E3454;
+    border-top-color: var(--accent-purple);
+}
+
+/* Notification preview */
+body.dark-mode .notification-preview {
+    background: rgba(109, 40, 217, 0.1);
+}

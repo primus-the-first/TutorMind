@@ -1776,6 +1776,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Clear inputs immediately for better UX
         questionInput.value = '';
+        questionInput.style.height = 'auto'; // Reset expanded height back to single row
+        questionInput.style.overflowY = 'hidden';
         attachmentManager.clear(); // Clear the manager state and UI
 
         try {
