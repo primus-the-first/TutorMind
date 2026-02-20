@@ -85,9 +85,18 @@ if (isset($_GET['conversation_id'])) {
             $ssr_conversation_title = $convo['title'];
             
             // Fetch messages (limit 50 for initial load to be fast)
-            $stmt = $pdo->prepare("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC");
+            $stmt = $pdo->prepare("SELECT id, role, content, is_edited FROM messages WHERE conversation_id = ? ORDER BY created_at ASC");
             $stmt->execute([$convo_id]);
             $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Find the last user message id for edit button
+            $lastUserMsgId = null;
+            foreach (array_reverse($messages) as $m) {
+                if ($m['role'] === 'user') {
+                    $lastUserMsgId = $m['id'];
+                    break;
+                }
+            }
             
             $Parsedown = new Parsedown();
             $Parsedown->setBreaksEnabled(true);
@@ -102,7 +111,7 @@ if (isset($_GET['conversation_id'])) {
                 
                 // Handle parts (text/images)
                 // For user messages, file context is stored as text starting with
-                // "Context from uploaded file '...':" — show a pill instead of the full text
+                // "Context from uploaded file '...':â€ — show a pill instead of the full text
                 $attachmentPillsHtml = '';
                 $questionHtml = '';
                 
@@ -134,13 +143,30 @@ if (isset($_GET['conversation_id'])) {
                     $messageContentHtml .= '<div class="message-attachments-grid">' . $attachmentPillsHtml . '</div>';
                 }
                 $messageContentHtml .= $questionHtml;
+
+                // Edited badge
+                $editedBadge = '';
+                if ($msg['is_edited']) {
+                    $editedBadge = '<span class="edited-badge">(edited)</span>';
+                }
+
+                // Edit button (only on last user message)
+                $editButton = '';
+                if ($role === 'user' && $msg['id'] == $lastUserMsgId) {
+                    $editButton = '
+                    <div class="message-actions">
+                        <button class="edit-msg-btn" title="Edit message">
+                            <i class="fas fa-pencil-alt"></i>
+                        </button>
+                    </div>';
+                }
                 
                 $ssr_messages_html .= '
-                <div class="message ' . $roleClass . '">
+                <div class="message ' . $roleClass . '" data-message-id="' . $msg['id'] . '">
                     <div class="message-avatar">' . $avatar . '</div>
                     <div class="message-content">
-                        ' . $messageContentHtml . '
-                    </div>
+                        ' . $messageContentHtml . $editedBadge . '
+                    </div>' . $editButton . '
                 </div>';
             }
         }
@@ -185,7 +211,7 @@ try {
     <!-- Fonts and Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- MathJax Configuration -->
@@ -312,7 +338,6 @@ try {
 
             <!-- Dark Mode Toggle -->
             <button class="icon-btn" id="dark-mode-toggle" title="Toggle Dark Mode" aria-label="Toggle dark mode">
-                <i class="fas fa-moon" aria-hidden="true"></i>
             </button>
         </header>
 
@@ -327,7 +352,7 @@ try {
                     <h1 class="quick-start-title">
                         <span id="welcome-greeting" data-username="<?= htmlspecialchars($displayName) ?>">Welcome back, <?= htmlspecialchars($displayName) ?>!</span>
                     </h1>
-                    <p class="quick-start-subtitle">What would you like to know?</p>
+                    
                     
 
                     
@@ -432,14 +457,14 @@ try {
                     </div>
                 </div>
 
-                <!-- Complete setup link for personalized experience -->
-                <div class="setup-link-row">
-                    <a href="onboarding" class="setup-link">
-                        <i class="fas fa-magic"></i> Complete setup for a personalized experience
-                    </a>
-                </div>
-            </form>
         </footer>
+        
+        <!-- Complete setup link for personalized experience (Moved after input area for mobile flexibility) -->
+        <div class="setup-link-row">
+            <a href="onboarding" class="setup-link">
+                <i class="fas fa-magic"></i> Complete setup for a personalized experience
+            </a>
+        </div>
     </div>
 
     <!-- Voice Mode Overlay -->

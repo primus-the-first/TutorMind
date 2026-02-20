@@ -151,7 +151,7 @@ if ($action) {
                 // PERFORMANCE: Fetch only the most recent 15 messages (visible on screen initially)
                 // We order by created_at DESC first to get the latest, then reverse in PHP
                 // Also fetch content_html cache column for faster rendering
-                $stmt = $pdo->prepare("SELECT id, role, content, content_html FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 15");
+                $stmt = $pdo->prepare("SELECT id, role, content, content_html, is_edited FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 15");
                 $stmt->execute([$convo_id]);
                 $messages = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC)); // Reverse to show oldest-to-newest
 
@@ -183,7 +183,12 @@ if ($action) {
                             $messagesToCache[] = ['id' => $message['id'], 'html' => $formattedHtml];
                         }
                     }
-                    $conversation['chat_history'][] = ['role' => $message['role'], 'parts' => $parts];
+                    $conversation['chat_history'][] = [
+                        'role' => $message['role'],
+                        'parts' => $parts,
+                        'message_id' => $message['id'],
+                        'is_edited' => (int)$message['is_edited']
+                    ];
                 }
                 
                 // PERFORMANCE: Cache formatted HTML for future requests (batch update)
@@ -447,6 +452,63 @@ if ($action) {
                 error_log("Feedback retrieval error: " . $e->getMessage());
                 http_response_code(500);
                 echo json_encode(['success' => false, 'error' => 'Could not retrieve feedback.']);
+            }
+            break;
+
+        case 'edit_message':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
+                break;
+            }
+
+            $message_id = $_POST['message_id'] ?? null;
+            $new_content = trim($_POST['new_content'] ?? '');
+            $edit_convo_id = $_POST['conversation_id'] ?? null;
+
+            if (!$message_id || empty($new_content) || !$edit_convo_id) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Missing required fields.']);
+                break;
+            }
+
+            try {
+                $pdo = getDbConnection();
+
+                // Verify user owns the conversation
+                $stmt = $pdo->prepare("SELECT id FROM conversations WHERE id = ? AND user_id = ?");
+                $stmt->execute([$edit_convo_id, $_SESSION['user_id']]);
+                if (!$stmt->fetch()) {
+                    http_response_code(403);
+                    echo json_encode(['success' => false, 'error' => 'Conversation access denied.']);
+                    break;
+                }
+
+                // Verify this is the last user message in the conversation
+                $stmt = $pdo->prepare("SELECT id FROM messages WHERE conversation_id = ? AND role = 'user' ORDER BY created_at DESC LIMIT 1");
+                $stmt->execute([$edit_convo_id]);
+                $lastUserMsg = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$lastUserMsg || $lastUserMsg['id'] != $message_id) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Only the last user message can be edited.']);
+                    break;
+                }
+
+                // Update the user message content
+                $stmt = $pdo->prepare("UPDATE messages SET content = ?, is_edited = 1, content_html = NULL WHERE id = ? AND conversation_id = ?");
+                $stmt->execute([json_encode([['text' => $new_content]]), $message_id, $edit_convo_id]);
+
+                // Delete all messages after the edited message (the AI response)
+                $stmt = $pdo->prepare("DELETE FROM messages WHERE conversation_id = ? AND id > ?");
+                $stmt->execute([$edit_convo_id, $message_id]);
+
+                ob_clean();
+                echo json_encode(['success' => true]);
+            } catch (Exception $e) {
+                error_log("Edit message error: " . $e->getMessage());
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Could not edit message.']);
             }
             break;
 
@@ -1812,9 +1874,20 @@ try {
         }
     }
 
-    // Save user message to the database
-    $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'user', ?)");
-    $stmt->execute([$conversation_id, json_encode($user_message_parts)]);
+    // Check if this is a resubmission after an edit (skip inserting new user message)
+    $is_edit_resubmit = isset($_POST['resubmit_after_edit']) && $_POST['resubmit_after_edit'] === '1';
+
+    if (!$is_edit_resubmit) {
+        // Save user message to the database
+        $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'user', ?)");
+        $stmt->execute([$conversation_id, json_encode($user_message_parts)]);
+        $user_message_id = $pdo->lastInsertId();
+    } else {
+        // For edit resubmit, get the last user message ID
+        $stmt = $pdo->prepare("SELECT id FROM messages WHERE conversation_id = ? AND role = 'user' ORDER BY created_at DESC LIMIT 1");
+        $stmt->execute([$conversation_id]);
+        $user_message_id = $stmt->fetchColumn();
+    }
 
     // Fetch the conversation history from the database to send to the AI
     $stmt = $pdo->prepare("SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC");
@@ -2498,7 +2571,8 @@ PROMPT;
         $response_payload = [
             'success' => true,
             'answer' => $formattedAnswer,
-            'conversation_id' => $conversation_id
+            'conversation_id' => $conversation_id,
+            'user_message_id' => $user_message_id
         ];
         if ($generated_title) {
             $response_payload['generated_title'] = $generated_title;

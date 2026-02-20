@@ -162,10 +162,7 @@ class TutorMindChat {
     }
 
     updateDarkModeIcon() {
-        const icon = document.querySelector('#dark-mode-toggle i');
-        if (icon) {
-            icon.className = this.darkMode ? 'fas fa-sun' : 'fas fa-moon';
-        }
+        // Icon removed
     }
 
     /* ==================== SIDEBAR ==================== */

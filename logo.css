@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+
 /* Logo Styles - Global */
 .app-logo {
     display: flex;
@@ -29,7 +31,7 @@
 .app-logo-text {
     font-size: 26px; /* Adjusted size */
     font-weight: 700;
-    font-family: 'Outfit', 'Inter', sans-serif;
+    font-family: 'Playfair Display', serif;
     /* Default: Darker gradient for light backgrounds (Homepage, Login) */
     background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
     -webkit-background-clip: text;

@@ -115,11 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.body.classList.toggle('dark-mode', isDark);
             localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
 
-            // Update header button icon to stay in sync
-            const headerIcon = document.querySelector('#dark-mode-toggle i');
-            if (headerIcon) {
-                headerIcon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
-            }
+            // (Icon removed)
 
             // Update TutorMindChat instance state if it exists
             if (window.chatApp) {
@@ -155,9 +151,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     // --- Function to add a message to the chat window ---
-    function addMessage(sender, messageHtml, animate = false) {
+    function addMessage(sender, messageHtml, animate = false, messageId = null, isEdited = false) {
         const messageWrapper = document.createElement('div');
         messageWrapper.classList.add('message', sender); // 'message ai' or 'message user'
+        if (messageId) messageWrapper.setAttribute('data-message-id', messageId);
 
         // Add avatar
         const avatar = document.createElement('div');
@@ -180,11 +177,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             // Instant render for user messages or history
             messageBubble.innerHTML = messageHtml;
+            if (isEdited) {
+                messageBubble.insertAdjacentHTML('beforeend', '<span class="edited-badge">(edited)</span>');
+            }
             finalizeMessage(messageBubble);
         }
 
         // Scroll to the bottom (respects user scroll position)
         smartScrollToBottom();
+
+        return messageWrapper;
     }
 
     // --- Function to hydrate SSR messages ---
@@ -193,6 +195,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         bubbles.forEach(bubble => {
             const wrapper = bubble.closest('.message');
             const isAi = wrapper.classList.contains('ai');
+            const isUser = wrapper.classList.contains('user');
+
+            // For user messages, store original HTML for cancel-edit
+            if (isUser) {
+                wrapper._originalHtml = bubble.innerHTML;
+            }
 
             // For AI messages, ensure footer buttons exist
             if (isAi && !bubble.querySelector('.message-footer')) {
@@ -246,10 +254,234 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     }
+    // --- Handle edit submission (two-phase: update DB, then regenerate AI response) ---
+    async function handleEditSubmit(msgWrapper, messageId, newContent, conversationId) {
+        const messageBubble = msgWrapper.querySelector('.message-content');
+        const fetchUrl = getBasePath() + '/server_mysql.php';
+
+        // Disable buttons while processing
+        const saveBtn = msgWrapper.querySelector('.edit-save-btn');
+        const cancelBtn = msgWrapper.querySelector('.edit-cancel-btn');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; }
+        if (cancelBtn) cancelBtn.disabled = true;
+
+        try {
+            // Phase 1: Update the message and delete the old AI response
+            const editFormData = new FormData();
+            editFormData.append('message_id', messageId);
+            editFormData.append('new_content', newContent);
+            editFormData.append('conversation_id', conversationId);
+
+            const editResponse = await fetch(`${fetchUrl}?action=edit_message`, {
+                method: 'POST',
+                body: editFormData
+            });
+
+            const editResult = await editResponse.json();
+            if (!editResult.success) {
+                throw new Error(editResult.error || 'Failed to edit message.');
+            }
+
+            // Phase 1 success — update the user message bubble
+            const escapedContent = newContent.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            messageBubble.innerHTML = escapedContent + '<span class="edited-badge">(edited)</span>';
+            msgWrapper._originalHtml = messageBubble.innerHTML;
+
+            // Remove the old AI response (the next sibling .message.ai)
+            const nextMsg = msgWrapper.nextElementSibling;
+            if (nextMsg && nextMsg.classList.contains('ai')) {
+                nextMsg.remove();
+            }
+
+            // Phase 2: Resubmit through normal chat flow for AI regeneration
+            showTypingIndicator(true);
+            submitBtn.disabled = true;
+            questionInput.disabled = true;
+
+            const resubmitFormData = new FormData();
+            resubmitFormData.append('question', newContent);
+            resubmitFormData.append('conversation_id', conversationId);
+            resubmitFormData.append('resubmit_after_edit', '1');
+
+            // Add CSRF token if present
+            const csrfInput = document.querySelector('input[name="csrf_token"]');
+            if (csrfInput) resubmitFormData.append('csrf_token', csrfInput.value);
+
+            const aiResponse = await fetch(fetchUrl, {
+                method: 'POST',
+                body: resubmitFormData
+            });
+
+            if (!aiResponse.ok) throw new Error(`HTTP error! status: ${aiResponse.status}`);
+
+            const contentType = aiResponse.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response.');
+            }
+
+            const aiResult = await aiResponse.json();
+
+            if (aiResult.success) {
+                const messageContent = `
+                    ${aiResult.answer}
+                    <div class="message-footer">
+                        <button class="read-aloud-btn" title="Read aloud">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                        <button class="copy-btn" title="Copy response">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                `;
+                addMessage('ai', messageContent, true);
+            } else {
+                addMessage('ai', `<p style="color: red;">Error: ${aiResult.error || 'An unknown error occurred.'}</p>`);
+            }
+
+            // Update edit buttons
+            updateEditButtons();
+
+        } catch (error) {
+            console.error('Edit error:', error);
+            // Restore original on failure
+            if (msgWrapper._originalHtml) {
+                messageBubble.innerHTML = msgWrapper._originalHtml;
+            }
+            const actionsDiv = msgWrapper.querySelector('.message-actions');
+            if (actionsDiv) actionsDiv.style.display = '';
+            addMessage('ai', `<p style="color: red;">Edit failed: ${error.message}</p>`);
+        } finally {
+            showTypingIndicator(false);
+            submitBtn.disabled = false;
+            questionInput.disabled = false;
+            questionInput.focus();
+        }
+    }
+
+    // --- Helper: Add edit button to the last user message ---
+    function updateEditButtons() {
+        // Remove all existing edit buttons
+        chatMessages.querySelectorAll('.message-actions').forEach(a => a.remove());
+        // Find the last user message
+        const userMsgs = chatMessages.querySelectorAll('.message.user');
+        if (userMsgs.length === 0) return;
+        const lastUserMsg = userMsgs[userMsgs.length - 1];
+        // Don't add if already in edit mode
+        if (lastUserMsg.querySelector('.message-edit-area')) return;
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'message-actions';
+        actionsDiv.innerHTML = '<button class="edit-msg-btn" title="Edit message"><i class="fas fa-pencil-alt"></i></button>';
+        lastUserMsg.appendChild(actionsDiv);
+    }
 
     // --- Event Delegation for Chat Buttons ---
     // This replaces attachMessageEventListeners and works for all current and future buttons
     chatMessages.addEventListener('click', (e) => {
+        // --- Edit button handler ---
+        const editBtn = e.target.closest('.edit-msg-btn');
+        if (editBtn) {
+            e.preventDefault();
+            const msgWrapper = editBtn.closest('.message.user');
+            if (!msgWrapper) return;
+            const messageId = msgWrapper.getAttribute('data-message-id');
+            const messageBubble = msgWrapper.querySelector('.message-content');
+            if (!messageBubble || msgWrapper.querySelector('.message-edit-area')) return;
+
+            // Extract plain text from the message (skip attachment pills and edited badge)
+            let originalText = '';
+            messageBubble.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    originalText += node.textContent;
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (!node.classList.contains('message-attachments-grid') &&
+                        !node.classList.contains('message-attachment-pill') &&
+                        !node.classList.contains('edited-badge') &&
+                        !node.classList.contains('message-footer')) {
+                        // Could be a <p> tag from markdown rendering
+                        originalText += node.textContent;
+                    }
+                }
+            });
+            originalText = originalText.trim();
+
+            // Save original HTML for cancel
+            msgWrapper._originalHtml = messageBubble.innerHTML;
+
+            // Hide edit button
+            const actionsDiv = msgWrapper.querySelector('.message-actions');
+            if (actionsDiv) actionsDiv.style.display = 'none';
+
+            // Replace content with edit area
+            messageBubble.innerHTML = `
+                <div class="message-edit-area">
+                    <textarea class="edit-textarea" rows="3">${originalText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                    <div class="edit-actions">
+                        <button class="edit-cancel-btn" type="button">Cancel</button>
+                        <button class="edit-save-btn" type="button">
+                            <i class="fas fa-paper-plane"></i> Save & Submit
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Focus the textarea and put cursor at end
+            const textarea = messageBubble.querySelector('.edit-textarea');
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+            // Auto-resize textarea
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+            textarea.addEventListener('input', () => {
+                textarea.style.height = 'auto';
+                textarea.style.height = textarea.scrollHeight + 'px';
+            });
+
+            return;
+        }
+
+        // --- Edit cancel handler ---
+        const cancelBtn = e.target.closest('.edit-cancel-btn');
+        if (cancelBtn) {
+            e.preventDefault();
+            const msgWrapper = cancelBtn.closest('.message.user');
+            if (!msgWrapper) return;
+            const messageBubble = msgWrapper.querySelector('.message-content');
+            // Restore original
+            const originalHtml = msgWrapper._originalHtml;
+            if (originalHtml) {
+                messageBubble.innerHTML = originalHtml;
+            } else {
+                // Fallback: reload conversation
+                const convoId = conversationIdInput.value;
+                if (convoId) loadConversation(convoId);
+                return;
+            }
+            // Show edit button again
+            const actionsDiv = msgWrapper.querySelector('.message-actions');
+            if (actionsDiv) actionsDiv.style.display = '';
+            return;
+        }
+
+        // --- Edit save handler ---
+        const saveBtn = e.target.closest('.edit-save-btn');
+        if (saveBtn) {
+            e.preventDefault();
+            const msgWrapper = saveBtn.closest('.message.user');
+            if (!msgWrapper) return;
+            const messageId = msgWrapper.getAttribute('data-message-id');
+            const textarea = msgWrapper.querySelector('.edit-textarea');
+            const newContent = textarea ? textarea.value.trim() : '';
+            if (!newContent) return;
+
+            const conversationId = conversationIdInput.value;
+            if (!conversationId || !messageId) return;
+
+            // Execute the edit
+            handleEditSubmit(msgWrapper, messageId, newContent, conversationId);
+            return;
+        }
+
         const readAloudBtn = e.target.closest('.read-aloud-btn');
         if (readAloudBtn) {
             handleReadAloud(readAloudBtn);
@@ -1761,7 +1993,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             userMessageHtml += `</div>`;
         }
         const escapedQuestion = question.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        addMessage('user', userMessageHtml + escapedQuestion);
+        const userMsgWrapper = addMessage('user', userMessageHtml + escapedQuestion);
+
+        // Store original HTML for cancel-edit fallback
+        const userMsgBubble = userMsgWrapper.querySelector('.message-content');
+        if (userMsgBubble) userMsgWrapper._originalHtml = userMsgBubble.innerHTML;
 
         // Hide welcome screen on first message and show title
         if (welcomeScreen) welcomeScreen.style.display = 'none';
@@ -1825,6 +2061,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Handle conversation ID and title updates
                 if (result.conversation_id) {
                     conversationIdInput.value = result.conversation_id;
+
+                    // Set user message ID on the user message wrapper
+                    if (result.user_message_id && userMsgWrapper) {
+                        userMsgWrapper.setAttribute('data-message-id', result.user_message_id);
+                        updateEditButtons();
+                    }
 
                     // Update URL if we aren't already on this conversation's page
                     if (!window.location.href.includes(`chat/${result.conversation_id}`)) {
@@ -2086,7 +2328,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.body.classList.remove('chat-empty');
                 chatMessages.innerHTML = '';
                 conversationIdInput.value = id;
-                result.conversation.chat_history.forEach(item => {
+                // Find last user message index for edit button
+                let lastUserIndex = -1;
+                result.conversation.chat_history.forEach((item, i) => {
+                    if (item.role === 'user') lastUserIndex = i;
+                });
+
+                result.conversation.chat_history.forEach((item, index) => {
                     // The user's message in history includes file context, which we don't want to re-display.
                     // We'll just show the question part.
                     if (item.role === 'user') {
@@ -2147,7 +2395,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
 
                         // Add the user's question (escaped for safety)
-                        addMessage('user', userMessageHtml + userQuestion.replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+                        // Determine if this is the last user message (for edit button)
+                        const isLastUser = index === lastUserIndex;
+                        const msgWrapper = addMessage(
+                            'user',
+                            userMessageHtml + userQuestion.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
+                            false,
+                            item.message_id || null,
+                            item.is_edited || false
+                        );
+                        // Store original HTML for cancel-edit
+                        const bubble = msgWrapper.querySelector('.message-content');
+                        if (bubble) msgWrapper._originalHtml = bubble.innerHTML;
                     } else {
                         // Add the AI message with a "Read Aloud" button when loading from history
                         const messageContent = `
@@ -2161,7 +2420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     </button>
                             </div>
                         `;
-                        addMessage('ai', messageContent);
+                        addMessage('ai', messageContent, false, item.message_id || null);
                         // Attach event listener to the new button
                         const newButton = chatMessages.lastElementChild.querySelector('.read-aloud-btn');
                         if (newButton) newButton.addEventListener('click', handleReadAloud);
@@ -2169,6 +2428,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (newCopyButton) newCopyButton.addEventListener('click', handleCopyClick);
                     }
                 });
+                // Add edit buttons after all messages are loaded
+                updateEditButtons();
                 highlightActiveConversation(id);
 
                 // Update the conversation title in the header and show it
