@@ -243,8 +243,8 @@ try {
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?>">
 
-    <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar">
+    <!-- Sidebar (Desktop Only) -->
+    <aside id="sidebar" class="sidebar desktop-only">
         <div class="sidebar-top-row" style="display: flex; align-items: center; padding: 1rem 0.75rem; gap: 0.5rem;">
             <button id="menu-toggle" class="menu-toggle">
                 <i class="fas fa-bars"></i>
@@ -287,8 +287,7 @@ try {
             <div id="user-account-menu" class="user-menu hidden">
                  <div class="user-menu-header">
                     <div class="user-avatar">
-                        <?= htmlspecialchars(strtoupper(substr($displayName, 0, 1)))
-?>
+                        <?= htmlspecialchars(strtoupper(substr($displayName, 0, 1))) ?>
                     </div>
                     <div class="user-details">
                         <h4><?= htmlspecialchars($displayName) ?></h4>
@@ -315,17 +314,40 @@ try {
         </div>
     </aside>
 
-    <!-- Mobile Overlay -->
-    <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
 
     <!-- Main Chat Area -->
     <div class="main-chat-wrapper">
-        <!-- Quick Start Overlay Removed (Merged into Welcome Screen) -->
         <header class="main-chat-header">
             <div class="header-left">
-                <button id="mobile-menu-toggle" class="menu-toggle mobile-only" aria-label="Open menu">
-                    <i class="fas fa-bars" aria-hidden="true"></i>
-                </button>
+                <!-- Premium Nav Selector (Mobile Only) -->
+                <div class="mobile-nav-selector mobile-only" id="mobileNavSelector">
+                    <button type="button" class="nav-trigger-btn" id="navTrigger" title="Menu">
+                        <i class="fas fa-bars"></i>
+                        <span class="nav-pulse"></span>
+                    </button>
+                    
+                    <div class="nav-drawer" id="navDrawer">
+                        <div class="nav-name-display" id="navNameDisplay">Menu</div>
+                        <div class="nav-options-container">
+                            <a href="tutor_mysql.php" class="nav-option" data-name="New Chat" title="New Chat">
+                                <i class="fas fa-plus"></i>
+                            </a>
+                            <a href="dashboard.php" class="nav-option" data-name="Dashboard" title="Dashboard">
+                                <i class="fas fa-chart-line"></i>
+                            </a>
+                            <button type="button" class="nav-option" data-name="History" id="mobileHistoryBtn" title="Chat History">
+                                <i class="fas fa-history"></i>
+                            </button>
+                            <button type="button" class="nav-option" data-name="Settings" id="mobileSettingsBtn" title="Settings">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <a href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/auth_mysql?action=logout" class="nav-option" data-name="Logout" title="Logout">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
                 <a href="index" class="mobile-logo-link mobile-only">
                     <img src="assets/logo-bridge.svg" alt="" aria-hidden="true">
                     <span class="app-logo-text">TutorMind</span>
@@ -425,15 +447,50 @@ try {
                                 </div>
                             </div>
                             
-                            <!-- Learning Level -->
-                             <select id="learningLevel" name="learningLevel" class="action-pill-btn tool-pill" title="Reasoning level" style="outline:none; cursor:pointer;">
-                                <option value="Remember">Remember</option>
-                                <option value="Understand" selected>Understand</option>
-                                <option value="Apply">Apply</option>
-                                <option value="Analyze">Analyze</option>
-                                <option value="Evaluate">Evaluate</option>
-                                <option value="Create">Create</option>
-                            </select>
+                            <!-- Learning Level Section -->
+                            <div class="learning-level-wrapper">
+                                <!-- Desktop Select (Hidden on mobile) -->
+                                <select id="learningLevel" name="learningLevel" class="action-pill-btn tool-pill desktop-only" title="Reasoning level" style="outline:none; cursor:pointer;">
+                                    <option value="Remember">Remember</option>
+                                    <option value="Understand" selected>Understand</option>
+                                    <option value="Apply">Apply</option>
+                                    <option value="Analyze">Analyze</option>
+                                    <option value="Evaluate">Evaluate</option>
+                                    <option value="Create">Create</option>
+                                </select>
+
+                                <!-- Mobile Custom Selector (Hidden on desktop) -->
+                                <div class="mobile-level-selector mobile-only" id="mobileLevelSelector">
+                                    <button type="button" class="level-trigger-btn" id="levelTrigger" title="Set thinking level">
+                                        <i class="fas fa-brain"></i>
+                                        <span class="active-level-indicator"></span>
+                                    </button>
+                                    
+                                    <div class="level-drawer" id="levelDrawer">
+                                        <div class="level-name-display" id="levelNameDisplay">Understand</div>
+                                        <div class="level-options-container">
+                                            <button type="button" class="level-option" data-value="Remember" data-name="Remember" title="Remember (Recall facts)">
+                                                <i class="fas fa-box-archive"></i>
+                                            </button>
+                                            <button type="button" class="level-option" data-value="Understand" data-name="Understand" title="Understand (Connect concepts)">
+                                                <i class="fas fa-puzzle-piece"></i>
+                                            </button>
+                                            <button type="button" class="level-option" data-value="Apply" data-name="Apply" title="Apply (Knowledge in action)">
+                                                <i class="fas fa-bolt-lightning"></i>
+                                            </button>
+                                            <button type="button" class="level-option" data-value="Analyze" data-name="Analyze" title="Analyze (Deep dissection)">
+                                                <i class="fas fa-microscope"></i>
+                                            </button>
+                                            <button type="button" class="level-option" data-value="Evaluate" data-name="Evaluate" title="Evaluate (Judge & Verify)">
+                                                <i class="fas fa-scale-balanced"></i>
+                                            </button>
+                                            <button type="button" class="level-option" data-value="Create" data-name="Create" title="Create (Original Genesis)">
+                                                <i class="fas fa-atom"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Right Actions -->
@@ -518,6 +575,20 @@ try {
     
     <!-- Enhanced Chat Interface (New!) -->
     <script src="chat-interface.js?v=<?= time() ?>"></script>
+
+    <!-- Mobile Navigation Layer (Icons popup) -->
+    <div id="mobile-sidebar-overlay" class="sidebar-overlay hidden mobile-only"></div>
+
+    <!-- History Tray (Mobile Only) -->
+    <div id="mobile-history-tray" class="mobile-history-tray mobile-only">
+        <div class="history-tray-header">
+            <h3>Recent Conversations</h3>
+            <button id="closeHistoryTray"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="history-tray-content">
+            <?= $ssr_history_html ?>
+        </div>
+    </div>
 </body>
 </html>
 

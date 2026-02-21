@@ -24,6 +24,8 @@ class TutorMindChat {
         this.setupEventListeners();
         this.initializeFeatures();
         this.setupMobileHandling();
+        this.setupCognitiveLevelSelector();
+        this.setupMobileNavSelector();
     }
 
     /* ==================== SETUP ==================== */
@@ -100,11 +102,12 @@ class TutorMindChat {
         // Close sidebar when clicking outside on mobile
         if (window.innerWidth < 768) {
             document.addEventListener('click', (e) => {
-                const sidebar = document.querySelector('.chat-sidebar');
-                const toggle = document.getElementById('sidebar-toggle');
+                const sidebar = document.getElementById('sidebar');
+                const trigger = document.getElementById('navTrigger');
                 
-                if (sidebar && !sidebar.contains(e.target) && e.target !== toggle && !this.sidebarCollapsed) {
-                    this.toggleSidebar();
+                if (sidebar && !sidebar.contains(e.target) && e.target !== trigger && sidebar.classList.contains('open')) {
+                    sidebar.classList.remove('open');
+                    document.getElementById('mobile-sidebar-overlay')?.classList.add('hidden');
                 }
             });
         }
@@ -119,6 +122,165 @@ class TutorMindChat {
                 }
             }
         });
+    }
+
+    setupCognitiveLevelSelector() {
+        const trigger = document.getElementById('levelTrigger');
+        const selector = document.getElementById('mobileLevelSelector');
+        const nativeSelect = document.getElementById('learningLevel');
+        
+        if (!trigger || !selector || !nativeSelect) return;
+
+        console.log('🎯 Setting up Cognitive Level Selector');
+
+        // Toggle drawer
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            selector.classList.toggle('expanded');
+        });
+
+        // Close drawer on outside click
+        document.addEventListener('click', (e) => {
+            if (selector.classList.contains('expanded') && !selector.contains(e.target)) {
+                selector.classList.remove('expanded');
+            }
+        });
+
+        // Level selection
+        const options = document.querySelectorAll('.level-option');
+        const levelNameDisplay = document.getElementById('levelNameDisplay');
+        
+        options.forEach(opt => {
+            // Mouse/Touch feedback for name
+            const updateLabel = () => {
+                if (levelNameDisplay) {
+                    levelNameDisplay.textContent = opt.dataset.name;
+                    // Apply color based on the option's value
+                    selector.setAttribute('data-value', opt.dataset.value);
+                }
+            };
+
+            opt.addEventListener('mouseenter', updateLabel);
+            opt.addEventListener('touchstart', updateLabel, {passive: true});
+
+            opt.addEventListener('click', (e) => {
+                e.preventDefault();
+                const val = opt.dataset.value;
+                
+                // Update native select
+                nativeSelect.value = val;
+                
+                // Trigger change event for any other listeners
+                nativeSelect.dispatchEvent(new Event('change'));
+                
+                // Update UI
+                this.updateLevelUI(val);
+                
+                // Close drawer
+                selector.classList.remove('expanded');
+                
+                // Haptic feedback if supported
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(10);
+                }
+            });
+        });
+
+        // Reset label when closing/opening
+        trigger.addEventListener('click', () => {
+            if (selector.classList.contains('expanded')) {
+                this.updateLevelUI(nativeSelect.value);
+            }
+        });
+
+        // Initialize UI based on current select value
+        this.updateLevelUI(nativeSelect.value);
+    }
+
+    setupMobileNavSelector() {
+        const trigger = document.getElementById('navTrigger');
+        const selector = document.getElementById('mobileNavSelector');
+        const options = document.querySelectorAll('.nav-option');
+        const nameDisplay = document.getElementById('navNameDisplay');
+        const historyBtn = document.getElementById('mobileHistoryBtn');
+        const settingsBtn = document.getElementById('mobileSettingsBtn');
+        const tray = document.getElementById('mobile-history-tray');
+        const closeTray = document.getElementById('closeHistoryTray');
+        const overlay = document.getElementById('mobile-sidebar-overlay');
+
+        if (!trigger || !selector) return;
+
+        // Toggle main nav
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selector.classList.toggle('expanded');
+        });
+
+        // Options interactivity (Tooltips)
+        options.forEach(opt => {
+            const updateLabel = () => {
+                if (nameDisplay) nameDisplay.textContent = opt.dataset.name;
+            };
+            opt.addEventListener('mouseenter', updateLabel);
+            opt.addEventListener('touchstart', updateLabel, {passive: true});
+        });
+
+        // History Tray Toggle
+        if (historyBtn && tray) {
+            historyBtn.addEventListener('click', () => {
+                tray.classList.add('open');
+                overlay.classList.remove('hidden');
+                selector.classList.remove('expanded');
+            });
+        }
+
+        // Close History Tray
+        if (closeTray && tray) {
+            const closeFn = () => {
+                tray.classList.remove('open');
+                overlay.classList.add('hidden');
+            };
+            closeTray.addEventListener('click', closeFn);
+            overlay.addEventListener('click', closeFn);
+        }
+
+        // Settings Modal Trigger (reuse existing logic)
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                document.getElementById('open-settings-btn')?.click();
+                selector.classList.remove('expanded');
+            });
+        }
+
+        // Global Close
+        document.addEventListener('click', (e) => {
+            if (selector.classList.contains('expanded') && !selector.contains(e.target)) {
+                selector.classList.remove('expanded');
+            }
+        });
+    }
+
+    updateLevelUI(level) {
+        const selector = document.getElementById('mobileLevelSelector');
+        const options = document.querySelectorAll('.level-option');
+        const levelNameDisplay = document.getElementById('levelNameDisplay');
+        
+        if (!selector) return;
+
+        // Update active class on options
+        options.forEach(opt => {
+            const isActive = opt.dataset.value === level;
+            opt.classList.toggle('active', isActive);
+            if (isActive && levelNameDisplay) {
+                levelNameDisplay.textContent = opt.dataset.name;
+            }
+        });
+
+        // Update the container attribute for CSS coloring (glows)
+        selector.setAttribute('data-value', level);
+        
+        console.log(`🧠 UI updated to level: ${level}`);
     }
 
     initializeFeatures() {
