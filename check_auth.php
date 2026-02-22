@@ -53,7 +53,20 @@ if (!isset($_SESSION['user_id'])) {
         exit;
     }
     
-    // Regular page request - redirect to login
-    header('Location: login');
+    // Regular page request - redirect to login using absolute path
+    // Use the directory of the entry script (not the included file) to build the correct base path
+    $scriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+    $loginUrl = $scriptDir . '/login';
+    
+    // Prevent infinite redirect loop: if we're already trying to load the login page, stop
+    $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if (basename($currentPath) === 'login' || basename($currentPath) === 'login.php') {
+        // We're already on the login page but somehow check_auth.php was included - show error instead of looping
+        http_response_code(403);
+        echo 'Authentication required. <a href="' . htmlspecialchars($loginUrl) . '">Click here to log in</a>.';
+        exit;
+    }
+    
+    header('Location: ' . $loginUrl);
     exit;
 }

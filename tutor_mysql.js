@@ -2307,7 +2307,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Check if response is OK
             if (!response.ok) {
                 console.error('Server returned error:', response.status, response.statusText);
-                throw new Error(`Server error: ${response.status}`);
+                // Try to get the error details from the response body
+                try {
+                    const errorBody = await response.text();
+                    console.error('Error response body:', errorBody);
+                    const errorJson = JSON.parse(errorBody);
+                    if (errorJson.debug) {
+                        console.error('Server debug info:', errorJson.debug);
+                    }
+                    throw new Error(`Server error: ${response.status} - ${errorJson.error || errorJson.debug || response.statusText}`);
+                } catch (parseErr) {
+                    if (parseErr.message.startsWith('Server error:')) throw parseErr;
+                    throw new Error(`Server error: ${response.status}`);
+                }
             }
 
             const text = await response.text();

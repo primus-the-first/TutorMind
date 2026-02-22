@@ -105,7 +105,7 @@ class TutorMindChat {
                 const sidebar = document.getElementById('sidebar');
                 const trigger = document.getElementById('navTrigger');
                 
-                if (sidebar && !sidebar.contains(e.target) && e.target !== trigger && sidebar.classList.contains('open')) {
+                if (sidebar && !sidebar.contains(e.target) && !(trigger && trigger.contains(e.target)) && sidebar.classList.contains('open')) {
                     sidebar.classList.remove('open');
                     document.getElementById('mobile-sidebar-overlay')?.classList.add('hidden');
                 }
@@ -226,23 +226,21 @@ class TutorMindChat {
             opt.addEventListener('touchstart', updateLabel, {passive: true});
         });
 
-        // History Tray Toggle
         if (historyBtn && tray) {
             historyBtn.addEventListener('click', () => {
                 tray.classList.add('open');
-                overlay.classList.remove('hidden');
-                selector.classList.remove('expanded');
+                if (overlay) overlay.classList.remove('hidden');
+                if (selector) selector.classList.remove('expanded');
             });
         }
 
-        // Close History Tray
         if (closeTray && tray) {
             const closeFn = () => {
                 tray.classList.remove('open');
-                overlay.classList.add('hidden');
+                if (overlay) overlay.classList.add('hidden');
             };
             closeTray.addEventListener('click', closeFn);
-            overlay.addEventListener('click', closeFn);
+            if (overlay) overlay.addEventListener('click', closeFn);
         }
 
         // Settings Modal Trigger (reuse existing logic)

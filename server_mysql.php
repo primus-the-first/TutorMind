@@ -202,9 +202,15 @@ if ($action) {
                 ob_clean();
                 echo json_encode(['success' => true, 'conversation' => $conversation]);
             } catch (Exception $e) {
-                ob_clean();
+                error_log("get_conversation error [convo_id=$convo_id]: " . $e->getMessage());
+                ob_end_clean(); // Discard any partial output safely
+                ob_start(); // Restart clean buffer for JSON response
                 http_response_code(500);
-                echo json_encode(['success' => false, 'error' => 'Could not fetch conversation.']);
+                echo json_encode([
+                    'success' => false, 
+                    'error' => 'Could not fetch conversation.',
+                    'debug' => 'DB error: ' . $e->getMessage()
+                ]);
             }
             break;
 

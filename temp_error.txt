@@ -1,0 +1,20 @@
+﻿[Sat Feb 21 01:42:59.375751 2026] [mpm_winnt:notice] [pid 11316:tid 460] AH00455: Apache/2.4.58 (Win64) OpenSSL/3.1.3 PHP/8.2.12 configured -- resuming normal operations
+[Sat Feb 21 01:42:59.375751 2026] [mpm_winnt:notice] [pid 11316:tid 460] AH00456: Apache Lounge VS17 Server built: Oct 18 2023 13:03:18
+[Sat Feb 21 01:42:59.375751 2026] [core:notice] [pid 11316:tid 460] AH00094: Command line: 'c:\\xampp\\apache\\bin\\httpd.exe -d C:/xampp/apache'
+[Sat Feb 21 01:42:59.379869 2026] [mpm_winnt:notice] [pid 11316:tid 460] AH00418: Parent: Created child process 11408
+[Sat Feb 21 01:42:59.827594 2026] [ssl:warn] [pid 11408:tid 448] AH01909: www.example.com:443:0 server certificate does NOT include an ID which matches the server name
+[Sat Feb 21 01:42:59.863137 2026] [ssl:warn] [pid 11408:tid 448] AH01909: www.example.com:443:0 server certificate does NOT include an ID which matches the server name
+[Sat Feb 21 01:42:59.906881 2026] [mpm_winnt:notice] [pid 11408:tid 448] AH00354: Child: Starting 150 worker threads.
+[Sat Feb 21 01:43:30.520914 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: Google login action started
+[Sat Feb 21 01:43:30.521435 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: Credential received, length: 1206
+[Sat Feb 21 01:43:30.521435 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: Starting cURL to Google API
+[Sat Feb 21 01:43:31.125584 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: cURL completed with HTTP code: 200
+[Sat Feb 21 01:43:31.125584 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: Token verified successfully
+[Sat Feb 21 01:43:31.127639 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: Extracted user info - email: anthonybonney13@gmail.com, google_id: 111913745929862395425
+[Sat Feb 21 01:43:31.127639 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: Getting DB connection...
+[Sat Feb 21 01:43:31.153401 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: DB connection obtained
+[Sat Feb 21 01:43:31.153401 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: Checking if user exists...
+[Sat Feb 21 01:43:31.168689 2026] [php:notice] [pid 11408:tid 1928] [client ::1:9829] AUTH_MYSQL: User lookup complete, found: yes
+[Sat Feb 21 01:43:41.628105 2026] [php:notice] [pid 11408:tid 1932] [client ::1:3686] Suggestion generation error: Gemini API error: 0, referer: https://localhost/TutorMind/chat
+[Sat Feb 21 01:45:03.138410 2026] [php:notice] [pid 11408:tid 1932] [client ::1:9038] Suggestion generation error: Gemini API error: 0, referer: https://localhost/TutorMind/chat
+[Sat Feb 21 02:03:21.244467 2026] [php:notice] [pid 11408:tid 1932] [client ::1:6132] Suggestion generation error: Gemini API error: 429, referer: https://localhost/TutorMind/tutor_mysql.php
