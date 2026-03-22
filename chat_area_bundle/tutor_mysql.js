@@ -1,5 +1,3 @@
-const DEBUG = false; // Set to true during development to enable verbose logging
-
 document.addEventListener('DOMContentLoaded', async () => {
     const tutorForm = document.getElementById('tutorForm');
     const questionInput = document.getElementById('question');
@@ -35,9 +33,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load settings immediately and wait for them to apply
     try {
         await window.settingsManager.loadSettings();
-        if (DEBUG) console.log('Settings applied successfully on page load');
+        console.log('Settings applied successfully on page load');
     } catch (error) {
-        if (DEBUG) console.error('Failed to load settings on page load:', error);
+        console.error('Failed to load settings on page load:', error);
     }
 
     // --- Load chat history on page load ---
@@ -92,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const existingMessages = chatMessages.querySelectorAll('.message');
         if (existingMessages.length > 0) {
             // Hydrate existing messages (attach listeners)
-            if (DEBUG) console.log('Hydrating SSR messages...');
+            console.log('Hydrating SSR messages...');
             hydrateMessages();
             // Scroll to bottom (forced on initial load)
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -314,14 +312,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: resubmitFormData
             });
 
-            if (aiResponse.status === 429) {
-                showCopyToast('⏳ Slow down! Wait a moment before sending again.');
-                submitBtn.disabled = false;
-                questionInput.disabled = false;
-                questionInput.focus();
-                showTypingIndicator(false);
-                return;
-            }
             if (!aiResponse.ok) throw new Error(`HTTP error! status: ${aiResponse.status}`);
 
             const contentType = aiResponse.headers.get('content-type');
@@ -341,19 +331,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button class="copy-btn" title="Copy response">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <div class="feedback-btns">
-                            <button class="feedback-btn feedback-positive" title="Good response" data-rating="positive">
-                                <i class="fas fa-thumbs-up"></i>
-                            </button>
-                            <button class="feedback-btn feedback-negative" title="Bad response" data-rating="negative">
-                                <i class="fas fa-thumbs-down"></i>
-                            </button>
-                        </div>
                     </div>
                 `;
                 addMessage('ai', messageContent, true);
             } else {
-                addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>${aiResult.error || 'An unknown error occurred.'}</span></div>`);
+                addMessage('ai', `<p style="color: red;">Error: ${aiResult.error || 'An unknown error occurred.'}</p>`);
             }
 
             // Update edit buttons
@@ -367,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const actionsDiv = msgWrapper.querySelector('.message-actions');
             if (actionsDiv) actionsDiv.style.display = '';
-            addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>Edit failed: ${error.message}</span></div>`);
+            addMessage('ai', `<p style="color: red;">Edit failed: ${error.message}</p>`);
         } finally {
             showTypingIndicator(false);
             submitBtn.disabled = false;
@@ -725,42 +707,42 @@ document.addEventListener('DOMContentLoaded', async () => {
                 this.recognition.maxAlternatives = 1;
                 
                 this.recognition.onresult = (event) => {
-                    if (DEBUG) console.log('Speech result received:', event);
+                    console.log('Speech result received:', event);
                     let transcript = '';
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         transcript += event.results[i][0].transcript;
                     }
-                    if (DEBUG) console.log('Transcript:', transcript);
+                    console.log('Transcript:', transcript);
                     questionInput.value = transcript;
                 };
                 
                 this.recognition.onstart = () => {
-                    if (DEBUG) console.log('Speech recognition started');
+                    console.log('Speech recognition started');
                     this.isListening = true;
                     this.updateMicButton();
                 };
                 
                 this.recognition.onend = () => {
-                    if (DEBUG) console.log('Speech recognition ended');
+                    console.log('Speech recognition ended');
                     this.isListening = false;
                     this.updateMicButton();
                 };
                 
                 this.recognition.onerror = (event) => {
-                    if (DEBUG) console.error('Speech recognition error:', event.error, event);
+                    console.error('Speech recognition error:', event.error, event);
                     this.isListening = false;
                     this.updateMicButton();
                     
                     if (event.error === 'not-allowed') {
-                        showCopyToast('Microphone access denied. Please enable it in your browser settings.');
+                        alert('Microphone access denied. Please enable it in your browser settings.');
                     } else if (event.error === 'no-speech') {
-                        if (DEBUG) console.log('No speech detected. Try speaking louder or closer to the mic.');
+                        console.log('No speech detected. Try speaking louder or closer to the mic.');
                     } else if (event.error === 'network') {
-                        showCopyToast('Network error. Speech recognition needs an internet connection.');
+                        alert('Network error. Speech recognition requires an internet connection.');
                     }
                 };
                 
-                if (DEBUG) console.log('Speech recognition initialized successfully');
+                console.log('Speech recognition initialized successfully');
             } else {
                 console.warn('Speech Recognition API not supported in this browser');
             }
@@ -773,8 +755,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 voiceBtn.addEventListener('click', () => {
                     if (!this.recognition) {
-                        showCopyToast('Voice input not supported in this browser. Try Chrome or Edge.');
-                        return;
+                         alert('Voice input is not supported in this browser. Please use Chrome, Edge, or Safari.');
+                         return;
                     }
                     this.toggleListening();
                 });
@@ -1836,7 +1818,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleFiles(newFiles) {
             const totalFiles = this.files.length + newFiles.length;
             if (totalFiles > this.maxFiles) {
-                showCopyToast(`Maximum ${this.maxFiles} files allowed per message.`);
+                alert(`You can only upload a maximum of ${this.maxFiles} files.`);
                 return;
             }
 
@@ -2041,20 +2023,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             showTypingIndicator(true);
             // Use getBasePath helper for consistent URL construction
             const fetchUrl = getBasePath() + '/server_mysql.php';
-            if (DEBUG) console.log('Fetching from:', fetchUrl);
+            console.log('Fetching from:', fetchUrl);
             const response = await fetch(fetchUrl, {
                 method: 'POST',
                 body: formData
             });
 
-            if (response.status === 429) {
-                showTypingIndicator(false);
-                submitBtn.disabled = false;
-                questionInput.disabled = false;
-                questionInput.focus();
-                showCopyToast('⏳ Slow down! Wait a moment before sending again.');
-                return;
-            }
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             // Check if response is actually JSON before parsing
@@ -2078,14 +2052,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button class="copy-btn" title="Copy response">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <div class="feedback-btns">
-                            <button class="feedback-btn feedback-positive" title="Good response" data-rating="positive">
-                                <i class="fas fa-thumbs-up"></i>
-                            </button>
-                            <button class="feedback-btn feedback-negative" title="Bad response" data-rating="negative">
-                                <i class="fas fa-thumbs-down"></i>
-                            </button>
-                        </div>
                     </div>
                 `;
                 addMessage('ai', messageContent, true);
@@ -2110,7 +2076,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // If server generated a title, update the conversation in the sidebar
                     if (result.generated_title) {
-                        if (DEBUG) console.log('AI generated title:', result.generated_title);
+                        console.log('AI generated title:', result.generated_title);
                         // Refresh chat history to show the new conversation with AI-generated title
                         await loadChatHistory();
                         highlightActiveConversation(result.conversation_id);
@@ -2127,21 +2093,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Update session context with server-side progress data (hybrid progress with milestones)
                 if (result.progress && window.sessionContextManager) {
                     window.sessionContextManager.updateFromServerProgress(result.progress);
-                    if (DEBUG) console.log('Progress updated:', result.progress.percentage + '%',
+                    console.log('Progress updated:', result.progress.percentage + '%',
                         `(${result.progress.milestonesCompleted}/${result.progress.milestonesTotal} milestones)`);
-                    // Show milestone completion toasts
-                    if (result.progress.recentlyCompleted?.length > 0) {
-                        result.progress.recentlyCompleted.forEach(m => {
-                            showCopyToast(`✅ Milestone complete: ${m.title}`);
-                        });
-                    }
                 }
             } else {
-                addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>${result.error || 'Something went wrong. Please try again.'}</span></div>`);
+                addMessage('ai', `<p style="color: red;">Error: ${result.error || 'An unknown error occurred.'}</p>`);
             }
         } catch (error) {
-            if (DEBUG) console.error('Fetch Error:', error);
-            addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>Sorry, I couldn't connect to the server. Please try again.</span></div>`);
+            console.error('Fetch Error:', error);
+            addMessage('ai', `<p style="color: red;">Sorry, I couldn't connect to the server. Please try again later.</p>`);
         } finally {
             showTypingIndicator(false);
             submitBtn.disabled = false;
@@ -2276,21 +2236,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Function to load chat history from server ---
     async function loadChatHistory() {
-        // Show skeleton loader while fetching
-        chatHistoryContainer.innerHTML = `
-            <div class="history-skeleton">
-                <div class="history-skeleton-item"></div>
-                <div class="history-skeleton-item"></div>
-                <div class="history-skeleton-item"></div>
-                <div class="history-skeleton-item"></div>
-            </div>`;
         try {
             const fetchUrl = getBasePath() + '/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=history`);
             const result = await response.json();
 
             if (result.success && Array.isArray(result.history)) {
-                chatHistoryContainer.innerHTML = ''; // Clear skeleton
+                chatHistoryContainer.innerHTML = ''; // Clear existing history
                 result.history.forEach(convo => {
                     const historyItem = document.createElement('div');
                     historyItem.classList.add('history-item', 'flex', 'justify-between', 'items-center');
@@ -2328,12 +2280,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     historyItem.appendChild(deleteBtn);
                     chatHistoryContainer.appendChild(historyItem);
                 });
-            } else {
-                chatHistoryContainer.innerHTML = ''; // Clear skeleton even on empty result
             }
         } catch (error) {
-            chatHistoryContainer.innerHTML = ''; // Clear skeleton on error
-            if (DEBUG) console.error('Error loading chat history:', error);
+            console.error('Error loading chat history:', error);
         }
     }
 

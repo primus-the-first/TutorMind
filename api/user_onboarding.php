@@ -27,9 +27,16 @@ function saveToFileBackup($user_id, $profile_data) {
 
 $response = ['success' => false, 'errors' => []];
 
+// Extract structured fields from the submitted profile JSON
+$knowledge_level = isset($input['knowledgeLevel']) ? $input['knowledgeLevel'] : null;
+$valid_levels = ['beginner', 'intermediate', 'advanced'];
+if (!in_array($knowledge_level, $valid_levels)) {
+    $knowledge_level = null;
+}
+
 try {
     $pdo = getDbConnection();
-    
+
     // Step 1: Mark Onboarding as Complete
     try {
         $stmt = $pdo->prepare("UPDATE users SET onboarding_completed = 1 WHERE id = ?");
@@ -39,7 +46,7 @@ try {
         // Continue to try saving profile...
     }
 
-    // Step 2: Save Profile Data
+    // Step 2: Save Profile Data (full JSON blob)
     try {
         $stmt = $pdo->prepare("UPDATE users SET profile_data = ? WHERE id = ?");
         $stmt->execute([$profile_data, $user_id]);
@@ -47,6 +54,17 @@ try {
     } catch (Exception $e) {
         $response['errors'][] = "DB Profile Save Failed: " . $e->getMessage();
         throw $e; // Trigger catch block for file backup
+    }
+
+    // Step 3: Save knowledge_level to dedicated column (best-effort — column may not exist yet)
+    if ($knowledge_level) {
+        try {
+            $stmt = $pdo->prepare("UPDATE users SET knowledge_level = ? WHERE id = ?");
+            $stmt->execute([$knowledge_level, $user_id]);
+        } catch (Exception $e) {
+            // Column missing — not fatal, profile_data JSON has the value as fallback
+            $response['errors'][] = "knowledge_level column not found (run migration): " . $e->getMessage();
+        }
     }
 
 } catch (Exception $e) {

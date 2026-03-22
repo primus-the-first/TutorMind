@@ -1842,8 +1842,8 @@ body:not(.chat-empty) .setup-link-row {
 
   .chat-content {
     padding: 1rem;
-    padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
-    /* More space for the floating input bar + notch accommodation */
+    padding-bottom: 160px;
+    /* More space for the floating input bar */
     overflow-x: hidden;
     /* Prevent horizontal scroll */
     width: 100%;
@@ -5922,108 +5922,4 @@ aside#sidebar.sidebar {
 #user-account-dropdown.user-profile {
     margin-top: auto !important;
     flex-shrink: 0 !important;
-}
-
-/* ====== ERROR MESSAGE COMPONENT ====== */
-.error-message {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--error-color, #e53e3e);
-    background: rgba(229, 62, 62, 0.08);
-    border: 1px solid rgba(229, 62, 62, 0.2);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 0.9rem;
-    line-height: 1.5;
-}
-.error-message i {
-    flex-shrink: 0;
-    font-size: 1rem;
-}
-
-/* ====== ITEMS 6, 7, 8, 9, 10 — UI IMPROVEMENTS (March 22 2026) ====== */
-
-/* --- 6. Message Bubble Max-Width (Readability) --- */
-.message.ai .message-content {
-    max-width: min(720px, 85%);
-}
-
-.message.user .message-content {
-    max-width: min(600px, 75%);
-}
-
-/* --- 7. Focus-Visible States (Accessibility) --- */
-.history-item a:focus-visible,
-.new-chat-btn:focus-visible,
-.edit-save-btn:focus-visible,
-#ai-submit-btn:focus-visible,
-.action-pill-btn:focus-visible,
-.submit-circle-btn:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-}
-
-/* --- 8. Suggestion Chip Truncation (Small Screens) --- */
-.suggestion-chip {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* --- 9. Dotted Background Pattern — Dark Mode Fix --- */
-body.dark-mode .chat-main::before {
-    opacity: 0.8;
-    background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
-}
-
-/* --- 10. Scroll-to-Bottom Button --- */
-.scroll-to-bottom-btn {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--primary, #7B3FF2);
-    color: white;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(123, 63, 242, 0.4);
-    transition: all 0.2s ease;
-    z-index: 50;
-}
-
-.scroll-to-bottom-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(123, 63, 242, 0.5);
-}
-
-/* --- 5. Chat History Skeleton Loader --- */
-.history-skeleton {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 0 1rem;
-}
-
-.history-skeleton-item {
-    height: 40px;
-    background: linear-gradient(
-        90deg,
-        rgba(123, 63, 242, 0.05) 25%,
-        rgba(123, 63, 242, 0.1) 50%,
-        rgba(123, 63, 242, 0.05) 75%
-    );
-    background-size: 200% 100%;
-    animation: skeleton-shimmer 1.5s infinite;
-    border-radius: 6px;
-}
-
-@keyframes skeleton-shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
 }

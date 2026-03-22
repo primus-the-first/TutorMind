@@ -1,0 +1,19 @@
+<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient Definition using existing Purple Brand Colors -->
+  <defs>
+    <linearGradient id="bridge-gradient" x1="0" y1="20" x2="40" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5E2EBF" />
+      <stop offset="100%" stop-color="#9D6BF5" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Bridge Arch -->
+  <path d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30" stroke="url(#bridge-gradient)" stroke-width="4" stroke-linecap="round" fill="none"/>
+  
+  <!-- Connection Dot (Top) -->
+  <circle cx="20" cy="8" r="3" fill="#F59E0B" />
+  
+  <!-- Base Dots (Grounding) -->
+  <circle cx="6" cy="30" r="2.5" fill="#5E2EBF" />
+  <circle cx="34" cy="30" r="2.5" fill="#9D6BF5" />
+</svg>

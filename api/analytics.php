@@ -16,13 +16,21 @@ try {
     
     // Get date range filter (default: last 30 days)
     $period = $_GET['period'] ?? '30days';
-    $dateFilter = match($period) {
-        '7days' => 'DATE_SUB(NOW(), INTERVAL 7 DAY)',
-        '30days' => 'DATE_SUB(NOW(), INTERVAL 30 DAY)',
-        '90days' => 'DATE_SUB(NOW(), INTERVAL 90 DAY)',
-        'all' => "'1970-01-01'",
-        default => 'DATE_SUB(NOW(), INTERVAL 30 DAY)'
-    };
+    $dateFilter = 'DATE_SUB(NOW(), INTERVAL 30 DAY)'; // Default
+    switch ($period) {
+        case '7days':
+            $dateFilter = 'DATE_SUB(NOW(), INTERVAL 7 DAY)';
+            break;
+        case '30days':
+            $dateFilter = 'DATE_SUB(NOW(), INTERVAL 30 DAY)';
+            break;
+        case '90days':
+            $dateFilter = 'DATE_SUB(NOW(), INTERVAL 90 DAY)';
+            break;
+        case 'all':
+            $dateFilter = "'1970-01-01'";
+            break;
+    }
     
     // 1. Basic stats
     $stmt = $pdo->prepare("
