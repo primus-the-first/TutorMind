@@ -45,6 +45,13 @@ function getDbConnection() {
     }
     $dbConfig = $config['database'];
 
+    $requiredKeys = ['host', 'port', 'dbname', 'user', 'password'];
+    foreach ($requiredKeys as $key) {
+        if (!isset($dbConfig[$key])) {
+            throw new Exception("Database configuration key '{$key}' is missing in {$configFile}.");
+        }
+    }
+
     $host = $dbConfig['host'];
     $port = $dbConfig['port'];
     $dbname = $dbConfig['dbname'];

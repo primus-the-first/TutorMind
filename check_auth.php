@@ -4,8 +4,24 @@ session_start();
 // If the user is not logged in, check for remember me cookie
 if (!isset($_SESSION['user_id'])) {
     if (isset($_COOKIE['remember_me'])) {
+        $cookie_val = $_COOKIE['remember_me'];
+        
+        // Validation: Format is selector:validator
+        // Selector is 16 bytes (32 hex chars), Validator is 32 bytes (64 hex chars)
+        if (strlen($cookie_val) < 40 || strpos($cookie_val, ':') === false) {
+            // Invalid cookie format, ignore
+            return;
+        }
+
+        list($selector, $validator) = explode(':', $cookie_val);
+        
+        // Strict pattern validation to prevent SQLi and bypass attempts
+        if (!preg_match('/^[a-f0-9]{32}$/i', $selector) || !preg_match('/^[a-f0-9]{64}$/i', $validator)) {
+            // Malformed token components
+            return;
+        }
+
         require_once 'db_mysql.php';
-        list($selector, $validator) = explode(':', $_COOKIE['remember_me']);
         
         try {
             $pdo = getDbConnection();

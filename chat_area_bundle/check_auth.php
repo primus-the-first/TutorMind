@@ -3,9 +3,11 @@ session_start();
 
 // If the user is not logged in, check for remember me cookie
 if (!isset($_SESSION['user_id'])) {
-    if (isset($_COOKIE['remember_me'])) {
+    if (isset($_COOKIE['remember_me']) && strpos($_COOKIE['remember_me'], ':') !== false) {
         require_once 'db_mysql.php';
-        list($selector, $validator) = explode(':', $_COOKIE['remember_me']);
+        $parts = explode(':', $_COOKIE['remember_me']);
+        if (count($parts) === 2) {
+            list($selector, $validator) = $parts;
         
         try {
             $pdo = getDbConnection();
@@ -30,9 +32,11 @@ if (!isset($_SESSION['user_id'])) {
                 }
             }
         } catch (Exception $e) {
-            // Database error, ignore and redirect
+            error_log("Database error in remember_me token check: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+            // Fail safely: proceed to redirect/API error
         }
     }
+}
 
     // If we are here, authentication failed
     // Check if this is an API request (expects JSON)

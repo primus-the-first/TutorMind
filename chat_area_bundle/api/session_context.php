@@ -67,13 +67,18 @@ try {
                 $now = new DateTime();
                 foreach ($profile['upcomingTests'] as $test) {
                     if (isset($test['testDate'])) {
-                        $testDate = new DateTime($test['testDate']);
-                        $diff = $now->diff($testDate);
-                        $daysRemaining = $diff->invert ? -1 : $diff->days;
-                        
-                        if ($daysRemaining >= 0 && $daysRemaining <= 7) {
-                            $test['daysRemaining'] = $daysRemaining;
-                            $upcomingTests[] = $test;
+                        try {
+                            $testDate = new DateTime($test['testDate']);
+                            $diff = $now->diff($testDate);
+                            $daysRemaining = $diff->invert ? -1 : $diff->days;
+                            
+                            if ($daysRemaining >= 0 && $daysRemaining <= 7) {
+                                $test['daysRemaining'] = $daysRemaining;
+                                $upcomingTests[] = $test;
+                            }
+                        } catch (Exception $e) {
+                            // Skip invalid date entries
+                            continue;
                         }
                     }
                 }
@@ -182,8 +187,8 @@ try {
     }
 
 } catch (Exception $e) {
-    error_log("Session Context API Error: " . $e->getMessage());
+    error_log("Session Context API Error: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Internal server error']);
 }
 ?>

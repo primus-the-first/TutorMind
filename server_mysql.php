@@ -20,53 +20,69 @@ require_once 'check_auth.php'; // Secure all API endpoints
 function checkChatRateLimit($pdo, $user_id) {
     $window = 60;        // 60-second window
     $max_requests = 15;  // Max 15 messages per minute per user
-
-    // Clean up old entries first
-    $pdo->prepare("DELETE FROM chat_rate_limits WHERE window_start < (UNIX_TIMESTAMP() - ?)")
-        ->execute([$window * 2]);
-
-    // Get current count in window
-    $stmt = $pdo->prepare("
-        SELECT request_count, window_start 
-        FROM chat_rate_limits 
-        WHERE user_id = ?
-    ");
-    $stmt->execute([$user_id]);
-    $record = $stmt->fetch(PDO::FETCH_ASSOC);
-
     $now = time();
 
-    if (!$record) {
-        // First request — create record
-        $pdo->prepare("
-            INSERT INTO chat_rate_limits (user_id, request_count, window_start) 
-            VALUES (?, 1, ?)
-        ")->execute([$user_id, $now]);
-        return true;
-    }
+    try {
+        // Start transaction for atomic read-modify-write with locking
+        $pdo->beginTransaction();
 
-    if (($now - $record['window_start']) > $window) {
-        // Window expired — reset
+        // 1. Clean up old entries first
+        $pdo->prepare("DELETE FROM chat_rate_limits WHERE window_start < (UNIX_TIMESTAMP() - ?)")
+            ->execute([$window * 2]);
+
+        // 2. Get and LOCK the current record for this user
+        $stmt = $pdo->prepare("
+            SELECT request_count, window_start 
+            FROM chat_rate_limits 
+            WHERE user_id = ?
+            FOR UPDATE
+        ");
+        $stmt->execute([$user_id]);
+        $record = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$record) {
+            // First request — create record
+            $pdo->prepare("
+                INSERT INTO chat_rate_limits (user_id, request_count, window_start) 
+                VALUES (?, 1, ?)
+            ")->execute([$user_id, $now]);
+            $pdo->commit();
+            return true;
+        }
+
+        if (($now - $record['window_start']) > $window) {
+            // Window expired — reset
+            $pdo->prepare("
+                UPDATE chat_rate_limits 
+                SET request_count = 1, window_start = ? 
+                WHERE user_id = ?
+            ")->execute([$now, $user_id]);
+            $pdo->commit();
+            return true;
+        }
+
+        if ($record['request_count'] >= $max_requests) {
+            // Limit exceeded
+            $pdo->rollBack();
+            return false;
+        }
+
+        // Increment count
         $pdo->prepare("
             UPDATE chat_rate_limits 
-            SET request_count = 1, window_start = ? 
+            SET request_count = request_count + 1 
             WHERE user_id = ?
-        ")->execute([$now, $user_id]);
+        ")->execute([$user_id]);
+        
+        $pdo->commit();
         return true;
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log("Rate limit check failed: " . $e->getMessage());
+        return true; // Fail-open approach: allow request if limit logic fails
     }
-
-    if ($record['request_count'] >= $max_requests) {
-        // Limit exceeded
-        return false;
-    }
-
-    // Increment count
-    $pdo->prepare("
-        UPDATE chat_rate_limits 
-        SET request_count = request_count + 1 
-        WHERE user_id = ?
-    ")->execute([$user_id]);
-    return true;
 }
 
 // --- ALWAYS require the autoloader first ---
@@ -554,16 +570,29 @@ if ($action) {
                     break;
                 }
 
-                // Update the user message content
-                $stmt = $pdo->prepare("UPDATE messages SET content = ?, is_edited = 1, content_html = NULL WHERE id = ? AND conversation_id = ?");
-                $stmt->execute([json_encode([['text' => $new_content]]), $message_id, $edit_convo_id]);
+                // Wrap database operations in a transaction for atomicity
+                $pdo->beginTransaction();
 
-                // Delete all messages after the edited message (the AI response)
-                $stmt = $pdo->prepare("DELETE FROM messages WHERE conversation_id = ? AND id > ?");
-                $stmt->execute([$edit_convo_id, $message_id]);
+                try {
+                    // Update the user message content
+                    $stmt = $pdo->prepare("UPDATE messages SET content = ?, is_edited = 1, content_html = NULL WHERE id = ? AND conversation_id = ?");
+                    $stmt->execute([json_encode([['text' => $new_content]]), $message_id, $edit_convo_id]);
 
-                ob_clean();
-                echo json_encode(['success' => true]);
+                    // Delete all messages after the edited message (the AI response)
+                    $stmt = $pdo->prepare("DELETE FROM messages WHERE conversation_id = ? AND id > ?");
+                    $stmt->execute([$edit_convo_id, $message_id]);
+                    
+                    // Update conversation timestamp
+                    $stmt = $pdo->prepare("UPDATE conversations SET updated_at = NOW() WHERE id = ?");
+                    $stmt->execute([$edit_convo_id]);
+
+                    $pdo->commit();
+                    ob_clean();
+                    echo json_encode(['success' => true]);
+                } catch (Exception $innerE) {
+                    $pdo->rollBack();
+                    throw $innerE;
+                }
             } catch (Exception $e) {
                 error_log("Edit message error: " . $e->getMessage());
                 http_response_code(500);
@@ -600,12 +629,27 @@ if (!checkChatRateLimit($pdo, $_SESSION['user_id'])) {
 // --- Check for large file upload error ---
 // If the request method is POST but the POST and FILES arrays are empty, it's a classic sign
 // that the upload exceeded the server's post_max_size limit.
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES) && $_SERVER['CONTENT_LENGTH'] > 0) {
-    throw new Exception("The uploaded file is too large. It exceeds the server's configured limit.");
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES) && ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+    http_response_code(413);
+    echo json_encode(['success' => false, 'error' => "The uploaded file is too large. It exceeds the server's configured limit (post_max_size)."]);
+    exit;
 }
 
 $question = $_POST['question'] ?? '';
 $learningLevel = $_POST['learningLevel'] ?? 'Understanding';
+
+// Validate inputs early
+if (empty(trim($question)) && empty($_FILES['attachment'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Please provide a question or an attachment for the AI tutor.']);
+    exit;
+}
+
+// Enforce strict Bloom taxonomy levels
+$validLevels = ['Foundation', 'Understanding', 'Analysis', 'Synthesis'];
+if (!in_array($learningLevel, $validLevels, true)) {
+    $learningLevel = 'Understanding'; // Safe default fallback
+}
 
 // Session context from frontend SessionContextManager
 $session_goal = $_POST['session_goal'] ?? null;
@@ -2523,6 +2567,7 @@ PROMPT;
     } catch (Exception $geminiError) {
         $isRateLimitError = strpos($geminiError->getMessage(), 'rate limit') !== false || 
                            strpos($geminiError->getMessage(), '429') !== false ||
+                           strpos($geminiError->getMessage(), '500') !== false ||
                            strpos($geminiError->getMessage(), '503') !== false;
         
         if (!$isRateLimitError) {

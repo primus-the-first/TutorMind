@@ -21,13 +21,20 @@ foreach ($configFiles as $configFile) {
     }
 }
 
-$elevenLabsApiKey = $config['ELEVEN_LABS_API'] ?? $config['ELEVENLABS_API_KEY'] ?? null;
+$elevenLabsApiKey = is_array($config) ? ($config['ELEVEN_LABS_API'] ?? $config['ELEVENLABS_API_KEY'] ?? null) : null;
 
 // Handle request
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    
+    if (!is_array($input)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid JSON input']);
+        exit;
+    }
+
     $text = $input['text'] ?? '';
     $provider = $input['provider'] ?? 'auto'; // auto, elevenlabs, infsh, browser
 
@@ -136,7 +143,18 @@ function tryElevenLabs($text, $apiKey, $voiceId = null) {
 
         $audioData = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
+
+        if ($audioData === false) {
+            error_log("ElevenLabs cURL error: " . $curlError);
+            return [
+                'success' => true,
+                'fallback' => true,
+                'text' => $text,
+                'message' => 'ElevenLabs connection error.'
+            ];
+        }
 
         if ($httpCode !== 200) {
             error_log("ElevenLabs API error: HTTP $httpCode");
@@ -202,69 +220,96 @@ function tryInferenceSh($text, $model = 'kokoro') {
         $tempInput = tempnam(sys_get_temp_dir(), 'tts_input_');
         file_put_contents($tempInput, json_encode(['text' => $text]));
 
-        // Run inference.sh
-        $cmd = "infsh app run {$appId} --input " . escapeshellarg($tempInput) . " --output json 2>&1";
-        $output = shell_exec($cmd);
+        try {
+            // Run inference.sh
+            $cmd = "infsh app run {$appId} --input " . escapeshellarg($tempInput) . " --output json 2>&1";
+            $output = shell_exec($cmd);
 
-        // Clean up temp file
-        unlink($tempInput);
-
-        if (empty($output)) {
-            error_log("inference.sh returned empty output");
-            return [
-                'success' => true,
-                'fallback' => true,
-                'text' => $text,
-                'message' => 'inference.sh returned no output.'
-            ];
-        }
-
-        // Parse output
-        $result = json_decode($output, true);
-
-        if (!$result || !isset($result['output'])) {
-            error_log("inference.sh invalid output: " . substr($output, 0, 200));
-            return [
-                'success' => true,
-                'fallback' => true,
-                'text' => $text,
-                'message' => 'inference.sh parsing error.'
-            ];
-        }
-
-        // Check for audio URL in output
-        $audioUrl = $result['output']['audio_url'] ?? $result['output']['url'] ?? null;
-
-        if ($audioUrl) {
-            // Fetch the audio file
-            $audioData = file_get_contents($audioUrl);
-
-            if ($audioData) {
+            if (empty($output)) {
+                error_log("inference.sh returned empty output");
                 return [
                     'success' => true,
-                    'audio' => base64_encode($audioData),
-                    'contentType' => 'audio/wav',
+                    'fallback' => true,
+                    'text' => $text,
+                    'message' => 'inference.sh returned no output.'
+                ];
+            }
+
+            // Parse output
+            $result = json_decode($output, true);
+
+            if (!$result || !isset($result['output'])) {
+                error_log("inference.sh invalid output: " . substr($output, 0, 200));
+                return [
+                    'success' => true,
+                    'fallback' => true,
+                    'text' => $text,
+                    'message' => 'inference.sh parsing error.'
+                ];
+            }
+
+            // Check for audio URL in output
+            $audioUrl = $result['output']['audio_url'] ?? $result['output']['url'] ?? null;
+
+            if ($audioUrl) {
+                // Validate HTTPS URL
+                if (!filter_var($audioUrl, FILTER_VALIDATE_URL) || parse_url($audioUrl, PHP_URL_SCHEME) !== 'https') {
+                    throw new Exception("Invalid or non-HTTPS audio URL");
+                }
+                
+                // Basic SSRF protection for common local/private IPs
+                $host = parse_url($audioUrl, PHP_URL_HOST);
+                if (empty($host) || in_array($host, ['localhost', '127.0.0.1', '::1']) || preg_match('/^(10\.|172\.1[6-9]\.|172\.2[0-9]\.|172\.3[0-1]\.|192\.168\.)/', $host)) {
+                    throw new Exception("Forbidden audio URL host");
+                }
+
+                // Fetch the audio file using cURL
+                $ch = curl_init($audioUrl);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_MAXREDIRS => 3,
+                    CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+                    CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
+                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_FAILONERROR => true
+                ]);
+                
+                $audioData = curl_exec($ch);
+                curl_close($ch);
+
+                if ($audioData) {
+                    return [
+                        'success' => true,
+                        'audio' => base64_encode($audioData),
+                        'contentType' => 'audio/wav',
+                        'provider' => 'infsh-' . $model
+                    ];
+                }
+            }
+
+            // Check for base64 audio in output
+            if (isset($result['output']['audio'])) {
+                return [
+                    'success' => true,
+                    'audio' => $result['output']['audio'],
+                    'contentType' => $result['output']['content_type'] ?? 'audio/wav',
                     'provider' => 'infsh-' . $model
                 ];
             }
-        }
 
-        // Check for base64 audio in output
-        if (isset($result['output']['audio'])) {
             return [
                 'success' => true,
-                'audio' => $result['output']['audio'],
-                'contentType' => $result['output']['content_type'] ?? 'audio/wav',
-                'provider' => 'infsh-' . $model
+                'fallback' => true,
+                'text' => $text,
+                'message' => 'inference.sh no audio in response.'
             ];
+        } finally {
+            // Clean up temp file
+            if (file_exists($tempInput)) {
+                unlink($tempInput);
+            }
         }
-
-        return [
-            'success' => true,
-            'fallback' => true,
-            'text' => $text,
-            'message' => 'inference.sh no audio in response.'
-        ];
 
     } catch (Exception $e) {
         error_log("inference.sh Error: " . $e->getMessage());

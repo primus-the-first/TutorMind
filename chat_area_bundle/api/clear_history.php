@@ -5,10 +5,20 @@
 require_once '../check_auth.php'; // Ensures user is logged in
 require_once '../db_mysql.php';   // Database connection
 
+header('Content-Type: application/json');
+
 // Only allow POST requests for this destructive action
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Method Not Allowed']);
+    exit;
+}
+
+// CSRF Validation
+$csrf_token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
+if (!$csrf_token || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrf_token)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Forbidden: Invalid or missing CSRF token']);
     exit;
 }
 

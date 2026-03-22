@@ -30,7 +30,7 @@ $response = ['success' => false, 'errors' => []];
 // Extract structured fields from the submitted profile JSON
 $knowledge_level = isset($input['knowledgeLevel']) ? $input['knowledgeLevel'] : null;
 $valid_levels = ['beginner', 'intermediate', 'advanced'];
-if (!in_array($knowledge_level, $valid_levels)) {
+if (!in_array($knowledge_level, $valid_levels, true)) {
     $knowledge_level = null;
 }
 
@@ -63,7 +63,8 @@ try {
             $stmt->execute([$knowledge_level, $user_id]);
         } catch (Exception $e) {
             // Column missing — not fatal, profile_data JSON has the value as fallback
-            $response['errors'][] = "knowledge_level column not found (run migration): " . $e->getMessage();
+            error_log("Error updating knowledge_level: " . $e->getMessage() . " [Code: " . $e->getCode() . "]");
+            $response['errors'][] = "Unable to read user knowledge level; please retry or contact support";
         }
     }
 

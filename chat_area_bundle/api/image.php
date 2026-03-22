@@ -11,6 +11,10 @@ header('Content-Type: application/json');
 // Allow internal calls from same domain
 $internal_call = isset($_SERVER['HTTP_X_INTERNAL_CALL']) && $_SERVER['HTTP_X_INTERNAL_CALL'] === 'tutormind';
 
+if (!$internal_call) {
+    require_once '../check_auth.php'; // Ensure user is logged in
+}
+
 // For now, only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -20,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Load configuration
 function loadConfig() {
-    $configFiles = ['../config-sql.ini', '../config.ini'];
+    $configFiles = [__DIR__ . '/../config-sql.ini', __DIR__ . '/../config.ini'];
     foreach ($configFiles as $configFile) {
         if (file_exists($configFile)) {
             $config = parse_ini_file($configFile);
@@ -30,6 +34,32 @@ function loadConfig() {
         }
     }
     throw new Exception('Configuration file not found or API key missing');
+}
+
+/**
+ * Redacts a prompt for logging to avoid PII leaks
+ */
+function redactPrompt($prompt) {
+    if (empty($prompt)) return "";
+    return hash('sha256', $prompt) . " (len: " . strlen($prompt) . ")";
+}
+
+/**
+ * Sanitizes image generation options
+ */
+function sanitizeOptions($options) {
+    $sanitized = [];
+    
+    // Clamp sampleCount between 1 and 10
+    $sampleCount = isset($options['sampleCount']) ? (int)$options['sampleCount'] : 1;
+    $sanitized['sampleCount'] = max(1, min(10, $sampleCount));
+    
+    // Whitelist aspectRatio
+    $validRatios = ["1:1", "16:9", "9:16", "4:3"];
+    $aspectRatio = isset($options['aspectRatio']) ? trim($options['aspectRatio']) : "1:1";
+    $sanitized['aspectRatio'] = in_array($aspectRatio, $validRatios) ? $aspectRatio : "1:1";
+    
+    return $sanitized;
 }
 
 /**
@@ -44,27 +74,32 @@ function generateImage($prompt, $apiKey, $options = []) {
     // Model selection - use the stable ultra version
     $model = 'imagen-4.0-ultra-generate-001';
     
-    $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:predict?key=" . $apiKey;
+    $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:predict";
     
+    $sanitizedOptions = sanitizeOptions($options);
+
     // Build payload
     $payload = [
         'instances' => [
             ['prompt' => $prompt]
         ],
         'parameters' => [
-            'sampleCount' => $options['sampleCount'] ?? 1,
-            'aspectRatio' => $options['aspectRatio'] ?? '1:1'
+            'sampleCount' => $sanitizedOptions['sampleCount'],
+            'aspectRatio' => $sanitizedOptions['aspectRatio']
         ]
     ];
     
-    error_log("Image Service: Generating image with prompt: " . substr($prompt, 0, 100));
+    error_log("Image Service: Generating image with prompt (redacted): " . redactPrompt($prompt));
     
     $ch = curl_init($apiUrl);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            "x-goog-api-key: {$apiKey}"
+        ],
         CURLOPT_TIMEOUT => 60
     ]);
 
@@ -119,10 +154,19 @@ function generateImage($prompt, $apiKey, $options = []) {
 // Main execution
 try {
     // Get input
-    $input = json_decode(file_get_contents('php://input'), true);
+    $rawInput = file_get_contents('php://input');
+    $input = json_decode($rawInput, true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid JSON input']);
+        exit;
+    }
     
     if (!isset($input['prompt']) || empty(trim($input['prompt']))) {
-        throw new Exception('Prompt is required');
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Prompt is required']);
+        exit;
     }
     
     $prompt = trim($input['prompt']);

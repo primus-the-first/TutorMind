@@ -312,8 +312,15 @@ class QuickStartManager {
         const chatContainer = document.getElementById('chat-container');
         if (!chatContainer) return;
 
-        // Convert newlines to <br> and bullets to proper list items
-        let html = text
+        // Escape HTML to prevent XSS
+        const escapeHTML = (str) => {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        };
+
+        // Convert newlines to <br> and bullets to proper entities AFTER escaping
+        let html = escapeHTML(text)
             .replace(/•/g, '&bull;')
             .replace(/\n/g, '<br>');
 

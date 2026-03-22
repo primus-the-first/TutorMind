@@ -25,14 +25,15 @@
 
 .app-logo:hover img,
 .app-logo:hover svg {
-    transform: scale(1.05);
+    transform: scale(1.05) rotate(5deg);
 }
 
 .app-logo-text {
     font-size: 26px; /* Adjusted size */
     font-weight: 700;
     font-family: 'Playfair Display', serif;
-    /* Default: Darker gradient for light backgrounds (Homepage, Login) */
+    color: #1e1b4b; /* Default fallback */
+    color: #D4AF37; /* Consistent gold fallback across system */
     background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

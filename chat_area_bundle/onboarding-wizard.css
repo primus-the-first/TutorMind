@@ -555,72 +555,7 @@ body.dark-mode .style-card.selected { background: #2D2438; }
     transform: translateY(-2px);
 }
 
-/* ==================== NOTIFICATIONS (Screen 7) ==================== */
-.notification-card {
-    background: var(--wizard-card-bg);
-    border: 2px solid var(--wizard-border);
-    padding: 2rem;
-    border-radius: 4px;
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.05);
-}
 
-.notification-toggle-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1.5rem;
-    background: var(--wizard-card-bg);
-    border: 2px solid var(--wizard-border);
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1.2rem;
-    font-weight: 700;
-    box-shadow: 4px 4px 0px rgba(0,0,0,0.05);
-    transition: all 0.2s;
-    color: var(--text-primary);
-    font-family: var(--font-body);
-}
-
-.notification-toggle-btn:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0px var(--accent-gold);
-}
-
-.notification-toggle-btn.active {
-    border-color: #10B981; /* Success Green */
-    background: rgba(16, 185, 129, 0.05);
-}
-
-.notification-toggle-btn .toggle-switch {
-    width: 50px;
-    height: 28px;
-    background: #E5E7EB;
-    border-radius: 20px;
-    position: relative;
-    transition: background 0.3s;
-    border: 2px solid var(--wizard-border);
-}
-
-.notification-toggle-btn.active .toggle-switch {
-    background: #10B981;
-    border-color: #059669;
-}
-
-.notification-toggle-btn .toggle-switch::after {
-    content: '';
-    position: absolute;
-    top: 2px; left: 2px;
-    width: 20px; height: 20px;
-    background: white;
-    border-radius: 50%;
-    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-
-.notification-toggle-btn.active .toggle-switch::after {
-    transform: translateX(22px);
-}
 
 .setting-row {
     margin-bottom: 1.5rem;
@@ -708,86 +643,7 @@ body.dark-mode .style-card.selected { background: #2D2438; }
     color: var(--text-secondary);
 }
 
-/* ==================== CHAT LESSON (Screen 8) ==================== */
-.lesson-window {
-    border: 2px solid var(--wizard-border);
-    border-radius: 4px;
-    height: 450px;
-    display: flex;
-    flex-direction: column;
-    background: var(--wizard-card-bg);
-    box-shadow: 8px 8px 0px var(--wizard-shadow);
-}
 
-.lesson-chat-area {
-    flex: 1;
-    padding: 1.5rem;
-    overflow-y: auto;
-    background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
-    background-size: 20px 20px;
-}
-
-.chat-message {
-    padding: 12px 18px;
-    border-radius: 12px;
-    margin-bottom: 16px;
-    max-width: 85%;
-    line-height: 1.5;
-    position: relative;
-    animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.chat-message.ai {
-    background: var(--paper-bg);
-    border: 2px solid var(--wizard-border);
-    margin-right: auto;
-    border-bottom-left-radius: 2px;
-    box-shadow: 2px 2px 0px rgba(0,0,0,0.1);
-}
-
-.chat-message.user {
-    background: var(--wizard-highlight);
-    color: white;
-    margin-left: auto;
-    border-bottom-right-radius: 2px;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-}
-
-.lesson-input-area {
-    border-top: 2px solid var(--wizard-border);
-    background: var(--bg-surface);
-}
-
-.lesson-options-grid {
-    padding: 1rem;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.lesson-option-btn {
-    padding: 10px 20px;
-    border: 2px solid var(--wizard-highlight);
-    background: white;
-    color: var(--wizard-highlight);
-    border-radius: 20px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
-    font-family: var(--font-body);
-}
-
-.lesson-option-btn:hover {
-    background: var(--wizard-highlight);
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(109, 40, 217, 0.3);
-}
 
 /* ==================== ASSESSMENT (Screen 5) ==================== */
 .assessment-header {
@@ -1032,36 +888,10 @@ body.dark-mode .style-card.selected { background: #2D2438; }
 }
 
 /* ==================== UTILITIES ==================== */
-.mt-2 {
-    margin-top: 1rem;
-}
-
-/* ==================== MEDIA QUERIES ==================== */
-@media (max-width: 768px) {
-    #onboarding-container {
-        margin: 0;
-        border-width: 0;
-        border-radius: 0;
-        box-shadow: none;
-        height: 100vh;
-        max-height: 100vh;
-    }
-    
-    .wizard-progress {
-        padding: 1rem;
-    }
-    
-    .screens-wrapper {
-        padding: 1rem;
-    }
-    
-    .screen h1 { font-size: 2rem; }
-    .screen h2 { font-size: 1.5rem; }
-}
-
-/* Utilities */
 .hidden { display: none !important; }
+.mt-1 { margin-top: 0.25rem; }
 .mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 0.75rem; }
 .mt-4 { margin-top: 1rem; }
 .text-center { text-align: center; }
 

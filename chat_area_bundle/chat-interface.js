@@ -401,11 +401,17 @@ class TutorMindChat {
         }
     }
 
+    escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     formatMessage(content) {
-        // Simple markdown-like formatting
-        // In production, use your existing Parsedown or marked.js
-        let formatted = content;
+        // escape first to prevent XSS
+        let formatted = this.escapeHTML(content);
         
+        // Simple markdown-like formatting
         // Bold
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         
@@ -567,24 +573,46 @@ class TutorMindChat {
 
     /* ==================== CODE COPY ==================== */
     copyCode(button) {
+        if (!button) return;
         const codeBlock = button.closest('.code-block');
-        const code = codeBlock.querySelector('pre').textContent;
+        if (!codeBlock) return;
+        const pre = codeBlock.querySelector('pre');
+        if (!pre) return;
+        const code = pre.textContent;
         
-        navigator.clipboard.writeText(code).then(() => {
-            const originalText = button.innerHTML;
+        const showSuccess = () => {
+            const originalHtml = button.innerHTML;
             button.innerHTML = '<i class="fas fa-check"></i> Copied!';
             button.classList.add('copied');
-            
             setTimeout(() => {
-                button.innerHTML = originalText;
+                button.innerHTML = originalHtml;
                 button.classList.remove('copied');
             }, 2000);
-            
             console.log('📋 Code copied to clipboard');
-        }).catch(err => {
-            console.error('Failed to copy code:', err);
-            alert('Failed to copy code to clipboard');
-        });
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(code).then(showSuccess).catch(err => {
+                console.error('Failed to copy code:', err);
+            });
+        } else {
+            // Fallback for insecure contexts or unsupported browsers
+            const textArea = document.createElement("textarea");
+            textArea.value = code;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) showSuccess();
+            } catch (err) {
+                console.error('Fallback copy failed', err);
+            }
+            document.body.removeChild(textArea);
+        }
     }
 
     /* ==================== UTILITIES ==================== */
