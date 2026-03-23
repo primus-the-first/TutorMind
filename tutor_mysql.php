@@ -264,7 +264,15 @@ try {
         <h3 class="sidebar-section-title">Recent Conversations</h3>
         
         <nav id="chat-history-container" class="chat-history">
-            <?= $ssr_history_html ?>
+            <?php if (empty($history)): ?>
+        <div style="text-align:center; padding: 2rem; color: var(--text-secondary);">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+            <p style="font-weight: 600; margin-bottom: 0.5rem;">No conversations yet</p>
+            <p style="font-size: 0.875rem;">Start a new chat to begin learning!</p>
+        </div>
+        <?php else: ?>
+        <?= $ssr_history_html ?>
+        <?php endif; ?>
         </nav>
         
         <!-- User Profile Section -->
@@ -321,9 +329,14 @@ try {
             <div class="header-left">
                 <!-- Premium Nav Selector (Mobile Only) -->
                 <div class="mobile-nav-selector mobile-only" id="mobileNavSelector">
-                    <button type="button" class="nav-trigger-btn" id="navTrigger" title="Menu">
+                    <?php 
+                    $showNavPulse = !isset($_SESSION['onboarding_complete']) || !$_SESSION['onboarding_complete'];
+                    if ($showNavPulse): ?>
+                    <span class="nav-pulse"></span>
+                    <?php endif; ?>
+<button type="button" class="nav-trigger-btn" id="navTrigger" title="Menu">
                         <i class="fas fa-bars"></i>
-                        <span class="nav-pulse"></span>
+                        
                     </button>
                     
                     <div class="nav-drawer" id="navDrawer">
@@ -586,7 +599,15 @@ try {
             <button id="closeHistoryTray"><i class="fas fa-times"></i></button>
         </div>
         <div class="history-tray-content">
-            <?= $ssr_history_html ?>
+            <?php if (empty($history)): ?>
+        <div style="text-align:center; padding: 2rem; color: var(--text-secondary);">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+            <p style="font-weight: 600; margin-bottom: 0.5rem;">No conversations yet</p>
+            <p style="font-size: 0.875rem;">Start a new chat to begin learning!</p>
+        </div>
+        <?php else: ?>
+        <?= $ssr_history_html ?>
+        <?php endif; ?>
         </div>
     </div>
 </body>

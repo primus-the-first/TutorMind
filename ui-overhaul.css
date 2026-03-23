@@ -1931,7 +1931,9 @@ body:not(.chat-empty) .setup-link-row {
     min-width: 220px;
     transform-origin: top left;
     z-index: 3000;
-  }
+  
+  max-width: calc(100vw - 24px); /* Never overflow viewport */
+}
 
   /* Triangle Tip for Nav Selector */
   .nav-drawer::before {
@@ -1948,7 +1950,9 @@ body:not(.chat-empty) .setup-link-row {
     opacity: 1;
     transform: translateY(0) scale(1);
     pointer-events: auto;
-  }
+  
+  max-width: calc(100vw - 24px); /* Never overflow viewport */
+}
 
   .mobile-nav-selector.expanded .nav-trigger-btn {
     background: white;
@@ -1971,13 +1975,18 @@ body:not(.chat-empty) .setup-link-row {
 
   .nav-options-container {
     display: flex;
-    gap: 12px;
+    gap: 8px;
+    flex-wrap: wrap; /* Wrap on tiny screens */
     width: 100%;
   }
 
   .nav-option {
     flex: 1;
-    height: 48px;
+    height: 64px; /* Taller to accommodate label */
+    min-width: 44px; /* WCAG minimum touch target */
+    min-height: 44px;
+    flex-direction: column;
+    gap: 4px;
     border-radius: 14px;
     background: #f8fafc;
     border: 1px solid rgba(0,0,0,0.05);
@@ -1989,6 +1998,18 @@ body:not(.chat-empty) .setup-link-row {
     transition: all 0.2s ease;
     font-size: 1.2rem;
     text-decoration: none;
+  
+    padding: 8px 4px;}
+
+  /* Add label via data-name attribute */
+  .nav-option::after {
+    content: attr(data-name);
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+    line-height: 1;
   }
 
   .nav-option:active {
@@ -2318,7 +2339,9 @@ body:not(.chat-empty) .setup-link-row {
   body.dark-mode .nav-drawer {
     background: rgba(30, 30, 46, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
-  }
+  
+  max-width: calc(100vw - 24px); /* Never overflow viewport */
+}
 
   body.dark-mode .nav-drawer::before {
     border-bottom-color: rgba(30, 30, 46, 0.95);
@@ -4563,7 +4586,11 @@ body:has(.quick-start-overlay:not(.hidden)) .suggestion-pills-row {
     top: 24px;
     right: 24px;
     width: 48px;
-    height: 48px;
+    height: 64px; /* Taller to accommodate label */
+    min-width: 44px; /* WCAG minimum touch target */
+    min-height: 44px;
+    flex-direction: column;
+    gap: 4px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -4574,7 +4601,19 @@ body:has(.quick-start-overlay:not(.hidden)) .suggestion-pills-row {
     display: flex;
     align-items: center;
     justify-content: center;
-}
+
+    padding: 8px 4px;}
+
+  /* Add label via data-name attribute */
+  .nav-option::after {
+    content: attr(data-name);
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+    line-height: 1;
+  }
 
 .voice-mode-close:hover {
     background: rgba(255, 255, 255, 0.2);
@@ -5942,7 +5981,7 @@ aside#sidebar.sidebar {
     font-size: 1rem;
 }
 
-/* ====== ITEMS 6, 7, 8, 9, 10 — UI IMPROVEMENTS (March 22 2026) ====== */
+/* ====== ITEMS 6, 7, 8, 9, 10  UI IMPROVEMENTS (March 22 2026) ====== */
 
 /* --- 6. Message Bubble Max-Width (Readability) --- */
 .message.ai .message-content {
@@ -5971,7 +6010,7 @@ aside#sidebar.sidebar {
     text-overflow: ellipsis;
 }
 
-/* --- 9. Dotted Background Pattern — Dark Mode Fix --- */
+/* --- 9. Dotted Background Pattern  Dark Mode Fix --- */
 body.dark-mode .chat-main::before {
     opacity: 0.8;
     background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
@@ -6027,3 +6066,41 @@ body.dark-mode .chat-main::before {
     0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
+
+  /* Logout option */
+  .nav-option[data-name="Logout"] {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.06);
+      border-color: rgba(239, 68, 68, 0.15);
+      margin-left: auto; /* Push to far right */
+  }
+
+  .nav-option[data-name="Logout"]::after {
+      color: #ef4444;
+  }
+
+  body.dark-mode .nav-option[data-name="Logout"] {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.08);
+  }
+
+  /* When history tray is open, show the overlay */
+  .sidebar-overlay.active {
+      display: block !important;
+      opacity: 1;
+  }
+
+  .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 3400; /* Just below the tray's 3500 */
+      opacity: 0;
+      transition: opacity 0.3s ease;
+  }
+
+  .mobile-logo-link:active {
+      opacity: 0.7;
+      transform: scale(0.97);
+      transition: all 0.1s ease;
+  }

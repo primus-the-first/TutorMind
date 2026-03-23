@@ -170,7 +170,15 @@ try {
             <div class="sidebar-section">
                 <h3>Recent Conversations</h3>
                 <div class="conversation-list" id="chat-history-container">
-                    <?= $ssr_history_html ?>
+                    <?php if (empty($history)): ?>
+        <div style="text-align:center; padding: 2rem; color: var(--text-secondary);">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+            <p style="font-weight: 600; margin-bottom: 0.5rem;">No conversations yet</p>
+            <p style="font-size: 0.875rem;">Start a new chat to begin learning!</p>
+        </div>
+        <?php else: ?>
+        <?= $ssr_history_html ?>
+        <?php endif; ?>
                 </div>
             </div>
         </div>

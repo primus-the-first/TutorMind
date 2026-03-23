@@ -229,7 +229,7 @@ class TutorMindChat {
         if (historyBtn && tray) {
             historyBtn.addEventListener('click', () => {
                 tray.classList.add('open');
-                if (overlay) overlay.classList.remove('hidden');
+                if (overlay) { overlay.classList.remove('hidden'); overlay.classList.add('active'); }
                 if (selector) selector.classList.remove('expanded');
             });
         }
@@ -237,7 +237,7 @@ class TutorMindChat {
         if (closeTray && tray) {
             const closeFn = () => {
                 tray.classList.remove('open');
-                if (overlay) overlay.classList.add('hidden');
+                if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('active'); }
             };
             closeTray.addEventListener('click', closeFn);
             if (overlay) overlay.addEventListener('click', closeFn);
