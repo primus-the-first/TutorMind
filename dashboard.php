@@ -595,8 +595,11 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             }
             
             container.innerHTML = sessions.map(session => {
-                const localDateString = session.date.replace(' ', 'T') + 'Z';
-                const timeAgo = getTimeAgo(new Date(localDateString));
+                let timeAgo = 'Unknown time';
+                if (session.date) {
+                    const localDateString = session.date.replace(' ', 'T');
+                    timeAgo = getTimeAgo(new Date(localDateString));
+                }
                 const goalLabel = session.goal ? session.goal.replace('_', ' ') : 'General';
                 
                 return `
