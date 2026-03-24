@@ -1275,7 +1275,7 @@ body.dark-mode .math-block {
     .main-text-input {
         font-size: 0.875rem;
         padding: 6px 10px;
-        height: calc(0.875rem * 1.5 + 12px); /* one line: font-size Ã— line-height + vertical padding */
+        height: calc(0.875rem * 1.5 + 12px); /* one line: font-size × line-height + vertical padding */
         min-height: unset;
         overflow-y: hidden;
     }
@@ -3816,7 +3816,7 @@ body:has(.quick-start-overlay:not(.hidden)) .suggestion-pills-row {
 }
 
 .milestone-progress .checkmark.completed::after {
-  content: 'âœ“';
+  content: '\2713';
   font-size: 6px;
   color: white;
   display: flex;

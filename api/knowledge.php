@@ -454,7 +454,7 @@ class KnowledgeService {
             $chunks = $this->chunkContent($content);
             foreach ($chunks as $index => $chunk) {
                 $embedding = $this->generateEmbedding($chunk);
-                $this->storeKnowledge(
+                $ok = $this->storeKnowledge(
                     $result['url'],
                     $result['title'],
                     $result['type'],
@@ -463,7 +463,11 @@ class KnowledgeService {
                     $embedding,
                     $topic
                 );
-                $stored++;
+                if ($ok) {
+                    $stored++;
+                } else {
+                    error_log("KnowledgeService: Failed to store chunk $index for URL: {$result['url']} (Title: {$result['title']})");
+                }
                 usleep(100000); // 100ms rate-limit between embedding calls
             }
         }

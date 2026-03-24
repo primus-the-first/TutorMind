@@ -1183,7 +1183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Add AI response to transcript
                     this.addTranscriptMessage(plainText.substring(0, 200) + (plainText.length > 200 ? '...' : ''), 'ai');
                     
-                    // Also add to main chat (so it's not lost)
+                    // Add to main chat (so it's not lost)
                     addMessage('user', userMessage);
                     const messageContent = `
                         ${result.answer}
@@ -1197,6 +1197,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                     `;
                     addMessage('ai', messageContent, false);
+                    
+                    // Ensure chat layout resets from centered/empty state
+                    document.body.classList.remove('chat-empty');
+                    if (welcomeScreen) welcomeScreen.style.display = 'none';
+                    if (conversationTitleEl) conversationTitleEl.style.display = 'block';
                     
                     // Speak the response
                     await this.speakResponse(plainText);

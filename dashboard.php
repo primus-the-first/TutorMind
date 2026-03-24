@@ -340,7 +340,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                     return;
                 }
             } catch (e) {
-                // fallback to localStorage
+                console.error("Error accessing preferred storage, falling back to localStorage", e);
             }
             if (localStorage.getItem('darkMode') === 'enabled') {
                 document.body.classList.add('dark-mode');
@@ -351,6 +351,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         const periodSelect = document.getElementById('periodSelect');
         let progressChart = null;
         let topicsChart = null;
+        let goalChart = null;
         
         async function loadDashboard() {
             const period = periodSelect.value;
@@ -541,6 +542,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             if (!ctx) return;
             const isDark = document.body.classList.contains('dark-mode');
             
+            if (goalChart) goalChart.destroy();
+            
             const labelMap = {
                 'homework_help': 'Homework Help',
                 'test_prep': 'Test Prep',
@@ -553,7 +556,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             const values = goalDistribution.map(g => g.count);
             const colors = ['#7b3ff2', '#10b981', '#f59e0b', '#06b6d4', '#6366f1'];
             
-            new Chart(ctx, {
+            goalChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels,

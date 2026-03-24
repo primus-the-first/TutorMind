@@ -2706,8 +2706,8 @@ PROMPT;
         $contextData['calculatedProgress'] = $hybridProgress;
 
         // Save updated context and progress to database
-        $stmt = $pdo->prepare("UPDATE conversations SET context_data = ?, progress = ?, updated_at = NOW() WHERE id = ?");
-        $stmt->execute([json_encode($contextData), $hybridProgress, $conversation_id]);
+        $stmt = $pdo->prepare("UPDATE conversations SET context_data = ?, progress = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
+        $stmt->execute([json_encode($contextData), $hybridProgress, $conversation_id, $_SESSION['user_id']]);
 
         // Also update session_goal if provided and not already set
         if ($session_goal && !$convoData['session_goal']) {
@@ -2801,20 +2801,6 @@ PROMPT;
             error_log("RAG resource detection error: " . $e->getMessage());
         }
 
-        // Save progress to DB so analytics can use it
-        if (isset($hybridProgress) && $conversation_id) {
-            $stmt = $pdo->prepare("
-                UPDATE conversations 
-                SET progress = ?, context_data = ?, updated_at = NOW() 
-                WHERE id = ? AND user_id = ?
-            ");
-            $stmt->execute([
-                $hybridProgress,
-                json_encode($contextData),
-                $conversation_id,
-                $_SESSION['user_id']
-            ]);
-        }
 
         // $formattedAnswer already computed above when saving to DB
         $response_payload = [
