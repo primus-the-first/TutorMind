@@ -147,7 +147,7 @@ try {
             'title' => $s['title'],
             'progress' => round($s['progress'] ?? 0),
             'goal' => $s['session_goal'],
-            'date' => date('c', strtotime($s['created_at']))
+            'date' => $s['created_at']
         ];
     }, array_slice($sessions, 0, 10));
     
