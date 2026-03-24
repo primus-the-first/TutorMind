@@ -61,8 +61,14 @@ try {
     foreach ($sessions as $session) {
         $title = $session['title'];
         // Simple topic extraction - first 2-3 words
-        $words = explode(' ', $title);
-        $topic = implode(' ', array_slice($words, 0, min(3, count($words))));
+        $stopWords = ['help', 'me', 'with', 'the', 'a', 'an', 'how', 'to', 'what', 'is', 'can', 'i', 'about', 'explain', 'understand', 'why', 'does', 'do', 'my', 'for', 'in', 'on'];
+        $words = array_filter(
+            explode(' ', strtolower($title)),
+            fn($w) => strlen($w) > 2 && !in_array($w, $stopWords)
+        );
+        $topic = implode(' ', array_slice(array_values($words), 0, 2));
+        if (empty($topic)) $topic = 'General';
+        $topic = ucwords($topic);
         $topicCounts[$topic] = ($topicCounts[$topic] ?? 0) + 1;
     }
     arsort($topicCounts);
@@ -113,8 +119,8 @@ try {
         $studyDate = new DateTime($dateStr);
         $diff = $today->diff($studyDate)->days;
         
-        if ($diff === $currentStreak) {
-            $currentStreak++;
+        if ($diff === 0 || $diff === $currentStreak) {
+            if ($diff > 0) $currentStreak++;
         } else {
             break;
         }

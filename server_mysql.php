@@ -2288,7 +2288,13 @@ EOT;
         
         if (strlen($userQuestionText) > 10) {
             $relevantKnowledge = $knowledgeService->retrieveRelevant($userQuestionText, 3);
-            
+
+            // If nothing found, proactively seed the knowledge base then retry
+            if (empty($relevantKnowledge) && strlen($userQuestionText) > 20) {
+                $knowledgeService->searchAndStore($userQuestionText);
+                $relevantKnowledge = $knowledgeService->retrieveRelevant($userQuestionText, 3);
+            }
+
             if (!empty($relevantKnowledge)) {
                 $knowledge_context = "\n\n## Retrieved Knowledge Context\nThe following information was retrieved from our knowledge base and may be relevant:\n\n";
                 foreach ($relevantKnowledge as $i => $chunk) {
@@ -2793,6 +2799,21 @@ PROMPT;
             }
         } catch (Exception $e) {
             error_log("RAG resource detection error: " . $e->getMessage());
+        }
+
+        // Save progress to DB so analytics can use it
+        if (isset($hybridProgress) && $conversation_id) {
+            $stmt = $pdo->prepare("
+                UPDATE conversations 
+                SET progress = ?, context_data = ?, updated_at = NOW() 
+                WHERE id = ? AND user_id = ?
+            ");
+            $stmt->execute([
+                $hybridProgress,
+                json_encode($contextData),
+                $conversation_id,
+                $_SESSION['user_id']
+            ]);
         }
 
         // $formattedAnswer already computed above when saving to DB

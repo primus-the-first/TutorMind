@@ -1275,7 +1275,7 @@ body.dark-mode .math-block {
     .main-text-input {
         font-size: 0.875rem;
         padding: 6px 10px;
-        height: calc(0.875rem * 1.5 + 12px); /* one line: font-size × line-height + vertical padding */
+        height: calc(0.875rem * 1.5 + 12px); /* one line: font-size Ã— line-height + vertical padding */
         min-height: unset;
         overflow-y: hidden;
     }
@@ -2301,8 +2301,14 @@ body:not(.chat-empty) .setup-link-row {
 
   .history-tray-content {
     flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    position: relative;
     overflow-y: auto;
     padding: 15px;
+    padding-bottom: 30px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 
   /* Sync tray styles with chat-history */
@@ -2334,6 +2340,7 @@ body:not(.chat-empty) .setup-link-row {
     background: rgba(124, 58, 237, 0.1);
     transform: scale(0.98);
   }
+
 
   /* Dark mode overrides for mobile nav */
   body.dark-mode .nav-drawer {
@@ -3809,7 +3816,7 @@ body:has(.quick-start-overlay:not(.hidden)) .suggestion-pills-row {
 }
 
 .milestone-progress .checkmark.completed::after {
-  content: '✓';
+  content: 'âœ“';
   font-size: 6px;
   color: white;
   display: flex;
@@ -6088,6 +6095,7 @@ body.dark-mode .chat-main::before {
   .sidebar-overlay.active {
       display: block !important;
       opacity: 1;
+      pointer-events: none; /* Let touches pass through to tray above */
   }
 
   .sidebar-overlay {

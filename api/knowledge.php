@@ -285,25 +285,26 @@ class KnowledgeService {
     
     /**
      * Store knowledge chunk with embedding
-     * 
+     *
      * @param string $url Source URL
      * @param string $title Source title
      * @param string $type Source type
      * @param string $chunk Text chunk
      * @param int $chunkIndex Index of chunk
      * @param array $embedding Embedding vector
+     * @param string $topic Topic category (e.g. 'learning_strategies', 'general')
      * @return bool Success
      */
-    public function storeKnowledge($url, $title, $type, $chunk, $chunkIndex, $embedding = null) {
+    public function storeKnowledge($url, $title, $type, $chunk, $chunkIndex, $embedding = null, $topic = 'general') {
         try {
             $stmt = $this->pdo->prepare("
-                INSERT INTO knowledge_base (source_url, source_title, source_type, content_chunk, chunk_index, embedding_json)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO knowledge_base (source_url, source_title, source_type, topic, content_chunk, chunk_index, embedding_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
-            
+
             $embeddingJson = $embedding ? json_encode($embedding) : null;
-            
-            return $stmt->execute([$url, $title, $type, $chunk, $chunkIndex, $embeddingJson]);
+
+            return $stmt->execute([$url, $title, $type, $topic, $chunk, $chunkIndex, $embeddingJson]);
         } catch (PDOException $e) {
             error_log("Failed to store knowledge: " . $e->getMessage());
             return false;
@@ -335,20 +336,22 @@ class KnowledgeService {
         }
         
         // Get all chunks with embeddings (in production, use a vector DB)
-        $stmt = $this->pdo->query("SELECT id, source_title, content_chunk, embedding_json FROM knowledge_base WHERE embedding_json IS NOT NULL LIMIT 1000");
+        $stmt = $this->pdo->query("SELECT id, source_title, content_chunk, embedding_json, topic FROM knowledge_base WHERE embedding_json IS NOT NULL LIMIT 1000");
         $chunks = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         // Calculate similarities
         $scored = [];
         foreach ($chunks as $chunk) {
             $embedding = json_decode($chunk['embedding_json'], true);
             if ($embedding) {
                 $similarity = $this->cosineSimilarity($queryEmbedding, $embedding);
+                // Boost learning strategy content so it surfaces more reliably
+                $boost = (($chunk['topic'] ?? 'general') === 'learning_strategies') ? 1.15 : 1.0;
                 $scored[] = [
-                    'id' => $chunk['id'],
-                    'title' => $chunk['source_title'],
-                    'content' => $chunk['content_chunk'],
-                    'similarity' => $similarity
+                    'id'         => $chunk['id'],
+                    'title'      => $chunk['source_title'],
+                    'content'    => $chunk['content_chunk'],
+                    'similarity' => $similarity * $boost
                 ];
             }
         }
@@ -417,8 +420,61 @@ class KnowledgeService {
     }
     
     /**
+     * Proactively search the web for a query and store results.
+     * Called when retrieval returns empty — seeds the knowledge base so future
+     * calls to retrieveRelevant() will find something.
+     *
+     * @param string $query User question / search query
+     * @param int $maxResults Number of web results to try
+     * @param string $topic Topic tag to attach to stored chunks
+     * @return int Number of chunks stored
+     */
+    public function searchAndStore($query, $maxResults = 3, $topic = 'general') {
+        $results = $this->searchWeb($query, $maxResults);
+        if (empty($results)) return 0;
+
+        $stored = 0;
+        foreach ($results as $result) {
+            if (empty($result['url'])) continue;
+
+            // Skip if already indexed
+            if ($this->urlExists($result['url'])) continue;
+
+            // Prefer snippet — faster and more reliable than a full scrape
+            $content = $result['snippet'] ?? '';
+
+            // Only scrape if snippet is too short to be useful
+            if (strlen($content) < 200) {
+                $scraped = $this->extractContent($result['url']);
+                if ($scraped) $content = $scraped;
+            }
+
+            if (strlen(trim($content)) < 50) continue;
+
+            $chunks = $this->chunkContent($content);
+            foreach ($chunks as $index => $chunk) {
+                $embedding = $this->generateEmbedding($chunk);
+                $this->storeKnowledge(
+                    $result['url'],
+                    $result['title'],
+                    $result['type'],
+                    $chunk,
+                    $index,
+                    $embedding,
+                    $topic
+                );
+                $stored++;
+                usleep(100000); // 100ms rate-limit between embedding calls
+            }
+        }
+
+        error_log("KnowledgeService: searchAndStore stored $stored chunks for: $query");
+        return $stored;
+    }
+
+    /**
      * Process a resource mention: search, extract, and store
-     * 
+     *
      * @param string $resourceName Name of the book/article/paper
      * @param string $author Optional author name
      * @return bool Success

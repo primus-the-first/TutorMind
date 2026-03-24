@@ -43,7 +43,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         
         .dashboard-header h1 {
             font-size: 1.75rem;
-            color: var(--text);
+            color: var(--text-primary);
             display: flex;
             align-items: center;
             gap: 0.75rem;
@@ -64,7 +64,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             border: 1px solid var(--border);
             border-radius: 8px;
             background: var(--card-bg);
-            color: var(--text);
+            color: var(--text-primary);
             font-size: 0.9rem;
             cursor: pointer;
         }
@@ -129,7 +129,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         .stat-value {
             font-size: 2rem;
             font-weight: 700;
-            color: var(--text);
+            color: var(--text-primary);
             margin-bottom: 0.25rem;
         }
         
@@ -156,7 +156,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         .chart-card h3 {
             font-size: 1rem;
             font-weight: 600;
-            color: var(--text);
+            color: var(--text-primary);
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
@@ -179,7 +179,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         .recent-sessions h3 {
             font-size: 1rem;
             font-weight: 600;
-            color: var(--text);
+            color: var(--text-primary);
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
@@ -212,7 +212,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         
         .session-title {
             font-weight: 500;
-            color: var(--text);
+            color: var(--text-primary);
             margin-bottom: 0.25rem;
         }
         
@@ -291,6 +291,14 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                 height: 200px;
             }
         }
+
+        @media (max-width: 480px) {
+            .back-btn-text { display: none; }
+            .back-btn { padding: 0.5rem; border-radius: 50%; width: 40px; height: 40px; justify-content: center; }
+            .period-select { font-size: 0.8rem; padding: 0.4rem 0.6rem; }
+            .stat-value { font-size: 1.5rem; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -305,7 +313,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                     <option value="all">All Time</option>
                 </select>
                 <a href="tutor_mysql.php" class="back-btn">
-                    <i class="fas fa-arrow-left"></i> Back to Chat
+                    <i class="fas fa-arrow-left"></i> 
+                    <span class="back-btn-text">Back to Chat</span>
                 </a>
             </div>
         </div>
@@ -318,11 +327,26 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
     </div>
     
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Apply dark mode from localStorage
-        if (localStorage.getItem('darkMode') === 'enabled') {
-            document.body.classList.add('dark-mode');
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Apply dark mode - check database first, fallback to localStorage
+        async function applyDarkMode() {
+            try {
+                const response = await fetch('api/user_settings.php?action=get');
+                const data = await response.json();
+                if (data.success && data.settings) {
+                    const isDark = data.settings.dark_mode === true || data.settings.dark_mode === 1;
+                    document.body.classList.toggle('dark-mode', isDark);
+                    localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+                    return;
+                }
+            } catch (e) {
+                // fallback to localStorage
+            }
+            if (localStorage.getItem('darkMode') === 'enabled') {
+                document.body.classList.add('dark-mode');
+            }
         }
+        await applyDarkMode();
         
         const periodSelect = document.getElementById('periodSelect');
         let progressChart = null;
@@ -335,12 +359,16 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i></div>';
             
             try {
-                const response = await fetch(`api/analytics.php?period=${period}`);
+                const [response] = await Promise.all([
+                    fetch(`api/analytics.php?period=${period}`),
+                    new Promise(resolve => setTimeout(resolve, 300))
+                ]);
                 const data = await response.json();
                 
                 if (!data.success) throw new Error(data.error);
                 
                 renderDashboard(data);
+                window._lastDashboardData = data;
             } catch (error) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -379,6 +407,20 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                         <div class="stat-value">${stats.currentStreak} 🔥</div>
                         <div class="stat-label">Day Streak</div>
                     </div>
+                    <div class="stat-card" style="--icon-bg: rgba(6,182,212,0.15); --icon-color: #06b6d4;">
+                        <div class="stat-icon" style="background: rgba(6,182,212,0.15); color: #06b6d4;">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="stat-value">${stats.activeDays}</div>
+                        <div class="stat-label">Active Days</div>
+                    </div>
+                    <div class="stat-card" style="--icon-bg: rgba(139,92,246,0.15); --icon-color: #8b5cf6;">
+                        <div class="stat-icon" style="background: rgba(139,92,246,0.15); color: #8b5cf6;">
+                            <i class="fas fa-flag-checkered"></i>
+                        </div>
+                        <div class="stat-value">${stats.milestonesCompleted}<span style="font-size:1rem;color:var(--text-secondary)">/${stats.milestonesTotal}</span></div>
+                        <div class="stat-label">Milestones</div>
+                    </div>
                 </div>
                 
                 <!-- Charts -->
@@ -395,6 +437,13 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                             <canvas id="topicsChart"></canvas>
                         </div>
                     </div>
+                    <!-- Goal Distribution -->
+                    <div class="chart-card">
+                        <h3><i class="fas fa-bullseye"></i> How You Study</h3>
+                        <div class="chart-container">
+                            <canvas id="goalChart"></canvas>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Recent Sessions -->
@@ -407,6 +456,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             // Render charts
             renderProgressChart(progressOverTime);
             renderTopicsChart(topTopics);
+            renderGoalChart(goalDistribution);
             renderRecentSessions(recentSessions);
         }
         
@@ -486,6 +536,53 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             });
         }
         
+        function renderGoalChart(goalDistribution) {
+            const ctx = document.getElementById('goalChart');
+            if (!ctx) return;
+            const isDark = document.body.classList.contains('dark-mode');
+            
+            const labelMap = {
+                'homework_help': 'Homework Help',
+                'test_prep': 'Test Prep',
+                'explore': 'Explore',
+                'practice': 'Practice',
+                'general': 'General'
+            };
+            
+            const labels = goalDistribution.map(g => labelMap[g.goal] || g.goal);
+            const values = goalDistribution.map(g => g.count);
+            const colors = ['#7b3ff2', '#10b981', '#f59e0b', '#06b6d4', '#6366f1'];
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderRadius: 8,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' },
+                            ticks: { color: isDark ? '#888' : '#666', stepSize: 1 }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: isDark ? '#888' : '#666' }
+                        }
+                    }
+                }
+            });
+        }
+        
         function renderRecentSessions(sessions) {
             const container = document.getElementById('sessionList');
             
@@ -537,6 +634,16 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         
         // Event listeners
         periodSelect.addEventListener('change', loadDashboard);
+        
+        const darkModeObserver = new MutationObserver(() => {
+            if (window._lastDashboardData) {
+                renderDashboard(window._lastDashboardData);
+            }
+        });
+        darkModeObserver.observe(document.body, { 
+            attributes: true, 
+            attributeFilter: ['class'] 
+        });
         
         // Initial load
         loadDashboard();

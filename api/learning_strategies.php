@@ -233,7 +233,8 @@ EOT;
                                         'webpage',
                                         $chunk,
                                         $index,
-                                        $embedding
+                                        $embedding,
+                                        'learning_strategies'
                                     );
                                     $processed++;
                                     usleep(100000); // Rate limit
