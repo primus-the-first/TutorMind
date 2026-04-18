@@ -7,10 +7,20 @@
     <title>404: Connection Lost — TutorMind</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
 
+    <!-- Dynamic Base URL to fix asset loading on deep paths -->
+    <script>
+        (function() {
+            // Detect if we are in a subdirectory (local) or root (production)
+            const path = window.location.pathname;
+            const base = path.includes('/TutorMind/') ? '/TutorMind/' : '/';
+            document.write('<base href="' + base + '">');
+        })();
+    </script>
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Funnel+Display:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Design System -->

@@ -5435,7 +5435,7 @@ button.quick-action-card:hover {
 }
 /* Component 1b: Sidebar Section Title */
 .sidebar-section-title {
-    font-family: 'Playfair Display', Georgia, serif !important;
+    font-family: 'Funnel Display', sans-serif !important;
     font-size: 0.75rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.5px !important;
@@ -5638,7 +5638,7 @@ button.quick-action-card:hover {
 .quick-start-title,
 .welcome-section h1,
 .welcome-section h2 {
-    font-family: 'Playfair Display', Georgia, serif !important;
+    font-family: 'Funnel Display', sans-serif !important;
     font-size: clamp(1.8rem, 5vw, 3rem) !important;
     font-weight: 700 !important;
     letter-spacing: -0.5px !important;

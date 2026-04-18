@@ -181,7 +181,7 @@ body.dark-mode .dark-mode-toggle {
 
 /* Ensure proper text colors */
 h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading, 'Playfair Display', serif) !important;
+    font-family: var(--font-heading, 'Funnel Display', sans-serif) !important;
     color: var(--text-primary, #1F2937) !important;
 }
 

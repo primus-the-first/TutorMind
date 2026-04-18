@@ -1,10 +1,20 @@
 # Force HTTPS redirect
 RewriteEngine On
 Options -MultiViews
-RewriteBase /TutorMind/
 
-# Custom 404 Error Page
-ErrorDocument 404 /TutorMind/404.html
+# Environment-aware RewriteBase and ErrorDocuments
+# Use /TutorMind/ for localhost, / for production
+<If "%{HTTP_HOST} == 'localhost'">
+    RewriteBase /TutorMind/
+    ErrorDocument 404 /TutorMind/404.html
+    ErrorDocument 403 /TutorMind/404.html
+</If>
+<Else>
+    RewriteBase /
+    ErrorDocument 404 /404.html
+    ErrorDocument 403 /404.html
+</Else>
+
 # Force HTTPS redirect - DISABLED for Localhost development
 # RewriteCond %{HTTPS} off
 # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
