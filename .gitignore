@@ -61,3 +61,8 @@ creative-demo.*
 .claude/
 .idea/
 .vscode/
+update_css.py
+update_php_js.py
+chat_area_bundle/ui-overhaul.css
+chat_area_bundle/tutor_mysql.php
+chat_area_bundle/chat-interface.js

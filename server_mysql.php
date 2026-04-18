@@ -101,8 +101,11 @@ if (!function_exists('formatResponse')) {
 
         // IMPORTANT: Protect code blocks FIRST, before LaTeX or inline code
         // This prevents ${variables} in code from being caught by LaTeX $ protection
+        // Regex notes:
+        //   [ \t]* after language: tolerates trailing spaces Gemini sometimes adds
+        //   \r?    before \n:      handles Windows-style CRLF line endings
         $text = preg_replace_callback(
-            '/```([\w]*)\n([\s\S]*?)```/s',
+            '/```([\w+\-#.]*)[ \t]*\r?\n([\s\S]*?)```/s',
             function ($matches) use (&$protections, &$counter) {
                 $placeholder = '@@PROTECT_' . $counter . '@@';
                 $language = $matches[1]; // Language identifier (optional)
@@ -155,9 +158,10 @@ if (!function_exists('formatResponse')) {
                 $html = str_replace($placeholder, $protection['content'], $html);
             } elseif ($protection['type'] === 'codeblock') {
                 // Restore code blocks with proper HTML
+                // NOTE: class goes on <code>, not <pre>, so hljs/addCopyButtonsToCodeBlocks can read it
                 $codeContent = htmlspecialchars($protection['content'], ENT_QUOTES, 'UTF-8');
                 $language = !empty($protection['language']) ? ' class="language-' . htmlspecialchars($protection['language']) . '"' : '';
-                $codeBlockHtml = '<pre' . $language . '><code>' . $codeContent . '</code></pre>';
+                $codeBlockHtml = '<pre><code' . $language . '>' . $codeContent . '</code></pre>';
                 $html = str_replace($placeholder, $codeBlockHtml, $html);
             } elseif ($protection['type'] === 'code') {
                 $codeContent = htmlspecialchars($protection['content'], ENT_QUOTES, 'UTF-8');
@@ -168,6 +172,10 @@ if (!function_exists('formatResponse')) {
         // Final cleanup: remove <p> tags from around display math
         $html = preg_replace('/<p>(\s*)(\$\$.*?\$\$)(\s*)<\/p>/s', '$2', $html);
         $html = preg_replace('/<p>(\s*)(\\\\\[.*?\\\\\])(\s*)<\/p>/s', '$2', $html);
+        // Remove <p> wrappers Parsedown adds around block-level <pre> elements
+        // (browsers auto-correct <p><pre> but leave dangling empty <p> tags and extra spacing)
+        $html = preg_replace('/<p>\s*(<pre[\s>])/s', '$1', $html);
+        $html = preg_replace('/(<\/pre>)\s*<\/p>/s', '$1', $html);
 
         return $html;
     }
@@ -2464,6 +2472,15 @@ When you detect the subject area, apply these additional strategies on top of yo
 - Guide through: Understand → Examples → Decompose → Pseudocode → Code.
 - When debugging: "What did you expect? What actually happened? Where's the gap?".
 - Ask them to read/trace code before writing it.
+- **ALWAYS provide actual code examples when explaining programming concepts** — code examples are teaching tools, not "giving away answers". Concrete code is essential for programming instruction.
+- **CRITICAL: ALL code must be in fenced code blocks with a language identifier.** Format:
+  ````
+  ```python
+  def example():
+      return "like this"
+  ```
+  ````
+  Use the correct language tag: `python`, `javascript`, `java`, `cpp`, `html`, `css`, `sql`, `bash`, etc. NEVER write code as plain text or in generic ``` blocks without a language tag.
 
 ---
 
@@ -2510,10 +2527,12 @@ When you detect the subject area, apply these additional strategies on top of yo
 ## SPECIAL SCENARIOS
 
 ### When They Ask for Direct Answer
-**Don't immediately comply**. Instead:
+**Don't immediately comply for conceptual/homework questions**. Instead:
 1.  "I want to help you learn this, not just give you the answer. Let me guide you."
 2.  "What do you understand so far?"
 3.  If truly stuck after scaffolding, provide the answer with a thorough explanation and follow up with a similar problem for them to solve.
+
+**EXCEPTION — Code Examples Are Not "Direct Answers"**: When teaching programming, providing a code example (especially a *different* example than what was asked about) is a **teaching tool**, not "giving away the answer". Always provide working code examples in fenced code blocks when explaining programming concepts. Withholding code examples defeats the purpose of programming instruction.
 
 ### When They Share Wrong Work/Thinking
 **Never say "That's wrong" directly**. Instead:
@@ -2888,6 +2907,8 @@ PROMPT;
         throw new Exception('No content generated or unexpected response structure from AI.');
     }
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Server Error: ' . $e->getMessage()]);
+    // Return 200 for chat errors so the frontend can properly display the error message
+    // instead of throwing a JS exception and showing "couldn't connect" network error.
+    http_response_code(200);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }

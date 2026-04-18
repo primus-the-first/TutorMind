@@ -26,6 +26,7 @@ class TutorMindChat {
         this.setupMobileHandling();
         this.setupCognitiveLevelSelector();
         this.setupMobileNavSelector();
+        this.setupDesktopLevelDropdown();
     }
 
     /* ==================== SETUP ==================== */
@@ -46,20 +47,8 @@ class TutorMindChat {
         const textarea = document.querySelector('.input-box textarea');
         if (textarea) {
             textarea.addEventListener('input', () => this.autoResizeTextarea(textarea));
-            
-            // Send on Enter (Shift+Enter for newline)
-            textarea.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
-            });
-        }
-
-        // Send button
-        const sendBtn = document.querySelector('.send-btn');
-        if (sendBtn) {
-            sendBtn.addEventListener('click', () => this.sendMessage());
+            // Note: Enter-to-send and send button click are handled by tutor_mysql.js
+            // to ensure proper markdown/code rendering via the server pipeline.
         }
 
         // Voice input
@@ -251,12 +240,80 @@ class TutorMindChat {
             });
         }
 
+        // Theme Toggle Trigger
+        const mobileThemeBtn = document.getElementById('mobileThemeBtn');
+        if (mobileThemeBtn) {
+            mobileThemeBtn.addEventListener('click', () => {
+                this.toggleDarkMode();
+                // Optionally keep menu open or close it? 
+                // Usually better to close to show the effect.
+                selector.classList.remove('expanded');
+            });
+        }
+
         // Global Close
         document.addEventListener('click', (e) => {
             if (selector.classList.contains('expanded') && !selector.contains(e.target)) {
                 selector.classList.remove('expanded');
             }
         });
+    }
+
+    setupDesktopLevelDropdown() {
+        const wrapper  = document.getElementById('desktopLevelDropdown');
+        const trigger  = document.getElementById('desktopLevelTrigger');
+        const menu     = document.getElementById('desktopLevelMenu');
+        const label    = document.getElementById('desktopLevelLabel');
+        const nativeSel = document.getElementById('learningLevel');
+        const items    = document.querySelectorAll('.desktop-level-item');
+
+        if (!wrapper || !trigger || !menu) return;
+
+        const open  = () => { menu.classList.remove('hidden'); wrapper.classList.add('open'); trigger.setAttribute('aria-expanded', 'true'); };
+        const close = () => { menu.classList.add('hidden');    wrapper.classList.remove('open'); trigger.setAttribute('aria-expanded', 'false'); };
+
+        // Toggle on trigger click
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.classList.contains('hidden') ? open() : close();
+        });
+
+        // Select an item
+        items.forEach(item => {
+            item.addEventListener('click', () => {
+                const val = item.dataset.value;
+
+                // Update native select for form submission
+                if (nativeSel) { nativeSel.value = val; nativeSel.dispatchEvent(new Event('change')); }
+
+                // Update trigger label
+                if (label) label.textContent = val;
+
+                // Mark active
+                items.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+
+                // Also update mobile selector state if present
+                this.updateLevelUI(val);
+
+                close();
+            });
+        });
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!wrapper.contains(e.target)) close();
+        });
+
+        // Keyboard accessibility
+        trigger.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') close();
+        });
+
+        // Sync initial state with the native select
+        const initialVal = nativeSel?.value || 'Understand';
+        if (label) label.textContent = initialVal;
+        items.forEach(i => i.classList.toggle('active', i.dataset.value === initialVal));
     }
 
     updateLevelUI(level) {
@@ -476,7 +533,7 @@ class TutorMindChat {
     /* ==================== VOICE INPUT ==================== */
     startVoiceInput() {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            alert('Voice input is not supported in your browser. Please try Chrome or Edge.');
+            TmDialog.alert({ title: 'Browser Not Supported', message: 'Voice input requires Chrome or Edge. Please switch browsers to use this feature.', type: 'warning' });
             return;
         }
 
@@ -503,7 +560,7 @@ class TutorMindChat {
         this.voiceRecognition.onerror = (event) => {
             console.error('Voice recognition error:', event.error);
             this.hideVoiceModal();
-            alert('Voice recognition error: ' + event.error);
+            TmDialog.alert({ title: 'Voice Error', message: 'Voice recognition error: ' + event.error, type: 'alert' });
         };
 
         this.voiceRecognition.onend = () => {
@@ -558,7 +615,7 @@ class TutorMindChat {
                 
                 // Preview or upload logic here
                 // For now, just log
-                alert(`Image upload feature coming soon!\nSelected: ${file.name}`);
+                TmDialog.alert({ title: 'Coming Soon', message: `Image upload is coming soon! You selected: ${file.name}`, type: 'info' });
             }
         };
         
@@ -583,7 +640,7 @@ class TutorMindChat {
             console.log('📋 Code copied to clipboard');
         }).catch(err => {
             console.error('Failed to copy code:', err);
-            alert('Failed to copy code to clipboard');
+            TmDialog.alert({ title: 'Copy Failed', message: 'Could not copy code to clipboard. Please copy manually.', type: 'alert' });
         });
     }
 
@@ -604,8 +661,14 @@ class TutorMindChat {
         }
     }
 
-    startNewChat() {
-        if (confirm('Start a new conversation? Your current chat will be saved.')) {
+    async startNewChat() {
+        const ok = await TmDialog.confirm({
+            title: 'Start a new conversation?',
+            message: 'Your current chat will be saved and you can return to it from the sidebar.',
+            confirmLabel: 'Start New Chat',
+            cancelLabel: 'Stay Here'
+        });
+        if (ok) {
             window.location.href = 'tutor_mysql.php';
             console.log('🆕 Starting new chat');
         }

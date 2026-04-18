@@ -3,6 +3,8 @@ RewriteEngine On
 Options -MultiViews
 RewriteBase /TutorMind/
 
+# Custom 404 Error Page
+ErrorDocument 404 /TutorMind/404.html
 # Force HTTPS redirect - DISABLED for Localhost development
 # RewriteCond %{HTTPS} off
 # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

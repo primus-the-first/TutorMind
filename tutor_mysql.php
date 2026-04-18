@@ -41,15 +41,17 @@ if ($user_id) {
 
         // Try to fetch program (might not exist yet if migration wasn't run)
         try {
-            $stmt = $pdo->prepare("SELECT field_of_study FROM users WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT field_of_study, education_level, knowledge_level FROM users WHERE id = ?");
             $stmt->execute([$user_id]);
             $prog = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($prog) {
-                $user_program = $prog['field_of_study'];
+                $user_program       = $prog['field_of_study'];
+                $user_education     = $prog['education_level'] ?? null;
+                $user_knowledge_lvl = $prog['knowledge_level'] ?? null;
             }
         } catch (Exception $e) {
-            // Program column might be missing, ignore this specific error
-            error_log("Program fetch error (column might be missing): " . $e->getMessage());
+            // Profile columns might be missing on older installs
+            error_log("Profile fetch error (column might be missing): " . $e->getMessage());
         }
         
     } catch (Exception $e) {
@@ -233,7 +235,7 @@ try {
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
     <!-- Highlight.js for Syntax Highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <!-- Custom Styles -->
@@ -325,8 +327,8 @@ try {
 
     <!-- Main Chat Area -->
     <div class="main-chat-wrapper">
-        <header class="main-chat-header">
-            <div class="header-left">
+        <header class="main-chat-header" style="justify-content: space-between;">
+            <div class="header-left" style="display: flex; align-items: center; flex: 1;">
                 <!-- Premium Nav Selector (Mobile Only) -->
                 <div class="mobile-nav-selector mobile-only" id="mobileNavSelector">
                     <?php 
@@ -354,6 +356,9 @@ try {
                             <button type="button" class="nav-option" data-name="Settings" id="mobileSettingsBtn" title="Settings">
                                 <i class="fas fa-cog"></i>
                             </button>
+                            <button type="button" class="nav-option" data-name="Theme" id="mobileThemeBtn" title="Toggle Theme">
+                                <i class="fas fa-moon"></i>
+                            </button>
                             <a href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/auth_mysql?action=logout" class="nav-option" data-name="Logout" title="Logout">
                                 <i class="fas fa-sign-out-alt"></i>
                             </a>
@@ -365,15 +370,65 @@ try {
                     <img src="assets/logo-bridge.svg" alt="" aria-hidden="true">
                     <span class="app-logo-text">TutorMind</span>
                 </a>
+
+                <a href="index" class="desktop-only" style="text-decoration:none; display:flex; align-items:center;">
+                    <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>; margin: 0 0 0 1rem;"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
+                </a>
             </div>
 
-            <a href="index" class="desktop-only">
-                <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
-            </a>
+            <!-- Pomodoro Timer Widget -->
+            <div class="header-center" style="display: flex; justify-content: center; flex: 1;">
+                <div class="pomodoro-widget" id="pomodoroWidget">
+                    <button type="button" class="pomodoro-trigger-btn" id="pomodoroTrigger" title="Study Timer">
+                        <i class="fas fa-clock"></i>
+                        <span class="pomodoro-time-display" id="pomodoroDisplay">25:00</span>
+                    </button>
+                    <div class="pomodoro-panel hidden" id="pomodoroPanel">
+                        <div class="pomodoro-panel-header">
+                            <span class="pomodoro-panel-title"><i class="fas fa-hourglass-half"></i> Study Timer</span>
+                            <button type="button" class="pomodoro-panel-close" id="pomodoroClose" aria-label="Close timer"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="pomodoro-ring-wrap">
+                            <svg class="pomodoro-ring" viewBox="0 0 100 100" aria-hidden="true">
+                                <circle class="pomodoro-ring-bg"   cx="50" cy="50" r="42"/>
+                                <circle class="pomodoro-ring-fill" id="pomodoroRingFill" cx="50" cy="50" r="42"/>
+                            </svg>
+                            <div class="pomodoro-ring-text" id="pomodoroRingText">25:00</div>
+                        </div>
+                        <div class="pomodoro-controls">
+                            <button type="button" class="pomo-ctrl-btn" id="pomodoroStartBtn" title="Start"><i class="fas fa-play"></i></button>
+                            <button type="button" class="pomo-ctrl-btn" id="pomodoroPauseBtn" title="Pause" style="display:none"><i class="fas fa-pause"></i></button>
+                            <button type="button" class="pomo-ctrl-btn pomo-reset-btn" id="pomodoroResetBtn" title="Reset"><i class="fas fa-undo"></i></button>
+                        </div>
+                        <div class="pomodoro-settings">
+                            <div class="pomo-setting-row">
+                                <label for="pomodoroDuration">Duration</label>
+                                <select id="pomodoroDuration">
+                                    <option value="15">15 min</option>
+                                    <option value="25" selected>25 min</option>
+                                    <option value="45">45 min</option>
+                                    <option value="60">60 min</option>
+                                </select>
+                            </div>
+                            <div class="pomo-setting-row">
+                                <label for="pomodoroQuizMode">Quiz Mode</label>
+                                <select id="pomodoroQuizMode">
+                                    <option value="off">Off</option>
+                                    <option value="gentle">Gentle</option>
+                                    <option value="standard" selected>Standard</option>
+                                    <option value="challenge">Challenge</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Dark Mode Toggle -->
-            <button class="icon-btn" id="dark-mode-toggle" title="Toggle Dark Mode" aria-label="Toggle dark mode">
-            </button>
+            <div class="header-right" style="display: flex; justify-content: flex-end; flex: 1;">
+                <button class="icon-btn" id="dark-mode-toggle" title="Toggle Dark Mode" aria-label="Toggle dark mode">
+                </button>
+            </div>
         </header>
 
         <main id="chat-container" class="chat-content">
@@ -459,18 +514,52 @@ try {
                                     </button>
                                 </div>
                             </div>
-                            
-                            <!-- Learning Level Section -->
+                              <!-- Learning Level Section -->
                             <div class="learning-level-wrapper">
-                                <!-- Desktop Select (Hidden on mobile) -->
-                                <select id="learningLevel" name="learningLevel" class="action-pill-btn tool-pill desktop-only" title="Reasoning level" style="outline:none; cursor:pointer;">
-                                    <option value="Remember">Remember</option>
-                                    <option value="Understand" selected>Understand</option>
-                                    <option value="Apply">Apply</option>
-                                    <option value="Analyze">Analyze</option>
-                                    <option value="Evaluate">Evaluate</option>
-                                    <option value="Create">Create</option>
-                                </select>
+                                <!-- Desktop Custom Dropdown (Hidden on mobile) -->
+                                <div class="desktop-level-dropdown desktop-only" id="desktopLevelDropdown">
+                                    <button type="button" class="desktop-level-trigger action-pill-btn tool-pill" id="desktopLevelTrigger" aria-haspopup="listbox" aria-expanded="false">
+                                        <i class="fas fa-brain"></i>
+                                        <span id="desktopLevelLabel">Understand</span>
+                                        <i class="fas fa-chevron-down desktop-level-chevron"></i>
+                                    </button>
+                                    <div class="desktop-level-menu hidden" id="desktopLevelMenu" role="listbox">
+                                        <div class="desktop-level-header">Bloom's Taxonomy</div>
+                                        <button type="button" class="desktop-level-item" data-value="Remember" role="option">
+                                            <i class="fas fa-box-archive"></i> <span>Remember</span>
+                                            <span class="desktop-level-hint">Recall facts</span>
+                                        </button>
+                                        <button type="button" class="desktop-level-item" data-value="Understand" role="option">
+                                            <i class="fas fa-puzzle-piece"></i> <span>Understand</span>
+                                            <span class="desktop-level-hint">Connect concepts</span>
+                                        </button>
+                                        <button type="button" class="desktop-level-item" data-value="Apply" role="option">
+                                            <i class="fas fa-bolt-lightning"></i> <span>Apply</span>
+                                            <span class="desktop-level-hint">Knowledge in action</span>
+                                        </button>
+                                        <button type="button" class="desktop-level-item" data-value="Analyze" role="option">
+                                            <i class="fas fa-microscope"></i> <span>Analyze</span>
+                                            <span class="desktop-level-hint">Deep dissection</span>
+                                        </button>
+                                        <button type="button" class="desktop-level-item" data-value="Evaluate" role="option">
+                                            <i class="fas fa-scale-balanced"></i> <span>Evaluate</span>
+                                            <span class="desktop-level-hint">Judge &amp; verify</span>
+                                        </button>
+                                        <button type="button" class="desktop-level-item" data-value="Create" role="option">
+                                            <i class="fas fa-atom"></i> <span>Create</span>
+                                            <span class="desktop-level-hint">Original genesis</span>
+                                        </button>
+                                    </div>
+                                    <!-- Hidden native select for form submission -->
+                                    <select id="learningLevel" name="learningLevel" style="display:none;" aria-hidden="true">
+                                        <option value="Remember">Remember</option>
+                                        <option value="Understand" selected>Understand</option>
+                                        <option value="Apply">Apply</option>
+                                        <option value="Analyze">Analyze</option>
+                                        <option value="Evaluate">Evaluate</option>
+                                        <option value="Create">Create</option>
+                                    </select>
+                                </div>
 
                                 <!-- Mobile Custom Selector (Hidden on desktop) -->
                                 <div class="mobile-level-selector mobile-only" id="mobileLevelSelector">
@@ -494,7 +583,7 @@ try {
                                             <button type="button" class="level-option" data-value="Analyze" data-name="Analyze" title="Analyze (Deep dissection)">
                                                 <i class="fas fa-microscope"></i>
                                             </button>
-                                            <button type="button" class="level-option" data-value="Evaluate" data-name="Evaluate" title="Evaluate (Judge & Verify)">
+                                            <button type="button" class="level-option" data-value="Evaluate" data-name="Evaluate" title="Evaluate (Judge &amp; Verify)">
                                                 <i class="fas fa-scale-balanced"></i>
                                             </button>
                                             <button type="button" class="level-option" data-value="Create" data-name="Create" title="Create (Original Genesis)">
@@ -570,8 +659,63 @@ try {
     <!-- Toast for copy feedback -->
     <div id="copy-toast" class="copy-toast" style="display:none;">Copied to clipboard</div>
 
+    <!-- ================================================================ -->
+    <!-- Active Recall Quiz Modal                                          -->
+    <!-- ================================================================ -->
+    <div id="recall-modal" class="recall-modal hidden" role="dialog" aria-modal="true" aria-labelledby="recallModalTitle">
+        <div class="recall-modal-content">
+            <div class="recall-modal-header">
+                <div class="recall-modal-icon"><i class="fas fa-brain"></i></div>
+                <div>
+                    <h3 id="recallModalTitle">Let's see what stuck!</h3>
+                    <p id="recallQuizModeLabel" class="recall-mode-label">Standard Recall</p>
+                </div>
+            </div>
+            <div id="recallQuestionPhase">
+                <div class="recall-question-card" id="recallQuestionCard">
+                    <div id="recallLoading" class="recall-loading">
+                        <i class="fas fa-spinner fa-spin"></i> Preparing your question&hellip;
+                    </div>
+                    <p id="recallQuestionText" class="recall-question-text hidden"></p>
+                    <div id="recallOptions" class="recall-options hidden"></div>
+                    <div id="recallAnswerArea" class="hidden">
+                        <textarea id="recallAnswerInput" class="recall-answer-input" placeholder="Type your answer here…" rows="4"></textarea>
+                    </div>
+                </div>
+                <div class="recall-actions">
+                    <button type="button" class="recall-skip-btn" id="recallSkipBtn">Skip for now</button>
+                    <button type="button" class="recall-submit-btn hidden" id="recallSubmitBtn">Submit Answer</button>
+                </div>
+            </div>
+            <div id="recallResultPhase" class="hidden">
+                <div id="recallScoreBadge" class="recall-score-badge"></div>
+                <p id="recallFeedback" class="recall-feedback"></p>
+                <div class="recall-context-box">
+                    <span class="recall-context-label">What was covered:</span>
+                    <p id="recallContextSnippet" class="recall-context-text"></p>
+                </div>
+                <div class="recall-actions">
+                    <button type="button" class="recall-done-btn" id="recallDoneBtn">Continue Studying</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User profile for JS features (quiz, timer) -->
+    <script>
+        window.TutorMindUser = {
+            id:             <?= json_encode($user_id) ?>,
+            knowledgeLevel: <?= json_encode($user_knowledge_lvl ?? null) ?>,
+            educationLevel: <?= json_encode($user_education    ?? null) ?>,
+            fieldOfStudy:   <?= json_encode($user_program      ?? null) ?>
+        };
+    </script>
+
     <!-- GSAP Animation Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
+    
+    <!-- Custom Dialog System (replaces native alert/confirm) -->
+    <script src="tm-dialog.js?v=<?= time() ?>"></script>
     
     <!-- Main application scripts -->
     <script src="settings.js?v=<?= time() ?>"></script>

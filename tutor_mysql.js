@@ -1,5 +1,308 @@
 const DEBUG = false; // Set to true during development to enable verbose logging
 
+// ============================================================
+// PomodoroManager — countdown timer with quiz trigger on complete
+// ============================================================
+class PomodoroManager {
+    constructor() {
+        this.duration  = 25 * 60; // seconds
+        this.remaining = this.duration;
+        this.timer     = null;
+        this.running   = false;
+        this.mode      = 'standard'; // off | gentle | standard | challenge
+        this.onComplete = null;      // callback(mode) fired when timer hits 0
+    }
+
+    start() {
+        if (this.running) return;
+        this.running = true;
+        this.timer   = setInterval(() => this._tick(), 1000);
+        document.getElementById('pomodoroTrigger')?.classList.add('pomo-running');
+    }
+
+    pause() {
+        clearInterval(this.timer);
+        this.running = false;
+        document.getElementById('pomodoroTrigger')?.classList.remove('pomo-running');
+    }
+
+    reset() {
+        this.pause();
+        this.remaining = this.duration;
+        this._updateUI();
+    }
+
+    setDuration(minutes) {
+        this.duration = minutes * 60;
+        this.reset();
+    }
+
+    setMode(mode) { this.mode = mode; }
+
+    _tick() {
+        if (this.remaining > 0) {
+            this.remaining--;
+            this._updateUI();
+        }
+        if (this.remaining <= 0) {
+            this.pause();
+            this._notifyComplete();
+        }
+    }
+
+    _notifyComplete() {
+        if (this.mode !== 'off' && typeof this.onComplete === 'function') {
+            this.onComplete(this.mode);
+        }
+        // Save session to server (fire-and-forget)
+        const convId = document.getElementById('conversation_id')?.value;
+        fetch('api/quiz.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_session',
+                conversation_id:  convId ? parseInt(convId) : null,
+                duration_minutes: Math.round(this.duration / 60),
+                mode: this.mode,
+            })
+        }).catch(() => {}); // silent fail
+    }
+
+    _updateUI() {
+        const mins    = String(Math.floor(this.remaining / 60)).padStart(2, '0');
+        const secs    = String(this.remaining % 60).padStart(2, '0');
+        const timeStr = `${mins}:${secs}`;
+        const display = document.getElementById('pomodoroDisplay');
+        const ringTxt = document.getElementById('pomodoroRingText');
+        if (display) display.textContent = timeStr;
+        if (ringTxt) ringTxt.textContent = timeStr;
+
+        // SVG ring: circumference ≈ 263.9 (r=42)
+        const ring = document.getElementById('pomodoroRingFill');
+        if (ring) {
+            const circumference = 2 * Math.PI * 42;
+            ring.style.strokeDashoffset = circumference * (1 - this.remaining / this.duration);
+        }
+    }
+
+    init() {
+        const trigger      = document.getElementById('pomodoroTrigger');
+        const panel        = document.getElementById('pomodoroPanel');
+        const closeBtn     = document.getElementById('pomodoroClose');
+        const startBtn     = document.getElementById('pomodoroStartBtn');
+        const pauseBtn     = document.getElementById('pomodoroPauseBtn');
+        const resetBtn     = document.getElementById('pomodoroResetBtn');
+        const durationSel  = document.getElementById('pomodoroDuration');
+        const modeSel      = document.getElementById('pomodoroQuizMode');
+
+        // Initialise ring dasharray
+        const ring = document.getElementById('pomodoroRingFill');
+        if (ring) ring.style.strokeDasharray = String(2 * Math.PI * 42);
+
+        this._updateUI();
+
+        trigger?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel?.classList.toggle('hidden');
+        });
+        closeBtn?.addEventListener('click', () => panel?.classList.add('hidden'));
+
+        // Close panel when clicking outside
+        document.addEventListener('click', (e) => {
+            if (panel && !panel.classList.contains('hidden') &&
+                !panel.contains(e.target) && !trigger?.contains(e.target)) {
+                panel.classList.add('hidden');
+            }
+        });
+
+        startBtn?.addEventListener('click', () => {
+            this.start();
+            startBtn.style.display = 'none';
+            if (pauseBtn) pauseBtn.style.display = '';
+        });
+
+        pauseBtn?.addEventListener('click', () => {
+            this.pause();
+            if (startBtn) startBtn.style.display = '';
+            pauseBtn.style.display = 'none';
+        });
+
+        resetBtn?.addEventListener('click', () => {
+            this.reset();
+            if (startBtn) startBtn.style.display = '';
+            if (pauseBtn) pauseBtn.style.display = 'none';
+        });
+
+        durationSel?.addEventListener('change', () => {
+            this.setDuration(parseInt(durationSel.value, 10));
+        });
+
+        modeSel?.addEventListener('change', () => {
+            this.setMode(modeSel.value);
+        });
+    }
+}
+
+// ============================================================
+// QuizManager — fetch question from API, display modal, grade
+// ============================================================
+class QuizManager {
+    constructor() {
+        this.quizId       = null;
+        this.questionType = null;
+        this.selectedOpt  = null;
+    }
+
+    async start(mode) {
+        const convId = document.getElementById('conversation_id')?.value;
+        if (!convId) return; // no active conversation, skip quietly
+
+        this._showModal(mode);
+        this._blurMessages();
+
+        try {
+            const resp = await fetch('api/quiz.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'generate', conversation_id: parseInt(convId), mode })
+            });
+            const data = await resp.json();
+
+            if (!data.success) {
+                this._hideModal();
+                return;
+            }
+
+            this.quizId       = data.quiz_id;
+            this.questionType = data.question_type;
+            this._displayQuestion(data);
+        } catch (err) {
+            if (DEBUG) console.error('QuizManager.start error:', err);
+            this._hideModal();
+        }
+    }
+
+    _showModal(mode) {
+        const modeLabels = { gentle: 'Gentle Recall', standard: 'Standard Recall', challenge: 'Challenge Mode' };
+        const el = (id) => document.getElementById(id);
+
+        const lbl = el('recallQuizModeLabel');
+        if (lbl) lbl.textContent = modeLabels[mode] || '';
+        el('recallQuestionPhase')?.classList.remove('hidden');
+        el('recallResultPhase')?.classList.add('hidden');
+        el('recallLoading')?.classList.remove('hidden');
+        el('recallQuestionText')?.classList.add('hidden');
+        el('recallOptions')?.classList.add('hidden');
+        el('recallAnswerArea')?.classList.add('hidden');
+        el('recallSubmitBtn')?.classList.add('hidden');
+        const submitBtn = el('recallSubmitBtn');
+        if (submitBtn) submitBtn.disabled = false;
+
+        this.selectedOpt = null;
+        el('recall-modal')?.classList.remove('hidden');
+    }
+
+    _displayQuestion(data) {
+        const el = (id) => document.getElementById(id);
+
+        el('recallLoading')?.classList.add('hidden');
+        const qt = el('recallQuestionText');
+        if (qt) { qt.textContent = data.question; qt.classList.remove('hidden'); }
+
+        if (data.question_type === 'recognition' && Array.isArray(data.options)) {
+            const container = el('recallOptions');
+            container.innerHTML = '';
+            data.options.forEach((opt) => {
+                const btn = document.createElement('button');
+                btn.type      = 'button';
+                btn.className = 'recall-option-btn';
+                btn.textContent = opt;
+                btn.addEventListener('click', () => {
+                    container.querySelectorAll('.recall-option-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    this.selectedOpt = opt;
+                    el('recallSubmitBtn')?.classList.remove('hidden');
+                });
+                container.appendChild(btn);
+            });
+            container.classList.remove('hidden');
+        } else {
+            const input = el('recallAnswerInput');
+            if (input) input.value = '';
+            el('recallAnswerArea')?.classList.remove('hidden');
+            el('recallAnswerInput')?.addEventListener('input', () => {
+                const btn = el('recallSubmitBtn');
+                if (!btn) return;
+                btn.classList.toggle('hidden', (el('recallAnswerInput')?.value.trim().length ?? 0) < 4);
+            });
+        }
+    }
+
+    async _submitAnswer() {
+        const el        = (id) => document.getElementById(id);
+        const submitBtn = el('recallSubmitBtn');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+        const answer = this.questionType === 'recognition'
+            ? this.selectedOpt ?? ''
+            : (el('recallAnswerInput')?.value ?? '');
+
+        try {
+            const resp = await fetch('api/quiz.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'grade', quiz_id: this.quizId, user_answer: answer })
+            });
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.error || 'Grade failed');
+            this._showResult(data);
+        } catch (err) {
+            if (DEBUG) console.error('QuizManager._submitAnswer error:', err);
+            this._hideModal();
+        }
+    }
+
+    _showResult(data) {
+        const el = (id) => document.getElementById(id);
+
+        el('recallQuestionPhase')?.classList.add('hidden');
+        el('recallResultPhase')?.classList.remove('hidden');
+
+        const pct   = Math.round((data.score ?? 0) * 100);
+        const badge = el('recallScoreBadge');
+        if (badge) {
+            badge.className   = 'recall-score-badge ' + (pct >= 75 ? 'score-great' : pct >= 40 ? 'score-ok' : 'score-low');
+            badge.textContent = `${pct}%`;
+        }
+        const fb = el('recallFeedback');
+        if (fb) fb.textContent = data.feedback ?? '';
+        const cs = el('recallContextSnippet');
+        if (cs) cs.textContent = data.context_snippet ?? '';
+
+        this._unblurMessages();
+    }
+
+    _hideModal() {
+        document.getElementById('recall-modal')?.classList.add('hidden');
+        this._unblurMessages();
+    }
+
+    _blurMessages() {
+        document.querySelectorAll('.message.ai .message-content').forEach(el => el.classList.add('recall-blurred'));
+    }
+
+    _unblurMessages() {
+        document.querySelectorAll('.message.ai .message-content').forEach(el => el.classList.remove('recall-blurred'));
+    }
+
+    init() {
+        const el = (id) => document.getElementById(id);
+        el('recallSkipBtn')?.addEventListener('click',  () => this._hideModal());
+        el('recallDoneBtn')?.addEventListener('click',  () => this._hideModal());
+        el('recallSubmitBtn')?.addEventListener('click', () => this._submitAnswer());
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     const tutorForm = document.getElementById('tutorForm');
     const questionInput = document.getElementById('question');
@@ -752,11 +1055,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     this.updateMicButton();
                     
                     if (event.error === 'not-allowed') {
-                        showCopyToast('Microphone access denied. Please enable it in your browser settings.');
+                        showCopyToast('Microphone access denied. Please enable it in your browser settings.', 'error');
                     } else if (event.error === 'no-speech') {
                         if (DEBUG) console.log('No speech detected. Try speaking louder or closer to the mic.');
                     } else if (event.error === 'network') {
-                        showCopyToast('Network error. Speech recognition needs an internet connection.');
+                        showCopyToast('Network error. Speech recognition needs an internet connection.', 'error');
                     }
                 };
                 
@@ -1439,10 +1742,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     function addCopyButtonsToCodeBlocks(container) {
         const codeBlocks = container.querySelectorAll('pre code');
 
-        // Apply syntax highlighting using lazy loader
-        if (codeBlocks.length > 0 && window.syntaxHighlighter) {
-            window.syntaxHighlighter.highlight(container).catch(err => {
-                console.warn('Syntax highlighting failed:', err);
+        // Apply syntax highlighting
+        if (codeBlocks.length > 0 && window.hljs) {
+            codeBlocks.forEach(block => {
+                if (!block.dataset.highlighted) {
+                    hljs.highlightElement(block);
+                }
             });
         }
 
@@ -1648,7 +1953,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(textToCopy).then(() => {
-                showCopyToast('Copied to clipboard');
+                showCopyToast('Copied to clipboard', 'success');
             }).catch(() => {
                 fallbackCopyText(textToCopy);
             });
@@ -1667,25 +1972,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         ta.select();
         try {
             const ok = document.execCommand('copy');
-            if (ok) showCopyToast('Copied to clipboard');
-            else showCopyToast('Could not copy');
+            if (ok) showCopyToast('Copied to clipboard', 'success');
+            else showCopyToast('Could not copy', 'error');
         } catch (err) {
-            showCopyToast('Could not copy');
+            showCopyToast('Could not copy', 'error');
         }
         document.body.removeChild(ta);
     }
 
-    function showCopyToast(msg) {
+    function showCopyToast(msg, type = 'info') {
         const toast = document.getElementById('copy-toast');
         if (!toast) return;
+        // Clear previous type classes
+        toast.classList.remove('toast-success', 'toast-error', 'toast-warning', 'toast-info');
+        toast.classList.add(`toast-${type}`);
         toast.textContent = msg;
         toast.style.display = 'block';
         toast.style.opacity = '1';
-        setTimeout(() => {
+        clearTimeout(toast._hideTimer);
+        toast._hideTimer = setTimeout(() => {
             toast.style.transition = 'opacity 250ms ease-out';
             toast.style.opacity = '0';
-            setTimeout(() => { toast.style.display = 'none'; toast.style.transition = ''; }, 300);
-        }, 1100);
+            setTimeout(() => {
+                toast.style.display = 'none';
+                toast.style.transition = '';
+                toast.classList.remove('toast-success', 'toast-error', 'toast-warning', 'toast-info');
+            }, 280);
+        }, 2600);
     }
 
     // --- Feedback Button Handler ---
@@ -1700,7 +2013,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Check if already rated
         if (feedbackBtns.classList.contains('rated')) {
-            showCopyToast('Already rated');
+            showCopyToast('Already rated', 'info');
             return;
         }
         
@@ -1734,7 +2047,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const result = await response.json();
             if (result.success) {
-                showCopyToast(rating === 'positive' ? 'Thanks for the feedback!' : 'Feedback recorded');
+                showCopyToast(rating === 'positive' ? 'Thanks for the feedback!' : 'Feedback recorded', 'success');
             } else {
                 console.error('Feedback error:', result.error);
                 // Revert visual state
@@ -2057,7 +2370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 submitBtn.disabled = false;
                 questionInput.disabled = false;
                 questionInput.focus();
-                showCopyToast('⏳ Slow down! Wait a moment before sending again.');
+                showCopyToast('⏳ Slow down! Wait a moment before sending again.', 'warning');
                 return;
             }
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -2514,7 +2827,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Function to delete a conversation ---
     async function deleteConversation(id) {
-        if (!confirm('Are you sure you want to delete this chat?')) return;
+        const confirmed = await TmDialog.confirm({
+            title: 'Delete this chat?',
+            message: 'This conversation will be permanently removed. This action cannot be undone.',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Keep it',
+            destructive: true
+        });
+        if (!confirmed) return;
 
         try {
             const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
@@ -2572,14 +2892,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
                     const result = await response.json();
                     if (!result.success) {
-                        alert('Error renaming conversation: ' + result.error);
-                        link.textContent = currentTitle; // Revert on error
+                        await TmDialog.alert({ title: 'Rename Failed', message: 'Error renaming conversation: ' + result.error, type: 'alert' });
+                        link.textContent = currentTitle;
                         link.title = currentTitle;
                     }
                 } catch (error) {
                     console.error('Rename failed:', error);
-                    alert('Could not connect to the server to rename.');
-                    link.textContent = currentTitle; // Revert on error
+                    await TmDialog.alert({ title: 'Connection Error', message: 'Could not connect to the server to rename.', type: 'warning' });
+                    link.textContent = currentTitle;
                     link.title = currentTitle;
                 }
             }
@@ -2897,4 +3217,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
     }
+
+    // --------------------------------------------------------
+    // Pomodoro Timer + Active Recall Quiz
+    // --------------------------------------------------------
+    const pomodoro = new PomodoroManager();
+    const quiz     = new QuizManager();
+
+    pomodoro.onComplete = (mode) => quiz.start(mode);
+
+    pomodoro.init();
+    quiz.init();
+
+    // Expose globally for debugging
+    window.pomodoroManager = pomodoro;
+    window.quizManager     = quiz;
 });

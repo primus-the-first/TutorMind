@@ -461,9 +461,16 @@ class SettingsManager {
     /**
      * Closes the settings modal.
      */
-    close() {
-        if (this.dirty && !confirm('You have unsaved changes. Are you sure you want to close?')) {
-            return;
+    async close() {
+        if (this.dirty) {
+            const ok = await TmDialog.confirm({
+                title: 'Unsaved Changes',
+                message: 'You have unsaved changes. Are you sure you want to close?',
+                confirmLabel: 'Discard Changes',
+                cancelLabel: 'Keep Editing',
+                destructive: true
+            });
+            if (!ok) return;
         }
         document.removeEventListener('keydown', this.handleKeyDown);
         this.modal.classList.add('hidden'); // This adds display: none !important;
@@ -999,14 +1006,27 @@ class SettingsManager {
     // --- UTILITY & HELPER METHODS ---
 
     showToast(message, type = 'info') {
-        const toast = document.getElementById('copy-toast'); // Reusing existing toast
-        if (!toast) return;
+        const toast = document.getElementById('copy-toast');
+        if (!toast) return toast;
+        // Remove previous type classes & clear any pending hide timer
+        toast.classList.remove('toast-success', 'toast-error', 'toast-warning', 'toast-info');
+        toast.classList.add(`toast-${type}`);
+        // Remove any inline background so CSS class wins
+        toast.style.removeProperty('background-color');
         toast.textContent = message;
-        toast.style.backgroundColor = type === 'error' ? '#ef4444' : (type === 'success' ? '#22c55e' : '#333');
         toast.style.display = 'block';
-        setTimeout(() => {
-            toast.style.display = 'none';
-        }, 3000);
+        toast.style.opacity = '1';
+        clearTimeout(toast._hideTimer);
+        toast._hideTimer = setTimeout(() => {
+            toast.style.transition = 'opacity 250ms ease-out';
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                toast.style.display = 'none';
+                toast.style.transition = '';
+                toast.classList.remove('toast-success', 'toast-error', 'toast-warning', 'toast-info');
+            }, 280);
+        }, 3500);
+        return toast;
     }
 
     showLoadingState(isLoading) {
