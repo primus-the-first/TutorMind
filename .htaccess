@@ -1,18 +1,23 @@
+# Global Error Documents
+ErrorDocument 404 /404.html
+ErrorDocument 403 /404.html
+
+# Local Environment Overrides (XAMPP/Localhost)
+<If "%{HTTP_HOST} == 'localhost' || %{HTTP_HOST} == '127.0.0.1'">
+    ErrorDocument 404 /TutorMind/404.html
+    ErrorDocument 403 /TutorMind/404.html
+</If>
+
 # Force HTTPS redirect
 RewriteEngine On
 Options -MultiViews
 
-# Environment-aware RewriteBase and ErrorDocuments
-# Use /TutorMind/ for localhost, / for production
-<If "%{HTTP_HOST} == 'localhost'">
+# Environment-aware RewriteBase
+<If "%{HTTP_HOST} == 'localhost' || %{HTTP_HOST} == '127.0.0.1'">
     RewriteBase /TutorMind/
-    ErrorDocument 404 /TutorMind/404.html
-    ErrorDocument 403 /TutorMind/404.html
 </If>
 <Else>
     RewriteBase /
-    ErrorDocument 404 /404.html
-    ErrorDocument 403 /404.html
 </Else>
 
 # Force HTTPS redirect - DISABLED for Localhost development
@@ -37,6 +42,12 @@ RewriteRule ^([^\.]+)$ $1.php [NC,L]
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.html -f
 RewriteRule ^([^\.]+)$ $1.html [NC,L]
+
+# Final 404 Fallback
+# If the request hasn't been handled by now and the file doesn't exist, show 404
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ 404.html [L]
 
 # Additional security headers
 <IfModule mod_headers.c>
