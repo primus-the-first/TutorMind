@@ -1,33 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Absolute CSS paths — required because the 404 page may be served at any URL depth -->
+    <script>
+        (function() {
+            var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            var root = isLocal ? '/TutorMind/' : '/';
+            // Write base tag first — fixes all relative hrefs (nav, CTA buttons)
+            // CSS is written with absolute path so it is NOT affected by base
+            document.write(
+                '<base href="' + root + '">' +
+                '<link rel="icon" type="image/png" href="' + root + 'assets/favicon.png">' +
+                '<link rel="stylesheet" href="' + root + 'landing.css">' +
+                '<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"><\/script>'
+            );
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="404 - Page Not Found. TutorMind's curious robot is searching for a connection.">
     <title>404: Connection Lost — TutorMind</title>
-    <link rel="icon" type="image/png" href="assets/favicon.png">
 
-    <!-- Dynamic Base URL to fix asset loading on deep paths -->
-    <script>
-        (function() {
-            // Detect if we are in a subdirectory (local) or root (production)
-            const path = window.location.pathname;
-            const base = path.includes('/TutorMind/') ? '/TutorMind/' : '/';
-            document.write('<base href="' + base + '">');
-        })();
-    </script>
-
-    <!-- Fonts -->
+    <!-- Fonts (always absolute — external CDN) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Funnel+Display:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Design System -->
-    <link rel="stylesheet" href="landing.css">
-
-    <!-- GSAP -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <style>
         /* ── 404 page layout (uses design system tokens) ── */

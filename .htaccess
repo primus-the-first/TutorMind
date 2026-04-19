@@ -12,6 +12,9 @@ ErrorDocument 403 "/403.html"
 RewriteEngine On
 Options -MultiViews -Indexes
 
+# Deny access to .git directory
+RewriteRule ^(.*/)?\.git/ - [F,L]
+
 # Environment-aware RewriteBase
 <If "%{HTTP_HOST} == 'localhost' || %{HTTP_HOST} == '127.0.0.1'">
     RewriteBase /TutorMind/
@@ -80,7 +83,8 @@ RewriteRule ^.*$ 404.html [L,NC]
 </IfModule>
 
 # Block access to sensitive files
-<FilesMatch "\.(log|ini|sql|md|bak|yml|yaml)$">
+<FilesMatch "\.(log|ini|sql|md|bak|yml|yaml|txt|json|env|config)$">
+    # Exception: allow robots.txt and sitemap.xml which are handled below
     Require all denied
 </FilesMatch>
 
@@ -89,7 +93,7 @@ RewriteRule ^.*$ 404.html [L,NC]
     Require all denied
 </FilesMatch>
 
-# Allow specific text files that are needed
+# Allow specific files that are needed for crawlers
 <FilesMatch "^(robots\.txt|sitemap\.xml)$">
     Require all granted
 </FilesMatch>
