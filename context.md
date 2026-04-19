@@ -36,6 +36,21 @@ Removed temporary `FORMAT_DEBUG` error_log statements from both `server_mysql.ph
 
 ---
 
+## Progress Log - April 19, 2026
+
+### 1. Production 404 Redirection Fix
+**Problem:** On Namecheap (LiteSpeed), the custom 404 page was not triggering for missing URLs/resources unless "/404" was manually typed. The server was either returning a generic blank page or the host's default parking page.
+**Root Cause:** Host-level 404 handlers were intercepting requests before the `.htaccess` fallback rules could execute. Conditional `ErrorDocument` blocks were also failing to trigger consistently on production.
+**Fixes (`.htaccess`):**
+- **Priority Placement**: Moved `ErrorDocument` declarations to the absolute top of the file (before any other directives).
+- **Quoted Paths**: Changed to `ErrorDocument 404 "/404.html"` to improve LiteSpeed's path resolution.
+- **Index Protection**: Added `Options -Indexes` to prevent directory listings from being shown in place of 404s.
+- **Forceful Fallback Rule**: Added a final "Last Resort" rewrite rule at the end of the chain: `RewriteRule ^.*$ 404.html [L,NC]`. This ensures that any request not matching a file, directory, or custom route is internally rewritten to the custom 404 page.
+- **Environment Detection**: Refined the `localhost` and `127.0.0.1` checks to ensure local development continues to work without manual configuration changes.
+**Result:** Custom 404 page now serves reliably across all environments.
+
+---
+
 ## Progress Log - March 22, 2026
 
 ### 1. Sidebar Layout & Scrolling Fix
