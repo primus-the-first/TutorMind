@@ -240,6 +240,7 @@ switch ($request_method) {
                 error_log("AUTH_MYSQL: No credential provided");
                 if ($is_redirect_flow) {
                     header("Location: login?error=" . urlencode('No credential provided.'));
+                    exit;
                 } else {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'error' => 'No credential provided.']);
@@ -282,6 +283,7 @@ switch ($request_method) {
             if (!$payload || isset($payload['error_description'])) {
                 if ($is_redirect_flow) {
                     header("Location: login?error=" . urlencode('Invalid Google token.'));
+                    exit;
                 } else {
                     http_response_code(401);
                     echo json_encode(['success' => false, 'error' => 'Invalid Google token.']);
@@ -362,6 +364,7 @@ switch ($request_method) {
                     $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
                     if ($is_redirect_flow) {
                         header("Location: " . $redirect);
+                        exit;
                     } else {
                         echo json_encode(['success' => true, 'redirect' => $redirect]);
                     }
@@ -395,6 +398,7 @@ switch ($request_method) {
 
                         if ($is_redirect_flow) {
                             header("Location: onboarding");
+                            exit;
                         } else {
                             echo json_encode(['success' => true, 'redirect' => 'onboarding']);
                         }
@@ -407,6 +411,7 @@ switch ($request_method) {
                 error_log("Google Login Error: " . $e->getMessage());
                 if ($is_redirect_flow) {
                     header("Location: login?error=" . urlencode('Server error: ' . $e->getMessage()));
+                    exit;
                 } else {
                     http_response_code(500);
                     echo json_encode(['success' => false, 'error' => 'Server error during Google login: ' . $e->getMessage()]);
