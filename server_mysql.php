@@ -2642,8 +2642,14 @@ PROMPT;
         }
     }
 
-    if (isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
-        $answer = $responseData['candidates'][0]['content']['parts'][0]['text'];
+    $responseParts = $responseData['candidates'][0]['content']['parts'] ?? [];
+    $answer = '';
+    foreach ($responseParts as $part) {
+        // Skip thinking/thought parts that Gemini 2.5 Flash inserts before the real response
+        if (!empty($part['thought'])) continue;
+        if (isset($part['text'])) $answer .= $part['text'];
+    }
+    if (!empty($answer)) {
         
         // PERFORMANCE: Pre-format HTML and cache it immediately
         $formattedAnswer = formatResponse($answer);
