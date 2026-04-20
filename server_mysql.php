@@ -87,7 +87,9 @@ function checkChatRateLimit($pdo, $user_id) {
 
 // --- ALWAYS require the autoloader first ---
 require_once 'db_mysql.php';
-require 'vendor/autoload.php';
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
 require_once 'api/knowledge.php';
 require_once 'api/learning_strategies.php';
 
@@ -147,10 +149,14 @@ if (!function_exists('formatResponse')) {
             $text
         );
 
-        // Process with Parsedown
-        $Parsedown = new Parsedown();
-        $Parsedown->setBreaksEnabled(true);
-        $html = $Parsedown->text($text);
+        // Process with Parsedown (requires composer vendor; falls back to nl2br if unavailable)
+        if (class_exists('Parsedown')) {
+            $Parsedown = new Parsedown();
+            $Parsedown->setBreaksEnabled(true);
+            $html = $Parsedown->text($text);
+        } else {
+            $html = nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
+        }
 
         // Restore protected content
         foreach ($protections as $placeholder => $protection) {
