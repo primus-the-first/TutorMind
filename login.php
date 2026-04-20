@@ -95,8 +95,8 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                     <div id="g_id_onload"
                         data-client_id="1083917773706-gc0f400l24eavps3ckcnj04581gj3plk.apps.googleusercontent.com"
                         data-context="signin"
-                        data-ux_mode="redirect"
-                        data-login_uri="<?= htmlspecialchars($google_login_uri) ?>"
+                        data-ux_mode="popup"
+                        data-callback="handleCredentialResponse"
                         data-auto_prompt="false">
                     </div>
                     
