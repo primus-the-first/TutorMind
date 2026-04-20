@@ -10,6 +10,18 @@ ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 set_time_limit(300); // Increase max execution time to 5 minutes to allow for AI API timeouts/retries
 
+// Catch fatal errors (E_ERROR, E_PARSE, etc.) and return JSON instead of empty 500
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        ob_clean();
+        http_response_code(500);
+        $msg = basename($error['file']) . ':' . $error['line'] . ' — ' . $error['message'];
+        error_log('[server_mysql fatal] ' . $msg);
+        echo json_encode(['success' => false, 'error' => 'Server error. Check PHP error log.', '_debug' => $msg]);
+    }
+});
+
 // --- PERFORMANCE: Debug Mode ---
 // Set to false in production to disable debug logging (saves disk I/O)
 define('DEBUG_MODE', false);
