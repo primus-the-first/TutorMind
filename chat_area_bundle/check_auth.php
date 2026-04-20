@@ -3,11 +3,25 @@ session_start();
 
 // If the user is not logged in, check for remember me cookie
 if (!isset($_SESSION['user_id'])) {
-    if (isset($_COOKIE['remember_me']) && strpos($_COOKIE['remember_me'], ':') !== false) {
+    if (isset($_COOKIE['remember_me'])) {
+        $cookie_val = $_COOKIE['remember_me'];
+        
+        // Validation: Format is selector:validator
+        // Selector is 16 bytes (32 hex chars), Validator is 32 bytes (64 hex chars)
+        if (strlen($cookie_val) < 40 || strpos($cookie_val, ':') === false) {
+            // Invalid cookie format, ignore
+            return;
+        }
+
+        list($selector, $validator) = explode(':', $cookie_val);
+        
+        // Strict pattern validation to prevent SQLi and bypass attempts
+        if (!preg_match('/^[a-f0-9]{32}$/i', $selector) || !preg_match('/^[a-f0-9]{64}$/i', $validator)) {
+            // Malformed token components
+            return;
+        }
+
         require_once 'db_mysql.php';
-        $parts = explode(':', $_COOKIE['remember_me']);
-        if (count($parts) === 2) {
-            list($selector, $validator) = $parts;
         
         try {
             $pdo = getDbConnection();
@@ -32,11 +46,9 @@ if (!isset($_SESSION['user_id'])) {
                 }
             }
         } catch (Exception $e) {
-            error_log("Database error in remember_me token check: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
-            // Fail safely: proceed to redirect/API error
+            // Database error, ignore and redirect
         }
     }
-}
 
     // If we are here, authentication failed
     // Check if this is an API request (expects JSON)

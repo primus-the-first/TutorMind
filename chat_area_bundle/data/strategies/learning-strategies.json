@@ -1,0 +1,230 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-01-07",
+  "source": "Justin Sung / Evidence-Based Learning Research",
+  "strategies": [
+    {
+      "id": "higher-order-learning",
+      "name": "Higher-Order Learning",
+      "category": "core-framework",
+      "description": "Focus on understanding relationships and concepts rather than memorizing isolated facts. True learning happens when you can explain WHY something works, not just WHAT it is.",
+      "key_principles": [
+        "Understanding > Memorization",
+        "Seek the 'why' behind every concept",
+        "Build connections between ideas",
+        "Question surface-level understanding"
+      ],
+      "when_to_apply": "Always - this is the foundation of effective learning",
+      "tutor_prompts": [
+        "Ask 'Why does this work?' not just 'What is this?'",
+        "Challenge the student to explain the reasoning",
+        "Connect new concepts to previously learned material",
+        "Avoid accepting rote answers without understanding"
+      ],
+      "student_indicators": {
+        "surface_learning": [
+          "Can recite definition but can't explain it",
+          "Struggles with application questions"
+        ],
+        "deep_learning": [
+          "Explains concepts in own words",
+          "Makes connections unprompted"
+        ]
+      }
+    },
+    {
+      "id": "active-recall",
+      "name": "Active Recall",
+      "category": "retention",
+      "description": "Actively stimulate memory during learning by testing yourself rather than passively reviewing material. The effort of retrieval strengthens memory traces.",
+      "key_principles": [
+        "Testing effect: retrieval strengthens memory",
+        "Struggle is productive - desirable difficulties",
+        "Closed-book practice > re-reading",
+        "Immediate feedback after recall attempts"
+      ],
+      "when_to_apply": "After initial encoding, during review sessions, exam preparation",
+      "tutor_prompts": [
+        "Before explaining, ask: 'What do you already know about this?'",
+        "After teaching: 'Can you explain that back to me?'",
+        "Use questions to check understanding, not leading hints",
+        "Create mini-quizzes throughout the session"
+      ],
+      "example_techniques": [
+        "Flashcards",
+        "Practice problems",
+        "Teach-back method",
+        "Self-quizzing"
+      ]
+    },
+    {
+      "id": "spaced-repetition",
+      "name": "Spaced Repetition",
+      "category": "retention",
+      "description": "Review material at increasing intervals over time. The spacing effect shows that distributed practice leads to better long-term retention than massed practice.",
+      "key_principles": [
+        "Spacing effect: spread practice over time",
+        "Review just before you forget",
+        "Increasing intervals: 1 day → 3 days → 1 week → 2 weeks",
+        "Combine with active recall for maximum effect"
+      ],
+      "optimal_intervals": {
+        "initial_review": "Within 24 hours",
+        "second_review": "3 days later",
+        "third_review": "1 week later",
+        "ongoing": "Increasing intervals based on confidence"
+      },
+      "tutor_prompts": [
+        "Let's revisit what we covered last time",
+        "What do you remember from our previous session?",
+        "Schedule review of challenging concepts"
+      ]
+    },
+    {
+      "id": "encoding-strategies",
+      "name": "Deep Encoding Strategies",
+      "category": "processing",
+      "description": "How you initially process information determines how well you'll remember it. Deeper processing = stronger memory. Surface processing = weak memory.",
+      "levels_of_processing": {
+        "surface": "Reading/highlighting, copying notes, passive listening",
+        "intermediate": "Summarizing, paraphrasing, categorizing",
+        "deep": "Relating to personal experience, generating examples, teaching others, creating analogies"
+      },
+      "key_principles": [
+        "Engage with material meaningfully",
+        "Generate your own examples",
+        "Create personal connections",
+        "Elaborate beyond the given information"
+      ],
+      "tutor_prompts": [
+        "Can you think of a real-world example of this?",
+        "How does this relate to something you already know?",
+        "If you had to teach this to a friend, how would you explain it?",
+        "What would happen if [variable] changed?"
+      ]
+    },
+    {
+      "id": "illusion-of-competence",
+      "name": "Avoiding Illusion of Competence",
+      "category": "metacognition",
+      "description": "Students often overestimate their understanding because recognition feels like knowing. True competence requires being able to retrieve and apply without cues.",
+      "warning_signs": [
+        "Material feels 'familiar' after reading",
+        "Can follow along but can't reproduce independently",
+        "Highlighting feels productive",
+        "Confidence without testing"
+      ],
+      "solutions": [
+        "Test yourself before checking answers",
+        "Explain concepts without looking at notes",
+        "Practice in conditions similar to actual use",
+        "Seek feedback on understanding"
+      ],
+      "tutor_prompts": [
+        "Before I explain more, try to solve this on your own",
+        "Close your notes and tell me what you remember",
+        "Rate your confidence, then let's test it",
+        "Challenge: explain this without using the textbook terms"
+      ]
+    },
+    {
+      "id": "interleaving",
+      "name": "Interleaving Practice",
+      "category": "practice",
+      "description": "Mix different types of problems or topics during practice rather than blocking (practicing one type repeatedly). This builds discrimination skills and transfer.",
+      "key_principles": [
+        "Varied practice > blocked practice",
+        "Learn to identify problem types",
+        "Builds flexible knowledge",
+        "Initially harder but better long-term"
+      ],
+      "when_to_apply": "Practice sessions, exam prep, skill development",
+      "tutor_prompts": [
+        "Let's mix in some different problem types",
+        "Without looking at the chapter, what approach would you use?",
+        "This combines concepts from our last few topics"
+      ]
+    },
+    {
+      "id": "elaborative-interrogation",
+      "name": "Elaborative Interrogation",
+      "category": "processing",
+      "description": "Constantly ask 'Why?' and 'How?' questions about the material. Generating explanations for facts enhances understanding and memory.",
+      "key_principles": [
+        "Why is this true?",
+        "How does this work?",
+        "What would happen if...?",
+        "How does this connect to...?"
+      ],
+      "tutor_prompts": [
+        "Why do you think that's the case?",
+        "What's the underlying reason?",
+        "How would you explain why this happens?",
+        "What mechanism makes this work?"
+      ]
+    },
+    {
+      "id": "concrete-examples",
+      "name": "Concrete Examples",
+      "category": "understanding",
+      "description": "Abstract concepts become clear through concrete examples. Multiple varied examples help build robust understanding.",
+      "key_principles": [
+        "Abstract → Concrete",
+        "Multiple examples > single example",
+        "Vary the examples",
+        "Generate your own examples"
+      ],
+      "tutor_prompts": [
+        "Let me give you an example...",
+        "Can you think of another example?",
+        "How about an example from everyday life?",
+        "What would be a counter-example?"
+      ]
+    },
+    {
+      "id": "dual-coding",
+      "name": "Dual Coding",
+      "category": "processing",
+      "description": "Combine verbal and visual information. Processing information in multiple formats creates stronger and more retrievable memories.",
+      "key_principles": [
+        "Words + Images > Words alone",
+        "Create diagrams and visuals",
+        "Visualize abstract concepts",
+        "Mental imagery during learning"
+      ],
+      "tutor_prompts": [
+        "Let me draw this out...",
+        "Can you visualize how this works?",
+        "What would a diagram of this look like?",
+        "Picture this scenario..."
+      ]
+    },
+    {
+      "id": "self-explanation",
+      "name": "Self-Explanation",
+      "category": "metacognition",
+      "description": "Explain material to yourself as you learn. Articulating your understanding reveals gaps and deepens processing.",
+      "key_principles": [
+        "Verbalize your thinking",
+        "Explain each step",
+        "Identify what you don't understand",
+        "Fill gaps as you find them"
+      ],
+      "tutor_prompts": [
+        "Walk me through your thinking",
+        "Explain what you're doing at each step",
+        "What's happening here and why?",
+        "Teach this back to me"
+      ]
+    }
+  ],
+  "meta": {
+    "usage_note": "These strategies should be woven naturally into tutoring. Don't announce them - apply them.",
+    "priority": [
+      "higher-order-learning",
+      "active-recall",
+      "encoding-strategies"
+    ],
+    "combine": "Most effective when multiple strategies are used together"
+  }
+}

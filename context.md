@@ -51,6 +51,22 @@ Removed temporary `FORMAT_DEBUG` error_log statements from both `server_mysql.ph
 
 ---
 
+### 2. Custom 403 Forbidden Page — April 19, 2026
+**Objective:** Create a branded 403 page consistent with the 404 page, replacing the generic server error with a thematic "forbidden/locked" experience.
+**Files changed/created:**
+- **New**: `403.html` — Full 403 page based on `404.html` structure
+- **Modified**: `.htaccess` — `ErrorDocument 403` updated from `/404.html` → `/403.html` (both global and localhost overrides)
+
+**Design changes from 404:**
+- **Color theme**: Crimson/red (`#DC2626`, `#EF4444`) replaces purple/gold
+- **Robot**: Crimson dot-matrix eyes; all chest bars fully lit red with `LOCKED` label; red ear/antenna LEDs; hanging padlock-on-chain replaces the disconnected plug
+- **Left arm**: Animates into a STOP gesture (raised palm wave) instead of reaching/searching
+- **Mouth cycling**: `ERR:403` → `DENIED` → `LOCKED` → `NO ACCESS` → `403 …` → `FORBIDDEN`
+- **Copy**: Title "A Virtual Guardrail"; subtitle explains missing permissions
+- **Actions**: "Return Home" (primary) + "Login" (secondary) — covers the common case of unauthenticated access
+
+---
+
 ## Progress Log - March 22, 2026
 
 ### 1. Sidebar Layout & Scrolling Fix

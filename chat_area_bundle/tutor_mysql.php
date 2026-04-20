@@ -41,15 +41,17 @@ if ($user_id) {
 
         // Try to fetch program (might not exist yet if migration wasn't run)
         try {
-            $stmt = $pdo->prepare("SELECT field_of_study FROM users WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT field_of_study, education_level, knowledge_level FROM users WHERE id = ?");
             $stmt->execute([$user_id]);
             $prog = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($prog) {
-                $user_program = $prog['field_of_study'];
+                $user_program       = $prog['field_of_study'];
+                $user_education     = $prog['education_level'] ?? null;
+                $user_knowledge_lvl = $prog['knowledge_level'] ?? null;
             }
         } catch (Exception $e) {
-            // Program column might be missing, ignore this specific error
-            error_log("Program fetch error (column might be missing): " . $e->getMessage());
+            // Profile columns might be missing on older installs
+            error_log("Profile fetch error (column might be missing): " . $e->getMessage());
         }
         
     } catch (Exception $e) {
@@ -211,7 +213,7 @@ try {
     <!-- Fonts and Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&family=Funnel+Display:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- MathJax Configuration -->
@@ -264,7 +266,15 @@ try {
         <h3 class="sidebar-section-title">Recent Conversations</h3>
         
         <nav id="chat-history-container" class="chat-history">
-            <?= $ssr_history_html ?>
+            <?php if (empty($history)): ?>
+        <div style="text-align:center; padding: 2rem; color: var(--text-secondary);">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+            <p style="font-weight: 600; margin-bottom: 0.5rem;">No conversations yet</p>
+            <p style="font-size: 0.875rem;">Start a new chat to begin learning!</p>
+        </div>
+        <?php else: ?>
+        <?= $ssr_history_html ?>
+        <?php endif; ?>
         </nav>
         
         <!-- User Profile Section -->
@@ -317,13 +327,18 @@ try {
 
     <!-- Main Chat Area -->
     <div class="main-chat-wrapper">
-        <header class="main-chat-header">
-            <div class="header-left">
+        <header class="main-chat-header" style="justify-content: space-between;">
+            <div class="header-left" style="display: flex; align-items: center; flex: 1;">
                 <!-- Premium Nav Selector (Mobile Only) -->
                 <div class="mobile-nav-selector mobile-only" id="mobileNavSelector">
-                    <button type="button" class="nav-trigger-btn" id="navTrigger" title="Menu">
+                    <?php 
+                    $showNavPulse = !isset($_SESSION['onboarding_complete']) || !$_SESSION['onboarding_complete'];
+                    if ($showNavPulse): ?>
+                    <span class="nav-pulse"></span>
+                    <?php endif; ?>
+<button type="button" class="nav-trigger-btn" id="navTrigger" title="Menu">
                         <i class="fas fa-bars"></i>
-                        <span class="nav-pulse"></span>
+                        
                     </button>
                     
                     <div class="nav-drawer" id="navDrawer">
@@ -352,15 +367,65 @@ try {
                     <img src="assets/logo-bridge.svg" alt="" aria-hidden="true">
                     <span class="app-logo-text">TutorMind</span>
                 </a>
+
+                <a href="index" class="desktop-only" style="text-decoration:none; display:flex; align-items:center;">
+                    <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>; margin: 0 0 0 1rem;"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
+                </a>
             </div>
 
-            <a href="index" class="desktop-only">
-                <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
-            </a>
+            <!-- Pomodoro Timer Widget -->
+            <div class="header-center" style="display: flex; justify-content: center; flex: 1;">
+                <div class="pomodoro-widget" id="pomodoroWidget">
+                    <button type="button" class="pomodoro-trigger-btn" id="pomodoroTrigger" title="Study Timer">
+                        <i class="fas fa-clock"></i>
+                        <span class="pomodoro-time-display" id="pomodoroDisplay">25:00</span>
+                    </button>
+                    <div class="pomodoro-panel hidden" id="pomodoroPanel">
+                        <div class="pomodoro-panel-header">
+                            <span class="pomodoro-panel-title"><i class="fas fa-hourglass-half"></i> Study Timer</span>
+                            <button type="button" class="pomodoro-panel-close" id="pomodoroClose" aria-label="Close timer"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="pomodoro-ring-wrap">
+                            <svg class="pomodoro-ring" viewBox="0 0 100 100" aria-hidden="true">
+                                <circle class="pomodoro-ring-bg"   cx="50" cy="50" r="42"/>
+                                <circle class="pomodoro-ring-fill" id="pomodoroRingFill" cx="50" cy="50" r="42"/>
+                            </svg>
+                            <div class="pomodoro-ring-text" id="pomodoroRingText">25:00</div>
+                        </div>
+                        <div class="pomodoro-controls">
+                            <button type="button" class="pomo-ctrl-btn" id="pomodoroStartBtn" title="Start"><i class="fas fa-play"></i></button>
+                            <button type="button" class="pomo-ctrl-btn" id="pomodoroPauseBtn" title="Pause" style="display:none"><i class="fas fa-pause"></i></button>
+                            <button type="button" class="pomo-ctrl-btn pomo-reset-btn" id="pomodoroResetBtn" title="Reset"><i class="fas fa-undo"></i></button>
+                        </div>
+                        <div class="pomodoro-settings">
+                            <div class="pomo-setting-row">
+                                <label for="pomodoroDuration">Duration</label>
+                                <select id="pomodoroDuration">
+                                    <option value="15">15 min</option>
+                                    <option value="25" selected>25 min</option>
+                                    <option value="45">45 min</option>
+                                    <option value="60">60 min</option>
+                                </select>
+                            </div>
+                            <div class="pomo-setting-row">
+                                <label for="pomodoroQuizMode">Quiz Mode</label>
+                                <select id="pomodoroQuizMode">
+                                    <option value="off">Off</option>
+                                    <option value="gentle">Gentle</option>
+                                    <option value="standard" selected>Standard</option>
+                                    <option value="challenge">Challenge</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Dark Mode Toggle -->
-            <button class="icon-btn" id="dark-mode-toggle" title="Toggle Dark Mode" aria-label="Toggle dark mode">
-            </button>
+            <div class="header-right" style="display: flex; justify-content: flex-end; flex: 1;">
+                <button class="icon-btn" id="dark-mode-toggle" title="Toggle Dark Mode" aria-label="Toggle dark mode">
+                </button>
+            </div>
         </header>
 
         <main id="chat-container" class="chat-content">
@@ -557,6 +622,69 @@ try {
     <!-- Toast for copy feedback -->
     <div id="copy-toast" class="copy-toast" style="display:none;">Copied to clipboard</div>
 
+    <!-- ================================================================ -->
+    <!-- Active Recall Quiz Modal                                          -->
+    <!-- ================================================================ -->
+    <div id="recall-modal" class="recall-modal hidden" role="dialog" aria-modal="true" aria-labelledby="recallModalTitle">
+        <div class="recall-modal-content">
+
+            <!-- Header -->
+            <div class="recall-modal-header">
+                <div class="recall-modal-icon"><i class="fas fa-brain"></i></div>
+                <div>
+                    <h3 id="recallModalTitle">Let's see what stuck!</h3>
+                    <p id="recallQuizModeLabel" class="recall-mode-label">Standard Recall</p>
+                </div>
+            </div>
+
+            <!-- Question Phase -->
+            <div id="recallQuestionPhase">
+                <div class="recall-question-card" id="recallQuestionCard">
+                    <!-- Loading state -->
+                    <div id="recallLoading" class="recall-loading">
+                        <i class="fas fa-spinner fa-spin"></i> Preparing your question&hellip;
+                    </div>
+                    <!-- Question text -->
+                    <p id="recallQuestionText" class="recall-question-text hidden"></p>
+                    <!-- Recognition: multiple choice -->
+                    <div id="recallOptions" class="recall-options hidden"></div>
+                    <!-- Open-ended: textarea -->
+                    <div id="recallAnswerArea" class="hidden">
+                        <textarea id="recallAnswerInput" class="recall-answer-input" placeholder="Type your answer here…" rows="4"></textarea>
+                    </div>
+                </div>
+                <div class="recall-actions">
+                    <button type="button" class="recall-skip-btn" id="recallSkipBtn">Skip for now</button>
+                    <button type="button" class="recall-submit-btn hidden" id="recallSubmitBtn">Submit Answer</button>
+                </div>
+            </div>
+
+            <!-- Result Phase (shown after grading) -->
+            <div id="recallResultPhase" class="hidden">
+                <div id="recallScoreBadge" class="recall-score-badge"></div>
+                <p id="recallFeedback" class="recall-feedback"></p>
+                <div class="recall-context-box">
+                    <span class="recall-context-label">What was covered:</span>
+                    <p id="recallContextSnippet" class="recall-context-text"></p>
+                </div>
+                <div class="recall-actions">
+                    <button type="button" class="recall-done-btn" id="recallDoneBtn">Continue Studying</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- User profile for JS features (quiz, timer) -->
+    <script>
+        window.TutorMindUser = {
+            id:             <?= json_encode($user_id) ?>,
+            knowledgeLevel: <?= json_encode($user_knowledge_lvl ?? null) ?>,
+            educationLevel: <?= json_encode($user_education    ?? null) ?>,
+            fieldOfStudy:   <?= json_encode($user_program      ?? null) ?>
+        };
+    </script>
+
     <!-- GSAP Animation Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
     
@@ -586,7 +714,15 @@ try {
             <button id="closeHistoryTray"><i class="fas fa-times"></i></button>
         </div>
         <div class="history-tray-content">
-            <?= $ssr_history_html ?>
+            <?php if (empty($history)): ?>
+        <div style="text-align:center; padding: 2rem; color: var(--text-secondary);">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+            <p style="font-weight: 600; margin-bottom: 0.5rem;">No conversations yet</p>
+            <p style="font-size: 0.875rem;">Start a new chat to begin learning!</p>
+        </div>
+        <?php else: ?>
+        <?= $ssr_history_html ?>
+        <?php endif; ?>
         </div>
     </div>
 </body>

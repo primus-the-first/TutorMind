@@ -1,3 +1,309 @@
+const DEBUG = false; // Set to true during development to enable verbose logging
+
+// ============================================================
+// PomodoroManager — countdown timer with quiz trigger on complete
+// ============================================================
+class PomodoroManager {
+    constructor() {
+        this.duration  = 25 * 60; // seconds
+        this.remaining = this.duration;
+        this.timer     = null;
+        this.running   = false;
+        this.mode      = 'standard'; // off | gentle | standard | challenge
+        this.onComplete = null;      // callback(mode) fired when timer hits 0
+    }
+
+    start() {
+        if (this.running) return;
+        this.running = true;
+        this.timer   = setInterval(() => this._tick(), 1000);
+        document.getElementById('pomodoroTrigger')?.classList.add('pomo-running');
+    }
+
+    pause() {
+        clearInterval(this.timer);
+        this.running = false;
+        document.getElementById('pomodoroTrigger')?.classList.remove('pomo-running');
+    }
+
+    reset() {
+        this.pause();
+        this.remaining = this.duration;
+        this._updateUI();
+    }
+
+    setDuration(minutes) {
+        this.duration = minutes * 60;
+        this.reset();
+    }
+
+    setMode(mode) { this.mode = mode; }
+
+    _tick() {
+        if (this.remaining > 0) {
+            this.remaining--;
+            this._updateUI();
+        }
+        if (this.remaining <= 0) {
+            this.pause();
+            this._notifyComplete();
+        }
+    }
+
+    _notifyComplete() {
+        if (this.mode !== 'off' && typeof this.onComplete === 'function') {
+            this.onComplete(this.mode);
+        }
+        // Save session to server (fire-and-forget)
+        const convId = document.getElementById('conversation_id')?.value;
+        fetch('api/quiz.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'save_session',
+                conversation_id:  convId ? parseInt(convId) : null,
+                duration_minutes: Math.round(this.duration / 60),
+                mode: this.mode,
+            })
+        }).catch(() => {}); // silent fail
+    }
+
+    _updateUI() {
+        const mins    = String(Math.floor(this.remaining / 60)).padStart(2, '0');
+        const secs    = String(this.remaining % 60).padStart(2, '0');
+        const timeStr = `${mins}:${secs}`;
+        const display = document.getElementById('pomodoroDisplay');
+        const ringTxt = document.getElementById('pomodoroRingText');
+        if (display) display.textContent = timeStr;
+        if (ringTxt) ringTxt.textContent = timeStr;
+
+        // SVG ring: circumference ≈ 263.9 (r=42)
+        const ring = document.getElementById('pomodoroRingFill');
+        if (ring) {
+            const circumference = 2 * Math.PI * 42;
+            ring.style.strokeDashoffset = circumference * (1 - this.remaining / this.duration);
+        }
+    }
+
+    init() {
+        const trigger      = document.getElementById('pomodoroTrigger');
+        const panel        = document.getElementById('pomodoroPanel');
+        const closeBtn     = document.getElementById('pomodoroClose');
+        const startBtn     = document.getElementById('pomodoroStartBtn');
+        const pauseBtn     = document.getElementById('pomodoroPauseBtn');
+        const resetBtn     = document.getElementById('pomodoroResetBtn');
+        const durationSel  = document.getElementById('pomodoroDuration');
+        const modeSel      = document.getElementById('pomodoroQuizMode');
+
+        // Initialise ring dasharray
+        const ring = document.getElementById('pomodoroRingFill');
+        if (ring) ring.style.strokeDasharray = String(2 * Math.PI * 42);
+
+        this._updateUI();
+
+        trigger?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            panel?.classList.toggle('hidden');
+        });
+        closeBtn?.addEventListener('click', () => panel?.classList.add('hidden'));
+
+        // Close panel when clicking outside
+        document.addEventListener('click', (e) => {
+            if (panel && !panel.classList.contains('hidden') &&
+                !panel.contains(e.target) && !trigger?.contains(e.target)) {
+                panel.classList.add('hidden');
+            }
+        });
+
+        startBtn?.addEventListener('click', () => {
+            this.start();
+            startBtn.style.display = 'none';
+            if (pauseBtn) pauseBtn.style.display = '';
+        });
+
+        pauseBtn?.addEventListener('click', () => {
+            this.pause();
+            if (startBtn) startBtn.style.display = '';
+            pauseBtn.style.display = 'none';
+        });
+
+        resetBtn?.addEventListener('click', () => {
+            this.reset();
+            if (startBtn) startBtn.style.display = '';
+            if (pauseBtn) pauseBtn.style.display = 'none';
+        });
+
+        durationSel?.addEventListener('change', () => {
+            this.setDuration(parseInt(durationSel.value, 10));
+        });
+
+        modeSel?.addEventListener('change', () => {
+            this.setMode(modeSel.value);
+        });
+    }
+}
+
+// ============================================================
+// QuizManager — fetch question from API, display modal, grade
+// ============================================================
+class QuizManager {
+    constructor() {
+        this.quizId       = null;
+        this.questionType = null;
+        this.selectedOpt  = null;
+    }
+
+    async start(mode) {
+        const convId = document.getElementById('conversation_id')?.value;
+        if (!convId) return; // no active conversation, skip quietly
+
+        this._showModal(mode);
+        this._blurMessages();
+
+        try {
+            const resp = await fetch('api/quiz.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'generate', conversation_id: parseInt(convId), mode })
+            });
+            const data = await resp.json();
+
+            if (!data.success) {
+                // API said skip (not enough messages, quiz off, etc.)
+                this._hideModal();
+                return;
+            }
+
+            this.quizId       = data.quiz_id;
+            this.questionType = data.question_type;
+            this._displayQuestion(data);
+        } catch (err) {
+            if (DEBUG) console.error('QuizManager.start error:', err);
+            this._hideModal();
+        }
+    }
+
+    _showModal(mode) {
+        const modeLabels = { gentle: 'Gentle Recall', standard: 'Standard Recall', challenge: 'Challenge Mode' };
+        const el = (id) => document.getElementById(id);
+
+        el('recallQuizModeLabel')?.textContent != null && (el('recallQuizModeLabel').textContent = modeLabels[mode] || '');
+        el('recallQuestionPhase')?.classList.remove('hidden');
+        el('recallResultPhase')?.classList.add('hidden');
+        el('recallLoading')?.classList.remove('hidden');
+        el('recallQuestionText')?.classList.add('hidden');
+        el('recallOptions')?.classList.add('hidden');
+        el('recallAnswerArea')?.classList.add('hidden');
+        el('recallSubmitBtn')?.classList.add('hidden');
+        if (el('recallSubmitBtn')) el('recallSubmitBtn').disabled = false;
+
+        this.selectedOpt = null;
+        el('recall-modal')?.classList.remove('hidden');
+    }
+
+    _displayQuestion(data) {
+        const el = (id) => document.getElementById(id);
+
+        el('recallLoading')?.classList.add('hidden');
+        if (el('recallQuestionText')) {
+            el('recallQuestionText').textContent = data.question;
+            el('recallQuestionText').classList.remove('hidden');
+        }
+
+        if (data.question_type === 'recognition' && Array.isArray(data.options)) {
+            const container = el('recallOptions');
+            container.innerHTML = '';
+            data.options.forEach((opt) => {
+                const btn = document.createElement('button');
+                btn.type      = 'button';
+                btn.className = 'recall-option-btn';
+                btn.textContent = opt;
+                btn.addEventListener('click', () => {
+                    container.querySelectorAll('.recall-option-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    this.selectedOpt = opt;
+                    el('recallSubmitBtn')?.classList.remove('hidden');
+                });
+                container.appendChild(btn);
+            });
+            container.classList.remove('hidden');
+        } else {
+            const input = el('recallAnswerInput');
+            if (input) input.value = '';
+            el('recallAnswerArea')?.classList.remove('hidden');
+            // Show submit once ≥ 4 chars typed
+            const onInput = () => {
+                const btn = el('recallSubmitBtn');
+                if (!btn) return;
+                btn.classList.toggle('hidden', (input?.value.trim().length ?? 0) < 4);
+            };
+            el('recallAnswerInput')?.addEventListener('input', onInput);
+        }
+    }
+
+    async _submitAnswer() {
+        const el       = (id) => document.getElementById(id);
+        const submitBtn = el('recallSubmitBtn');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+        const answer = this.questionType === 'recognition'
+            ? this.selectedOpt ?? ''
+            : (el('recallAnswerInput')?.value ?? '');
+
+        try {
+            const resp = await fetch('api/quiz.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'grade', quiz_id: this.quizId, user_answer: answer })
+            });
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.error || 'Grade failed');
+            this._showResult(data);
+        } catch (err) {
+            if (DEBUG) console.error('QuizManager._submitAnswer error:', err);
+            this._hideModal();
+        }
+    }
+
+    _showResult(data) {
+        const el = (id) => document.getElementById(id);
+
+        el('recallQuestionPhase')?.classList.add('hidden');
+        el('recallResultPhase')?.classList.remove('hidden');
+
+        const pct = Math.round((data.score ?? 0) * 100);
+        const badge = el('recallScoreBadge');
+        if (badge) {
+            badge.className = 'recall-score-badge ' + (pct >= 75 ? 'score-great' : pct >= 40 ? 'score-ok' : 'score-low');
+            badge.textContent = `${pct}%`;
+        }
+        if (el('recallFeedback'))       el('recallFeedback').textContent       = data.feedback        ?? '';
+        if (el('recallContextSnippet')) el('recallContextSnippet').textContent = data.context_snippet ?? '';
+
+        this._unblurMessages();
+    }
+
+    _hideModal() {
+        document.getElementById('recall-modal')?.classList.add('hidden');
+        this._unblurMessages();
+    }
+
+    _blurMessages() {
+        document.querySelectorAll('.message.ai .message-content').forEach(el => el.classList.add('recall-blurred'));
+    }
+
+    _unblurMessages() {
+        document.querySelectorAll('.message.ai .message-content').forEach(el => el.classList.remove('recall-blurred'));
+    }
+
+    init() {
+        const el = (id) => document.getElementById(id);
+        el('recallSkipBtn')?.addEventListener('click',  () => this._hideModal());
+        el('recallDoneBtn')?.addEventListener('click',  () => this._hideModal());
+        el('recallSubmitBtn')?.addEventListener('click', () => this._submitAnswer());
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     const tutorForm = document.getElementById('tutorForm');
     const questionInput = document.getElementById('question');
@@ -33,9 +339,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load settings immediately and wait for them to apply
     try {
         await window.settingsManager.loadSettings();
-        console.log('Settings applied successfully on page load');
+        if (DEBUG) console.log('Settings applied successfully on page load');
     } catch (error) {
-        console.error('Failed to load settings on page load:', error);
+        if (DEBUG) console.error('Failed to load settings on page load:', error);
     }
 
     // --- Load chat history on page load ---
@@ -90,7 +396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const existingMessages = chatMessages.querySelectorAll('.message');
         if (existingMessages.length > 0) {
             // Hydrate existing messages (attach listeners)
-            console.log('Hydrating SSR messages...');
+            if (DEBUG) console.log('Hydrating SSR messages...');
             hydrateMessages();
             // Scroll to bottom (forced on initial load)
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -312,6 +618,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: resubmitFormData
             });
 
+            if (aiResponse.status === 429) {
+                showCopyToast('⏳ Slow down! Wait a moment before sending again.');
+                submitBtn.disabled = false;
+                questionInput.disabled = false;
+                questionInput.focus();
+                showTypingIndicator(false);
+                return;
+            }
             if (!aiResponse.ok) throw new Error(`HTTP error! status: ${aiResponse.status}`);
 
             const contentType = aiResponse.headers.get('content-type');
@@ -331,11 +645,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button class="copy-btn" title="Copy response">
                             <i class="fas fa-copy"></i>
                         </button>
+                        <div class="feedback-btns">
+                            <button class="feedback-btn feedback-positive" title="Good response" data-rating="positive">
+                                <i class="fas fa-thumbs-up"></i>
+                            </button>
+                            <button class="feedback-btn feedback-negative" title="Bad response" data-rating="negative">
+                                <i class="fas fa-thumbs-down"></i>
+                            </button>
+                        </div>
                     </div>
                 `;
                 addMessage('ai', messageContent, true);
             } else {
-                addMessage('ai', `<p style="color: red;">Error: ${aiResult.error || 'An unknown error occurred.'}</p>`);
+                addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>${aiResult.error || 'An unknown error occurred.'}</span></div>`);
             }
 
             // Update edit buttons
@@ -349,7 +671,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const actionsDiv = msgWrapper.querySelector('.message-actions');
             if (actionsDiv) actionsDiv.style.display = '';
-            addMessage('ai', `<p style="color: red;">Edit failed: ${error.message}</p>`);
+            addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>Edit failed: ${error.message}</span></div>`);
         } finally {
             showTypingIndicator(false);
             submitBtn.disabled = false;
@@ -707,42 +1029,42 @@ document.addEventListener('DOMContentLoaded', async () => {
                 this.recognition.maxAlternatives = 1;
                 
                 this.recognition.onresult = (event) => {
-                    console.log('Speech result received:', event);
+                    if (DEBUG) console.log('Speech result received:', event);
                     let transcript = '';
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         transcript += event.results[i][0].transcript;
                     }
-                    console.log('Transcript:', transcript);
+                    if (DEBUG) console.log('Transcript:', transcript);
                     questionInput.value = transcript;
                 };
                 
                 this.recognition.onstart = () => {
-                    console.log('Speech recognition started');
+                    if (DEBUG) console.log('Speech recognition started');
                     this.isListening = true;
                     this.updateMicButton();
                 };
                 
                 this.recognition.onend = () => {
-                    console.log('Speech recognition ended');
+                    if (DEBUG) console.log('Speech recognition ended');
                     this.isListening = false;
                     this.updateMicButton();
                 };
                 
                 this.recognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error, event);
+                    if (DEBUG) console.error('Speech recognition error:', event.error, event);
                     this.isListening = false;
                     this.updateMicButton();
                     
                     if (event.error === 'not-allowed') {
-                        alert('Microphone access denied. Please enable it in your browser settings.');
+                        showCopyToast('Microphone access denied. Please enable it in your browser settings.');
                     } else if (event.error === 'no-speech') {
-                        console.log('No speech detected. Try speaking louder or closer to the mic.');
+                        if (DEBUG) console.log('No speech detected. Try speaking louder or closer to the mic.');
                     } else if (event.error === 'network') {
-                        alert('Network error. Speech recognition requires an internet connection.');
+                        showCopyToast('Network error. Speech recognition needs an internet connection.');
                     }
                 };
                 
-                console.log('Speech recognition initialized successfully');
+                if (DEBUG) console.log('Speech recognition initialized successfully');
             } else {
                 console.warn('Speech Recognition API not supported in this browser');
             }
@@ -755,8 +1077,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 voiceBtn.addEventListener('click', () => {
                     if (!this.recognition) {
-                         alert('Voice input is not supported in this browser. Please use Chrome, Edge, or Safari.');
-                         return;
+                        showCopyToast('Voice input not supported in this browser. Try Chrome or Edge.');
+                        return;
                     }
                     this.toggleListening();
                 });
@@ -1818,7 +2140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleFiles(newFiles) {
             const totalFiles = this.files.length + newFiles.length;
             if (totalFiles > this.maxFiles) {
-                alert(`You can only upload a maximum of ${this.maxFiles} files.`);
+                showCopyToast(`Maximum ${this.maxFiles} files allowed per message.`);
                 return;
             }
 
@@ -2023,12 +2345,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             showTypingIndicator(true);
             // Use getBasePath helper for consistent URL construction
             const fetchUrl = getBasePath() + '/server_mysql.php';
-            console.log('Fetching from:', fetchUrl);
+            if (DEBUG) console.log('Fetching from:', fetchUrl);
             const response = await fetch(fetchUrl, {
                 method: 'POST',
                 body: formData
             });
 
+            if (response.status === 429) {
+                showTypingIndicator(false);
+                submitBtn.disabled = false;
+                questionInput.disabled = false;
+                questionInput.focus();
+                showCopyToast('⏳ Slow down! Wait a moment before sending again.');
+                return;
+            }
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             // Check if response is actually JSON before parsing
@@ -2052,6 +2382,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button class="copy-btn" title="Copy response">
                             <i class="fas fa-copy"></i>
                         </button>
+                        <div class="feedback-btns">
+                            <button class="feedback-btn feedback-positive" title="Good response" data-rating="positive">
+                                <i class="fas fa-thumbs-up"></i>
+                            </button>
+                            <button class="feedback-btn feedback-negative" title="Bad response" data-rating="negative">
+                                <i class="fas fa-thumbs-down"></i>
+                            </button>
+                        </div>
                     </div>
                 `;
                 addMessage('ai', messageContent, true);
@@ -2076,7 +2414,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // If server generated a title, update the conversation in the sidebar
                     if (result.generated_title) {
-                        console.log('AI generated title:', result.generated_title);
+                        if (DEBUG) console.log('AI generated title:', result.generated_title);
                         // Refresh chat history to show the new conversation with AI-generated title
                         await loadChatHistory();
                         highlightActiveConversation(result.conversation_id);
@@ -2093,15 +2431,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Update session context with server-side progress data (hybrid progress with milestones)
                 if (result.progress && window.sessionContextManager) {
                     window.sessionContextManager.updateFromServerProgress(result.progress);
-                    console.log('Progress updated:', result.progress.percentage + '%',
+                    if (DEBUG) console.log('Progress updated:', result.progress.percentage + '%',
                         `(${result.progress.milestonesCompleted}/${result.progress.milestonesTotal} milestones)`);
+                    // Show milestone completion toasts
+                    if (result.progress.recentlyCompleted?.length > 0) {
+                        result.progress.recentlyCompleted.forEach(m => {
+                            showCopyToast(`✅ Milestone complete: ${m.title}`);
+                        });
+                    }
                 }
             } else {
-                addMessage('ai', `<p style="color: red;">Error: ${result.error || 'An unknown error occurred.'}</p>`);
+                addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>${result.error || 'Something went wrong. Please try again.'}</span></div>`);
             }
         } catch (error) {
-            console.error('Fetch Error:', error);
-            addMessage('ai', `<p style="color: red;">Sorry, I couldn't connect to the server. Please try again later.</p>`);
+            if (DEBUG) console.error('Fetch Error:', error);
+            addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>Sorry, I couldn't connect to the server. Please try again.</span></div>`);
         } finally {
             showTypingIndicator(false);
             submitBtn.disabled = false;
@@ -2236,13 +2580,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Function to load chat history from server ---
     async function loadChatHistory() {
+        // Show skeleton loader while fetching
+        chatHistoryContainer.innerHTML = `
+            <div class="history-skeleton">
+                <div class="history-skeleton-item"></div>
+                <div class="history-skeleton-item"></div>
+                <div class="history-skeleton-item"></div>
+                <div class="history-skeleton-item"></div>
+            </div>`;
         try {
             const fetchUrl = getBasePath() + '/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=history`);
             const result = await response.json();
 
             if (result.success && Array.isArray(result.history)) {
-                chatHistoryContainer.innerHTML = ''; // Clear existing history
+                chatHistoryContainer.innerHTML = ''; // Clear skeleton
                 result.history.forEach(convo => {
                     const historyItem = document.createElement('div');
                     historyItem.classList.add('history-item', 'flex', 'justify-between', 'items-center');
@@ -2280,9 +2632,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     historyItem.appendChild(deleteBtn);
                     chatHistoryContainer.appendChild(historyItem);
                 });
+            } else {
+                chatHistoryContainer.innerHTML = ''; // Clear skeleton even on empty result
             }
         } catch (error) {
-            console.error('Error loading chat history:', error);
+            chatHistoryContainer.innerHTML = ''; // Clear skeleton on error
+            if (DEBUG) console.error('Error loading chat history:', error);
         }
     }
 
@@ -2841,4 +3196,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
     }
+
+    // --------------------------------------------------------
+    // Pomodoro Timer + Active Recall Quiz
+    // --------------------------------------------------------
+    const pomodoro = new PomodoroManager();
+    const quiz     = new QuizManager();
+
+    pomodoro.onComplete = (mode) => quiz.start(mode);
+
+    pomodoro.init();
+    quiz.init();
+
+    // Expose globally for debugging
+    window.pomodoroManager = pomodoro;
+    window.quizManager     = quiz;
 });

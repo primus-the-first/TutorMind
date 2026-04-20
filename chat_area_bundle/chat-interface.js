@@ -46,20 +46,8 @@ class TutorMindChat {
         const textarea = document.querySelector('.input-box textarea');
         if (textarea) {
             textarea.addEventListener('input', () => this.autoResizeTextarea(textarea));
-            
-            // Send on Enter (Shift+Enter for newline)
-            textarea.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
-            });
-        }
-
-        // Send button
-        const sendBtn = document.querySelector('.send-btn');
-        if (sendBtn) {
-            sendBtn.addEventListener('click', () => this.sendMessage());
+            // Note: Enter-to-send and send button click are handled by tutor_mysql.js
+            // to ensure proper markdown/code rendering via the server pipeline.
         }
 
         // Voice input
@@ -229,7 +217,7 @@ class TutorMindChat {
         if (historyBtn && tray) {
             historyBtn.addEventListener('click', () => {
                 tray.classList.add('open');
-                if (overlay) overlay.classList.remove('hidden');
+                if (overlay) { overlay.classList.remove('hidden'); overlay.classList.add('active'); }
                 if (selector) selector.classList.remove('expanded');
             });
         }
@@ -237,7 +225,7 @@ class TutorMindChat {
         if (closeTray && tray) {
             const closeFn = () => {
                 tray.classList.remove('open');
-                if (overlay) overlay.classList.add('hidden');
+                if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('active'); }
             };
             closeTray.addEventListener('click', closeFn);
             if (overlay) overlay.addEventListener('click', closeFn);
@@ -401,17 +389,11 @@ class TutorMindChat {
         }
     }
 
-    escapeHTML(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
-
     formatMessage(content) {
-        // escape first to prevent XSS
-        let formatted = this.escapeHTML(content);
-        
         // Simple markdown-like formatting
+        // In production, use your existing Parsedown or marked.js
+        let formatted = content;
+        
         // Bold
         formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         
@@ -573,46 +555,24 @@ class TutorMindChat {
 
     /* ==================== CODE COPY ==================== */
     copyCode(button) {
-        if (!button) return;
         const codeBlock = button.closest('.code-block');
-        if (!codeBlock) return;
-        const pre = codeBlock.querySelector('pre');
-        if (!pre) return;
-        const code = pre.textContent;
+        const code = codeBlock.querySelector('pre').textContent;
         
-        const showSuccess = () => {
-            const originalHtml = button.innerHTML;
+        navigator.clipboard.writeText(code).then(() => {
+            const originalText = button.innerHTML;
             button.innerHTML = '<i class="fas fa-check"></i> Copied!';
             button.classList.add('copied');
+            
             setTimeout(() => {
-                button.innerHTML = originalHtml;
+                button.innerHTML = originalText;
                 button.classList.remove('copied');
             }, 2000);
+            
             console.log('📋 Code copied to clipboard');
-        };
-
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(code).then(showSuccess).catch(err => {
-                console.error('Failed to copy code:', err);
-            });
-        } else {
-            // Fallback for insecure contexts or unsupported browsers
-            const textArea = document.createElement("textarea");
-            textArea.value = code;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-9999px";
-            textArea.style.top = "0";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) showSuccess();
-            } catch (err) {
-                console.error('Fallback copy failed', err);
-            }
-            document.body.removeChild(textArea);
-        }
+        }).catch(err => {
+            console.error('Failed to copy code:', err);
+            alert('Failed to copy code to clipboard');
+        });
     }
 
     /* ==================== UTILITIES ==================== */
