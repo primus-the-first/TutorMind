@@ -243,6 +243,19 @@ function callGeminiAPI($payload, $apiKey) {
 
         $responseData = json_decode($response, true);
 
+        // Gemini sometimes misidentifies code blocks as function call arguments.
+        // When this happens it returns MALFORMED_FUNCTION_CALL with no content.
+        // Retry once without the tools declaration so a normal text response is returned.
+        if (isset($responseData['candidates'][0]['finishReason']) &&
+            $responseData['candidates'][0]['finishReason'] === 'MALFORMED_FUNCTION_CALL') {
+            error_log("Gemini: MALFORMED_FUNCTION_CALL detected, retrying without tools");
+            $payloadArr = json_decode($payload, true);
+            unset($payloadArr['tools']);
+            $payload = json_encode($payloadArr);
+            $retries = $max_retries - 1; // allow exactly one more attempt
+            continue;
+        }
+
         if (isset($responseData['candidates'][0]['content']['parts'][0]['functionCall'])) {
             $functionCall = $responseData['candidates'][0]['content']['parts'][0]['functionCall'];
             $functionName = $functionCall['name'];
