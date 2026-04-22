@@ -8,15 +8,15 @@
  *   save_session — Record a completed pomodoro session (called by the timer)
  */
 
-require_once __DIR__ . '/../check_auth.php';
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/check_auth.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 header('Content-Type: application/json');
 
 // --------------------------------------------------------------------------
 // Config + DB
 // --------------------------------------------------------------------------
-$configFiles = [__DIR__ . '/../config-sql.ini', __DIR__ . '/../config.ini'];
+$configFiles = [__DIR__ . '/../includes/config-sql.ini', __DIR__ . '/../includes/config.ini'];
 $config = null;
 foreach ($configFiles as $f) {
     if (file_exists($f)) {

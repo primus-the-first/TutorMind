@@ -8,46 +8,52 @@ ErrorDocument 403 "/403.html"
     ErrorDocument 403 /TutorMind/403.html
 </If>
 
-# Force HTTPS redirect
+# Rewrite engine
 RewriteEngine On
 Options -MultiViews -Indexes
 
 # Deny access to .git directory
 RewriteRule ^(.*/)?\.git/ - [F,L]
 
-# Environment-aware RewriteBase
-<If "%{HTTP_HOST} == 'localhost' || %{HTTP_HOST} == '127.0.0.1'">
-    RewriteBase /TutorMind/
-</If>
-<Else>
-    RewriteBase /
-</Else>
-
-# Force HTTPS redirect - DISABLED for Localhost development
+# Force HTTPS redirect - DISABLED for localhost development
 # RewriteCond %{HTTPS} off
 # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Custom Routes
-RewriteRule ^chat/([0-9]+)/?$ tutor_mysql.php?conversation_id=$1 [L,NC]
+# ── URL Routing ──────────────────────────────────────────────────────────────
+# This .htaccess lives in the TutorMind/ subdirectory.
+# On XAMPP/localhost: requests arrive as /TutorMind/login → Apache strips the
+#   subdir prefix and passes "login" to mod_rewrite. Rewrites are RELATIVE and
+#   resolve inside TutorMind/ automatically.
+# On production (root install): same behaviour — requests arrive as /login,
+#   Apache passes "login", rewrites resolve at document root.
+# Therefore NO RewriteBase is needed — relative rewrites work correctly in both.
+
+# Chat routes
+RewriteRule ^chat/([0-9]+)/?$ tutor_mysql.php?conversation_id=$1 [L,NC,QSA]
 RewriteRule ^chat/?$ tutor_mysql.php [L,NC]
+
+# Legacy .html → canonical extensionless redirects
 RewriteRule ^login\.html$ login [L,R=301,NC]
-RewriteRule ^login/?$ login.php [L,NC]
 RewriteRule ^register\.html$ register [L,R=301,NC]
+
+# Explicit extensionless PHP routes
+RewriteRule ^login/?$ login.php [L,NC]
 RewriteRule ^register/?$ register.php [L,NC]
 RewriteRule ^index/?$ index.html [L,NC]
 
-# Handle extensionless PHP files
+# Generic extensionless PHP fallback
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME}.php -f
-RewriteRule ^([^\.]+)$ $1.php [NC,L]
+RewriteRule ^(.+?)/?$ $1.php [L,NC]
 
-# Handle extensionless HTML files
+# Generic extensionless HTML fallback
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME}.html -f
-RewriteRule ^([^\.]+)$ $1.html [NC,L]
+RewriteRule ^(.+?)/?$ $1.html [L,NC]
 
-# Final 404 Fallback (The LiteSpeed/Namecheap Fix)
-# If the request hasn't been handled by now and the file doesn't exist, show 404
+# Final 404 Fallback
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^.*$ 404.html [L,NC]

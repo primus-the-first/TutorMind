@@ -239,9 +239,9 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="ui-overhaul.css?v=<?= time() ?>">
-    <link rel="stylesheet" href="settings.css?v=<?= time() ?>">
-    <link rel="stylesheet" href="logo.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/settings.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/logo.css?v=<?= time() ?>">
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?>">
 
@@ -689,10 +689,10 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
     
     <!-- Main application scripts -->
-    <script src="settings.js?v=<?= time() ?>"></script>
-    <script src="session-context.js?v=<?= time() ?>"></script>
-    <script src="quick-start.js?v=<?= time() ?>"></script>
-    <script src="tutor_mysql.js?v=<?= time() ?>"></script>
+    <script src="assets/js/settings.js?v=<?= time() ?>"></script>
+    <script src="assets/js/session-context.js?v=<?= time() ?>"></script>
+    <script src="assets/js/quick-start.js?v=<?= time() ?>"></script>
+    <script src="assets/js/tutor_mysql.js?v=<?= time() ?>"></script>
     
     <!-- Initialize Highlight.js -->
     <script>
@@ -702,7 +702,7 @@ try {
     </script>
     
     <!-- Enhanced Chat Interface (New!) -->
-    <script src="chat-interface.js?v=<?= time() ?>"></script>
+    <script src="assets/js/chat-interface.js?v=<?= time() ?>"></script>
 
     <!-- Mobile Navigation Layer (Icons popup) -->
     <div id="mobile-sidebar-overlay" class="sidebar-overlay hidden mobile-only"></div>

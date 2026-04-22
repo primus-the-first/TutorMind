@@ -5,8 +5,8 @@
  * Provides aggregated learning data for the dashboard.
  */
 
-require_once __DIR__ . '/../check_auth.php';
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/check_auth.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 header('Content-Type: application/json');
 

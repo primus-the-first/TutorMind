@@ -9,7 +9,7 @@
  * - Storage and retrieval of knowledge chunks
  */
 
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 class KnowledgeService {
     private $pdo;
@@ -20,7 +20,7 @@ class KnowledgeService {
         $this->pdo = getDbConnection();
         
         // Load API keys from config
-        $configFiles = ['../config-sql.ini', '../config.ini'];
+        $configFiles = ['../includes/config-sql.ini', '../includes/config.ini'];
         $config = null;
         
         foreach ($configFiles as $configFile) {

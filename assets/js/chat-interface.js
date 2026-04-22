@@ -513,7 +513,7 @@ class TutorMindChat {
         // formData.append('message', message);
         // formData.append('conversation_id', this.currentConversationId);
         // 
-        // const response = await fetch('server_mysql.php', {
+        // const response = await fetch('includes/server_mysql.php', {
         //     method: 'POST',
         //     body: formData
         // });

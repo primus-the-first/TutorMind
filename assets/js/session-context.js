@@ -76,7 +76,7 @@ class SessionContextManager {
      */
     async load(sessionId) {
         try {
-            const response = await fetch(`server_mysql.php?action=get_conversation&id=${sessionId}`);
+            const response = await fetch(`includes/server_mysql.php?action=get_conversation&id=${sessionId}`);
             const data = await response.json();
 
             if (data.success && data.conversation) {

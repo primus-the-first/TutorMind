@@ -27,8 +27,8 @@ register_shutdown_function(function () {
 define('DEBUG_MODE', false);
 
 require_once 'check_auth.php'; // Secure all API endpoints
-require_once __DIR__ . '/api/services/document_service.php';
-require_once __DIR__ . '/api/services/ai_service.php';
+require_once __DIR__ . '/../api/services/document_service.php';
+require_once __DIR__ . '/../api/services/ai_service.php';
 
 // --- CHAT RATE LIMITING ---
 function checkChatRateLimit($pdo, $user_id) {
@@ -101,14 +101,14 @@ function checkChatRateLimit($pdo, $user_id) {
 
 // --- ALWAYS require the autoloader first ---
 require_once 'db_mysql.php';
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-    require_once __DIR__ . '/vendor/autoload.php';
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
 }
-require_once 'api/knowledge.php';
-require_once 'api/learning_strategies.php';
-require_once __DIR__ . '/api/services/response_formatter.php';
-require_once __DIR__ . '/api/services/comprehension_service.php';
-require_once __DIR__ . '/api/services/tutor_service.php';
+require_once __DIR__ . '/../api/knowledge.php';
+require_once __DIR__ . '/../api/learning_strategies.php';
+require_once __DIR__ . '/../api/services/response_formatter.php';
+require_once __DIR__ . '/../api/services/comprehension_service.php';
+require_once __DIR__ . '/../api/services/tutor_service.php';
 
 header('Content-Type: application/json');
 
@@ -282,7 +282,7 @@ if ($action) {
 
                 // Load API Key
                 $config = null;
-                $configFiles = ['config-sql.ini', 'config.ini'];
+                $configFiles = [__DIR__ . '/config-sql.ini', __DIR__ . '/config.ini'];
                 foreach ($configFiles as $configFile) {
                     if (file_exists($configFile)) {
                         $config = parse_ini_file($configFile);
@@ -610,7 +610,7 @@ try {
     // --- Secure API Key Handling ---
     // Try to load config-sql.ini first, then fall back to config.ini
     $config = null;
-    $configFiles = ['config-sql.ini', 'config.ini'];
+    $configFiles = [__DIR__ . '/config-sql.ini', __DIR__ . '/config.ini'];
 
     foreach ($configFiles as $configFile) {
         if (file_exists($configFile)) {

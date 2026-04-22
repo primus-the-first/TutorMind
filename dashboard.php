@@ -1,6 +1,6 @@
 <?php
-require_once 'check_auth.php';
-require_once 'db_mysql.php';
+require_once 'includes/check_auth.php';
+require_once 'includes/db_mysql.php';
 
 $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
 ?>
@@ -10,7 +10,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learning Dashboard - TutorMind</title>
-    <link rel="stylesheet" href="ui-overhaul.css">
+    <link rel="stylesheet" href="assets/css/ui-overhaul.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>

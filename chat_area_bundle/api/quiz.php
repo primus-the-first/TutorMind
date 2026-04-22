@@ -8,15 +8,15 @@
  *   save_session — Record a completed pomodoro session (called by the timer)
  */
 
-require_once __DIR__ . '/../check_auth.php';
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/check_auth.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 header('Content-Type: application/json');
 
 // --------------------------------------------------------------------------
 // Config + DB
 // --------------------------------------------------------------------------
-$configFiles = [__DIR__ . '/../config-sql.ini', __DIR__ . '/../config.ini'];
+$configFiles = [__DIR__ . '/../includes/config-sql.ini', __DIR__ . '/../includes/config.ini'];
 $config = null;
 foreach ($configFiles as $f) {
     if (file_exists($f)) {
@@ -112,11 +112,17 @@ function handleGenerate($pdo, $user_id, $data, $geminiKey) {
     $fieldOfStudy    = $profile['field_of_study']   ?? 'general';
 
     // Determine allowed question types per mode
-    $typeInstruction = match($mode) {
-        'gentle'    => 'Create a RECOGNITION question (multiple choice with 4 options, exactly 1 correct). Set question_type to "recognition".',
-        'challenge' => 'Create a FREE_RECALL or APPLICATION question requiring a written explanation or applying the concept to a new scenario. Set question_type to "free_recall" or "application" depending on which fits better.',
-        default     => 'Create a CUED RECALL question (e.g. "Name the three types of…", "What are the steps for…"). Set question_type to "cued".',
-    };
+    switch ($mode) {
+        case 'gentle':
+            $typeInstruction = 'Create a RECOGNITION question (multiple choice with 4 options, exactly 1 correct). Set question_type to "recognition".';
+            break;
+        case 'challenge':
+            $typeInstruction = 'Create a FREE_RECALL or APPLICATION question requiring a written explanation or applying the concept to a new scenario. Set question_type to "free_recall" or "application" depending on which fits better.';
+            break;
+        default:
+            $typeInstruction = 'Create a CUED RECALL question (e.g. "Name the three types of…", "What are the steps for…"). Set question_type to "cued".';
+            break;
+    }
 
     $prompt = <<<PROMPT
 You are creating a single active-recall quiz question for a student who just completed a focused study session.

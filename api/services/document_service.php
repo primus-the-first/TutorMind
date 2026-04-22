@@ -6,7 +6,7 @@
 
 function ocrImageBasedPdf($pdfPath, $originalName) {
     $config = null;
-    foreach (['config-sql.ini', 'config.ini'] as $configFile) {
+    foreach ([__DIR__ . '/../../includes/config-sql.ini', __DIR__ . '/../../includes/config.ini'] as $configFile) {
         if (file_exists($configFile)) {
             $config = parse_ini_file($configFile);
             if ($config !== false) break;

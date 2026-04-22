@@ -247,3 +247,123 @@ RAG only retrieved what was already stored. The first time a topic came up, the 
 
 **Migration run:** ✅ `005_add_pomodoro_recall_tables.sql` — applied.
 
+---
+
+## Progress Log - April 20, 2026
+
+### 1. AI Response Truncation Fix (Code Blocks Missing)
+**Problem:** AI responses were cut short — full explanations with code examples never appeared. Code blocks were consistently absent from rendered output.
+**Root Cause:** `server_mysql.php` only read `parts[0]` from the Gemini API response. Gemini 2.5 Flash prepends a hidden thinking/reasoning part at `parts[0]` (flagged `"thought": true`); the actual answer lives in `parts[1+]`.
+**Fix (`server_mysql.php`):**
+- Changed from reading `$responseData['candidates'][0]['content']['parts'][0]['text']` directly
+- Now iterates all parts, skips any with `!empty($part['thought'])`, and concatenates remaining text parts
+- Result confirmed working: full multi-paragraph responses with fenced code blocks returned correctly
+
+### 2. Google Sign-In Fix (Redirect Showing Raw JSON)
+**Problem:** Clicking "Sign in with Google" redirected to `auth_mysql.php` and displayed raw JSON instead of completing the login.
+**Root Cause:** Missing `exit;` after all 5 `header("Location: ...")` calls in `auth_mysql.php`. PHP continued executing past the redirect, appending JSON output that confused the browser.
+**Fix (`auth_mysql.php`):** Added `exit;` after every redirect in the Google OAuth flow (no-credential error, invalid token, existing user success, new user → onboarding, server error).
+**Status:** ✅ Fixed and confirmed working on production.
+
+### 3. Conversation History Fix
+**Problem:** After logging in normally (username/password), the sidebar showed no conversation history.
+**Status:** ✅ Fixed and confirmed working on production (root cause was related to the above fixes affecting session/redirect flow).
+
+### 4. Server Hardening (`server_mysql.php`)
+- **Fatal error handler:** Added `register_shutdown_function` at the top of `server_mysql.php` to catch PHP fatal errors (E_ERROR, E_PARSE, etc.) and return parseable JSON with a `_debug` field + `error_log` entry, instead of an empty 500 body.
+- **Conditional vendor load:** Changed hard `require 'vendor/autoload.php'` to a `file_exists()` guard so simple endpoints (history, suggestions) survive if the vendor directory is missing on a deployment.
+- **Parsedown fallback:** Guarded `new Parsedown()` with `class_exists()` — falls back to `nl2br` if composer packages are unavailable.
+
+---
+
+## Progress Log - April 21, 2026
+
+### 1. Modularization: DocumentService extracted from `server_mysql.php`
+**Objective:** Begin breaking up the ~2,900-line monolithic `server_mysql.php` into focused service files in `api/services/`.
+**Approach:** Procedural `require_once` split (no OOP — keeps it simple and low-risk).
+
+**Extracted functions** → `api/services/document_service.php` (new):
+- `ocrImageBasedPdf()` — OCR fallback chain orchestrator
+- `ocrWithGoogleCloudVision()` — Google Cloud Vision API
+- `ocrWithOcrSpace()` — OCR.space API
+- `ocrWithTesseract()` — Local Tesseract + Ghostscript fallback
+- `prepareFileParts()` — File parsing for PDF, DOCX, PPTX, and image upload/compression
+
+**Files changed:**
+- **New**: `api/services/document_service.php`
+- **Modified**: `server_mysql.php` — removed ~520 lines of function definitions; added `require_once __DIR__ . '/api/services/document_service.php'` after `check_auth.php`
+
+**Result:** `server_mysql.php` reduced from ~2,938 → ~2,420 lines. Syntax verified (`php -l`) on both files.
+
+**Next in sequence:** `api/services/ai_service.php` — extract `callGeminiAPI`, `callGroqAPI`, `callDeepSeekAPI`, `generateImageWithImagen`.
+
+### 2. Modularization: AiService extracted from `server_mysql.php`
+**Extracted functions** → `api/services/ai_service.php` (new):
+- `callGroqAPI()` — Groq/llama-3.3-70b-versatile, OpenAI-compatible format
+- `callDeepSeekAPI()` — DeepSeek fallback, OpenAI-compatible format
+- `callGeminiAPI()` — Primary Gemini 2.5 Flash with retry logic, rate limit handling, and image generation function-calling
+- `generateImageWithImagen()` — Imagen 4 Ultra direct endpoint
+
+**Files changed:**
+- **New**: `api/services/ai_service.php`
+- **Modified**: `server_mysql.php` — removed ~420 lines; added `require_once __DIR__ . '/api/services/ai_service.php'`
+
+**Result:** `server_mysql.php` reduced to ~1,996 lines. Syntax verified (`php -l`) on both files.
+
+**Next in sequence:** `api/services/response_formatter.php` — extract `formatResponse`.
+
+### 3. Modularization: ResponseFormatter extracted from `server_mysql.php`
+**Extracted functions** → `api/services/response_formatter.php` (new):
+- `formatResponse()` — Converts raw AI markdown to safe HTML; protects code blocks and LaTeX from Parsedown interference, restores with proper `<pre><code>` tags and MathJax-compatible delimiters
+
+**Files changed:**
+- **New**: `api/services/response_formatter.php`
+- **Modified**: `server_mysql.php` — removed ~91 lines; added `require_once __DIR__ . '/api/services/response_formatter.php'`
+
+**Result:** `server_mysql.php` reduced to ~1,905 lines. Syntax verified (`php -l`) on both files.
+
+**Next in sequence:** `api/services/comprehension_service.php` — extract `analyzeComprehension`, `aiComprehensionScore`, `calculateHybridProgress`.
+
+### 4. Modularization: ComprehensionService extracted from `server_mysql.php`
+**Extracted functions** → `api/services/comprehension_service.php` (new):
+- `analyzeComprehension()` — Two-layer comprehension detector: regex patterns (fast, free) + AI fallback for ambiguous short messages
+- `aiComprehensionScore()` — Calls Gemini 2.5 Flash with a 5s timeout to classify ambiguous replies as understood/confused/neutral
+- `calculateHybridProgress()` — Weighted progress score: 70% milestones + 20% comprehension + 10% engagement
+
+**Files changed:**
+- **New**: `api/services/comprehension_service.php`
+- **Modified**: `server_mysql.php` — removed ~181 lines; added `require_once __DIR__ . '/api/services/comprehension_service.php'`
+
+**Result:** `server_mysql.php` reduced to ~1,725 lines. Syntax verified (`php -l`) on both files.
+
+**Next in sequence:** `api/services/tutor_service.php` — extract system prompt (~250 lines) + `generateLearningOutline`, `detectMilestoneCompletion`. Highest risk — do last.
+
+### 5. Modularization: TutorService extracted from `server_mysql.php`
+**Extracted functions** → `api/services/tutor_service.php` (new):
+- `generateLearningOutline()` — Calls Gemini to produce a structured JSON milestone outline for a topic
+- `detectMilestoneCompletion()` — Scans AI response text for milestone title/keyword coverage; marks completed
+- `buildSystemPrompt($learningLevel, $personalization_context)` — Wraps the ~250-line adaptive tutor heredoc; injects runtime variables as parameters
+
+**Files changed:**
+- **New**: `api/services/tutor_service.php`
+- **Modified**: `server_mysql.php` — removed ~400 lines of functions + system prompt heredoc; replaced with `$system_prompt = buildSystemPrompt($learningLevel, $personalization_context);`; added `require_once __DIR__ . '/api/services/tutor_service.php'`
+
+**Result:** `server_mysql.php` reduced to ~1,324 lines (from original ~2,938 — **55% reduction**). Syntax verified (`php -l`) on both files.
+
+**Modularization complete.** All 5 services extracted:
+- `api/services/document_service.php` — OCR + file parsing
+- `api/services/ai_service.php` — Gemini / Groq / DeepSeek / Imagen
+- `api/services/response_formatter.php` — Markdown → HTML with LaTeX + code protection
+- `api/services/comprehension_service.php` — Comprehension scoring + hybrid progress
+- `api/services/tutor_service.php` — Learning outline, milestone detection, system prompt
+
+### 6. Post-Modularization Bug Fixes
+
+**Bug 1: Undefined PHP variables in `buildSystemPrompt` heredoc**
+- **Cause:** The LaTeX math examples in the system prompt heredoc (e.g. `$$a^2 + b^2 = c^2$$`) reference `$a`, `$b`, `$c`, `$x` as PHP variables. In the original inline code these were pre-declared as `null`. Inside the extracted `buildSystemPrompt()` function they were not in scope, producing PHP 8 warnings.
+- **Fix (`api/services/tutor_service.php`):** Added `$a = $b = $c = $x = null;` at the top of `buildSystemPrompt()`.
+
+**Bug 2: `MALFORMED_FUNCTION_CALL` → "AI returned an empty response"**
+- **Cause:** `callGeminiAPI` injects a `generate_image` tool declaration into every Gemini request. On conversations involving code (e.g. Python `cmath` examples), Gemini 2.5 Flash occasionally misfires the tool — passing the code block as the image prompt argument. Gemini returns `finishReason: MALFORMED_FUNCTION_CALL` with no content, which hits the "empty response" error path.
+- **Fix (`api/services/ai_service.php`):** Added a `MALFORMED_FUNCTION_CALL` check immediately after decoding the Gemini response. When detected, unsets `tools` from the payload and retries once — Gemini then responds normally as plain text.
+- **Files changed:** `api/services/ai_service.php`, `api/services/tutor_service.php`

@@ -13,8 +13,8 @@ header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
 
-require_once 'check_auth.php'; // Secure this page
-require_once 'db_mysql.php';
+require_once 'includes/check_auth.php'; // Secure this page
+require_once 'includes/db_mysql.php';
 
 $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'there');
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
@@ -53,13 +53,13 @@ if ($user_id) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Logo Styles -->
-    <link rel="stylesheet" href="logo.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/logo.css?v=<?= time() ?>">
 
     <!-- Main Design System -->
-    <link rel="stylesheet" href="landing.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/landing.css?v=<?= time() ?>">
     
     <!-- Wizard Styles -->
-    <link rel="stylesheet" href="onboarding-wizard.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/onboarding-wizard.css?v=<?= time() ?>">
 </head>
 <body>
     <div id="onboarding-container">
@@ -641,6 +641,6 @@ if ($user_id) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
     
     <!-- Consolidated Wizard Logic and Animations -->
-    <script src="onboarding-bundle.js?v=<?= time() ?>"></script>
+    <script src="assets/js/onboarding-bundle.js?v=<?= time() ?>"></script>
 </body>
 </html>

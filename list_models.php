@@ -3,7 +3,7 @@
 
 // 1. Load API Key
 $config = null;
-$configFiles = ['config-sql.ini', 'config.ini'];
+$configFiles = ['includes/config-sql.ini', 'includes/config.ini'];
 foreach ($configFiles as $configFile) {
     if (file_exists($configFile)) {
         $config = parse_ini_file($configFile);

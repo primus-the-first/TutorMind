@@ -3,9 +3,9 @@
 
 // --- BOOTSTRAP & AUTHENTICATION ---
 // Start session and check if the user is logged in.
-require_once '../check_auth.php';
+require_once '../includes/check_auth.php';
 // Include the database connection function.
-require_once '../db_mysql.php';
+require_once '../includes/db_mysql.php';
 
 // --- CONFIGURATION ---
 // Define the list of fields that are managed by this API.

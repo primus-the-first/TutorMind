@@ -5,12 +5,12 @@
  * Fallback chain: ElevenLabs → inference.sh → Browser TTS
  */
 
-require_once __DIR__ . '/../check_auth.php';
+require_once __DIR__ . '/../includes/check_auth.php';
 
 header('Content-Type: application/json');
 
 // Load API key from config
-$configFiles = ['../config-sql.ini', '../config.ini'];
+$configFiles = ['../includes/config-sql.ini', '../includes/config.ini'];
 $config = null;
 
 foreach ($configFiles as $configFile) {

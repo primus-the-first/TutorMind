@@ -12,8 +12,8 @@ header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
 
-require_once 'check_auth.php'; // Secure this page
-require_once 'db_mysql.php';
+require_once 'includes/check_auth.php'; // Secure this page
+require_once 'includes/db_mysql.php';
 
 $user_email = 'email@example.com';
 $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
@@ -239,9 +239,9 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="ui-overhaul.css?v=<?= time() ?>">
-    <link rel="stylesheet" href="settings.css?v=<?= time() ?>">
-    <link rel="stylesheet" href="logo.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/settings.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/logo.css?v=<?= time() ?>">
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?>">
 
@@ -282,7 +282,7 @@ try {
             <button id="user-account-trigger" class="user-info-button">
                 <div class="user-avatar">
                     <?php if (isset($_SESSION['avatar_url']) && !empty($_SESSION['avatar_url'])): ?>
-                        <img src="<?= htmlspecialchars($_SESSION['avatar_url']) ?>" alt="User Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                        <img src="<?= htmlspecialchars($_SESSION['avatar_url']) ?>" alt="User Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" onerror="this.onerror=null; this.outerHTML='<?= htmlspecialchars(strtoupper(substr($displayName, 0, 1))) ?>';">
                     <?php else: ?>
                         <?= htmlspecialchars(strtoupper(substr($displayName, 0, 1))) ?>
                     <?php endif; ?>
@@ -715,13 +715,13 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
     
     <!-- Custom Dialog System (replaces native alert/confirm) -->
-    <script src="tm-dialog.js?v=<?= time() ?>"></script>
+    <script src="assets/js/tm-dialog.js?v=<?= time() ?>"></script>
     
     <!-- Main application scripts -->
-    <script src="settings.js?v=<?= time() ?>"></script>
-    <script src="session-context.js?v=<?= time() ?>"></script>
-    <script src="quick-start.js?v=<?= time() ?>"></script>
-    <script src="tutor_mysql.js?v=<?= time() ?>"></script>
+    <script src="assets/js/settings.js?v=<?= time() ?>"></script>
+    <script src="assets/js/session-context.js?v=<?= time() ?>"></script>
+    <script src="assets/js/quick-start.js?v=<?= time() ?>"></script>
+    <script src="assets/js/tutor_mysql.js?v=<?= time() ?>"></script>
     
     <!-- Initialize Highlight.js -->
     <script>
@@ -731,7 +731,7 @@ try {
     </script>
     
     <!-- Enhanced Chat Interface (New!) -->
-    <script src="chat-interface.js?v=<?= time() ?>"></script>
+    <script src="assets/js/chat-interface.js?v=<?= time() ?>"></script>
 
     <!-- Mobile Navigation Layer (Icons popup) -->
     <div id="mobile-sidebar-overlay" class="sidebar-overlay hidden mobile-only"></div>

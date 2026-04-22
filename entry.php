@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'db_mysql.php';
+require_once 'includes/db_mysql.php';
 
 // 1. Check if session exists
 if (isset($_SESSION['user_id'])) {

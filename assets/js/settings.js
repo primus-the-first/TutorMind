@@ -839,7 +839,7 @@ class SettingsManager {
 
         try {
             // Fetch CSRF token before submitting
-            const tokenResponse = await fetch('csrf.php?action=get_token');
+            const tokenResponse = await fetch('includes/csrf.php?action=get_token');
             const tokenData = await tokenResponse.json();
 
             const formData = new FormData();

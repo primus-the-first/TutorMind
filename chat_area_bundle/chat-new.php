@@ -129,8 +129,8 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     
     <!-- Modern Scholar Design -->
-    <link rel="stylesheet" href="landing.css">
-    <link rel="stylesheet" href="chat-interface.css">
+    <link rel="stylesheet" href="assets/css/landing.css">
+    <link rel="stylesheet" href="assets/css/chat-interface.css">
 </head>
 <body>
     <!-- Header -->
@@ -231,7 +231,7 @@ try {
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
-    <script src="tutor_mysql.js?v=<?= time() ?>"></script>
+    <script src="assets/js/tutor_mysql.js?v=<?= time() ?>"></script>
     
     <script>
         // Initialize Highlight.js
@@ -253,6 +253,6 @@ try {
     </script>
     
     <!-- Enhanced Chat Interface -->
-    <script src="chat-interface.js?v=<?= time() ?>"></script>
+    <script src="assets/js/chat-interface.js?v=<?= time() ?>"></script>
 </body>
 </html>

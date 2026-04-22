@@ -31,10 +31,10 @@ function getDbConnection() {
         $configFile = 'config.ini';
     
     // Check parent directory
-    } elseif (file_exists('../config-sql.ini')) {
-        $configFile = '../config-sql.ini';
-    } elseif (file_exists('../config.ini')) {
-        $configFile = '../config.ini';
+    } elseif (file_exists('../includes/config-sql.ini')) {
+        $configFile = '../includes/config-sql.ini';
+    } elseif (file_exists('../includes/config.ini')) {
+        $configFile = '../includes/config.ini';
     } else {
         throw new Exception("Database configuration file not found. Please ensure config-sql.ini or config.ini exists in the root directory.");
     }

@@ -4,8 +4,8 @@
  * View and manage user feedback with filtering and statistics.
  */
 
-require_once '../check_auth.php';
-require_once '../db_mysql.php';
+require_once '../includes/check_auth.php';
+require_once '../includes/db_mysql.php';
 
 // Get database connection
 try {

@@ -2,8 +2,8 @@
 // api/clear_history.php
 
 // --- BOOTSTRAP & AUTHENTICATION ---
-require_once '../check_auth.php'; // Ensures user is logged in
-require_once '../db_mysql.php';   // Database connection
+require_once '../includes/check_auth.php'; // Ensures user is logged in
+require_once '../includes/db_mysql.php';   // Database connection
 
 // Only allow POST requests for this destructive action
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

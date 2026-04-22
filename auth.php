@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'db_mysql.php';
+require_once 'includes/db_mysql.php';
 
 header('Content-Type: application/json');
 $request_method = $_SERVER['REQUEST_METHOD'];

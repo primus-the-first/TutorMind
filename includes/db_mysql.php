@@ -24,19 +24,12 @@ function getDbConnection() {
     // 1. Local/MySQL config (config-sql.ini) - Checked first for local XAMPP dev
     // 2. Prod config (config.ini)
     
-    // Check current directory
-    if (file_exists('config-sql.ini')) {
-        $configFile = 'config-sql.ini';
-    } elseif (file_exists('config.ini')) {
-        $configFile = 'config.ini';
-    
-    // Check parent directory
-    } elseif (file_exists('../config-sql.ini')) {
-        $configFile = '../config-sql.ini';
-    } elseif (file_exists('../config.ini')) {
-        $configFile = '../config.ini';
+    if (file_exists(__DIR__ . '/config-sql.ini')) {
+        $configFile = __DIR__ . '/config-sql.ini';
+    } elseif (file_exists(__DIR__ . '/config.ini')) {
+        $configFile = __DIR__ . '/config.ini';
     } else {
-        throw new Exception("Database configuration file not found. Please ensure config-sql.ini or config.ini exists in the root directory.");
+        throw new Exception("Database configuration file not found. Please ensure config-sql.ini or config.ini exists in the includes directory.");
     }
     
     $config = parse_ini_file($configFile, true);

@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Load configuration
 function loadConfig() {
-    $configFiles = ['../config-sql.ini', '../config.ini'];
+    $configFiles = ['../includes/config-sql.ini', '../includes/config.ini'];
     foreach ($configFiles as $configFile) {
         if (file_exists($configFile)) {
             $config = parse_ini_file($configFile);

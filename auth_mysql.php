@@ -1,9 +1,9 @@
 <?php
 session_start();
 header('Content-Type: application/json');
-require_once 'db_mysql.php';
-require_once 'csrf.php';
-require_once 'rate_limiter.php';
+require_once 'includes/db_mysql.php';
+require_once 'includes/csrf.php';
+require_once 'includes/rate_limiter.php';
 
 $request_method = $_SERVER['REQUEST_METHOD'];
 

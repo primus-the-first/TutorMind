@@ -36,7 +36,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Main Creative Styles -->
-    <link rel="stylesheet" href="landing.css?v=3">
+    <link rel="stylesheet" href="assets/css/landing.css?v=3">
     
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>

@@ -562,7 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Handle edit submission (two-phase: update DB, then regenerate AI response) ---
     async function handleEditSubmit(msgWrapper, messageId, newContent, conversationId) {
         const messageBubble = msgWrapper.querySelector('.message-content');
-        const fetchUrl = getBasePath() + '/server_mysql.php';
+        const fetchUrl = getBasePath() + '/includes/server_mysql.php';
 
         // Disable buttons while processing
         const saveBtn = msgWrapper.querySelector('.edit-save-btn');
@@ -1463,7 +1463,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 // Submit to server
-                const fetchUrl = getBasePath() + '/server_mysql.php';
+                const fetchUrl = getBasePath() + '/includes/server_mysql.php';
                 const response = await fetch(fetchUrl, {
                     method: 'POST',
                     body: formData
@@ -2039,7 +2039,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 formData.append('comment', comment);
             }
             
-            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const fetchUrl = getBasePath() + '/includes/server_mysql.php';
             const response = await fetch(fetchUrl, {
                 method: 'POST',
                 body: formData
@@ -2358,7 +2358,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             questionInput.disabled = true;
             showTypingIndicator(true);
             // Use getBasePath helper for consistent URL construction
-            const fetchUrl = getBasePath() + '/server_mysql.php';
+            const fetchUrl = getBasePath() + '/includes/server_mysql.php';
             if (DEBUG) console.log('Fetching from:', fetchUrl);
             const response = await fetch(fetchUrl, {
                 method: 'POST',
@@ -2422,7 +2422,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Update URL if we aren't already on this conversation's page
                     if (!window.location.href.includes(`chat/${result.conversation_id}`)) {
-                        const baseUrl = window.location.pathname.split('/chat')[0];
+                        const baseUrl = getBasePath();
                         history.pushState({}, '', `${baseUrl}/chat/${result.conversation_id}`);
                     }
 
@@ -2473,7 +2473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Handle "New Chat" button ---
     newChatBtn.addEventListener('click', () => {
         // Update URL to /chat
-        const baseUrl = window.location.pathname.split('/chat')[0];
+        const baseUrl = getBasePath();
         history.pushState({}, '', `${baseUrl}/chat`);
 
         // Clear old messages and show the welcome screen
@@ -2562,7 +2562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!welcomeScreen || welcomeScreen.style.display === 'none') return;
 
         try {
-            const fetchUrl = getBasePath() + '/server_mysql.php';
+            const fetchUrl = getBasePath() + '/includes/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=generate_suggestions`);
             const data = await response.json();
 
@@ -2603,7 +2603,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="history-skeleton-item"></div>
             </div>`;
         try {
-            const fetchUrl = getBasePath() + '/server_mysql.php';
+            const fetchUrl = getBasePath() + '/includes/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=history`);
             const result = await response.json();
 
@@ -2664,7 +2664,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             // Use absolute path for fetch
-            const fetchUrl = basePath + '/server_mysql.php';
+            const fetchUrl = basePath + '/includes/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=get_conversation&id=${id}`, {
                 method: 'GET',
                 credentials: 'include', // Ensure cookies are sent
@@ -2837,7 +2837,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!confirmed) return;
 
         try {
-            const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+            const fetchUrl = getBasePath() + '/includes/server_mysql.php';
             const response = await fetch(`${fetchUrl}?action=delete_conversation&id=${id}`);
             const result = await response.json();
 
@@ -2885,7 +2885,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     formData.append('id', id);
                     formData.append('title', newTitle);
 
-                    const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+                    const fetchUrl = getBasePath() + '/includes/server_mysql.php';
                     const response = await fetch(fetchUrl, {
                         method: 'POST',
                         body: formData
@@ -3131,7 +3131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 formData.append('category', category);
                 formData.append('page_url', window.location.href);
                 
-                const fetchUrl = window.location.pathname.split('/chat')[0] + '/server_mysql.php';
+                const fetchUrl = getBasePath() + '/includes/server_mysql.php';
                 const response = await fetch(fetchUrl, {
                     method: 'POST',
                     body: formData

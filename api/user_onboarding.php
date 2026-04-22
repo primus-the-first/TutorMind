@@ -1,7 +1,7 @@
 <?php
 session_start();
 header('Content-Type: application/json');
-require_once '../db_mysql.php';
+require_once '../includes/db_mysql.php';
 
 // Security check
 if (!isset($_SESSION['user_id'])) {
