@@ -107,7 +107,7 @@ if (!function_exists('formatResponse')) {
         $text = preg_replace_callback(
             '/```([\w+\-#.]*)[ \t]*\r?\n([\s\S]*?)```/s',
             function ($matches) use (&$protections, &$counter) {
-                $placeholder = '@@PROTECT_' . $counter . '@@';
+                $placeholder = 'XPROTECTX' . $counter . 'XPROTECTX';
                 $language = $matches[1]; // Language identifier (optional)
                 $codeContent = $matches[2]; // The actual code
                 $protections[$placeholder] = [
@@ -125,7 +125,7 @@ if (!function_exists('formatResponse')) {
         $text = preg_replace_callback(
             '/`([^`]+)`/s',
             function ($matches) use (&$protections, &$counter) {
-                $placeholder = '@@PROTECT_' . $counter . '@@';
+                $placeholder = 'XPROTECTX' . $counter . 'XPROTECTX';
                 // Store the inner content of the code block
                 $protections[$placeholder] = ['type' => 'code', 'content' => $matches[1]];
                 $counter++;
@@ -138,7 +138,7 @@ if (!function_exists('formatResponse')) {
         $text = preg_replace_callback(
             '/\$\$([\s\S]*?)\$\$|\\\\\[([\s\S]*?)\\\\\]|\\\\\((.*?)\\\\\)|\$([^$]+?)\$/',
             function ($matches) use (&$protections, &$counter) {
-                $placeholder = '@@PROTECT_' . $counter . '@@';
+                $placeholder = 'XPROTECTX' . $counter . 'XPROTECTX';
                 // Store the original content, which includes the delimiters
                 $protections[$placeholder] = ['type' => 'latex', 'content' => $matches[0]];
                 $counter++;
