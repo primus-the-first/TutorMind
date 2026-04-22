@@ -62,9 +62,9 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             width: 100%; height: 100%;
             fill: none;
             stroke: currentColor;
-            stroke-width: 1.8;
-            stroke-linecap: round;
-            stroke-linejoin: round;
+            stroke-width: 2;
+            stroke-linecap: square;
+            stroke-linejoin: miter;
         }
 
         /* ── Layout ─────────────────────────────────────── */
@@ -895,33 +895,83 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
     // ── Utilities ──────────────────────────────────────────
     const COLORS = ['#7C3AED','#059669','#d97706','#e11d48','#0284c7','#4f46e5','#ec4899','#06b6d4'];
 
-    // Hand-drawn SVG icon library — wobbly strokes, organic feel
+    // Redesigned icon library — geometric, bold, neobrutalist
+    // Rules: stroke only, no opacity fills, square linecaps, miter joins, primitive shapes
     const ICO = {
-        pulse:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><polyline points="3 17 8 11 13 15 21 5"/><circle cx="21" cy="5" r="1.5" fill="currentColor" stroke="none"/></svg></span>',
-        gradCap:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><line x1="22" y1="10" x2="22" y2="16"/></svg></span>',
-        grid4:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M4 4h5v5H4z"/><path d="M4 15h5v5H4z"/><path d="M15 4h5v5h-5z"/><path d="M15 15h5v5h-5z"/></svg></span>',
-        question:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5"/><circle cx="12" cy="17.5" r=".8" fill="currentColor" stroke="none"/></svg></span>',
-        clock:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="9" y1="2" x2="15" y2="2"/></svg></span>',
-        chatBubble: '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="13" y2="12"/></svg></span>',
-        bookOpen:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M2 5c3-1 5-1 10 1v14c-5-2-7-2-10-1z"/><path d="M22 5c-3-1-5-1-10 1v14c5-2 7-2 10-1z"/></svg></span>',
-        trophy:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 7H4v1a3 3 0 0 0 3 3"/><path d="M17 7h3v1a3 3 0 0 1-3 3"/></svg></span>',
-        flame:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M12 2c-2 5-6 7-6 12a6 6 0 0 0 12 0c0-5-4-7-6-12z"/><path d="M12 22c-1.5 0-3-1.5-3-4 0-3 3-4 3-7 0 3 3 4 3 7s-1.5 4-3 4z" fill="currentColor" opacity=".15"/></svg></span>',
-        calendar:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><polyline points="9 14 11 16 15 12"/></svg></span>',
-        flag:       '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4c3-1 6 1 9 0s6-2 6 0v10c-3 1-6-1-9 0s-6 2-6 0"/></svg></span>',
+        // Activity / pulse — sharp zigzag, like an EKG readout
+        pulse:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><polyline points="2 12 6 12 8 4 10 20 12 12 14 8 16 14 18 12 22 12"/></svg></span>',
+
+        // Grad cap — flat square mortarboard, geometric
+        gradCap:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="12 3 22 8 12 13 2 8"/><polyline points="6 10 6 18"/><path d="M6 18c2 2 10 2 12 0v-8"/></svg></span>',
+
+        // Dashboard grid — 4 equal squares, dead flat
+        grid4:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>',
+
+        // Question mark — inside a square, not circle
+        question:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><path d="M9 9h1.5a2.5 2.5 0 0 1 0 5H12v2"/><line x1="12" y1="18" x2="12" y2="18.5"/></svg></span>',
+
+        // Clock — square body with clock hands
+        clock:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><polyline points="12 7 12 13 16 13"/></svg></span>',
+
+        // Chat bubble — hard rectangular bubble, no curves
+        chatBubble: '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="3 3 21 3 21 15 9 15 3 21"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg></span>',
+
+        // Book open — two flat halves with spine line
+        bookOpen:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M2 4h9v16H2z"/><path d="M13 4h9v16h-9z"/><line x1="11" y1="4" x2="13" y2="4"/><line x1="11" y1="20" x2="13" y2="20"/></svg></span>',
+
+        // Trophy — tall rectangular cup
+        trophy:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="9"/><polyline points="7 7 3 7 3 9 7 12"/><polyline points="17 7 21 7 21 9 17 12"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="8" y1="21" x2="16" y2="21"/></svg></span>',
+
+        // Flame — angular/polygonal flame shape
+        flame:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="12 2 16 8 20 13 17 14 20 20 7 20 9 14 4 13 8 8"/></svg></span>',
+
+        // Calendar — hard rect with date bars
+        calendar:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="7" y1="15" x2="12" y2="15"/><line x1="7" y1="18" x2="10" y2="18"/></svg></span>',
+
+        // Flag — rectangular flag on pole
+        flag:       '<span class="icon-svg"><svg viewBox="0 0 24 24"><line x1="5" y1="2" x2="5" y2="22"/><polygon points="5 3 19 3 19 13 5 13"/></svg></span>',
+
+        // Lightning bolt — keep sharp polygon
         bolt:       '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg></span>',
-        areaChart:  '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M3 20l4-8 4 4 4-6 6-4v14z" fill="currentColor" opacity=".1"/><polyline points="3 20 7 12 11 16 15 10 21 6"/></svg></span>',
-        nodes:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="12" cy="18" r="2.5"/><line x1="8" y1="7" x2="16" y2="8"/><line x1="7" y1="8.5" x2="10.5" y2="16"/><line x1="16" y1="10" x2="13.5" y2="16"/></svg></span>',
-        target:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></span>',
-        history:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2-6"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 16 14"/></svg></span>',
-        layers:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/><path d="M2 7l10 5 10-5L12 2z"/></svg></span>',
-        listCheck:  '<span class="icon-svg"><svg viewBox="0 0 24 24"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/></svg></span>',
-        pieChart:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 1 10 10h-10z" fill="currentColor" opacity=".15"/><circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="12"/><line x1="12" y1="12" x2="22" y2="12"/></svg></span>',
-        calendarAlt:'<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><rect x="7" y="12" width="3" height="3" rx=".5" fill="currentColor" opacity=".2"/><rect x="14" y="12" width="3" height="3" rx=".5" fill="currentColor" opacity=".2"/></svg></span>',
-        sparkle:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></span>',
-        inbox:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.5 5.2L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.8A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.2z"/></svg></span>',
-        noChat:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4z"/><line x1="9" y1="8" x2="15" y2="12" stroke-width="2"/><line x1="9" y1="12" x2="15" y2="8" stroke-width="2"/></svg></span>',
-        robot:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M12 3c-1.5 2-4.5 3-7 3 0 4 1 9 7 14 6-5 7-10 7-14-2.5 0-5.5-1-7-3z"/><circle cx="10" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="14" cy="11" r="1.2" fill="currentColor" stroke="none"/><path d="M10 14.5q2 1.5 4 0"/></svg></span>',
-        exclaim:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13" stroke-width="2.5"/><circle cx="12" cy="16.5" r="1" fill="currentColor" stroke="none"/></svg></span>',
+
+        // Area chart — stairstep bars, not curves
+        areaChart:  '<span class="icon-svg"><svg viewBox="0 0 24 24"><polyline points="2 20 2 14 7 14 7 8 12 8 12 11 17 11 17 6 22 6"/><line x1="2" y1="20" x2="22" y2="20"/></svg></span>',
+
+        // Network nodes — square nodes, hard lines
+        nodes:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="4" height="4"/><rect x="16" y="6" width="4" height="4"/><rect x="10" y="16" width="4" height="4"/><line x1="8" y1="6" x2="16" y2="8"/><line x1="6" y1="8" x2="11" y2="16"/><line x1="18" y1="10" x2="13" y2="16"/></svg></span>',
+
+        // Target / crosshair — square crosshair
+        target:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><line x1="12" y1="3" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="3" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21" y2="12"/><rect x="10" y="10" width="4" height="4"/></svg></span>',
+
+        // History / undo clock — arrow + clock face
+        history:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><polyline points="3 3 3 8 8 8"/><path d="M3.5 8a9 9 0 1 1 .5 7"/><polyline points="12 7 12 12 15 15"/></svg></span>',
+
+        // Layers — three flat stacked rects
+        layers:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="12 2 22 7 12 12 2 7"/><polyline points="2 12 12 17 22 12"/><polyline points="2 17 12 22 22 17"/></svg></span>',
+
+        // List with checkboxes
+        listCheck:  '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="4" height="4"/><rect x="3" y="11" width="4" height="4"/><rect x="3" y="17" width="4" height="4"/><line x1="10" y1="7" x2="21" y2="7"/><line x1="10" y1="13" x2="21" y2="13"/><line x1="10" y1="19" x2="21" y2="19"/></svg></span>',
+
+        // Pie chart — strict wedge + circle
+        pieChart:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M12 2v10h10a10 10 0 1 1-10-10z"/><path d="M12 2a10 10 0 0 1 10 10"/></svg></span>',
+
+        // Calendar with grid dots
+        calendarAlt:'<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><rect x="7" y="13" width="3" height="3"/><rect x="14" y="13" width="3" height="3"/></svg></span>',
+
+        // Star / sparkle — 4-point sharp star
+        sparkle:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="12 2 14 10 22 12 14 14 12 22 10 14 2 12 10 10"/></svg></span>',
+
+        // Inbox — flat tray shape
+        inbox:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20"/><polyline points="2 14 7 14 7 18 17 18 17 14 22 14"/></svg></span>',
+
+        // No-chat / error chat — speech bubble with X
+        noChat:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="3 3 21 3 21 15 9 15 3 21"/><line x1="9" y1="7" x2="15" y2="11"/><line x1="15" y1="7" x2="9" y2="11"/></svg></span>',
+
+        // Robot / AI shield (TutorMind brand icon)
+        robot:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="12 2 20 6 20 14 12 22 4 14 4 6"/><rect x="9" y="9" width="2" height="2"/><rect x="13" y="9" width="2" height="2"/><line x1="10" y1="14" x2="14" y2="14"/></svg></span>',
+
+        // Exclamation in square
+        exclaim:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><line x1="12" y1="8" x2="12" y2="14"/><rect x="11" y="16" width="2" height="2"/></svg></span>',
     };
 
     const isDark       = () => document.body.classList.contains('dark-mode');
