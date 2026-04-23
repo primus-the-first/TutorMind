@@ -6469,20 +6469,22 @@ body.dark-mode .chat-main::before {
     gap: 6px;
     padding: 6px 14px;
     background: #FFFFFF;
-    border: 1.5px solid #CBD5E1;
-    border-radius: 12px;
+    border: 2px solid var(--text-primary, #1f2937);
+    border-radius: 0;
     font-size: 0.88rem;
+    font-family: 'Funnel Display', sans-serif;
     font-weight: 700;
-    color: #475569;
+    color: var(--text-primary, #1f2937);
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
-    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.05);
+    box-shadow: 4px 4px 0 var(--text-primary, #1f2937);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 .pomodoro-trigger-btn:hover {
-    border-color: var(--primary, #7C3AED);
-    color: var(--primary, #7C3AED);
-    box-shadow: 2px 2px 0 var(--primary, #7C3AED);
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--text-primary, #1f2937);
 }
 .pomodoro-trigger-btn i { font-size: 0.85rem; }
 .pomodoro-trigger-btn.pomo-running {
@@ -6491,8 +6493,8 @@ body.dark-mode .chat-main::before {
     animation: pomo-pulse 2s ease-in-out infinite;
 }
 @keyframes pomo-pulse {
-    0%, 100% { box-shadow: 2px 2px 0 var(--primary, #7C3AED); }
-    50%       { box-shadow: 2px 2px 0 var(--primary, #7C3AED), 0 0 8px rgba(124,58,237,0.4); }
+    0%, 100% { box-shadow: 4px 4px 0 var(--primary, #7C3AED); }
+    50%       { box-shadow: 4px 4px 0 var(--text-primary, #1f2937), 0 0 8px rgba(124,58,237,0.4); }
 }
 
 .pomodoro-panel {
@@ -6501,9 +6503,9 @@ body.dark-mode .chat-main::before {
     right: 0;
     width: 240px;
     background: var(--bg-card, #fff);
-    border: 2px solid var(--border-color, #e5e7eb);
-    border-radius: 12px;
-    box-shadow: 5px 5px 0 rgba(0,0,0,0.12);
+    border: 2px solid var(--text-primary, #1f2937);
+    border-radius: 0;
+    box-shadow: 6px 6px 0 var(--text-primary, #1f2937);
     padding: 1rem;
     z-index: 2000;
     animation: fadeInDown 0.15s ease;
@@ -6525,15 +6527,19 @@ body.dark-mode .chat-main::before {
 .pomodoro-panel-header i { color: var(--primary, #7C3AED); margin-right: 5px; }
 .pomodoro-panel-close {
     background: none;
-    border: none;
+    border: 2px solid transparent;
     cursor: pointer;
     color: var(--text-secondary, #6b7280);
     font-size: 0.875rem;
     padding: 2px 5px;
-    border-radius: 4px;
-    transition: color 0.15s;
+    border-radius: 0;
+    transition: all 0.15s;
 }
-.pomodoro-panel-close:hover { color: var(--text-primary, #1f2937); }
+.pomodoro-panel-close:hover {
+    color: var(--text-primary, #1f2937);
+    border: 2px solid var(--text-primary, #1f2937);
+    box-shadow: 2px 2px 0 var(--text-primary, #1f2937);
+}
 
 .pomodoro-ring-wrap {
     position: relative;
@@ -6548,14 +6554,14 @@ body.dark-mode .chat-main::before {
 }
 .pomodoro-ring-bg {
     fill: none;
-    stroke: var(--border-color, #e5e7eb);
+    stroke: var(--text-primary, #1f2937);
     stroke-width: 7;
 }
 .pomodoro-ring-fill {
     fill: none;
     stroke: var(--primary, #7C3AED);
     stroke-width: 7;
-    stroke-linecap: round;
+    stroke-linecap: square;
     stroke-dasharray: 263.9;
     stroke-dashoffset: 0;
     transition: stroke-dashoffset 1s linear;
@@ -6566,10 +6572,11 @@ body.dark-mode .chat-main::before {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.3rem;
+    font-family: 'Funnel Display', sans-serif;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary, #1f2937);
-    letter-spacing: 0.02em;
+    letter-spacing: 0.05em;
 }
 
 .pomodoro-controls {
@@ -6581,8 +6588,8 @@ body.dark-mode .chat-main::before {
 .pomo-ctrl-btn {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    border: 2px solid var(--border-color, #e5e7eb);
+    border-radius: 0;
+    border: 2px solid var(--text-primary, #1f2937);
     background: var(--bg-main, #f9fafb);
     color: var(--text-primary, #1f2937);
     cursor: pointer;
@@ -6591,16 +6598,19 @@ body.dark-mode .chat-main::before {
     align-items: center;
     justify-content: center;
     transition: all 0.15s;
+    box-shadow: 3px 3px 0 var(--text-primary, #1f2937);
 }
 .pomo-ctrl-btn:hover {
     background: var(--primary, #7C3AED);
-    border-color: var(--primary, #7C3AED);
     color: #fff;
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--text-primary, #1f2937);
 }
 .pomo-reset-btn:hover {
     background: var(--text-secondary, #6b7280);
-    border-color: var(--text-secondary, #6b7280);
     color: #fff;
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--text-primary, #1f2937);
 }
 
 .pomodoro-settings { display: flex; flex-direction: column; gap: 8px; }
@@ -6613,33 +6623,36 @@ body.dark-mode .chat-main::before {
 }
 .pomo-setting-row label { font-weight: 600; }
 .pomo-setting-row select {
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 6px;
+    border: 2px solid var(--text-primary, #1f2937);
+    border-radius: 0;
     padding: 3px 6px;
+    font-family: 'Funnel Display', sans-serif;
     font-size: 0.8rem;
+    font-weight: 700;
     background: var(--bg-main, #f9fafb);
     color: var(--text-primary, #1f2937);
     cursor: pointer;
+    box-shadow: 2px 2px 0 var(--text-primary, #1f2937);
+    transition: all 0.1s ease;
+}
+.pomo-setting-row select:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0 var(--text-primary, #1f2937);
 }
 
 body.dark-mode .pomodoro-trigger-btn {
     background: var(--bg-card, #2a2a2a);
-    border-color: var(--border-color, #3a3a3a);
     color: var(--text-primary, #e0e0e0);
 }
 body.dark-mode .pomodoro-panel {
     background: var(--bg-card, #242424);
-    border-color: var(--border-color, #3a3a3a);
-    box-shadow: 5px 5px 0 rgba(0,0,0,0.4);
 }
 body.dark-mode .pomo-ctrl-btn {
     background: var(--bg-main, #1a1a1a);
-    border-color: var(--border-color, #3a3a3a);
     color: var(--text-primary, #e0e0e0);
 }
 body.dark-mode .pomo-setting-row select {
     background: var(--bg-main, #1a1a1a);
-    border-color: var(--border-color, #3a3a3a);
     color: var(--text-primary, #e0e0e0);
 }
 
