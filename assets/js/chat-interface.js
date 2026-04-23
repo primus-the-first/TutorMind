@@ -6,7 +6,7 @@
 class TutorMindChat {
     constructor() {
         // Use same localStorage key as settings.js for consistency
-        this.darkMode = localStorage.getItem('darkMode') === 'enabled' || document.body.classList.contains('dark-mode');
+        this.darkMode = localStorage.getItem('tutormind-theme') === 'dark' || document.body.classList.contains('dark-mode');
         this.sidebarCollapsed = window.innerWidth < 768;
         this.voiceRecognition = null;
 
@@ -359,7 +359,7 @@ class TutorMindChat {
     toggleDarkMode() {
         this.darkMode = !this.darkMode;
         document.body.classList.toggle('dark-mode', this.darkMode);
-        localStorage.setItem('darkMode', this.darkMode ? 'enabled' : 'disabled');
+        localStorage.setItem('tutormind-theme', this.darkMode ? 'dark' : 'light');
 
         // Update header button icon
         this.updateDarkModeIcon();

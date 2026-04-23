@@ -303,6 +303,13 @@ $feedbackList = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body>
+    <!-- Unified Theme Script -->
+    <script>
+        (function() {
+            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            if (isDark) document.body.classList.add('dark-mode');
+        })();
+    </script>
     <div class="container">
         <header>
             <h1><i class="fas fa-comment-dots"></i> Feedback Dashboard</h1>

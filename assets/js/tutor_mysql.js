@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         darkModeToggle.addEventListener('change', async () => {
             const isDark = darkModeToggle.checked;
             document.body.classList.toggle('dark-mode', isDark);
-            localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+            localStorage.setItem('tutormind-theme', isDark ? 'dark' : 'light');
 
             // (Icon removed)
 

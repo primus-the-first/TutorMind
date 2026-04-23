@@ -6470,7 +6470,7 @@ body.dark-mode .chat-main::before {
     padding: 6px 14px;
     background: #FFFFFF;
     border: 2px solid var(--text-primary, #1f2937);
-    border-radius: 0;
+    border-radius: 6px;
     font-size: 0.88rem;
     font-family: 'Funnel Display', sans-serif;
     font-weight: 700;
@@ -6510,7 +6510,7 @@ body.dark-mode .chat-main::before {
     width: 240px;
     background: var(--bg-card, #fff);
     border: 2px solid var(--text-primary, #1f2937);
-    border-radius: 0;
+    border-radius: 6px;
     box-shadow: 6px 6px 0 var(--text-primary, #1f2937);
     padding: 1rem;
     z-index: 2000;
@@ -6538,7 +6538,7 @@ body.dark-mode .chat-main::before {
     color: var(--text-secondary, #6b7280);
     font-size: 0.875rem;
     padding: 2px 5px;
-    border-radius: 0;
+    border-radius: 6px;
     transition: all 0.15s;
 }
 .pomodoro-panel-close:hover {
@@ -6594,7 +6594,7 @@ body.dark-mode .chat-main::before {
 .pomo-ctrl-btn {
     width: 36px;
     height: 36px;
-    border-radius: 0;
+    border-radius: 6px;
     border: 2px solid var(--text-primary, #1f2937);
     background: var(--bg-main, #f9fafb);
     color: var(--text-primary, #1f2937);
@@ -6630,7 +6630,7 @@ body.dark-mode .chat-main::before {
 .pomo-setting-row label { font-weight: 600; }
 .pomo-setting-row select {
     border: 2px solid var(--text-primary, #1f2937);
-    border-radius: 0;
+    border-radius: 6px;
     padding: 3px 6px;
     font-family: 'Funnel Display', sans-serif;
     font-size: 0.8rem;

@@ -39,6 +39,13 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
+    <!-- Unified Theme Script -->
+    <script>
+        (function() {
+            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            if (isDark) document.body.classList.add('dark-mode');
+        })();
+    </script>
     
     <div class="auth-wrapper">
         <!-- Left Side: Register Form -->
@@ -162,14 +169,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
-     <!-- Theme Script -->
-     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (localStorage.getItem('tutormind-theme') === 'dark') {
-                document.body.classList.add('dark-mode');
-            }
-        });
-    </script>
+     <!-- Theme Script (Inline logic applied at body start) -->
 
     <!-- Validation & Logic -->
     <script>

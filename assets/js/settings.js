@@ -350,7 +350,7 @@ class SettingsManager {
                     const mainToggle = document.getElementById('darkModeToggle');
                     if (mainToggle) mainToggle.checked = value;
                     // Sync with localStorage
-                    localStorage.setItem('darkMode', value ? 'enabled' : 'disabled');
+                    localStorage.setItem('tutormind-theme', value ? 'dark' : 'light');
                 }
             });
         });
@@ -580,7 +580,7 @@ class SettingsManager {
              const mainToggle = document.getElementById('darkModeToggle');
              if (mainToggle) mainToggle.checked = isDark;
              // Update localStorage to match database setting
-             localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+             localStorage.setItem('tutormind-theme', isDark ? 'dark' : 'light');
              console.log('Dark mode applied. Body has dark-mode class:', document.body.classList.contains('dark-mode'));
         }
         

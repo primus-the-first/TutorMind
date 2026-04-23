@@ -813,6 +813,13 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
     </style>
 </head>
 <body>
+    <!-- Unified Theme Script -->
+    <script>
+        (function() {
+            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            if (isDark) document.body.classList.add('dark-mode');
+        })();
+    </script>
 
 <!-- Mobile overlay -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>

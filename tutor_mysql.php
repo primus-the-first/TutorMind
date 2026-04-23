@@ -244,6 +244,13 @@ try {
     <link rel="stylesheet" href="assets/css/logo.css?v=<?= time() ?>">
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?>">
+    <!-- Unified Theme Script -->
+    <script>
+        (function() {
+            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            if (isDark) document.body.classList.add('dark-mode');
+        })();
+    </script>
 
     <!-- Sidebar (Desktop Only) -->
     <aside id="sidebar" class="sidebar desktop-only">
