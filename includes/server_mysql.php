@@ -24,7 +24,7 @@ register_shutdown_function(function () {
 
 // --- PERFORMANCE: Debug Mode ---
 // Set to false in production to disable debug logging (saves disk I/O)
-define('DEBUG_MODE', false);
+define('DEBUG_MODE', true);
 
 require_once 'check_auth.php'; // Secure all API endpoints
 require_once __DIR__ . '/../api/services/document_service.php';

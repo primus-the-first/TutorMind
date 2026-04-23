@@ -193,7 +193,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
 
                 try {
                     // Fetch CSRF (Assume csrf.php exists as per original)
-                    const tokenResponse = await fetch('csrf.php?action=get_token');
+                    const tokenResponse = await fetch('includes/csrf.php?action=get_token');
                     const tokenData = await tokenResponse.json();
                     document.getElementById('csrf_token').value = tokenData.token;
 

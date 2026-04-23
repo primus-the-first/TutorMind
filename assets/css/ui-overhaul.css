@@ -6490,11 +6490,17 @@ body.dark-mode .chat-main::before {
 .pomodoro-trigger-btn.pomo-running {
     border-color: var(--primary, #7C3AED);
     color: var(--primary, #7C3AED);
-    animation: pomo-pulse 2s ease-in-out infinite;
+    animation: brutal-tick 1s steps(1, end) infinite;
 }
-@keyframes pomo-pulse {
-    0%, 100% { box-shadow: 4px 4px 0 var(--primary, #7C3AED); }
-    50%       { box-shadow: 4px 4px 0 var(--text-primary, #1f2937), 0 0 8px rgba(124,58,237,0.4); }
+@keyframes brutal-tick {
+    0%, 100% { 
+        box-shadow: 4px 4px 0 var(--primary, #7C3AED); 
+        transform: translate(0, 0);
+    }
+    50% { 
+        box-shadow: 2px 2px 0 var(--text-primary, #1f2937); 
+        transform: translate(2px, 2px);
+    }
 }
 
 .pomodoro-panel {

@@ -376,9 +376,13 @@ try {
                 </a>
             </div>
 
-            <!-- Pomodoro Timer Widget -->
+            <!-- Empty Center -->
             <div class="header-center" style="display: flex; justify-content: center; flex: 1;">
-                <div class="pomodoro-widget" id="pomodoroWidget">
+            </div>
+
+            <!-- Pomodoro Timer Widget and Dark Mode Toggle -->
+            <div class="header-right" style="display: flex; justify-content: flex-end; flex: 1; align-items: center;">
+                <div class="pomodoro-widget" id="pomodoroWidget" style="margin-right: 1.5rem;">
                     <button type="button" class="pomodoro-trigger-btn" id="pomodoroTrigger" title="Study Timer">
                         <i class="fas fa-clock"></i>
                         <span class="pomodoro-time-display" id="pomodoroDisplay">25:00</span>
@@ -422,10 +426,6 @@ try {
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Dark Mode Toggle -->
-            <div class="header-right" style="display: flex; justify-content: flex-end; flex: 1;">
                 <button class="icon-btn" id="dark-mode-toggle" title="Toggle Dark Mode" aria-label="Toggle dark mode">
                 </button>
             </div>

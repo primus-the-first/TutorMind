@@ -317,7 +317,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
 
             // ==================== FORM SUBMISSION ====================
             // Fetch CSRF Token on page load
-            fetch('csrf.php?action=get_token')
+            fetch('includes/csrf.php?action=get_token')
                 .then(res => res.json())
                 .then(data => {
                     if (data.token) {
