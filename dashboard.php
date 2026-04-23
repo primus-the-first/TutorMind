@@ -372,9 +372,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
 
         .kpi-icon {
             width: 40px; height: 40px;
-            border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.05rem;
+            font-size: 1.25rem;
         }
 
         .trend-badge {
@@ -1173,30 +1172,30 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
 
         const kpis = [
             { label: 'Study Sessions',  value: stats.totalSessions,
-              svg: ICO.chatBubble,  color: '#4f46e5', bg: 'rgba(79,70,229,0.1)',
+              svg: ICO.chatBubble,  color: '#4f46e5',
               trend: hasTrends ? trendBadge(stats.totalSessions, trends.prevTotalSessions) : '' },
             { label: 'Topics Explored', value: stats.topicsStudied,
-              svg: ICO.bookOpen,    color: '#059669', bg: 'rgba(5,150,105,0.1)',
+              svg: ICO.bookOpen,    color: '#059669',
               trend: hasTrends ? trendBadge(stats.topicsStudied, trends.prevTopicsStudied) : '' },
             { label: 'Avg Progress',    value: stats.avgProgress + '%',
-              svg: ICO.trophy,      color: '#d97706', bg: 'rgba(217,119,6,0.1)',
+              svg: ICO.trophy,      color: '#d97706',
               trend: hasTrends ? trendBadge(stats.avgProgress, trends.prevAvgProgress) : '' },
             { label: 'Day Streak',
               value: stats.currentStreak + ' 🔥',
-              svg: ICO.flame,       color: '#e11d48', bg: 'rgba(225,29,72,0.1)',
+              svg: ICO.flame,       color: '#e11d48',
               trend: '' },
             { label: 'Active Days',     value: stats.activeDays,
-              svg: ICO.calendar,    color: '#0284c7', bg: 'rgba(2,132,199,0.1)',
+              svg: ICO.calendar,    color: '#0284c7',
               trend: hasTrends ? trendBadge(stats.activeDays, trends.prevActiveDays) : '' },
             { label: 'Milestones',
               value: `${stats.milestonesCompleted}<small>/${stats.milestonesTotal}</small>`,
-              svg: ICO.flag,        color: '#7C3AED', bg: 'rgba(124,58,237,0.1)',
+              svg: ICO.flag,        color: '#7C3AED',
               trend: '' },
             { label: 'Focus Time',      value: focusHrs,
-              svg: ICO.clock,       color: '#ec4899', bg: 'rgba(236,72,153,0.1)',
+              svg: ICO.clock,       color: '#ec4899',
               trend: '' },
             { label: 'Quiz Avg Score',  value: quizAvg,
-              svg: ICO.bolt,        color: '#7C3AED', bg: 'rgba(124,58,237,0.1)',
+              svg: ICO.bolt,        color: '#7C3AED',
               trend: '' },
         ];
 
@@ -1208,7 +1207,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                 ${kpis.map((k, i) => `
                 <div class="kpi-card" style="--kpi-accent:${k.color};animation-delay:${i * 60}ms">
                     <div class="kpi-card-top">
-                        <div class="kpi-icon" style="background:${k.bg};color:${k.color}">
+                        <div class="kpi-icon" style="color:${k.color}">
                             ${k.svg}
                         </div>
                         ${k.trend}
