@@ -2,7 +2,117 @@
 /**
  * Document & OCR Service
  * Handles file parsing (PDF, DOCX, PPTX, images) and OCR fallback chain.
+ * Optimized for token management via structure extraction and compaction.
  */
+
+/**
+ * Extracts the Table of Contents or structural map from a document using AI.
+ */
+function extractTableOfContents($filePath, $extension, $apiKey) {
+    $structureText = "";
+
+    try {
+        if ($extension === 'pdf') {
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf = $parser->parseFile($filePath);
+            $pages = $pdf->getPages();
+            $pageCount = count($pages);
+
+            // Textbooks usually have TOC in the first 15 pages
+            $sampleLimit = min(15, $pageCount);
+            for ($i = 0; $i < $sampleLimit; $i++) {
+                $structureText .= $pages[$i]->getText() . "\n";
+            }
+        } elseif ($extension === 'docx') {
+            $phpWord = \PhpOffice\PhpWord\IOFactory::load($filePath);
+            $count = 0;
+            foreach ($phpWord->getSections() as $section) {
+                foreach ($section->getElements() as $element) {
+                    if ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
+                        foreach ($element->getElements() as $textElement) {
+                            if ($textElement instanceof \PhpOffice\PhpWord\Element\Text) {
+                                $structureText .= $textElement->getText() . ' ';
+                                if (strlen($structureText) > 15000) break 3;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (empty(trim($structureText))) return null;
+
+        $prompt = "Analyze the following text from the beginning of a document and extract the Table of Contents or a detailed structural map. If no formal TOC exists, create a logical outline based on the headings. Return ONLY the structural map in Markdown format.\n\nTEXT:\n" . substr($structureText, 0, 20000);
+
+        $payload = json_encode([
+            "contents" => [["parts" => [["text" => $prompt]]]]
+        ]);
+
+        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . $apiKey;
+
+        $ch = curl_init($apiUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_TIMEOUT => 30
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200) {
+            $data = json_decode($response, true);
+            return $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+        }
+    } catch (Exception $e) {
+        error_log("TOC Extraction Error: " . $e->getMessage());
+    }
+
+    return null;
+}
+
+/**
+ * Compacts long text into a denser, information-rich summary for AI context.
+ */
+function compactDocumentText($text, $apiKey) {
+    if (strlen($text) < 5000) return $text;
+
+    try {
+        $prompt = "Compress the following document content into a high-density, information-rich summary for an AI tutor. Retain all technical terms, definitions, key formulas, and core concepts. Remove fluff, repetitive examples, and filler. Structure it logically with clear headings.\n\nCONTENT:\n" . substr($text, 0, 30000);
+
+        $payload = json_encode([
+            "contents" => [["parts" => [["text" => $prompt]]]]
+        ]);
+
+        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" . $apiKey;
+
+        $ch = curl_init($apiUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_TIMEOUT => 30
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200) {
+            $data = json_decode($response, true);
+            $compacted = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+            if ($compacted) return "[COMPACTED CONTENT]\n" . $compacted;
+        }
+    } catch (Exception $e) {
+        error_log("Compaction Error: " . $e->getMessage());
+    }
+
+    return substr($text, 0, 15000) . "... [Truncated due to length]";
+}
 
 function ocrImageBasedPdf($pdfPath, $originalName) {
     $config = null;
@@ -466,12 +576,45 @@ function prepareFileParts($file, $user_question)
         throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based (scanned), or use fonts that cannot be parsed.");
     }
 
-    $maxLength = 20000;
-    if (strlen($text) > $maxLength) {
-        $text = substr($text, 0, $maxLength) . "\n\n... [File content truncated] ...\n\n";
+    // Get API Key for AI-powered processing
+    $apiKey = defined('GEMINI_API_KEY') ? GEMINI_API_KEY : null;
+    if (!$apiKey) {
+        // Fallback to config file if constant not defined
+        foreach ([__DIR__ . '/../../includes/config-sql.ini', __DIR__ . '/../../includes/config.ini'] as $configFile) {
+            if (file_exists($configFile)) {
+                $cfg = parse_ini_file($configFile);
+                if (isset($cfg['GEMINI_API_KEY'])) {
+                    $apiKey = $cfg['GEMINI_API_KEY'];
+                    break;
+                }
+            }
+        }
     }
 
-    $combined_text = "Context from uploaded file '{$originalName}':\n---\n{$text}\n---\n";
+    $toc = "";
+    if ($apiKey && ($extension === 'pdf' || $extension === 'docx')) {
+        // Attempt structure extraction for larger documents
+        if (strlen($text) > 8000) {
+            $toc = extractTableOfContents($filePath, $extension, $apiKey);
+        }
+    }
+
+    // Compact text if it's very long to save tokens while preserving meaning
+    if ($apiKey && strlen($text) > 12000) {
+        $text = compactDocumentText($text, $apiKey);
+    } else {
+        $maxLength = 15000;
+        if (strlen($text) > $maxLength) {
+            $text = substr($text, 0, $maxLength) . "\n\n... [File content truncated] ...\n\n";
+        }
+    }
+
+    $combined_text = "Context from uploaded file '{$originalName}':\n";
+    if (!empty($toc)) {
+        $combined_text .= "### DOCUMENT STRUCTURE / TABLE OF CONTENTS\n{$toc}\n---\n";
+    }
+    $combined_text .= "### CONTENT PREVIEW / SUMMARY\n{$text}\n---\n";
+
     return [
         'text' => $combined_text
     ];

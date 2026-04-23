@@ -126,7 +126,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             align-items: center;
             gap: 0.7rem;
             padding: 0.65rem 0.75rem;
-            border-radius: 6px;
+            border-radius: 0;
             color: var(--text-secondary);
             font-family: var(--font-display);
             font-size: 0.95rem;
@@ -146,6 +146,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             background: rgba(123,63,242,0.12);
             color: var(--primary, #7C3AED);
             font-weight: 600;
+            border-left: 3px solid var(--primary, #7C3AED);
+            padding-left: calc(0.75rem - 3px);
         }
 
         .sidebar-footer {
@@ -334,7 +336,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             color: var(--text-secondary);
             background: var(--dashboard-bg);
             padding: 0.2rem 0.65rem;
-            border-radius: 20px;
+            border-radius: 0;
+            border: 1px solid var(--ink);
         }
 
         /* ── KPI Cards ─────────────────────────────────────── */
@@ -347,7 +350,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
 
         .kpi-card {
             background: var(--card-bg);
-            border-radius: 6px;
+            border-radius: 0;
             padding: 1.25rem;
             padding-left: 1.4rem;
             box-shadow: var(--card-shadow);
@@ -380,14 +383,15 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             font-size: 0.72rem;
             font-weight: 700;
             padding: 0.2rem 0.5rem;
-            border-radius: 20px;
+            border-radius: 0;
             display: inline-flex;
             align-items: center;
             gap: 2px;
+            border: 1px solid currentColor;
         }
-        .trend-badge.up   { background: rgba(16,185,129,0.12); color: #10b981; }
-        .trend-badge.down { background: rgba(239,68,68,0.12);  color: #ef4444; }
-        .trend-badge.neutral { background: rgba(0,0,0,0.06); color: var(--text-secondary); }
+        .trend-badge.up   { background: rgba(16,185,129,0.05); color: #10b981; }
+        .trend-badge.down { background: rgba(239,68,68,0.05);  color: #ef4444; }
+        .trend-badge.neutral { background: rgba(0,0,0,0.03); color: var(--text-secondary); border-color: var(--ink); }
 
         .kpi-value {
             font-family: var(--font-display);
@@ -428,7 +432,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         /* ── Heatmap ─────────────────────────────────────── */
         .heatmap-card {
             background: var(--card-bg);
-            border-radius: 6px;
+            border-radius: 0;
             padding: 1.25rem 1.5rem;
             box-shadow: var(--card-shadow);
             border: var(--card-border);
@@ -924,8 +928,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         // Flame — angular/polygonal flame shape
         flame:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="12 2 16 8 20 13 17 14 20 20 7 20 9 14 4 13 8 8"/></svg></span>',
 
-        // Calendar — hard rect with date bars
-        calendar:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="7" y1="15" x2="12" y2="15"/><line x1="7" y1="18" x2="10" y2="18"/></svg></span>',
+        // Calendar — open top
+        calendar:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></span>',
 
         // Flag — rectangular flag on pole
         flag:       '<span class="icon-svg"><svg viewBox="0 0 24 24"><line x1="5" y1="2" x2="5" y2="22"/><polygon points="5 3 19 3 19 13 5 13"/></svg></span>',
@@ -939,8 +943,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         // Network nodes — square nodes, hard lines
         nodes:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="4" height="4"/><rect x="16" y="6" width="4" height="4"/><rect x="10" y="16" width="4" height="4"/><line x1="8" y1="6" x2="16" y2="8"/><line x1="6" y1="8" x2="11" y2="16"/><line x1="18" y1="10" x2="13" y2="16"/></svg></span>',
 
-        // Target / crosshair — square crosshair
-        target:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><line x1="12" y1="3" x2="12" y2="7"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="3" y1="12" x2="7" y2="12"/><line x1="17" y1="12" x2="21" y2="12"/><rect x="10" y="10" width="4" height="4"/></svg></span>',
+        // Target / crosshair — open cross
+        target:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg></span>',
 
         // History / undo clock — arrow + clock face
         history:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><polyline points="3 3 3 8 8 8"/><path d="M3.5 8a9 9 0 1 1 .5 7"/><polyline points="12 7 12 12 15 15"/></svg></span>',
@@ -955,13 +959,13 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         pieChart:   '<span class="icon-svg"><svg viewBox="0 0 24 24"><path d="M12 2v10h10a10 10 0 1 1-10-10z"/><path d="M12 2a10 10 0 0 1 10 10"/></svg></span>',
 
         // Calendar with grid dots
-        calendarAlt:'<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><rect x="7" y="13" width="3" height="3"/><rect x="14" y="13" width="3" height="3"/></svg></span>',
+        calendarAlt:'<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>',
 
         // Star / sparkle — 4-point sharp star
         sparkle:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="12 2 14 10 22 12 14 14 12 22 10 14 2 12 10 10"/></svg></span>',
 
-        // Inbox — flat tray shape
-        inbox:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20"/><polyline points="2 14 7 14 7 18 17 18 17 14 22 14"/></svg></span>',
+        // Inbox — floating tray
+        inbox:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span>',
 
         // No-chat / error chat — speech bubble with X
         noChat:     '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="3 3 21 3 21 15 9 15 3 21"/><line x1="9" y1="7" x2="15" y2="11"/><line x1="15" y1="7" x2="9" y2="11"/></svg></span>',
@@ -969,8 +973,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         // Robot / AI shield (TutorMind brand icon)
         robot:      '<span class="icon-svg"><svg viewBox="0 0 24 24"><polygon points="12 2 20 6 20 14 12 22 4 14 4 6"/><rect x="9" y="9" width="2" height="2"/><rect x="13" y="9" width="2" height="2"/><line x1="10" y1="14" x2="14" y2="14"/></svg></span>',
 
-        // Exclamation in square
-        exclaim:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/><line x1="12" y1="8" x2="12" y2="14"/><rect x="11" y="16" width="2" height="2"/></svg></span>',
+        // Exclamation — naked
+        exclaim:    '<span class="icon-svg"><svg viewBox="0 0 24 24"><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>',
     };
 
     const isDark       = () => document.body.classList.contains('dark-mode');
