@@ -367,3 +367,112 @@ RAG only retrieved what was already stored. The first time a topic came up, the 
 - **Cause:** `callGeminiAPI` injects a `generate_image` tool declaration into every Gemini request. On conversations involving code (e.g. Python `cmath` examples), Gemini 2.5 Flash occasionally misfires the tool — passing the code block as the image prompt argument. Gemini returns `finishReason: MALFORMED_FUNCTION_CALL` with no content, which hits the "empty response" error path.
 - **Fix (`api/services/ai_service.php`):** Added a `MALFORMED_FUNCTION_CALL` check immediately after decoding the Gemini response. When detected, unsets `tools` from the payload and retries once — Gemini then responds normally as plain text.
 - **Files changed:** `api/services/ai_service.php`, `api/services/tutor_service.php`
+
+---
+
+## Progress Log - April 22, 2026
+
+### 1. Directory Structure Cleanup & API Modernization
+**Objective:** Finalized the TutorMind architectural modernization by separating logic, assets, and entry points.
+- **Actions:**
+  - Migrated all core backend logic and configuration to the `includes/` directory.
+  - Organized frontend assets into structured `assets/css/` and `assets/js/` folders.
+  - Moved API services to `api/services/` for better separation of concerns.
+
+### 2. Path Resolution & AJAX Endpoint Fixes
+**Problem:** Moving files caused fatal 500 errors (broken `require_once` chains) and AJAX 404 errors (JavaScript looking in the wrong place for endpoints).
+**Fixes:**
+- **Backend:** Updated all `require_once` paths to use absolute resolution via `__DIR__` (e.g., `__DIR__ . '/../api/services/ai_service.php'`).
+- **Frontend:** Replaced hardcoded path-splitting logic in `tutor_mysql.js` with a robust `getBasePath()` helper function to ensure API calls always resolve to the correct root-relative URL.
+- **Files changed:** `includes/server_mysql.php`, `includes/db_mysql.php`, `assets/js/tutor_mysql.js`.
+
+### 3. Production Deployment & Asset Loading Fixes
+**Problem:** The production server failed to load styles and scripts (`MIME type ('text/html')` error) and crashed on 3D animations (`THREE is not defined`).
+**Fixes:**
+- **Git Sync:** Committed and pushed the updated HTML/PHP files which had stale root-level asset references.
+- **Three.js Dependency:** Added the missing Three.js CDN import to `index.html` to fix the landing page particle animation.
+- **Config Recovery:** Manually restored the gitignored `config.ini` on the Namecheap server to reconnect the database.
+
+### 4. UI Resilience & Formatter Improvements
+- **Avatar Fallback:** Implemented an `onerror` handler for Google profile pictures to show user initials if the external image service is rate-limited (HTTP 429).
+- **Code Block Protection:** Fixed a bug where Parsedown mangled code block placeholders (`@@PROTECT_N@@`) during voice mode. Changed tokens to a safe `XPROTECTX0XPROTECTX` format and patched the duplicate formatter in `chat_area_bundle/server_mysql.php`.
+
+**Status:** ✅ Architecture is now modular, paths are stable across local/prod, and critical rendering bugs are resolved.
+
+### 5. Analytics Dashboard Revamp — April 22, 2026
+**Objective:** Revamp `dashboard.php` from a minimal stat/chart page into a full analytics dashboard with a sidebar layout, activity heatmap, per-subject progress tracking, quiz performance, and focus time sections.
+
+**Files changed:**
+- **Modified**: `api/analytics.php` — Extended to return 5 new top-level keys alongside existing ones
+- **Modified**: `dashboard.php` — Complete rewrite (layout, CSS, HTML, JS)
+
+#### `api/analytics.php` — New data keys
+| Key | Source | Description |
+|---|---|---|
+| `trends` | `conversations` (prev period) | Previous-period stats (`prevTotalSessions`, `prevActiveDays`, `prevAvgProgress`, `prevTopicsStudied`) for ↑↓ KPI badges; `null` when period = "all" |
+| `heatmap` | `conversations` (last 365 days) | `{ "YYYY-MM-DD": count }` map for the activity calendar |
+| `subjectProgress` | `conversations.context_data` (PHP-side) | Per-topic `completionPct` derived from `outline.milestones[]` completed/total; falls back to avg session `progress`; sorted by completionPct desc, top 10 |
+| `quizStats` | `recall_quizzes` | `overallAvg` (%), `totalAnswered`, `scoreOverTime[]`, `byType[]` (avg score per question type), `recentQuizzes[]` |
+| `pomodoroStats` | `pomodoro_sessions` | `totalMinutes`, `completedSessions`, `completionRate`, `modeDistribution[]`, `focusOverTime[]` |
+
+Session fetch limit raised from 50 → 200 to support subject aggregation.
+
+#### `dashboard.php` — New layout & sections
+**Layout:** Fixed 240px sidebar (collapses to hamburger slide-in drawer on mobile ≤900px) + scrollable main area. IntersectionObserver highlights the active sidebar nav item as user scrolls.
+
+**Sections (5, single-page with smooth-scroll anchors):**
+1. **Overview** — 8 KPI cards with ↑↓ trend badges vs previous period (Study Sessions, Topics, Avg Progress, Streak, Active Days, Milestones, Focus Time, Quiz Avg) + GitHub-style 52-week activity heatmap with hover tooltips and month labels
+2. **Learning** — Progress over time (line), Topics breakdown (doughnut), Study Goals (bar), Recent Sessions list with goal badges and progress bars
+3. **Subjects** — Per-topic progress cards: colored bar (red <40%, amber 40–70%, green >70%), `sessions · X/Y milestones` sub-line, sorted by completion
+4. **Quizzes** — Avg score / total answered / best type mini-stats; score over time (line); score by question type (bar); recent quizzes list with score badges (color-coded) and type tags
+5. **Focus Time** — Total focus time / completed sessions / completion rate mini-stats; daily focus minutes (bar); mode distribution doughnut (gentle/standard/challenge)
+
+All sections have graceful empty states with "Start a Session" CTAs. Charts rebuild on dark mode toggle via `MutationObserver`. No new JS libraries — Chart.js (already loaded) + vanilla CSS/JS for the heatmap.
+
+---
+
+### 13. Neobrutalist UI Refinement & Custom Components — April 22, 2026
+**Objective:** Finalize the visual identity with high-fidelity neobrutalist tokens and custom UI components to move away from "default" or "AI-generated" aesthetics.
+
+**Files changed:**
+- **Modified**: `dashboard.php` — Custom dropdown, updated SVG icon library, refined chart styles, and sidebar typography.
+- **Modified**: `assets/css/ui-overhaul.css` — Standardized neobrutalist tokens (borders, shadows, fonts).
+
+#### Design System Updates
+| Element | New Specification | Rationale |
+|---|---|---|
+| **Headings** | `Funnel Display` (Bold/Extrabold) | Strong geometric presence, high-impact branding. |
+| **Body** | `Outfit` (Regular/Medium) | Clean, geometric legibility for data-heavy views. |
+| **Borders** | `2px solid #1a1a2e` | "Ink" borders provide a physical, hand-drawn structure. |
+| **Shadows** | `3px 3px 0 #1a1a2e` | Hard, non-blurred offset shadows for depth without fluff. |
+| **Corners** | `6px` radius | Sharper than pills, softer than 0; balances "brutal" with "modern." |
+
+#### Key Technical Achievements
+1. **Bespoke Icon Library (`ICO`)**:
+   - Replaced all "AI-ish" icons with a custom geometric SVG library.
+   - **Rules**: `stroke-width: 2`, `square linecaps`, `miter joins`, and purely primitive shapes (`<rect>`, `<line>`, `<polygon>`). 
+   - Zero gradients or decorative opacity fills in the icons themselves.
+2. **Custom Dropdown System**:
+   - Replaced native `<select>` with a bespoke HTML/CSS/JS dropdown component.
+   - Solves the styling limitations of browser defaults while remaining sync'd with the original data-fetching logic.
+   - Features "lift-on-hover" and "pop-out" animations consistent with the card system.
+3. **"Living" Data Visualizations**:
+   - Refined `Chart.js` configs with high-tension curves (`0.4`), staggered loading animations, and semantic gradients.
+   - Replaced muddy 3D shadows with high-contrast "ink" borders for a cleaner neobrutalist aesthetic on bar and pie charts.
+4. **Sidebar Branding**:
+   - Applied `Funnel Display` to navigation items and section labels.
+   - Unified interactive states across the dashboard (transform shifts + shadow depth changes).
+
+---
+*Status: Visual identity finalized. Dashboard components are now highly bespoke and deviate significantly from generic UI patterns.*
+
+---
+
+### 14. Performance Optimization & Query Combination — April 23, 2026
+**Objective:** Dramatically reduce database load for the analytics dashboard and improve text asset loading speeds.
+
+**Files changed:**
+- **Modified**: `api/analytics.php` — Completely refactored to replace 11 independent database queries with 6 unified data-fetching queries, moving aggregation logic (GROUP BY, SUM, averages) to PHP arrays. Also added strict parameter binding (`?`) for dynamically calculated date intervals.
+- **Modified**: `.htaccess` — Added a `<IfModule mod_deflate.c>` block configuring Gzip compression (`AddOutputFilterByType DEFLATE`) for HTML, CSS, JS, XML, JSON, and web fonts to significantly decrease payload sizes and improve frontend load times.
+
+---
