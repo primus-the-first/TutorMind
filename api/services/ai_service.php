@@ -4,34 +4,52 @@
  * Handles all external AI API calls: Gemini, Groq, DeepSeek, and Imagen.
  */
 
-function callGroqAPI($chatHistory, $systemPrompt, $apiKey) {
+function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'llama-3.3-70b-versatile') {
     $apiUrl = "https://api.groq.com/openai/v1/chat/completions";
 
-    $messages = [
-        ['role' => 'system', 'content' => $systemPrompt]
+    // Token limits per model (input tokens, leave ~2k headroom for response)
+    $tokenLimits = [
+        'llama-3.3-70b-versatile' => 10000,
+        'llama-3.1-8b-instant'    => 28000,
     ];
+    $maxInputTokens = $tokenLimits[$model] ?? 10000;
 
+    // Build history messages newest-first so we can truncate the oldest
+    $historyMessages = [];
     foreach ($chatHistory as $msg) {
         $role = $msg['role'] === 'model' ? 'assistant' : 'user';
         $content = '';
-
         if (isset($msg['parts'])) {
             foreach ($msg['parts'] as $part) {
-                if (isset($part['text'])) {
-                    $content .= $part['text'] . "\n";
-                }
+                if (isset($part['text'])) $content .= $part['text'] . "\n";
             }
         }
-
         if (!empty(trim($content))) {
-            $messages[] = ['role' => $role, 'content' => trim($content)];
+            $historyMessages[] = ['role' => $role, 'content' => trim($content)];
         }
     }
 
+    // Estimate tokens (4 chars ≈ 1 token) and trim oldest messages to stay within limit
+    $estimateTokens = fn(string $s) => (int)(strlen($s) / 4);
+    $usedTokens = $estimateTokens($systemPrompt) + 200; // base overhead
+    $keptMessages = [];
+    foreach (array_reverse($historyMessages) as $msg) {
+        $cost = $estimateTokens($msg['content']) + 10;
+        if ($usedTokens + $cost > $maxInputTokens) break;
+        $usedTokens += $cost;
+        $keptMessages[] = $msg;
+    }
+    $keptMessages = array_reverse($keptMessages);
+
+    $messages = array_merge(
+        [['role' => 'system', 'content' => $systemPrompt]],
+        $keptMessages
+    );
+
     $payload = json_encode([
-        'model' => 'llama-3.3-70b-versatile',
+        'model' => $model,
         'messages' => $messages,
-        'max_tokens' => 8192,
+        'max_tokens' => 2048,
         'temperature' => 0.7,
         'stream' => false
     ]);
@@ -60,6 +78,13 @@ function callGroqAPI($chatHistory, $systemPrompt, $apiKey) {
     if ($http_status !== 200) {
         $errorData = json_decode($response, true);
         $errorMsg = $errorData['error']['message'] ?? substr($response, 0, 200);
+
+        // If the 70b model exceeded the TPM limit, retry with the faster 8b model
+        if ($http_status === 413 && $model === 'llama-3.3-70b-versatile') {
+            error_log("Groq 70b TPM limit hit, retrying with llama-3.1-8b-instant");
+            return callGroqAPI($chatHistory, $systemPrompt, $apiKey, 'llama-3.1-8b-instant');
+        }
+
         throw new Exception('Groq API Error (HTTP ' . $http_status . '): ' . $errorMsg);
     }
 
