@@ -31,12 +31,14 @@ try {
 // Fetch user data
 if ($user_id) {
     try {
-        // Fetch email first (guaranteed to exist)
-        $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+        // Fetch email and dark_mode first (guaranteed to exist)
+        $stmt = $pdo->prepare("SELECT email, dark_mode FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $user_dark_mode = false;
         if ($user) {
             $user_email = $user['email'];
+            $user_dark_mode = (bool)($user['dark_mode'] ?? false);
         }
 
         // Try to fetch program (might not exist yet if migration wasn't run)
@@ -243,12 +245,15 @@ try {
     <link rel="stylesheet" href="assets/css/settings.css?v=<?= time() ?>">
     <link rel="stylesheet" href="assets/css/logo.css?v=<?= time() ?>">
 </head>
-<body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?>">
+<body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?> <?= $user_dark_mode ? 'dark-mode' : '' ?>">
     <!-- Unified Theme Script -->
     <script>
         (function() {
             const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
-            if (isDark) document.body.classList.add('dark-mode');
+            // Only add the class if it's not already there from SSR
+            if (isDark && !document.body.classList.contains('dark-mode')) {
+                document.body.classList.add('dark-mode');
+            }
         })();
     </script>
 
