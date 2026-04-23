@@ -16,107 +16,147 @@ try {
 
     // Date range filter
     $period = $_GET['period'] ?? '30days';
-    switch ($period) {
-        case '7days':
-            $intervalDays = 7;
-            $dateFilter   = 'DATE_SUB(NOW(), INTERVAL 7 DAY)';
-            break;
-        case '90days':
-            $intervalDays = 90;
-            $dateFilter   = 'DATE_SUB(NOW(), INTERVAL 90 DAY)';
-            break;
-        case 'all':
-            $intervalDays = null;
-            $dateFilter   = "'1970-01-01'";
-            break;
-        default: // 30days
-            $intervalDays = 30;
-            $dateFilter   = 'DATE_SUB(NOW(), INTERVAL 30 DAY)';
-    }
-
-    // Previous-period start/end for trend deltas (only when intervalDays is set)
-    $prevDateStart = null;
-    $prevDateEnd   = null;
-    if ($intervalDays) {
-        $prevDateStart = "DATE_SUB(NOW(), INTERVAL " . ($intervalDays * 2) . " DAY)";
-        $prevDateEnd   = "DATE_SUB(NOW(), INTERVAL $intervalDays DAY)";
+    $intervalDays = 30; // default
+    if ($period === '7days') $intervalDays = 7;
+    elseif ($period === '90days') $intervalDays = 90;
+    elseif ($period === 'all') $intervalDays = null;
+    
+    $startDate = '1970-01-01 00:00:00';
+    $prevStartDate = null;
+    $prevEndDate = null;
+    
+    if ($intervalDays !== null) {
+        $d = new DateTime();
+        $d->modify("-$intervalDays days");
+        $startDate = $d->format('Y-m-d H:i:s');
+        
+        $prevEndDate = $startDate;
+        $d2 = new DateTime();
+        $d2->modify("-" . ($intervalDays * 2) . " days");
+        $prevStartDate = $d2->format('Y-m-d H:i:s');
     }
 
     // -------------------------------------------------------------------------
-    // 1. Basic stats (current period)
-    // -------------------------------------------------------------------------
-    $stmt = $pdo->prepare("
-        SELECT
-            COUNT(*) as total_sessions,
-            COUNT(DISTINCT DATE(created_at)) as active_days,
-            AVG(progress) as avg_progress,
-            MAX(created_at) as last_session
-        FROM conversations
-        WHERE user_id = ? AND created_at >= $dateFilter
-    ");
-    $stmt->execute([$user_id]);
-    $basicStats = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    // -------------------------------------------------------------------------
-    // 2. Topics + session list (current period, up to 200 for subject analysis)
+    // 1-4, 6, 7. Combine Sessions Data
     // -------------------------------------------------------------------------
     $stmt = $pdo->prepare("
         SELECT title, progress, session_goal, created_at, context_data
         FROM conversations
-        WHERE user_id = ? AND created_at >= $dateFilter AND title IS NOT NULL
+        WHERE user_id = ? AND created_at >= ?
         ORDER BY created_at DESC
-        LIMIT 200
     ");
-    $stmt->execute([$user_id]);
+    $stmt->execute([$user_id, $startDate]);
     $sessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Extract topics from titles for the donut chart
+    $totalSessions = count($sessions);
+    $totalProgress = 0;
+    $activeDaysSet = [];
     $topicCounts = [];
-    foreach ($sessions as $session) {
-        $title     = $session['title'];
-        $stopWords = ['help', 'me', 'with', 'the', 'a', 'an', 'how', 'to', 'what', 'is', 'can', 'i', 'about', 'explain', 'understand', 'why', 'does', 'do', 'my', 'for', 'in', 'on'];
-        $words     = array_filter(
-            explode(' ', strtolower($title)),
-            fn($w) => strlen($w) > 2 && !in_array($w, $stopWords)
-        );
-        $topic = implode(' ', array_slice(array_values($words), 0, 2));
-        if (empty($topic)) $topic = 'General';
-        $topic = ucwords($topic);
-        $topicCounts[$topic] = ($topicCounts[$topic] ?? 0) + 1;
+    $progressMap = [];
+    $goalMap = [];
+    $subjectMap = [];
+    $totalMilestones = 0;
+    $completedMilestones = 0;
+    
+    $stopWords = ['help', 'me', 'with', 'the', 'a', 'an', 'how', 'to', 'what', 'is', 'can', 'i', 'about', 'explain', 'understand', 'why', 'does', 'do', 'my', 'for', 'in', 'on'];
+
+    foreach ($sessions as $s) {
+        $date = substr($s['created_at'], 0, 10);
+        $activeDaysSet[$date] = true;
+        $prog = (float)$s['progress'];
+        $totalProgress += $prog;
+        
+        // Topics (donut chart)
+        if (!empty($s['title'])) {
+            $words = array_filter(
+                explode(' ', strtolower($s['title'])),
+                fn($w) => strlen($w) > 2 && !in_array($w, $stopWords)
+            );
+            $topic = implode(' ', array_slice(array_values($words), 0, 2));
+            if (empty($topic)) $topic = 'General';
+            $topic = ucwords($topic);
+            $topicCounts[$topic] = ($topicCounts[$topic] ?? 0) + 1;
+        }
+
+        // Progress over time
+        if (!isset($progressMap[$date])) {
+            $progressMap[$date] = ['total_progress' => 0, 'session_count' => 0];
+        }
+        $progressMap[$date]['total_progress'] += $prog;
+        $progressMap[$date]['session_count']++;
+
+        // Goal distribution
+        $goal = !empty($s['session_goal']) ? $s['session_goal'] : 'general';
+        $goalMap[$goal] = ($goalMap[$goal] ?? 0) + 1;
+
+        // Milestones & Subjects
+        if (!empty($s['context_data'])) {
+            $cd = json_decode($s['context_data'], true);
+            if ($cd) {
+                $milestones = $cd['outline']['milestones'] ?? [];
+                $totalMilestones += count($milestones);
+                $mc = count(array_filter($milestones, fn($m) => $m['completed'] ?? false));
+                $completedMilestones += $mc;
+
+                $subjectKey = isset($cd['topic']) && trim($cd['topic']) !== '' ? ucwords(trim($cd['topic'])) : null;
+                if ($subjectKey) {
+                    if (!isset($subjectMap[$subjectKey])) {
+                        $subjectMap[$subjectKey] = [
+                            'topic' => $subjectKey, 'sessions' => 0, 'totalProgress' => 0,
+                            'milestonesCompleted' => 0, 'milestonesTotal' => 0
+                        ];
+                    }
+                    $subjectMap[$subjectKey]['sessions']++;
+                    $subjectMap[$subjectKey]['totalProgress'] += $prog;
+                    $subjectMap[$subjectKey]['milestonesCompleted'] += $mc;
+                    $subjectMap[$subjectKey]['milestonesTotal'] += count($milestones);
+                }
+            }
+        }
     }
+
+    $avgProgress = $totalSessions > 0 ? $totalProgress / $totalSessions : 0;
+    
     arsort($topicCounts);
     $topTopics = array_slice($topicCounts, 0, 8, true);
 
-    // -------------------------------------------------------------------------
-    // 3. Progress over time (daily averages)
-    // -------------------------------------------------------------------------
-    $stmt = $pdo->prepare("
-        SELECT
-            DATE(created_at) as date,
-            AVG(progress) as avg_progress,
-            COUNT(*) as session_count
-        FROM conversations
-        WHERE user_id = ? AND created_at >= $dateFilter
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-    ");
-    $stmt->execute([$user_id]);
-    $progressOverTime = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $progressOverTime = [];
+    foreach ($progressMap as $date => $data) {
+        $progressOverTime[] = [
+            'date' => $date,
+            'avg_progress' => $data['total_progress'] / $data['session_count'],
+            'session_count' => $data['session_count']
+        ];
+    }
+    usort($progressOverTime, fn($a, $b) => strcmp($a['date'], $b['date']));
 
-    // -------------------------------------------------------------------------
-    // 4. Session goal distribution
-    // -------------------------------------------------------------------------
-    $stmt = $pdo->prepare("
-        SELECT
-            COALESCE(session_goal, 'general') as goal,
-            COUNT(*) as count
-        FROM conversations
-        WHERE user_id = ? AND created_at >= $dateFilter
-        GROUP BY session_goal
-        ORDER BY count DESC
-    ");
-    $stmt->execute([$user_id]);
-    $goalDistribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $goalDistribution = [];
+    foreach ($goalMap as $goal => $count) {
+        $goalDistribution[] = ['goal' => $goal, 'count' => $count];
+    }
+    usort($goalDistribution, fn($a, $b) => $b['count'] - $a['count']);
+
+    $subjectProgress = [];
+    foreach ($subjectMap as $entry) {
+        $ap = $entry['sessions'] > 0 ? round($entry['totalProgress'] / $entry['sessions']) : 0;
+        $completionPct = $entry['milestonesTotal'] > 0
+            ? round(($entry['milestonesCompleted'] / $entry['milestonesTotal']) * 100)
+            : $ap;
+        $subjectProgress[] = [
+            'topic' => $entry['topic'], 'sessions' => $entry['sessions'],
+            'avgProgress' => $ap, 'milestonesCompleted' => $entry['milestonesCompleted'],
+            'milestonesTotal' => $entry['milestonesTotal'], 'completionPct' => $completionPct,
+        ];
+    }
+    usort($subjectProgress, fn($a, $b) => $b['completionPct'] - $a['completionPct']);
+    $subjectProgress = array_slice($subjectProgress, 0, 10);
+
+    $recentSessions = array_map(function ($s) {
+        return [
+            'title' => $s['title'], 'progress' => round($s['progress'] ?? 0),
+            'goal' => $s['session_goal'], 'date' => $s['created_at'],
+        ];
+    }, array_slice($sessions, 0, 10));
 
     // -------------------------------------------------------------------------
     // 5. Learning streak
@@ -129,239 +169,176 @@ try {
         LIMIT 365
     ");
     $stmt->execute([$user_id]);
-    $studyDates   = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $studyDates = $stmt->fetchAll(PDO::FETCH_COLUMN);
     $currentStreak = 0;
-    $today         = new DateTime('today');
-
+    $today = new DateTime('today');
     foreach ($studyDates as $dateStr) {
         $studyDate = new DateTime($dateStr);
-        $diff      = $today->diff($studyDate)->days;
+        $diff = $today->diff($studyDate)->days;
         if ($diff === 0 || $diff === $currentStreak) {
             if ($diff > 0) $currentStreak++;
-        } else {
-            break;
-        }
+        } else break;
     }
-
-    // -------------------------------------------------------------------------
-    // 6. Milestones + subject progress (from context_data)
-    // -------------------------------------------------------------------------
-    $totalMilestones     = 0;
-    $completedMilestones = 0;
-    $subjectMap          = [];
-
-    foreach ($sessions as $session) {
-        $cd = $session['context_data'] ? json_decode($session['context_data'], true) : null;
-        if (!$cd) continue;
-
-        $milestones = $cd['outline']['milestones'] ?? [];
-        $totalMilestones     += count($milestones);
-        $completedMilestones += count(array_filter($milestones, fn($m) => $m['completed'] ?? false));
-
-        // Per-subject aggregation using AI-detected topic
-        $subjectKey = isset($cd['topic']) && $cd['topic'] !== '' ? ucwords(trim($cd['topic'])) : null;
-        if (!$subjectKey) continue;
-
-        if (!isset($subjectMap[$subjectKey])) {
-            $subjectMap[$subjectKey] = [
-                'topic'               => $subjectKey,
-                'sessions'            => 0,
-                'totalProgress'       => 0,
-                'milestonesCompleted' => 0,
-                'milestonesTotal'     => 0,
-            ];
-        }
-        $subjectMap[$subjectKey]['sessions']++;
-        $subjectMap[$subjectKey]['totalProgress'] += (float)($session['progress'] ?? 0);
-        $subjectMap[$subjectKey]['milestonesCompleted'] += count(array_filter($milestones, fn($m) => $m['completed'] ?? false));
-        $subjectMap[$subjectKey]['milestonesTotal']     += count($milestones);
-    }
-
-    $subjectProgress = [];
-    foreach ($subjectMap as $entry) {
-        $avgProgress   = $entry['sessions'] > 0 ? round($entry['totalProgress'] / $entry['sessions']) : 0;
-        $completionPct = $entry['milestonesTotal'] > 0
-            ? round(($entry['milestonesCompleted'] / $entry['milestonesTotal']) * 100)
-            : $avgProgress;
-
-        $subjectProgress[] = [
-            'topic'               => $entry['topic'],
-            'sessions'            => $entry['sessions'],
-            'avgProgress'         => $avgProgress,
-            'milestonesCompleted' => $entry['milestonesCompleted'],
-            'milestonesTotal'     => $entry['milestonesTotal'],
-            'completionPct'       => $completionPct,
-        ];
-    }
-    usort($subjectProgress, fn($a, $b) => $b['completionPct'] - $a['completionPct']);
-    $subjectProgress = array_slice($subjectProgress, 0, 10);
-
-    // -------------------------------------------------------------------------
-    // 7. Recent sessions for display
-    // -------------------------------------------------------------------------
-    $recentSessions = array_map(function ($s) {
-        return [
-            'title'    => $s['title'],
-            'progress' => round($s['progress'] ?? 0),
-            'goal'     => $s['session_goal'],
-            'date'     => $s['created_at'],
-        ];
-    }, array_slice($sessions, 0, 10));
 
     // -------------------------------------------------------------------------
     // 8. Trend indicators (previous period vs current)
     // -------------------------------------------------------------------------
     $trends = null;
-    if ($prevDateStart && $prevDateEnd) {
+    if ($prevStartDate && $prevEndDate) {
         $stmt = $pdo->prepare("
-            SELECT
-                COUNT(*) as total_sessions,
-                COUNT(DISTINCT DATE(created_at)) as active_days,
-                AVG(progress) as avg_progress
+            SELECT title, progress, created_at
             FROM conversations
-            WHERE user_id = ? AND created_at >= $prevDateStart AND created_at < $prevDateEnd
+            WHERE user_id = ? AND created_at >= ? AND created_at < ?
         ");
-        $stmt->execute([$user_id]);
-        $prevStats = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute([$user_id, $prevStartDate, $prevEndDate]);
+        $prevSessions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Previous period topics count
-        $stmt = $pdo->prepare("
-            SELECT title FROM conversations
-            WHERE user_id = ? AND created_at >= $prevDateStart AND created_at < $prevDateEnd
-              AND title IS NOT NULL
-            LIMIT 200
-        ");
-        $stmt->execute([$user_id]);
-        $prevTitles      = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $pTotalSessions = count($prevSessions);
+        $pTotalProgress = 0;
+        $pActiveDaysSet = [];
         $prevTopicCounts = [];
-        $stopWords       = ['help', 'me', 'with', 'the', 'a', 'an', 'how', 'to', 'what', 'is', 'can', 'i', 'about', 'explain', 'understand', 'why', 'does', 'do', 'my', 'for', 'in', 'on'];
-        foreach ($prevTitles as $t) {
-            $words = array_filter(explode(' ', strtolower($t)), fn($w) => strlen($w) > 2 && !in_array($w, $stopWords));
-            $key   = ucwords(implode(' ', array_slice(array_values($words), 0, 2))) ?: 'General';
-            $prevTopicCounts[$key] = ($prevTopicCounts[$key] ?? 0) + 1;
+
+        foreach ($prevSessions as $ps) {
+            $date = substr($ps['created_at'], 0, 10);
+            $pActiveDaysSet[$date] = true;
+            $pTotalProgress += (float)$ps['progress'];
+
+            if (!empty($ps['title'])) {
+                $words = array_filter(explode(' ', strtolower($ps['title'])), fn($w) => strlen($w) > 2 && !in_array($w, $stopWords));
+                $key = ucwords(implode(' ', array_slice(array_values($words), 0, 2))) ?: 'General';
+                $prevTopicCounts[$key] = ($prevTopicCounts[$key] ?? 0) + 1;
+            }
         }
 
         $trends = [
-            'prevTotalSessions' => (int)$prevStats['total_sessions'],
-            'prevActiveDays'    => (int)$prevStats['active_days'],
-            'prevAvgProgress'   => round($prevStats['avg_progress'] ?? 0),
+            'prevTotalSessions' => $pTotalSessions,
+            'prevActiveDays'    => count($pActiveDaysSet),
+            'prevAvgProgress'   => $pTotalSessions > 0 ? round($pTotalProgress / $pTotalSessions) : 0,
             'prevTopicsStudied' => count($prevTopicCounts),
         ];
     }
 
     // -------------------------------------------------------------------------
-    // 9. Activity heatmap (last 365 days, all time scope)
+    // 9. Activity heatmap (last 365 days)
     // -------------------------------------------------------------------------
+    $d365 = new DateTime();
+    $d365->modify('-365 days');
     $stmt = $pdo->prepare("
         SELECT DATE(created_at) as date, COUNT(*) as count
         FROM conversations
-        WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 365 DAY)
+        WHERE user_id = ? AND created_at >= ?
         GROUP BY DATE(created_at)
     ");
-    $stmt->execute([$user_id]);
+    $stmt->execute([$user_id, $d365->format('Y-m-d H:i:s')]);
     $heatmapRaw = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $heatmap    = [];
+    $heatmap = [];
     foreach ($heatmapRaw as $row) {
         $heatmap[$row['date']] = (int)$row['count'];
     }
 
     // -------------------------------------------------------------------------
-    // 10. Quiz stats
+    // 10. Combine Quiz Stats
     // -------------------------------------------------------------------------
-    $quizStats = ['overallAvg' => 0, 'totalAnswered' => 0, 'scoreOverTime' => [], 'byType' => [], 'recentQuizzes' => []];
-
     $stmt = $pdo->prepare("
-        SELECT AVG(score) as avg_score, COUNT(*) as total
+        SELECT score, question_type, answered_at, question
         FROM recall_quizzes
-        WHERE user_id = ? AND answered_at IS NOT NULL AND created_at >= $dateFilter
-    ");
-    $stmt->execute([$user_id]);
-    $qOverall = $stmt->fetch(PDO::FETCH_ASSOC);
-    $quizStats['overallAvg']    = round(($qOverall['avg_score'] ?? 0) * 100);
-    $quizStats['totalAnswered'] = (int)($qOverall['total'] ?? 0);
-
-    $stmt = $pdo->prepare("
-        SELECT DATE(answered_at) as date, AVG(score) as avg_score, COUNT(*) as count
-        FROM recall_quizzes
-        WHERE user_id = ? AND answered_at IS NOT NULL AND created_at >= $dateFilter
-        GROUP BY DATE(answered_at)
-        ORDER BY date ASC
-    ");
-    $stmt->execute([$user_id]);
-    $quizStats['scoreOverTime'] = array_map(function ($r) {
-        return ['date' => $r['date'], 'avg_score' => round($r['avg_score'] * 100), 'count' => (int)$r['count']];
-    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
-
-    $stmt = $pdo->prepare("
-        SELECT question_type, AVG(score) as avg_score, COUNT(*) as count
-        FROM recall_quizzes
-        WHERE user_id = ? AND answered_at IS NOT NULL AND created_at >= $dateFilter
-        GROUP BY question_type
-        ORDER BY avg_score DESC
-    ");
-    $stmt->execute([$user_id]);
-    $quizStats['byType'] = array_map(function ($r) {
-        return ['type' => $r['question_type'], 'avg_score' => round($r['avg_score'] * 100), 'count' => (int)$r['count']];
-    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
-
-    $stmt = $pdo->prepare("
-        SELECT question, score, question_type, answered_at
-        FROM recall_quizzes
-        WHERE user_id = ? AND answered_at IS NOT NULL
+        WHERE user_id = ? AND answered_at IS NOT NULL AND created_at >= ?
         ORDER BY answered_at DESC
-        LIMIT 10
     ");
-    $stmt->execute([$user_id]);
-    $quizStats['recentQuizzes'] = array_map(function ($r) {
-        return [
-            'question'      => $r['question'],
-            'score'         => round($r['score'] * 100),
-            'question_type' => $r['question_type'],
-            'answered_at'   => $r['answered_at'],
-        ];
-    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    $stmt->execute([$user_id, $startDate]);
+    $quizzes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $qTotalScore = 0;
+    $qTotalCount = count($quizzes);
+    $qOverTimeMap = [];
+    $qByTypeMap = [];
+    
+    foreach ($quizzes as $q) {
+        $qTotalScore += (float)$q['score'];
+        $date = substr($q['answered_at'], 0, 10);
+        $type = $q['question_type'];
+        
+        if (!isset($qOverTimeMap[$date])) $qOverTimeMap[$date] = ['total_score' => 0, 'count' => 0];
+        $qOverTimeMap[$date]['total_score'] += (float)$q['score'];
+        $qOverTimeMap[$date]['count']++;
+        
+        if (!isset($qByTypeMap[$type])) $qByTypeMap[$type] = ['total_score' => 0, 'count' => 0];
+        $qByTypeMap[$type]['total_score'] += (float)$q['score'];
+        $qByTypeMap[$type]['count']++;
+    }
+
+    $qOverTime = [];
+    foreach ($qOverTimeMap as $date => $qd) {
+        $qOverTime[] = ['date' => $date, 'avg_score' => round(($qd['total_score'] / $qd['count']) * 100), 'count' => $qd['count']];
+    }
+    usort($qOverTime, fn($a, $b) => strcmp($a['date'], $b['date']));
+
+    $qByType = [];
+    foreach ($qByTypeMap as $type => $qd) {
+        $qByType[] = ['type' => $type, 'avg_score' => round(($qd['total_score'] / $qd['count']) * 100), 'count' => $qd['count']];
+    }
+    usort($qByType, fn($a, $b) => $b['avg_score'] - $a['avg_score']);
+
+    $recentQuizzes = array_map(function ($q) {
+        return ['question' => $q['question'], 'score' => round($q['score'] * 100), 'question_type' => $q['question_type'], 'answered_at' => $q['answered_at']];
+    }, array_slice($quizzes, 0, 10));
+
+    $quizStats = [
+        'overallAvg' => $qTotalCount > 0 ? round(($qTotalScore / $qTotalCount) * 100) : 0,
+        'totalAnswered' => $qTotalCount,
+        'scoreOverTime' => $qOverTime,
+        'byType' => $qByType,
+        'recentQuizzes' => $recentQuizzes
+    ];
 
     // -------------------------------------------------------------------------
-    // 11. Pomodoro / focus stats
+    // 11. Combine Pomodoro Stats
     // -------------------------------------------------------------------------
-    $pomodoroStats = ['totalMinutes' => 0, 'totalSessions' => 0, 'completedSessions' => 0, 'completionRate' => 0, 'modeDistribution' => [], 'focusOverTime' => []];
-
     $stmt = $pdo->prepare("
-        SELECT
-            SUM(duration_minutes) as total_minutes,
-            COUNT(*) as total_sessions,
-            SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as completed_sessions
+        SELECT duration_minutes, completed, mode, started_at
         FROM pomodoro_sessions
-        WHERE user_id = ? AND started_at >= $dateFilter
+        WHERE user_id = ? AND started_at >= ?
     ");
-    $stmt->execute([$user_id]);
-    $pTotals = $stmt->fetch(PDO::FETCH_ASSOC);
-    $pomodoroStats['totalMinutes']      = (int)($pTotals['total_minutes'] ?? 0);
-    $pomodoroStats['totalSessions']     = (int)($pTotals['total_sessions'] ?? 0);
-    $pomodoroStats['completedSessions'] = (int)($pTotals['completed_sessions'] ?? 0);
-    $pomodoroStats['completionRate']    = $pomodoroStats['totalSessions'] > 0
-        ? round(($pomodoroStats['completedSessions'] / $pomodoroStats['totalSessions']) * 100)
-        : 0;
+    $stmt->execute([$user_id, $startDate]);
+    $pomodoros = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $stmt = $pdo->prepare("
-        SELECT mode, COUNT(*) as count
-        FROM pomodoro_sessions
-        WHERE user_id = ? AND started_at >= $dateFilter
-        GROUP BY mode
-        ORDER BY count DESC
-    ");
-    $stmt->execute([$user_id]);
-    $pomodoroStats['modeDistribution'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $pTotalMinutes = 0;
+    $pTotalSessions = count($pomodoros);
+    $pCompleted = 0;
+    $pModeMap = [];
+    $pOverTimeMap = [];
 
-    $stmt = $pdo->prepare("
-        SELECT DATE(started_at) as date, SUM(duration_minutes) as total_minutes
-        FROM pomodoro_sessions
-        WHERE user_id = ? AND completed = 1 AND started_at >= $dateFilter
-        GROUP BY DATE(started_at)
-        ORDER BY date ASC
-    ");
-    $stmt->execute([$user_id]);
-    $pomodoroStats['focusOverTime'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($pomodoros as $p) {
+        $pTotalMinutes += (int)$p['duration_minutes'];
+        if ((int)$p['completed'] === 1) {
+            $pCompleted++;
+            $date = substr($p['started_at'], 0, 10);
+            $pOverTimeMap[$date] = ($pOverTimeMap[$date] ?? 0) + (int)$p['duration_minutes'];
+        }
+        $mode = $p['mode'];
+        $pModeMap[$mode] = ($pModeMap[$mode] ?? 0) + 1;
+    }
+
+    $pModeDist = [];
+    foreach ($pModeMap as $mode => $count) {
+        $pModeDist[] = ['mode' => $mode, 'count' => $count];
+    }
+    usort($pModeDist, fn($a, $b) => $b['count'] - $a['count']);
+
+    $pOverTime = [];
+    foreach ($pOverTimeMap as $date => $mins) {
+        $pOverTime[] = ['date' => $date, 'total_minutes' => $mins];
+    }
+    usort($pOverTime, fn($a, $b) => strcmp($a['date'], $b['date']));
+
+    $pomodoroStats = [
+        'totalMinutes' => $pTotalMinutes,
+        'totalSessions' => $pTotalSessions,
+        'completedSessions' => $pCompleted,
+        'completionRate' => $pTotalSessions > 0 ? round(($pCompleted / $pTotalSessions) * 100) : 0,
+        'modeDistribution' => $pModeDist,
+        'focusOverTime' => $pOverTime
+    ];
 
     // -------------------------------------------------------------------------
     // Response
@@ -370,9 +347,9 @@ try {
         'success' => true,
         'period'  => $period,
         'stats'   => [
-            'totalSessions'      => (int)$basicStats['total_sessions'],
-            'activeDays'         => (int)$basicStats['active_days'],
-            'avgProgress'        => round($basicStats['avg_progress'] ?? 0),
+            'totalSessions'      => $totalSessions,
+            'activeDays'         => count($activeDaysSet),
+            'avgProgress'        => round($avgProgress),
             'currentStreak'      => $currentStreak,
             'topicsStudied'      => count($topicCounts),
             'milestonesCompleted'=> $completedMilestones,
