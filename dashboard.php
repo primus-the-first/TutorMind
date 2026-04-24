@@ -564,6 +564,16 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         .chart-container { position: relative; height: 220px; }
         .chart-container.tall { height: 280px; }
 
+        @media (max-width: 900px) {
+            .chart-container { height: 200px; }
+            .chart-container.tall { height: 240px; }
+        }
+
+        @media (max-width: 600px) {
+            .chart-container { height: 170px; }
+            .chart-container.tall { height: 200px; }
+        }
+
         /* ── Subject progress ─────────────────────────────── */
         .subjects-grid {
             display: grid;
@@ -827,6 +837,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             .kpi-grid { grid-template-columns: repeat(2, 1fr); }
             .subjects-grid { grid-template-columns: 1fr; }
             .mini-stats-row { grid-template-columns: repeat(3, 1fr); }
+            .chart-card { padding: 0.85rem; }
+            .chart-card h3 { font-size: 0.8rem; margin-bottom: 0.65rem; }
         }
     </style>
 </head>
