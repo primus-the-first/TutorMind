@@ -476,3 +476,12 @@ All sections have graceful empty states with "Start a Session" CTAs. Charts rebu
 - **Modified**: `.htaccess` — Added a `<IfModule mod_deflate.c>` block configuring Gzip compression (`AddOutputFilterByType DEFLATE`) for HTML, CSS, JS, XML, JSON, and web fonts to significantly decrease payload sizes and improve frontend load times.
 
 ---
+
+### 15. Theme Synchronization & FOUC Prevention — April 24, 2026
+**Objective:** Eliminate the Flash of Unstyled Content (FOUC) across all authenticated pages and implement robust, bi-directional theme synchronization between the user's device (`localStorage`) and the database.
+
+**Files changed:**
+- **Modified**: `tutor_mysql.php`, `dashboard.php`, `admin/feedback.php`, `onboarding.php`, `onboarding-new.php`, `chat-new.php` — Implemented server-side rendering (SSR) of the `dark-mode` class on the `<body>` tag by fetching the `dark_mode` preference from the database, eliminating visual flashing on page load.
+- **Modified**: `login.php`, `register.php`, `auth_mysql.php` — Implemented bi-directional theme sync. `register.php` now passes the local device theme to the backend to set the initial account preference. `login.php` retrieves the database preference upon authentication and instantly syncs it to `localStorage`, overriding legacy keys (`darkMode` or `theme`) and strictly enforcing the unified `tutormind-theme` key.
+
+---

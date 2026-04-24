@@ -811,7 +811,11 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             }
             body.sidebar-open .dashboard-sidebar { transform: translateX(0); }
             body.sidebar-open .sidebar-overlay { display: block; opacity: 1; }
-            .dashboard-main { margin-left: 0; }
+            /* Prevent overlay from blocking scroll when sidebar is closed */
+            .sidebar-overlay { pointer-events: none; }
+            body.sidebar-open .sidebar-overlay { pointer-events: auto; }
+            .dashboard-main { margin-left: 0; overflow-y: auto; }
+            body { overflow-y: auto; }
             .hamburger-btn { display: flex; }
             .dashboard-content { padding: 1.25rem 1rem; }
             .dashboard-header { padding: 0.75rem 1rem; }

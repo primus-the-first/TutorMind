@@ -1435,6 +1435,14 @@ body.dark-mode .desktop-level-hint { color: #7070a0; }
         width: 32px;
         height: 32px;
     }
+
+    /* Swap voice icon: hide waveform, show microphone on small screens */
+    .voice-mode-trigger-btn .default-voice-icon {
+        display: none;
+    }
+    .voice-mode-trigger-btn .mobile-voice-icon {
+        display: inline !important;
+    }
 }
 
 /* Slightly larger screens (tablets in portrait) */
@@ -2119,6 +2127,16 @@ body:not(.chat-empty) .setup-link-row {
     letter-spacing: 0.04em;
     color: #94a3b8;
     line-height: 1;
+  }
+
+  @media (max-width: 480px) {
+    .nav-option {
+      height: 44px;
+      padding: 8px;
+    }
+    .nav-option::after {
+      display: none;
+    }
   }
 
   .nav-option:active {
@@ -5217,6 +5235,11 @@ body.dark-mode .tm-dialog-btn-confirm:hover { background: #8B5CF6; box-shadow: 5
         right: 16px;
         width: 40px;
         height: 40px;
+    }
+
+    /* Hide keyboard hint on touch devices */
+    .voice-mode-hint {
+        display: none;
     }
 }
 
