@@ -23,14 +23,17 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 if ($user_id) {
     try {
         $pdo = getDbConnection();
-        $stmt = $pdo->prepare("SELECT onboarding_completed FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT onboarding_completed, dark_mode FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $user_dark_mode = false;
         
-        // If onboarding is already completed, redirect to main app
-        if ($user && $user['onboarding_completed']) {
-            header('Location: chat');
-            exit;
+        if ($user) {
+            $user_dark_mode = (bool)($user['dark_mode'] ?? false);
+            if ($user['onboarding_completed']) {
+                header('Location: chat');
+                exit;
+            }
         }
     } catch (Exception $e) {
         error_log("Onboarding check error: " . $e->getMessage());
@@ -61,7 +64,17 @@ if ($user_id) {
     <!-- Wizard Styles -->
     <link rel="stylesheet" href="assets/css/onboarding-wizard.css?v=<?= time() ?>">
 </head>
-<body>
+<body class="<?= $user_dark_mode ? 'dark-mode' : '' ?>">
+    <!-- Unified Theme Script -->
+    <script>
+        (function() {
+            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            // Only add the class if it's not already there from SSR
+            if (isDark && !document.body.classList.contains('dark-mode')) {
+                document.body.classList.add('dark-mode');
+            }
+        })();
+    </script>
     <div id="onboarding-container">
         <!-- Progress Bar -->
         <div class="wizard-progress">

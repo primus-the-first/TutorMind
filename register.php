@@ -359,6 +359,10 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                 formData.append('email', emailInput.value);
                 formData.append('password', passwordInput.value);
                 formData.append('csrf_token', document.getElementById('csrf_token').value);
+                
+                // Append local theme
+                const isDarkLocal = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+                formData.append('local_theme', isDarkLocal ? 'dark' : 'light');
 
                 // Disable button and show loading
                 createAccountBtn.disabled = true;

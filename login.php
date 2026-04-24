@@ -64,6 +64,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
             <form id="loginForm" class="auth-form" action="auth_mysql" method="POST">
                 <input type="hidden" name="action" value="login">
                 <input type="hidden" name="csrf_token" id="csrf_token" value="">
+                <input type="hidden" name="local_theme" id="local_theme" value="light">
 
                 <div class="form-group">
                     <label for="email" class="form-label">Email or Username</label>
@@ -181,6 +182,10 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
 
+            // Sync local theme to form
+            const isDarkLocal = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            document.getElementById('local_theme').value = isDarkLocal ? 'dark' : 'light';
+
             // Form Submit Logic (Kept mostly same but updated selectors/visuals)
             loginForm.addEventListener('submit', async function (event) {
                 event.preventDefault();
@@ -206,6 +211,16 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                     try {
                          const result = JSON.parse(responseText);
                          if (result.success && result.redirect) {
+                             if (result.db_theme) {
+                                 localStorage.setItem('tutormind-theme', result.db_theme);
+                                 if (result.db_theme === 'dark') {
+                                     localStorage.setItem('darkMode', 'enabled');
+                                     localStorage.setItem('theme', 'dark');
+                                 } else {
+                                     localStorage.removeItem('darkMode');
+                                     localStorage.setItem('theme', 'light');
+                                 }
+                             }
                              window.location.href = result.redirect;
                          } else {
                              alert(result.error || 'Login failed');

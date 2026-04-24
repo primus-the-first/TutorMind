@@ -20,6 +20,19 @@ require_once 'includes/check_auth.php'; // Secure this page
 $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'there');
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
+$user_dark_mode = false;
+if ($user_id) {
+    try {
+        $pdo = getDbConnection();
+        $stmt = $pdo->prepare("SELECT dark_mode FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user) {
+            $user_dark_mode = (bool)($user['dark_mode'] ?? false);
+        }
+    } catch (Exception $e) {}
+}
+
 // TEMPORARILY DISABLED for development - re-enable for production
 /*
 // Check if onboarding is already completed
@@ -75,12 +88,16 @@ if ($user_id) {
     })();
     </script>
 </head>
-<body>
+<body class="<?= $user_dark_mode ? 'dark-mode' : '' ?>">
+    <!-- Unified Theme Script -->
     <script>
-    // Apply dark-mode class to body as well (CSS targets body.dark-mode)
-    if (document.documentElement.classList.contains('dark-mode')) {
-        document.body.classList.add('dark-mode');
-    }
+        (function() {
+            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            // Only add the class if it's not already there from SSR
+            if (isDark && !document.body.classList.contains('dark-mode')) {
+                document.body.classList.add('dark-mode');
+            }
+        })();
     </script>
     <div id="onboarding-container">
         <!-- Progress Bar -->

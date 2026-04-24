@@ -84,8 +84,11 @@ switch ($request_method) {
                 }
 
                 $password_hash = password_hash($password, PASSWORD_ARGON2ID);
-                $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, first_name, last_name) VALUES (?, ?, ?, ?, ?)");
-                if ($stmt->execute([$username, $email, $password_hash, $firstName, $lastName])) {
+                $local_theme = $_POST['local_theme'] ?? 'light';
+                $dark_mode = ($local_theme === 'dark') ? 1 : 0;
+                
+                $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, first_name, last_name, dark_mode) VALUES (?, ?, ?, ?, ?, ?)");
+                if ($stmt->execute([$username, $email, $password_hash, $firstName, $lastName, $dark_mode])) {
                     // Automatically log the user in
                     $user_id = $pdo->lastInsertId();
                     session_regenerate_id(true);
@@ -133,7 +136,7 @@ switch ($request_method) {
 
             try {
                 $pdo = getDbConnection();
-                $stmt = $pdo->prepare("SELECT id, username, password_hash, first_name, last_name, onboarding_completed FROM users WHERE email = ? OR username = ?");
+                $stmt = $pdo->prepare("SELECT id, username, password_hash, first_name, last_name, onboarding_completed, dark_mode FROM users WHERE email = ? OR username = ?");
                 $stmt->execute([$identifier, $identifier]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -169,7 +172,8 @@ switch ($request_method) {
 
                     // Redirect based on onboarding completion status
                     $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
-                    echo json_encode(['success' => true, 'redirect' => $redirect]);
+                    $db_theme = ($user['dark_mode'] ?? false) ? 'dark' : 'light';
+                    echo json_encode(['success' => true, 'redirect' => $redirect, 'db_theme' => $db_theme]);
                 } else {
                     // Record failed attempt for rate limiting
                     recordFailedAttempt($clientIP, $identifier);
@@ -362,11 +366,12 @@ switch ($request_method) {
                     $_SESSION['avatar_url'] = $avatar_url; // Store avatar in session
 
                     $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
+                    $db_theme = ($user['dark_mode'] ?? false) ? 'dark' : 'light';
                     if ($is_redirect_flow) {
                         header("Location: " . $redirect);
                         exit;
                     } else {
-                        echo json_encode(['success' => true, 'redirect' => $redirect]);
+                        echo json_encode(['success' => true, 'redirect' => $redirect, 'db_theme' => $db_theme]);
                     }
 
                 } else {
@@ -384,10 +389,13 @@ switch ($request_method) {
                     // Use a random password for Google users (they can reset it later if they want)
                     $random_password = bin2hex(random_bytes(16));
                     $password_hash = password_hash($random_password, PASSWORD_ARGON2ID);
+                    
+                    $local_theme = $_POST['local_theme'] ?? 'light';
+                    $dark_mode = ($local_theme === 'dark') ? 1 : 0;
 
-                    $stmt = $pdo->prepare("INSERT INTO users (username, email, first_name, last_name, google_id, avatar_url, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, first_name, last_name, google_id, avatar_url, password_hash, dark_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
 
-                    if ($stmt->execute([$username, $email, $first_name, $last_name, $google_id, $avatar_url, $password_hash])) {
+                    if ($stmt->execute([$username, $email, $first_name, $last_name, $google_id, $avatar_url, $password_hash, $dark_mode])) {
                         $user_id = $pdo->lastInsertId();
                         session_regenerate_id(true);
                         $_SESSION['user_id'] = $user_id;

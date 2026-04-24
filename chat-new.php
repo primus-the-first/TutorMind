@@ -16,13 +16,15 @@ try {
 }
 
 // Fetch user data
+$user_dark_mode = false;
 if ($user_id) {
     try {
-        $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT email, dark_mode FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($user) {
             $user_email = $user['email'];
+            $user_dark_mode = (bool)($user['dark_mode'] ?? false);
         }
     } catch (Exception $e) {
         error_log("User fetch error: " . $e->getMessage());
@@ -132,7 +134,17 @@ try {
     <link rel="stylesheet" href="assets/css/landing.css">
     <link rel="stylesheet" href="assets/css/chat-interface.css">
 </head>
-<body>
+<body class="<?= $user_dark_mode ? 'dark-mode' : '' ?>">
+    <!-- Unified Theme Script -->
+    <script>
+        (function() {
+            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            // Only add the class if it's not already there from SSR
+            if (isDark && !document.body.classList.contains('dark-mode')) {
+                document.body.classList.add('dark-mode');
+            }
+        })();
+    </script>
     <!-- Header -->
     <div class="chat-header">
         <div class="chat-header-left">

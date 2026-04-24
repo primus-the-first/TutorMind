@@ -8,8 +8,18 @@ require_once '../includes/check_auth.php';
 require_once '../includes/db_mysql.php';
 
 // Get database connection
+$user_id = $_SESSION['user_id'] ?? null;
+$user_dark_mode = false;
 try {
     $pdo = getDbConnection();
+    if ($user_id) {
+        $stmt = $pdo->prepare("SELECT dark_mode FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user) {
+            $user_dark_mode = (bool)($user['dark_mode'] ?? false);
+        }
+    }
 } catch (Exception $e) {
     die("Database connection failed: " . htmlspecialchars($e->getMessage()));
 }
@@ -302,12 +312,15 @@ $feedbackList = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
     </style>
 </head>
-<body>
+<body class="<?= $user_dark_mode ? 'dark-mode' : '' ?>">
     <!-- Unified Theme Script -->
     <script>
         (function() {
             const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
-            if (isDark) document.body.classList.add('dark-mode');
+            // Only add the class if it's not already there from SSR
+            if (isDark && !document.body.classList.contains('dark-mode')) {
+                document.body.classList.add('dark-mode');
+            }
         })();
     </script>
     <div class="container">
