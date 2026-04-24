@@ -44,7 +44,13 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
     <!-- Unified Theme Script -->
     <script>
         (function() {
-            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            let isDark = false;
+            const theme = localStorage.getItem('tutormind-theme');
+            if (theme) {
+                isDark = theme === 'dark';
+            } else {
+                isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            }
             if (isDark) document.body.classList.add('dark-mode');
         })();
     </script>
@@ -183,7 +189,13 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
             }
 
             // Sync local theme to form
-            const isDarkLocal = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            let isDarkLocal = false;
+            const themeLocal = localStorage.getItem('tutormind-theme');
+            if (themeLocal) {
+                isDarkLocal = themeLocal === 'dark';
+            } else {
+                isDarkLocal = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
+            }
             document.getElementById('local_theme').value = isDarkLocal ? 'dark' : 'light';
 
             // Form Submit Logic (Kept mostly same but updated selectors/visuals)
