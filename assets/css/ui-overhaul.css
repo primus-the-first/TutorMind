@@ -1424,16 +1424,28 @@ body.dark-mode .desktop-level-hint { color: #7070a0; }
         font-size: 0.8rem;
     }
     
-    /* Smaller submit button */
+    /* Smaller submit button — !important overrides the 768px min-height:44px rule */
     .submit-circle-btn {
-        width: 32px;
-        height: 32px;
+        width: 30px !important;
+        height: 30px !important;
+        min-width: unset !important;
+        min-height: unset !important;
+        font-size: 0.8rem !important;
     }
-    
+
     /* Smaller voice mode trigger */
     .voice-mode-trigger-btn {
-        width: 32px;
-        height: 32px;
+        width: 30px !important;
+        height: 30px !important;
+        min-width: unset !important;
+        min-height: unset !important;
+        padding: 6px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Scale down icons inside action pills */
+    .action-pill-btn i {
+        font-size: 0.8rem;
     }
 
     /* Swap voice icon: hide waveform, show microphone on small screens */
