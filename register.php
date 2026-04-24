@@ -134,7 +134,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                          data-client_id="1083917773706-gc0f400l24eavps3ckcnj04581gj3plk.apps.googleusercontent.com"
                          data-context="signup" 
                          data-ux_mode="redirect"
-                         data-login_uri="https://localhost/TutorMind/auth_mysql.php"
+                         data-login_uri="<?php echo htmlspecialchars($google_login_uri); ?>"
                          data-auto_prompt="false">
                     </div>
                     <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
@@ -199,8 +199,11 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                     const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
                     passwordInput.setAttribute('type', type);
                     confirmPasswordInput.setAttribute('type', type); // Toggle both
-                    this.classList.toggle('fa-eye');
-                    this.classList.toggle('fa-eye-slash');
+                    const icon = this.querySelector('i');
+                    if (icon) {
+                        icon.classList.toggle('fa-eye');
+                        icon.classList.toggle('fa-eye-slash');
+                    }
                 });
              }
 
