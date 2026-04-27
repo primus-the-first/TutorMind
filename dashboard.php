@@ -561,18 +561,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         }
         .chart-card h3 .icon-svg { color: var(--accent-violet); font-size: 1rem; }
 
-        .chart-container { position: relative; height: 220px; }
-        .chart-container.tall { height: 280px; }
-
-        @media (max-width: 900px) {
-            .chart-container { height: 200px; }
-            .chart-container.tall { height: 240px; }
-        }
-
-        @media (max-width: 600px) {
-            .chart-container { height: 170px; }
-            .chart-container.tall { height: 200px; }
-        }
+        .chart-container { position: relative; height: clamp(160px, calc(15vw + 70px), 220px); }
+        .chart-container.tall { height: clamp(200px, calc(20vw + 80px), 280px); }
 
         /* ── Subject progress ─────────────────────────────── */
         .subjects-grid {
