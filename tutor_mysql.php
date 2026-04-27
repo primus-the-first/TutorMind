@@ -378,14 +378,11 @@ try {
                     </div>
                 </div>
 
-                <a href="index" class="mobile-logo-link mobile-only">
-                    <img src="assets/logo-bridge.svg" alt="" aria-hidden="true">
-                    <span class="app-logo-text">TutorMind</span>
+                <a href="index" class="header-logo-link">
+                    <img src="assets/logo-bridge.svg" alt="TutorMind" style="width:28px;height:28px;display:block;">
                 </a>
 
-                <a href="index" class="desktop-only" style="text-decoration:none; display:flex; align-items:center;">
-                    <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>; margin: 0 0 0 1rem;"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
-                </a>
+                <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>;"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
             </div>
 
             <!-- Empty Center -->

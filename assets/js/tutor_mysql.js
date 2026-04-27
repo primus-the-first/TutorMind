@@ -2426,9 +2426,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         history.pushState({}, '', `${baseUrl}/chat/${result.conversation_id}`);
                     }
 
-                    // If server generated a title, update the conversation in the sidebar
+                    // If server generated a title, update the header and sidebar
                     if (result.generated_title) {
                         if (DEBUG) console.log('AI generated title:', result.generated_title);
+                        if (conversationTitleEl) {
+                            conversationTitleEl.textContent = result.generated_title;
+                        }
                         // Refresh chat history to show the new conversation with AI-generated title
                         await loadChatHistory();
                         highlightActiveConversation(result.conversation_id);

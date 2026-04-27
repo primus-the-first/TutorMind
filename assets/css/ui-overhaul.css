@@ -553,10 +553,21 @@ body {
   margin: 0;
 }
 
+.header-logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
 .conversation-title {
   font-size: 1.1rem;
   font-weight: 600;
-  margin-left: 1rem;
+  margin: 0 0 0 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40vw;
 }
 
 /* Desktop title link */
