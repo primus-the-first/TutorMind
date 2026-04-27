@@ -548,6 +548,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             padding: 1.25rem;
             box-shadow: var(--card-shadow);
             border: var(--card-border);
+            overflow: hidden;
         }
         .chart-card h3 {
             font-family: var(--font-display);
@@ -652,6 +653,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             padding: 1.25rem;
             box-shadow: var(--card-shadow);
             border: var(--card-border);
+            overflow: hidden;
         }
         .sessions-card h3 {
             font-family: var(--font-display);
@@ -665,7 +667,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         }
         .sessions-card h3 .icon-svg { color: var(--accent-violet); font-size: 1.1rem; }
 
-        .session-list { display: flex; flex-direction: column; gap: 0.6rem; max-height: clamp(200px, calc(20vw + 80px), 280px); overflow-y: auto; }
+        .session-list { display: flex; flex-direction: column; gap: 0.6rem; max-height: clamp(200px, calc(20vw + 80px), 280px); overflow-y: auto; overflow-x: hidden; }
 
         .session-item {
             display: flex;
