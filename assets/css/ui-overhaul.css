@@ -560,6 +560,12 @@ body {
   flex-shrink: 0;
 }
 
+@media (min-width: 769px) {
+  .header-logo-link {
+    display: none;
+  }
+}
+
 .conversation-title {
   font-size: 1.1rem;
   font-weight: 600;
