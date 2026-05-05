@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/pulse_monitor.php';
+
 /**
  * Establishes a connection to the MySQL database.
  * Uses singleton pattern to reuse connection within a single request.
