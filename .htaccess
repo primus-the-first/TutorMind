@@ -88,6 +88,15 @@ RewriteRule ^.*$ 404.html [L,NC]
     Header always set Permissions-Policy "geolocation=(), microphone=(self), camera=()"
 </IfModule>
 
+# Allow code snippets through ModSecurity on the chat endpoint
+# Tutoring app users paste code (R, Python, SQL, etc.) which triggers WAF injection rules.
+# Start with DetectionOnly; once rule IDs are known from cPanel logs, replace with SecRuleRemoveById.
+<IfModule mod_security2.c>
+    <LocationMatch "^/includes/server_mysql\.php$">
+        SecRuleEngine DetectionOnly
+    </LocationMatch>
+</IfModule>
+
 # Block access to sensitive files
 <FilesMatch "\.(log|ini|sql|md|bak|yml|yaml|txt|json|env|config)$">
     # Exception: allow robots.txt and sitemap.xml which are handled below
