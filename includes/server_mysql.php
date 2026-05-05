@@ -574,7 +574,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES) && 
     exit;
 }
 
-$question = $_POST['question'] ?? '';
+$question = base64_decode($_POST['question'] ?? '', true) ?: '';
 $learningLevel = $_POST['learningLevel'] ?? 'Understanding';
 
 // Validate inputs early

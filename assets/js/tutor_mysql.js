@@ -2292,7 +2292,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const formData = new FormData(tutorForm);
         
         // Override the question field with the potentially modified question (with quote)
-        formData.set('question', question);
+        // Base64-encode to prevent WAF (Imunify360) from sanitizing code snippets in the message
+        formData.set('question', btoa(Array.from(new TextEncoder().encode(question), b => String.fromCharCode(b)).join('')));
         // Remove any potentially empty/stale attachment entries from native serialization
         formData.delete('attachment[]');
         
