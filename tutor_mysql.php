@@ -238,12 +238,13 @@ try {
     
     <!-- Highlight.js for Syntax Highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= time() ?>">
-    <link rel="stylesheet" href="assets/css/settings.css?v=<?= time() ?>">
-    <link rel="stylesheet" href="assets/css/logo.css?v=<?= time() ?>">
+    <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= filemtime('assets/css/ui-overhaul.css') ?>">
+    <link rel="stylesheet" href="assets/css/logo.css?v=<?= filemtime('assets/css/logo.css') ?>">
+    <link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>"></noscript>
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?> <?= $user_dark_mode ? 'dark-mode' : '' ?>">
     <!-- Unified Theme Script -->
@@ -724,13 +725,13 @@ try {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
     
     <!-- Custom Dialog System (replaces native alert/confirm) -->
-    <script src="assets/js/tm-dialog.js?v=<?= time() ?>"></script>
-    
+    <script src="assets/js/tm-dialog.js?v=<?= filemtime('assets/js/tm-dialog.js') ?>"></script>
+
     <!-- Main application scripts -->
-    <script src="assets/js/settings.js?v=<?= time() ?>"></script>
-    <script src="assets/js/session-context.js?v=<?= time() ?>"></script>
-    <script src="assets/js/quick-start.js?v=<?= time() ?>"></script>
-    <script src="assets/js/tutor_mysql.js?v=<?= time() ?>"></script>
+    <script src="assets/js/settings.js?v=<?= filemtime('assets/js/settings.js') ?>"></script>
+    <script src="assets/js/session-context.js?v=<?= filemtime('assets/js/session-context.js') ?>"></script>
+    <script src="assets/js/quick-start.js?v=<?= filemtime('assets/js/quick-start.js') ?>"></script>
+    <script src="assets/js/tutor_mysql.js?v=<?= filemtime('assets/js/tutor_mysql.js') ?>"></script>
     
     <!-- Initialize Highlight.js -->
     <script>
@@ -740,7 +741,7 @@ try {
     </script>
     
     <!-- Enhanced Chat Interface (New!) -->
-    <script src="assets/js/chat-interface.js?v=<?= time() ?>"></script>
+    <script src="assets/js/chat-interface.js?v=<?= filemtime('assets/js/chat-interface.js') ?>"></script>
 
     <!-- Mobile Navigation Layer (Icons popup) -->
     <div id="mobile-sidebar-overlay" class="sidebar-overlay hidden mobile-only"></div>
