@@ -1,0 +1,131 @@
+C:\xampp\htdocs\TutorMind\auth.php
+C:\xampp\htdocs\TutorMind\auth_mysql.php
+C:\xampp\htdocs\TutorMind\chat-new.php
+C:\xampp\htdocs\TutorMind\dashboard.php
+C:\xampp\htdocs\TutorMind\deploy.php
+C:\xampp\htdocs\TutorMind\entry.php
+C:\xampp\htdocs\TutorMind\list_models.php
+C:\xampp\htdocs\TutorMind\login.php
+C:\xampp\htdocs\TutorMind\onboarding-new.php
+C:\xampp\htdocs\TutorMind\onboarding.php
+C:\xampp\htdocs\TutorMind\register.php
+C:\xampp\htdocs\TutorMind\temp_check.js
+C:\xampp\htdocs\TutorMind\test_log.php
+C:\xampp\htdocs\TutorMind\tutor_mysql.php
+C:\xampp\htdocs\TutorMind\admin\feedback.php
+C:\xampp\htdocs\TutorMind\api\analytics.php
+C:\xampp\htdocs\TutorMind\api\clear_history.php
+C:\xampp\htdocs\TutorMind\api\delete_account.php
+C:\xampp\htdocs\TutorMind\api\image.php
+C:\xampp\htdocs\TutorMind\api\knowledge.php
+C:\xampp\htdocs\TutorMind\api\learning_strategies.php
+C:\xampp\htdocs\TutorMind\api\quiz.php
+C:\xampp\htdocs\TutorMind\api\session_context.php
+C:\xampp\htdocs\TutorMind\api\tts.php
+C:\xampp\htdocs\TutorMind\api\user_onboarding.php
+C:\xampp\htdocs\TutorMind\api\user_settings.php
+C:\xampp\htdocs\TutorMind\api\services\ai_service.php
+C:\xampp\htdocs\TutorMind\api\services\comprehension_service.php
+C:\xampp\htdocs\TutorMind\api\services\document_service.php
+C:\xampp\htdocs\TutorMind\api\services\response_formatter.php
+C:\xampp\htdocs\TutorMind\api\services\tutor_service.php
+C:\xampp\htdocs\TutorMind\assets\js\chat-interface.js
+C:\xampp\htdocs\TutorMind\assets\js\landing.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-animations.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-bundle.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-screen2.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-screen3.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-screen4.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-screen5.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-screen6.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-screen7.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-screen8.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-screen9.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-universities.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding-wizard.js
+C:\xampp\htdocs\TutorMind\assets\js\onboarding.js
+C:\xampp\htdocs\TutorMind\assets\js\quick-start.js
+C:\xampp\htdocs\TutorMind\assets\js\script.js
+C:\xampp\htdocs\TutorMind\assets\js\session-context.js
+C:\xampp\htdocs\TutorMind\assets\js\settings.js
+C:\xampp\htdocs\TutorMind\assets\js\syntax-highlighter.js
+C:\xampp\htdocs\TutorMind\assets\js\tm-dialog.js
+C:\xampp\htdocs\TutorMind\assets\js\tutor_mysql.js
+C:\xampp\htdocs\TutorMind\includes\check_auth.php
+C:\xampp\htdocs\TutorMind\includes\check_session.php
+C:\xampp\htdocs\TutorMind\includes\csrf.php
+C:\xampp\htdocs\TutorMind\includes\db_mysql.php
+C:\xampp\htdocs\TutorMind\includes\pulse_monitor.php
+C:\xampp\htdocs\TutorMind\includes\rate_limiter.php
+C:\xampp\htdocs\TutorMind\includes\server_mysql.php
+C:\xampp\htdocs\TutorMind\migrations\001_add_user_settings_and_personalization.sql
+C:\xampp\htdocs\TutorMind\migrations\002_split_user_names.sql
+C:\xampp\htdocs\TutorMind\migrations\003_add_chat_rate_limits.sql
+C:\xampp\htdocs\TutorMind\migrations\003_add_comprehensive_learning_profile.php
+C:\xampp\htdocs\TutorMind\migrations\004_add_feedback_table.php
+C:\xampp\htdocs\TutorMind\migrations\004_add_topic_to_knowledge_base.sql
+C:\xampp\htdocs\TutorMind\migrations\005_add_legibility_column.php
+C:\xampp\htdocs\TutorMind\migrations\005_add_pomodoro_recall_tables.sql
+C:\xampp\htdocs\TutorMind\migrations\006_add_knowledge_base.php
+C:\xampp\htdocs\TutorMind\migrations\007_add_login_attempts_table.php
+C:\xampp\htdocs\TutorMind\migrations\008_add_performance_indexes.php
+C:\xampp\htdocs\TutorMind\migrations\009_add_message_cache.php
+C:\xampp\htdocs\TutorMind\migrations\010_add_knowledge_level.php
+C:\xampp\htdocs\TutorMind\migrations\add_message_edit.php
+C:\xampp\htdocs\TutorMind\migrations\add_profile_column.php
+C:\xampp\htdocs\TutorMind\migrations\add_session_context.php
+C:\xampp\htdocs\TutorMind\migrations\alter_users_table.sql
+C:\xampp\htdocs\TutorMind\scripts\add_google_auth_columns.php
+C:\xampp\htdocs\TutorMind\scripts\test_rag_pipeline.php
+C:\xampp\htdocs\TutorMind\scripts\tutodtoo_tutordb.sql
+C:\xampp\htdocs\TutorMind\scripts\update_css.py
+C:\xampp\htdocs\TutorMind\scripts\update_php_js.py
+C:\xampp\htdocs\TutorMind\403.html
+C:\xampp\htdocs\TutorMind\404.html
+C:\xampp\htdocs\TutorMind\features.html
+C:\xampp\htdocs\TutorMind\index.html
+C:\xampp\htdocs\TutorMind\landing-new.html
+C:\xampp\htdocs\TutorMind\login.html
+C:\xampp\htdocs\TutorMind\README.md
+C:\xampp\htdocs\TutorMind\register.html
+C:\xampp\htdocs\TutorMind\robot.html
+C:\xampp\htdocs\TutorMind\SKILL.md
+C:\xampp\htdocs\TutorMind\api\README.txt
+C:\xampp\htdocs\TutorMind\docs\API_DOCUMENTATION.md
+C:\xampp\htdocs\TutorMind\docs\CLAUDE.md
+C:\xampp\htdocs\TutorMind\docs\context.md
+C:\xampp\htdocs\TutorMind\docs\CONTRIBUTING.md
+C:\xampp\htdocs\TutorMind\docs\DEPLOYMENT_GUIDE.md
+C:\xampp\htdocs\TutorMind\docs\models.txt
+C:\xampp\htdocs\TutorMind\docs\PERFORMANCE_OPTIMIZATION.txt
+C:\xampp\htdocs\TutorMind\docs\PERFORMANCE_QUICK_WINS.md
+C:\xampp\htdocs\TutorMind\migrations\CODE_CHANGES_GUIDE.md
+C:\xampp\htdocs\TutorMind\migrations\MIGRATION_COMPLETE.md
+C:\xampp\htdocs\TutorMind\migrations\NAME_ATOMIZATION_GUIDE.md
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Authentication\Login.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Authentication\Logout.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Authentication\Register - Validation Errors.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Authentication\Register.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Onboarding\Complete Onboarding - Invalid Knowledge Level.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Onboarding\Complete Onboarding.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Session Context\Create Session.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Session Context\Get Recent Activity.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Session Context\Update Context.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Session Context\Update Progress - Missing Session ID.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\Session Context\Update Progress.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\User Settings\Get User Settings.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\User Settings\Update Settings - Invalid Email.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\User Settings\Update Settings - No Valid Fields.request.yaml
+C:\xampp\htdocs\TutorMind\postman\collections\TutorMind API\User Settings\Update User Settings.request.yaml
+C:\xampp\htdocs\TutorMind\postman\environments\TutorMind - Development.yaml
+C:\xampp\htdocs\TutorMind\postman\environments\TutorMind - Production.yaml
+C:\xampp\htdocs\TutorMind\postman\globals\workspace.globals.yaml
+C:\xampp\htdocs\TutorMind\assets\404_illustration.png
+C:\xampp\htdocs\TutorMind\assets\ai_tutor_bot.png
+C:\xampp\htdocs\TutorMind\assets\favicon-new.svg
+C:\xampp\htdocs\TutorMind\assets\favicon.png
+C:\xampp\htdocs\TutorMind\assets\login_illustration.png
+C:\xampp\htdocs\TutorMind\assets\logo-bridge.svg
+C:\xampp\htdocs\TutorMind\assets\logo.png
+C:\xampp\htdocs\TutorMind\assets\register_illustration.png
+C:\xampp\htdocs\TutorMind\assets\student_studying.png

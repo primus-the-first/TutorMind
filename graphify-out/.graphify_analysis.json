@@ -1,0 +1,781 @@
+{
+  "communities": {
+    "0": [
+      "assets_js_onboarding_bundle_js",
+      "js_onboarding_bundle_onboardingwizard",
+      "js_onboarding_bundle_onboardingwizard_addchat",
+      "js_onboarding_bundle_onboardingwizard_animatescreenexit",
+      "js_onboarding_bundle_onboardingwizard_checkpreferences",
+      "js_onboarding_bundle_onboardingwizard_completeonboarding",
+      "js_onboarding_bundle_onboardingwizard_constructor",
+      "js_onboarding_bundle_onboardingwizard_finishlessonandnext",
+      "js_onboarding_bundle_onboardingwizard_getassessmentquestions",
+      "js_onboarding_bundle_onboardingwizard_getassessmenttopic",
+      "js_onboarding_bundle_onboardingwizard_init",
+      "js_onboarding_bundle_onboardingwizard_initassessment",
+      "js_onboarding_bundle_onboardingwizard_initeducation",
+      "js_onboarding_bundle_onboardingwizard_initfirstlesson",
+      "js_onboarding_bundle_onboardingwizard_initgoals",
+      "js_onboarding_bundle_onboardingwizard_initializescreenlogic",
+      "js_onboarding_bundle_onboardingwizard_initnotifications",
+      "js_onboarding_bundle_onboardingwizard_initpreferences",
+      "js_onboarding_bundle_onboardingwizard_initshsmode",
+      "js_onboarding_bundle_onboardingwizard_initstandardsubjectmode",
+      "js_onboarding_bundle_onboardingwizard_initsubjects",
+      "js_onboarding_bundle_onboardingwizard_initsummary",
+      "js_onboarding_bundle_onboardingwizard_initunimode",
+      "js_onboarding_bundle_onboardingwizard_initwelcome",
+      "js_onboarding_bundle_onboardingwizard_loadprogress",
+      "js_onboarding_bundle_onboardingwizard_nextquestion",
+      "js_onboarding_bundle_onboardingwizard_nextscreen",
+      "js_onboarding_bundle_onboardingwizard_previousscreen",
+      "js_onboarding_bundle_onboardingwizard_renderquestion",
+      "js_onboarding_bundle_onboardingwizard_saveprogress",
+      "js_onboarding_bundle_onboardingwizard_selectshsprogram",
+      "js_onboarding_bundle_onboardingwizard_setupanimations",
+      "js_onboarding_bundle_onboardingwizard_setupeventlisteners",
+      "js_onboarding_bundle_onboardingwizard_showassessmentresult",
+      "js_onboarding_bundle_onboardingwizard_showerror",
+      "js_onboarding_bundle_onboardingwizard_showscreen",
+      "js_onboarding_bundle_onboardingwizard_skipassessment",
+      "js_onboarding_bundle_onboardingwizard_updateprogressbar",
+      "js_onboarding_bundle_onboardingwizard_validateandnextsubject"
+    ],
+    "1": [
+      "assets_js_settings_js",
+      "js_settings_settingsmanager",
+      "js_settings_settingsmanager_applyglobalsettings",
+      "js_settings_settingsmanager_applylegibility",
+      "js_settings_settingsmanager_attacheventlisteners",
+      "js_settings_settingsmanager_attachprivacylisteners",
+      "js_settings_settingsmanager_attachsecuritylisteners",
+      "js_settings_settingsmanager_changepassword",
+      "js_settings_settingsmanager_clearchathistory",
+      "js_settings_settingsmanager_clearpassworderrors",
+      "js_settings_settingsmanager_clearpasswordfields",
+      "js_settings_settingsmanager_close",
+      "js_settings_settingsmanager_constructor",
+      "js_settings_settingsmanager_createmodalhtml",
+      "js_settings_settingsmanager_debounce",
+      "js_settings_settingsmanager_deleteaccount",
+      "js_settings_settingsmanager_handlekeydown",
+      "js_settings_settingsmanager_init",
+      "js_settings_settingsmanager_injecttabpanels",
+      "js_settings_settingsmanager_loadsettings",
+      "js_settings_settingsmanager_open",
+      "js_settings_settingsmanager_populateform",
+      "js_settings_settingsmanager_resetformstate",
+      "js_settings_settingsmanager_savetextinputs",
+      "js_settings_settingsmanager_savetoggle",
+      "js_settings_settingsmanager_showconfirmdialog",
+      "js_settings_settingsmanager_showloadingstate",
+      "js_settings_settingsmanager_showtoast",
+      "js_settings_settingsmanager_switchtab",
+      "js_settings_settingsmanager_updatemainui",
+      "js_settings_settingsmanager_updateoptionbuttons",
+      "js_settings_settingsmanager_updatepasswordstrength",
+      "scripts_update_css_py",
+      "scripts_update_css_update_css",
+      "scripts_update_php_js_py",
+      "scripts_update_php_js_update_js",
+      "scripts_update_php_js_update_php"
+    ],
+    "2": [
+      "assets_js_tutor_mysql_js",
+      "js_tutor_mysql_addcopybuttonstocodeblocks",
+      "js_tutor_mysql_addmessage",
+      "js_tutor_mysql_base64toblob",
+      "js_tutor_mysql_browserspeak",
+      "js_tutor_mysql_createselectionpopup",
+      "js_tutor_mysql_deleteconversation",
+      "js_tutor_mysql_enablerename",
+      "js_tutor_mysql_fallbackcopytext",
+      "js_tutor_mysql_finalizemessage",
+      "js_tutor_mysql_getbasepath",
+      "js_tutor_mysql_handlecopyclick",
+      "js_tutor_mysql_handleeditsubmit",
+      "js_tutor_mysql_handlefeedbackclick",
+      "js_tutor_mysql_handlereadaloud",
+      "js_tutor_mysql_hidequotereference",
+      "js_tutor_mysql_hideselectionpopup",
+      "js_tutor_mysql_highlightactiveconversation",
+      "js_tutor_mysql_hydratemessages",
+      "js_tutor_mysql_loadchathistory",
+      "js_tutor_mysql_loadconversation",
+      "js_tutor_mysql_loadpersonalizedsuggestions",
+      "js_tutor_mysql_setupautoresizetextarea",
+      "js_tutor_mysql_showcopytoast",
+      "js_tutor_mysql_showfeedbackmodal",
+      "js_tutor_mysql_showgeneralfeedbackmodal",
+      "js_tutor_mysql_showquotereference",
+      "js_tutor_mysql_showselectionpopup",
+      "js_tutor_mysql_showtypingindicator",
+      "js_tutor_mysql_smartscrolltobottom",
+      "js_tutor_mysql_stoptts",
+      "js_tutor_mysql_typewelcomegreeting",
+      "js_tutor_mysql_typewriter",
+      "js_tutor_mysql_updateeditbuttons"
+    ],
+    "3": [
+      "assets_js_chat_interface_js",
+      "js_chat_interface_tutormindchat",
+      "js_chat_interface_tutormindchat_addmessage",
+      "js_chat_interface_tutormindchat_autoresizetextarea",
+      "js_chat_interface_tutormindchat_constructor",
+      "js_chat_interface_tutormindchat_copycode",
+      "js_chat_interface_tutormindchat_formatmessage",
+      "js_chat_interface_tutormindchat_handleimageupload",
+      "js_chat_interface_tutormindchat_hidetypingindicator",
+      "js_chat_interface_tutormindchat_hidevoicemodal",
+      "js_chat_interface_tutormindchat_init",
+      "js_chat_interface_tutormindchat_initializefeatures",
+      "js_chat_interface_tutormindchat_scrolltobottom",
+      "js_chat_interface_tutormindchat_sendmessage",
+      "js_chat_interface_tutormindchat_sendtobackend",
+      "js_chat_interface_tutormindchat_setupcognitivelevelselector",
+      "js_chat_interface_tutormindchat_setupdesktopleveldropdown",
+      "js_chat_interface_tutormindchat_setupeventlisteners",
+      "js_chat_interface_tutormindchat_setupmobilehandling",
+      "js_chat_interface_tutormindchat_setupmobilenavselector",
+      "js_chat_interface_tutormindchat_showtypingindicator",
+      "js_chat_interface_tutormindchat_showvoicemodal",
+      "js_chat_interface_tutormindchat_startnewchat",
+      "js_chat_interface_tutormindchat_startvoiceinput",
+      "js_chat_interface_tutormindchat_stopvoiceinput",
+      "js_chat_interface_tutormindchat_toggledarkmode",
+      "js_chat_interface_tutormindchat_togglesidebar",
+      "js_chat_interface_tutormindchat_updatedarkmodeicon",
+      "js_chat_interface_tutormindchat_updatelevelui"
+    ],
+    "4": [
+      "assets_js_onboarding_wizard_js",
+      "js_onboarding_wizard_onboardingwizard",
+      "js_onboarding_wizard_onboardingwizard_clearprogress",
+      "js_onboarding_wizard_onboardingwizard_completeonboarding",
+      "js_onboarding_wizard_onboardingwizard_constructor",
+      "js_onboarding_wizard_onboardingwizard_gotoscreen",
+      "js_onboarding_wizard_onboardingwizard_init",
+      "js_onboarding_wizard_onboardingwizard_initializescreen",
+      "js_onboarding_wizard_onboardingwizard_initscreen1welcome",
+      "js_onboarding_wizard_onboardingwizard_initscreen2education",
+      "js_onboarding_wizard_onboardingwizard_initscreen3subjects",
+      "js_onboarding_wizard_onboardingwizard_initscreen4goals",
+      "js_onboarding_wizard_onboardingwizard_initscreen5assessment",
+      "js_onboarding_wizard_onboardingwizard_initscreen6preferences",
+      "js_onboarding_wizard_onboardingwizard_initscreen7notifications",
+      "js_onboarding_wizard_onboardingwizard_initscreen8firstlesson",
+      "js_onboarding_wizard_onboardingwizard_initscreen9summary",
+      "js_onboarding_wizard_onboardingwizard_loadprogress",
+      "js_onboarding_wizard_onboardingwizard_nextscreen",
+      "js_onboarding_wizard_onboardingwizard_previousscreen",
+      "js_onboarding_wizard_onboardingwizard_saveprogress",
+      "js_onboarding_wizard_onboardingwizard_savetodatabase",
+      "js_onboarding_wizard_onboardingwizard_setupeventlisteners",
+      "js_onboarding_wizard_onboardingwizard_showscreen",
+      "js_onboarding_wizard_onboardingwizard_updateprogress"
+    ],
+    "5": [
+      "assets_js_session_context_js",
+      "js_session_context_sessioncontextmanager",
+      "js_session_context_sessioncontextmanager_capitalizefirstletter",
+      "js_session_context_sessioncontextmanager_clear",
+      "js_session_context_sessioncontextmanager_constructor",
+      "js_session_context_sessioncontextmanager_create",
+      "js_session_context_sessioncontextmanager_createmilestonetoast",
+      "js_session_context_sessioncontextmanager_debouncedsave",
+      "js_session_context_sessioncontextmanager_extractcontextfrommessage",
+      "js_session_context_sessioncontextmanager_getgoaltitle",
+      "js_session_context_sessioncontextmanager_getsession",
+      "js_session_context_sessioncontextmanager_getsystempromptcontext",
+      "js_session_context_sessioncontextmanager_incrementmessagecount",
+      "js_session_context_sessioncontextmanager_load",
+      "js_session_context_sessioncontextmanager_loadfromstorage",
+      "js_session_context_sessioncontextmanager_savetoserver",
+      "js_session_context_sessioncontextmanager_savetostorage",
+      "js_session_context_sessioncontextmanager_setconversationid",
+      "js_session_context_sessioncontextmanager_showmilestonenotification",
+      "js_session_context_sessioncontextmanager_updatecontext",
+      "js_session_context_sessioncontextmanager_updatefromserverprogress",
+      "js_session_context_sessioncontextmanager_updateprogress"
+    ],
+    "6": [
+      "assets_js_script_js",
+      "js_script_addcourse",
+      "js_script_calculatecgpafrontend",
+      "js_script_calculateclientside",
+      "js_script_closemodal",
+      "js_script_computegpa",
+      "js_script_createcourserow",
+      "js_script_displayadvancedpredictionresults",
+      "js_script_displayresults",
+      "js_script_getclassification",
+      "js_script_getgradecolor",
+      "js_script_gettargetadvice",
+      "js_script_gettargetclassname",
+      "js_script_handleformsubmit",
+      "js_script_initializeapp",
+      "js_script_predictclasspaths",
+      "js_script_predicttargetgpa",
+      "js_script_removecourse",
+      "js_script_showerrormessage",
+      "js_script_updateremovebuttons"
+    ],
+    "7": [
+      "assets_js_quick_start_js",
+      "js_quick_start_quickstartmanager",
+      "js_quick_start_quickstartmanager_addopeningmessage",
+      "js_quick_start_quickstartmanager_animateentrance",
+      "js_quick_start_quickstartmanager_appendaimessage",
+      "js_quick_start_quickstartmanager_bindevents",
+      "js_quick_start_quickstartmanager_constructor",
+      "js_quick_start_quickstartmanager_createtestprepsession",
+      "js_quick_start_quickstartmanager_dismiss",
+      "js_quick_start_quickstartmanager_getgoaltitle",
+      "js_quick_start_quickstartmanager_handlecontinuelearningclick",
+      "js_quick_start_quickstartmanager_handlequickactionclick",
+      "js_quick_start_quickstartmanager_handletestprepclick",
+      "js_quick_start_quickstartmanager_hide",
+      "js_quick_start_quickstartmanager_init",
+      "js_quick_start_quickstartmanager_loadrecentactivity",
+      "js_quick_start_quickstartmanager_rendercontinuecard",
+      "js_quick_start_quickstartmanager_renderupcomingtest",
+      "js_quick_start_quickstartmanager_show"
+    ],
+    "8": [
+      "api_knowledge_getknowledgeservice",
+      "api_knowledge_php",
+      "api_learning_strategies_getlearningstrategiesservice",
+      "api_learning_strategies_learningstrategiesservice",
+      "api_learning_strategies_learningstrategiesservice_construct",
+      "api_learning_strategies_learningstrategiesservice_fetchexternalcontent",
+      "api_learning_strategies_learningstrategiesservice_generatestrategycontext",
+      "api_learning_strategies_learningstrategiesservice_getallstrategies",
+      "api_learning_strategies_learningstrategiesservice_getcorephilosophy",
+      "api_learning_strategies_learningstrategiesservice_getrandomtip",
+      "api_learning_strategies_learningstrategiesservice_getrelevantstrategies",
+      "api_learning_strategies_learningstrategiesservice_getstrategiesbycategory",
+      "api_learning_strategies_learningstrategiesservice_getstrategy",
+      "api_learning_strategies_learningstrategiesservice_gettutorprompts",
+      "api_learning_strategies_learningstrategiesservice_iseducationalcontent",
+      "api_learning_strategies_learningstrategiesservice_loadstrategies",
+      "api_learning_strategies_php"
+    ],
+    "9": [
+      "api_knowledge_knowledgeservice",
+      "api_knowledge_knowledgeservice_chunkcontent",
+      "api_knowledge_knowledgeservice_cosinesimilarity",
+      "api_knowledge_knowledgeservice_detectsourcetype",
+      "api_knowledge_knowledgeservice_extractcontent",
+      "api_knowledge_knowledgeservice_generateembedding",
+      "api_knowledge_knowledgeservice_keywordsearch",
+      "api_knowledge_knowledgeservice_parsehtmltotext",
+      "api_knowledge_knowledgeservice_processresourcemention",
+      "api_knowledge_knowledgeservice_retrieverelevant",
+      "api_knowledge_knowledgeservice_searchandstore",
+      "api_knowledge_knowledgeservice_searchweb",
+      "api_knowledge_knowledgeservice_storeknowledge",
+      "api_knowledge_knowledgeservice_urlexists"
+    ],
+    "10": [
+      "api_knowledge_knowledgeservice_construct",
+      "includes_db_mysql_getdbconnection",
+      "includes_db_mysql_php",
+      "includes_rate_limiter_cleanupoldattempts",
+      "includes_rate_limiter_clearloginattempts",
+      "includes_rate_limiter_getclientip",
+      "includes_rate_limiter_isratelimited",
+      "includes_rate_limiter_php",
+      "includes_rate_limiter_recordfailedattempt",
+      "migrations_008_add_performance_indexes_migrate_add_performance_indexes",
+      "migrations_008_add_performance_indexes_php",
+      "migrations_009_add_message_cache_migrate_add_message_cache",
+      "migrations_009_add_message_cache_php"
+    ],
+    "11": [
+      "js_tutor_mysql_quizmanager",
+      "js_tutor_mysql_quizmanager_blurmessages",
+      "js_tutor_mysql_quizmanager_constructor",
+      "js_tutor_mysql_quizmanager_displayquestion",
+      "js_tutor_mysql_quizmanager_hidemodal",
+      "js_tutor_mysql_quizmanager_init",
+      "js_tutor_mysql_quizmanager_showmodal",
+      "js_tutor_mysql_quizmanager_showresult",
+      "js_tutor_mysql_quizmanager_start",
+      "js_tutor_mysql_quizmanager_submitanswer",
+      "js_tutor_mysql_quizmanager_unblurmessages"
+    ],
+    "12": [
+      "js_tutor_mysql_pomodoromanager",
+      "js_tutor_mysql_pomodoromanager_constructor",
+      "js_tutor_mysql_pomodoromanager_init",
+      "js_tutor_mysql_pomodoromanager_notifycomplete",
+      "js_tutor_mysql_pomodoromanager_pause",
+      "js_tutor_mysql_pomodoromanager_reset",
+      "js_tutor_mysql_pomodoromanager_setduration",
+      "js_tutor_mysql_pomodoromanager_setmode",
+      "js_tutor_mysql_pomodoromanager_start",
+      "js_tutor_mysql_pomodoromanager_tick",
+      "js_tutor_mysql_pomodoromanager_updateui"
+    ],
+    "13": [
+      "js_tutor_mysql_fileattachmentmanager",
+      "js_tutor_mysql_fileattachmentmanager_clear",
+      "js_tutor_mysql_fileattachmentmanager_constructor",
+      "js_tutor_mysql_fileattachmentmanager_getfileicon",
+      "js_tutor_mysql_fileattachmentmanager_handlefiles",
+      "js_tutor_mysql_fileattachmentmanager_init",
+      "js_tutor_mysql_fileattachmentmanager_removefile",
+      "js_tutor_mysql_fileattachmentmanager_updatefileinput",
+      "js_tutor_mysql_fileattachmentmanager_updatepreview"
+    ],
+    "14": [
+      "api_services_document_service_php",
+      "services_document_service_compactdocumenttext",
+      "services_document_service_extracttableofcontents",
+      "services_document_service_ocrimagebasedpdf",
+      "services_document_service_ocrwithgooglecloudvision",
+      "services_document_service_ocrwithocrspace",
+      "services_document_service_ocrwithtesseract",
+      "services_document_service_preparefileparts"
+    ],
+    "15": [
+      "assets_js_landing_js",
+      "js_landing_animate",
+      "js_landing_getparticlecolor",
+      "js_landing_inittheme",
+      "js_landing_updatelinecolors",
+      "js_landing_updatelinematerial",
+      "js_landing_updateparticlematerial",
+      "js_landing_updatethemevisuals"
+    ],
+    "16": [
+      "api_quiz_callgemini",
+      "api_quiz_callgroqjson",
+      "api_quiz_handlegenerate",
+      "api_quiz_handlegrade",
+      "api_quiz_handlesavesession",
+      "api_quiz_php",
+      "api_quiz_updatequizresult"
+    ],
+    "17": [
+      "assets_js_syntax_highlighter_js",
+      "js_syntax_highlighter_syntaxhighlighter",
+      "js_syntax_highlighter_syntaxhighlighter_constructor",
+      "js_syntax_highlighter_syntaxhighlighter_highlight",
+      "js_syntax_highlighter_syntaxhighlighter_highlightall",
+      "js_syntax_highlighter_syntaxhighlighter_load"
+    ],
+    "18": [
+      "api_services_ai_service_php",
+      "services_ai_service_calldeepseekapi",
+      "services_ai_service_callgeminiapi",
+      "services_ai_service_callgroqapi",
+      "services_ai_service_generateimagewithimagen"
+    ],
+    "19": [
+      "includes_csrf_generatecsrftoken",
+      "includes_csrf_getcsrfinput",
+      "includes_csrf_php",
+      "includes_csrf_requirecsrftoken",
+      "includes_csrf_validatecsrftoken"
+    ],
+    "20": [
+      "api_tts_cleantextforspeech",
+      "api_tts_php",
+      "api_tts_tryelevenlabs",
+      "api_tts_tryinferencesh"
+    ],
+    "21": [
+      "api_services_comprehension_service_php",
+      "services_comprehension_service_aicomprehensionscore",
+      "services_comprehension_service_analyzecomprehension",
+      "services_comprehension_service_calculatehybridprogress"
+    ],
+    "22": [
+      "api_services_tutor_service_php",
+      "services_tutor_service_buildsystemprompt",
+      "services_tutor_service_detectmilestonecompletion",
+      "services_tutor_service_generatelearningoutline"
+    ],
+    "23": [
+      "api_image_generateimage",
+      "api_image_loadconfig",
+      "api_image_php"
+    ],
+    "24": [
+      "api_user_settings_handlegetrequest",
+      "api_user_settings_handlepostrequest",
+      "api_user_settings_php"
+    ],
+    "25": [
+      "assets_js_onboarding_js",
+      "js_onboarding_submitonboarding",
+      "js_onboarding_validatestep1"
+    ],
+    "26": [
+      "includes_pulse_monitor_php",
+      "includes_pulse_monitor_pulse_register",
+      "includes_pulse_monitor_pulse_send_event"
+    ],
+    "27": [
+      "auth_mysql_php",
+      "tutormind_auth_mysql_send_json_error"
+    ],
+    "28": [
+      "api_user_onboarding_php",
+      "api_user_onboarding_savetofilebackup"
+    ],
+    "29": [
+      "api_services_response_formatter_php",
+      "services_response_formatter_formatresponse"
+    ],
+    "30": [
+      "assets_js_onboarding_animations_js",
+      "js_onboarding_animations_initwelcomeanimation"
+    ],
+    "31": [
+      "assets_js_onboarding_screen3_js",
+      "js_onboarding_screen3_addhandler"
+    ],
+    "32": [
+      "includes_server_mysql_checkchatratelimit",
+      "includes_server_mysql_php"
+    ],
+    "33": [
+      "auth_php"
+    ],
+    "34": [
+      "chat_new_php"
+    ],
+    "35": [
+      "dashboard_php"
+    ],
+    "36": [
+      "deploy_php"
+    ],
+    "37": [
+      "entry_php"
+    ],
+    "38": [
+      "list_models_php"
+    ],
+    "39": [
+      "login_php"
+    ],
+    "40": [
+      "onboarding_new_php"
+    ],
+    "41": [
+      "onboarding_php"
+    ],
+    "42": [
+      "register_php"
+    ],
+    "43": [
+      "temp_check_js"
+    ],
+    "44": [
+      "test_log_php"
+    ],
+    "45": [
+      "tutor_mysql_php"
+    ],
+    "46": [
+      "admin_feedback_php"
+    ],
+    "47": [
+      "api_analytics_php"
+    ],
+    "48": [
+      "api_clear_history_php"
+    ],
+    "49": [
+      "api_delete_account_php"
+    ],
+    "50": [
+      "api_session_context_php"
+    ],
+    "51": [
+      "assets_js_onboarding_screen2_js"
+    ],
+    "52": [
+      "assets_js_onboarding_screen4_js"
+    ],
+    "53": [
+      "assets_js_onboarding_screen5_js"
+    ],
+    "54": [
+      "assets_js_onboarding_screen6_js"
+    ],
+    "55": [
+      "assets_js_onboarding_screen7_js"
+    ],
+    "56": [
+      "assets_js_onboarding_screen8_js"
+    ],
+    "57": [
+      "assets_js_onboarding_screen9_js"
+    ],
+    "58": [
+      "assets_js_onboarding_universities_js"
+    ],
+    "59": [
+      "assets_js_tm_dialog_js"
+    ],
+    "60": [
+      "includes_check_auth_php"
+    ],
+    "61": [
+      "includes_check_session_php"
+    ],
+    "62": [
+      "migrations_003_add_comprehensive_learning_profile_php"
+    ],
+    "63": [
+      "migrations_004_add_feedback_table_php"
+    ],
+    "64": [
+      "migrations_005_add_legibility_column_php"
+    ],
+    "65": [
+      "migrations_006_add_knowledge_base_php"
+    ],
+    "66": [
+      "migrations_007_add_login_attempts_table_php"
+    ],
+    "67": [
+      "migrations_010_add_knowledge_level_php"
+    ],
+    "68": [
+      "migrations_add_message_edit_php"
+    ],
+    "69": [
+      "migrations_add_profile_column_php"
+    ],
+    "70": [
+      "migrations_add_session_context_php"
+    ],
+    "71": [
+      "scripts_add_google_auth_columns_php"
+    ],
+    "72": [
+      "scripts_test_rag_pipeline_php"
+    ]
+  },
+  "cohesion": {
+    "0": 0.1,
+    "1": 0.1,
+    "2": 0.11,
+    "3": 0.12,
+    "4": 0.15,
+    "5": 0.16,
+    "6": 0.15,
+    "7": 0.2,
+    "8": 0.15,
+    "9": 0.33,
+    "10": 0.19,
+    "11": 0.33,
+    "12": 0.31,
+    "13": 0.42,
+    "14": 0.46,
+    "15": 0.43,
+    "16": 0.52,
+    "17": 0.47,
+    "18": 0.4,
+    "19": 0.6,
+    "20": 0.5,
+    "21": 0.67,
+    "22": 0.5,
+    "23": 0.67,
+    "24": 0.67,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0,
+    "31": 1.0,
+    "32": 1.0,
+    "33": 1.0,
+    "34": 1.0,
+    "35": 1.0,
+    "36": 1.0,
+    "37": 1.0,
+    "38": 1.0,
+    "39": 1.0,
+    "40": 1.0,
+    "41": 1.0,
+    "42": 1.0,
+    "43": 1.0,
+    "44": 1.0,
+    "45": 1.0,
+    "46": 1.0,
+    "47": 1.0,
+    "48": 1.0,
+    "49": 1.0,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0
+  },
+  "gods": [
+    {
+      "id": "js_onboarding_bundle_onboardingwizard",
+      "label": "OnboardingWizard",
+      "degree": 38
+    },
+    {
+      "id": "js_settings_settingsmanager",
+      "label": "SettingsManager",
+      "degree": 31
+    },
+    {
+      "id": "js_chat_interface_tutormindchat",
+      "label": "TutorMindChat",
+      "degree": 28
+    },
+    {
+      "id": "js_onboarding_wizard_onboardingwizard",
+      "label": "OnboardingWizard",
+      "degree": 24
+    },
+    {
+      "id": "js_session_context_sessioncontextmanager",
+      "label": "SessionContextManager",
+      "degree": 21
+    },
+    {
+      "id": "js_quick_start_quickstartmanager",
+      "label": "QuickStartManager",
+      "degree": 18
+    },
+    {
+      "id": "api_knowledge_knowledgeservice",
+      "label": "KnowledgeService",
+      "degree": 15
+    },
+    {
+      "id": "api_learning_strategies_learningstrategiesservice",
+      "label": "LearningStrategiesService",
+      "degree": 13
+    },
+    {
+      "id": "js_tutor_mysql_pomodoromanager",
+      "label": "PomodoroManager",
+      "degree": 11
+    },
+    {
+      "id": "js_tutor_mysql_quizmanager",
+      "label": "QuizManager",
+      "degree": 11
+    }
+  ],
+  "surprises": [
+    {
+      "source": "migrate_add_performance_indexes()",
+      "target": "getDbConnection()",
+      "source_files": [
+        "migrations/008_add_performance_indexes.php",
+        "includes/db_mysql.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; peripheral node `migrate_add_performance_indexes()` unexpectedly reaches hub `getDbConnection()`"
+    },
+    {
+      "source": "migrate_add_message_cache()",
+      "target": "getDbConnection()",
+      "source_files": [
+        "migrations/009_add_message_cache.php",
+        "includes/db_mysql.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; peripheral node `migrate_add_message_cache()` unexpectedly reaches hub `getDbConnection()`"
+    },
+    {
+      "source": "isRateLimited()",
+      "target": "getDbConnection()",
+      "source_files": [
+        "includes/rate_limiter.php",
+        "includes/db_mysql.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `isRateLimited()` unexpectedly reaches hub `getDbConnection()`"
+    },
+    {
+      "source": "recordFailedAttempt()",
+      "target": "getDbConnection()",
+      "source_files": [
+        "includes/rate_limiter.php",
+        "includes/db_mysql.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `recordFailedAttempt()` unexpectedly reaches hub `getDbConnection()`"
+    },
+    {
+      "source": "clearLoginAttempts()",
+      "target": "getDbConnection()",
+      "source_files": [
+        "includes/rate_limiter.php",
+        "includes/db_mysql.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `clearLoginAttempts()` unexpectedly reaches hub `getDbConnection()`"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `loadChatHistory()` connect `Community 2` to `Community 1`?",
+      "why": "High betweenness centrality (0.036) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `loadConversation()` connect `Community 2` to `Community 7`?",
+      "why": "High betweenness centrality (0.022) - this node is a cross-community bridge."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 0` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.1 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 1` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.1 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 2` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.11 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 3` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.12 - nodes in this community are weakly interconnected."
+    }
+  ]
+}
