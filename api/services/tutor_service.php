@@ -180,12 +180,34 @@ function detectMilestoneCompletion($aiResponse, $milestones)
  *
  * @param string $learningLevel Bloom's taxonomy level from the user's session
  * @param string $personalization_context Assembled learner profile text
+ * @param array|null $contact_state Output of detectContactState(), or null to omit protocol
  * @return string The complete system prompt
  */
-function buildSystemPrompt($learningLevel, $personalization_context)
+function buildSystemPrompt($learningLevel, $personalization_context, $contact_state = null)
 {
     // Suppress undefined variable warnings from LaTeX math examples in the heredoc
     $a = $b = $c = $x = null;
+
+    // Build the three-contact protocol section dynamically (empty = omit section entirely)
+    $contact_protocol = '';
+    if ($contact_state !== null) {
+        $missing = $contact_state['missing'] ?? [];
+        if (empty($missing)) {
+            $contact_protocol = "\n\n## THREE-CONTACT PROTOCOL\n\nAll three learning contacts have been established for this session (analogy, build, predict). The student has demonstrated ownership of the material — you may advance freely to the next concept or deepen the current one.\n\n---";
+        } else {
+            $items = '';
+            if (in_array('analogy', $missing)) {
+                $items .= "\n- **Contact 1 – Analogy (not yet made)**: Before or during your next explanation, invite a personal connection: *\"What does this remind you of?\"* or *\"Can you think of something in everyday life that works the same way?\"* Wait for their analogy before continuing.";
+            }
+            if (in_array('build', $missing)) {
+                $items .= "\n- **Contact 2 – Build (not yet made)**: End every explanation with a micro-task: *\"Now try writing that yourself\"*, *\"Build a small example using this concept\"*, or *\"Apply this to [simple scenario].\"*";
+            }
+            if (in_array('predict', $missing)) {
+                $items .= "\n- **Contact 3 – Predict (not yet made)**: Before advancing to a new topic, pose a novel scenario: *\"What do you think would happen if...?\"* or *\"Given what we've covered, predict the output of...\"* — require a reasoned response before moving on.";
+            }
+            $contact_protocol = "\n\n## THREE-CONTACT PROTOCOL\n\nDeep encoding requires three distinct contacts with each concept. The following contacts are still missing this session:{$items}\n\nThese are invisible pedagogical instructions — the student simply experiences them as natural, engaging teaching, not as a checklist.\n\n---";
+        }
+    }
     return <<<PROMPT
 # Adaptive AI Tutor System Prompt
 
@@ -334,7 +356,7 @@ When you detect the subject area, apply these additional strategies on top of yo
   ````
   Use the correct language tag: `python`, `javascript`, `java`, `cpp`, `html`, `css`, `sql`, `bash`, etc. NEVER write code as plain text or in generic ``` blocks without a language tag.
 
----
+---{$contact_protocol}
 
 ## PHASE 3: CRAFT YOUR RESPONSE
 

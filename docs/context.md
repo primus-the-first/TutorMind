@@ -485,3 +485,50 @@ All sections have graceful empty states with "Start a Session" CTAs. Charts rebu
 - **Modified**: `login.php`, `register.php`, `auth_mysql.php` — Implemented bi-directional theme sync. `register.php` now passes the local device theme to the backend to set the initial account preference. `login.php` retrieves the database preference upon authentication and instantly syncs it to `localStorage`, overriding legacy keys (`darkMode` or `theme`) and strictly enforcing the unified `tutormind-theme` key.
 
 ---
+
+## Progress Log - April 27, 2026
+
+### 16. Dashboard Chart & Card Responsiveness
+**Objective:** Make all chart containers and the Recent Sessions card fluid across all screen sizes, eliminating fixed pixel heights and horizontal overflow on mobile.
+
+**Files changed:**
+- **Modified**: `dashboard.php`
+
+#### Changes
+
+**Chart container heights — replaced fixed px + media queries with `clamp()`:**
+
+- Removed three discrete size tiers (`220px` default, `200px` at ≤900px, `170px` at ≤600px for `.chart-container`; `280px`/`240px`/`200px` for `.chart-container.tall`) and two `@media` blocks.
+- Replaced with continuous fluid sizing:
+  - `.chart-container` → `height: clamp(160px, calc(15vw + 70px), 220px)`
+  - `.chart-container.tall` (holds `#progressChart`) → `height: clamp(200px, calc(20vw + 80px), 280px)`
+- Minimum floors match or exceed old mobile breakpoint values; Chart.js `maintainAspectRatio: false` ensures the canvas always fills the container.
+
+**Session list fluid height:**
+- Added `max-height: clamp(200px, calc(20vw + 80px), 280px)` to `.session-list` (matches `.chart-container.tall` range so the card stays visually aligned with adjacent charts).
+- Added `overflow-y: auto; overflow-x: hidden` — vertical scroll when content exceeds height; explicit `overflow-x: hidden` prevents the implicit horizontal scrollbar that `overflow-y: auto` would otherwise enable (CSS spec side-effect).
+
+**Overflow clipping on cards:**
+- Added `overflow: hidden` to `.chart-card` — clips any canvas that briefly renders wider than its grid cell during Chart.js initialisation.
+- Added `overflow: hidden` to `.sessions-card` — clips session items that would otherwise bleed past the card boundary on narrow viewports.
+
+---
+
+## Progress Log - May 5, 2026
+
+### 1. Production 403 Fix — Imunify360 WAF Blocking Code Snippets
+
+**Problem:** `POST /includes/server_mysql.php` returned 403 on production when users sent code snippets (e.g. R functions with `{}`, `function()`, `return()`). Plain text messages worked fine. After adding a ModSecurity `DetectionOnly` rule, the 403 disappeared but content was being replaced with `XPROTECTX2XPROTECTX`.
+
+**Root Cause:** The production server (tutormind.app on Namecheap/cPanel) runs **Imunify360 WAF** at the server level — not configurable from cPanel (only ImunifyAV is visible in the user panel). Imunify360 pattern-matched code syntax in POST bodies as injection attacks. In block mode → 403. After `.htaccess` ModSecurity change → sanitization mode, replacing flagged content with placeholder.
+
+**Fix (commit e95d217):**
+- **`assets/js/tutor_mysql.js`**: Base64-encode the `question` field before sending — `btoa(Array.from(new TextEncoder().encode(question), b => String.fromCharCode(b)).join(''))`. WAF sees an opaque base64 string, not code patterns.
+- **`includes/server_mysql.php`**: Decode on arrival — `base64_decode($_POST['question'] ?? '', true) ?: ''`. The `true` flag rejects malformed base64 gracefully.
+- **`.htaccess`**: Added `SecRuleEngine DetectionOnly` inside `<IfModule mod_security2.c>` scoped to `/includes/server_mysql.php` — handles the standard ModSecurity layer (separate from Imunify360).
+
+**Result:** All code languages (R, Python, SQL, JS, etc.) now pass through cleanly. Confirmed working on production.
+
+**Note:** If Imunify360 is ever updated or reconfigured by the host to decode base64 before scanning, this workaround would break. The permanent fix is to ask hosting support to whitelist `/includes/server_mysql.php` in Imunify360.
+
+---

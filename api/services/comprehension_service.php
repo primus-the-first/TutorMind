@@ -153,7 +153,90 @@ EOT;
 }
 
 /**
- * Calculate overall progress from milestones and comprehension.
+ * Detect which of the three learning contacts have been made across student messages.
+ *
+ * Contact 1 – Analogy : student maps new concept onto something familiar
+ * Contact 2 – Build   : student attempts or constructs something (code, steps, example)
+ * Contact 3 – Predict : student reasons about a novel scenario or consequence
+ *
+ * @param array $messages Gemini-format chat history: [['role'=>..., 'parts'=>[['text'=>...]]], ...]
+ * @return array ['analogy'=>bool, 'build'=>bool, 'predict'=>bool, 'missing'=>string[]]
+ */
+function detectContactState($messages)
+{
+    $analogyPatterns = [
+        "/\bit'?s like\b/",
+        '/\breminds me of\b/',
+        '/\bsimilar to\b/',
+        '/\bso basically\b/',
+        '/\bthink of it as\b/',
+        '/\bkind of like\b/',
+    ];
+    $buildPatterns = [
+        '/\bi tried\b/',
+        '/\bi built\b/',
+        '/\bi made\b/',
+        '/\bi wrote\b/',
+        "/\bhere'?s my\b/",
+        '/\blet me try\b/',
+    ];
+    $predictPatterns = [
+        '/\bi think it would\b/',
+        '/\bi predict\b/',
+        '/\bso then it should\b/',
+        '/\bthat means\b/',
+        '/\btherefore\b/',
+    ];
+
+    $analogy = false;
+    $build   = false;
+    $predict = false;
+
+    foreach ($messages as $message) {
+        if (($message['role'] ?? '') !== 'user') {
+            continue;
+        }
+
+        $text = '';
+        foreach ($message['parts'] ?? [] as $part) {
+            if (isset($part['text'])) {
+                $text .= ' ' . $part['text'];
+            }
+        }
+        $lower = strtolower($text);
+
+        if (!$analogy) {
+            foreach ($analogyPatterns as $p) {
+                if (preg_match($p, $lower)) { $analogy = true; break; }
+            }
+        }
+        if (!$build) {
+            // Code block presence counts as a build contact
+            if (strpos($text, '```') !== false) {
+                $build = true;
+            } else {
+                foreach ($buildPatterns as $p) {
+                    if (preg_match($p, $lower)) { $build = true; break; }
+                }
+            }
+        }
+        if (!$predict) {
+            foreach ($predictPatterns as $p) {
+                if (preg_match($p, $lower)) { $predict = true; break; }
+            }
+        }
+    }
+
+    $missing = [];
+    if (!$analogy) $missing[] = 'analogy';
+    if (!$build)   $missing[] = 'build';
+    if (!$predict) $missing[] = 'predict';
+
+    return ['analogy' => $analogy, 'build' => $build, 'predict' => $predict, 'missing' => $missing];
+}
+
+/**
+ * Calculate overall progress from milestones, comprehension, engagement, and contact completion.
  *
  * @param array $contextData The session context data
  * @return int Progress percentage (0-100)
@@ -177,11 +260,22 @@ function calculateHybridProgress($contextData)
     // Calculate engagement score (capped at 1.0)
     $engagementScore = min(1.0, $messageCount / 10);
 
-    // Weighted combination: 70% milestones, 20% comprehension, 10% engagement
+    // Calculate three-contact completion (0.0–1.0)
+    $contactState = $contextData['contactState'] ?? null;
+    $contactCompletion = 0.0;
+    if ($contactState !== null) {
+        $contactsMade = (int)($contactState['analogy'] ?? false)
+                      + (int)($contactState['build']   ?? false)
+                      + (int)($contactState['predict']  ?? false);
+        $contactCompletion = $contactsMade / 3;
+    }
+
+    // Weighted combination: 55% milestones + 15% comprehension + 10% engagement + 20% contact
     $hybridProgress =
-        ($milestoneProgress * 0.70) +
-        ($comprehensionScore * 100 * 0.20) +
-        ($engagementScore * 100 * 0.10);
+        ($milestoneProgress   * 0.55) +
+        ($comprehensionScore  * 100 * 0.15) +
+        ($engagementScore     * 100 * 0.10) +
+        ($contactCompletion   * 100 * 0.20);
 
     return min(100, max(0, intval($hybridProgress)));
 }

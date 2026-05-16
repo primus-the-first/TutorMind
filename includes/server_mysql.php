@@ -961,8 +961,11 @@ EOT;
         error_log("Learning strategies error: " . $e->getMessage());
     }
 
+    // Detect three-contact state from the full chat history (including current user message)
+    $contactState = detectContactState($chat_history);
+
     // System prompt
-    $system_prompt = buildSystemPrompt($learningLevel, $personalization_context);
+    $system_prompt = buildSystemPrompt($learningLevel, $personalization_context, $contactState);
     // Construct the prompt for the AI
     $payload = json_encode([
         "contents" => $chat_history,
@@ -1081,6 +1084,9 @@ EOT;
         // Analyze user message for comprehension signals
         $comprehensionDelta = analyzeComprehension($question);
         $contextData['comprehensionScore'] = max(0, min(1, $contextData['comprehensionScore'] + $comprehensionDelta));
+
+        // Store contact state (detected earlier from full chat history)
+        $contextData['contactState'] = $contactState;
 
         // Generate learning outline if topic detected and no outline exists
         if (!isset($contextData['outline']) && !empty($question)) {

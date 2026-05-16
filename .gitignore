@@ -57,6 +57,10 @@ chat-demo-fix.css
 chat-demo.html
 creative-demo.*
 
+# Postman
+.postman/
+postman/
+
 # IDE and Tools
 .claude/
 .idea/
