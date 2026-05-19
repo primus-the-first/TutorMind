@@ -7,10 +7,14 @@ class TutorMindChat {
     constructor() {
         // Use same localStorage key as settings.js for consistency
         this.darkMode = localStorage.getItem('tutormind-theme') === 'dark' || document.body.classList.contains('dark-mode');
-        this.sidebarCollapsed = window.innerWidth < 768;
+        this.sidebarCollapsed = TutorMindChat.isMobile();
         this.voiceRecognition = null;
 
         this.init();
+    }
+
+    static isMobile() {
+        return window.matchMedia('(max-width: 768px)').matches;
     }
 
     init() {
@@ -26,6 +30,7 @@ class TutorMindChat {
         this.setupMobileHandling();
         this.setupCognitiveLevelSelector();
         this.setupMobileNavSelector();
+        this.setupBottomNav();
         this.setupDesktopLevelDropdown();
     }
 
@@ -89,7 +94,7 @@ class TutorMindChat {
 
     setupMobileHandling() {
         // Close sidebar when clicking outside on mobile
-        if (window.innerWidth < 768) {
+        if (TutorMindChat.isMobile()) {
             document.addEventListener('click', (e) => {
                 const sidebar = document.getElementById('sidebar');
                 const trigger = document.getElementById('navTrigger');
@@ -103,7 +108,7 @@ class TutorMindChat {
 
         // Handle window resize
         window.addEventListener('resize', () => {
-            if (window.innerWidth >= 768) {
+            if (!TutorMindChat.isMobile()) {
                 const sidebar = document.querySelector('.chat-sidebar');
                 if (sidebar) {
                     sidebar.classList.remove('collapsed');
@@ -189,6 +194,7 @@ class TutorMindChat {
 
     setupMobileNavSelector() {
         const trigger = document.getElementById('navTrigger');
+        if (!trigger) return; // HTML removed — graceful no-op
         const selector = document.getElementById('mobileNavSelector');
         const options = document.querySelectorAll('.nav-option');
         const nameDisplay = document.getElementById('navNameDisplay');
@@ -370,6 +376,10 @@ class TutorMindChat {
             sidebarToggle.checked = this.darkMode;
         }
 
+        // Sync with profile sheet dark mode toggle
+        const profileDarkToggle = document.getElementById('profileSheetDarkMode');
+        if (profileDarkToggle) profileDarkToggle.checked = this.darkMode;
+
         // Save to database via settings manager if available
         if (window.settingsManager) {
             window.settingsManager.debouncedSave({ dark_mode: this.darkMode });
@@ -380,6 +390,106 @@ class TutorMindChat {
 
     updateDarkModeIcon() {
         // Icon removed
+    }
+
+    /* ==================== BOTTOM NAV (Mobile) ==================== */
+    setupBottomNav() {
+        const historyBtn   = document.getElementById('bottomNavHistory');
+        const settingsBtn  = document.getElementById('bottomNavSettings');
+        const profileBtn   = document.getElementById('bottomNavProfile');
+        const tray         = document.getElementById('mobile-history-tray');
+        const closeTray    = document.getElementById('closeHistoryTray');
+        const profileSheet = document.getElementById('mobile-profile-sheet');
+        const closeProfile = document.getElementById('closeProfileSheet');
+        const overlay      = document.getElementById('mobile-sidebar-overlay');
+
+        if (!historyBtn && !profileBtn) return; // Not on mobile page
+
+        // --- History button ---
+        if (historyBtn && tray) {
+            historyBtn.addEventListener('click', () => {
+                tray.classList.add('open');
+                if (overlay) { overlay.classList.remove('hidden'); overlay.classList.add('active'); }
+                this._setBottomNavActive('bottomNavHistory');
+            });
+        }
+
+        // --- Close history tray ---
+        if (closeTray && tray) {
+            closeTray.addEventListener('click', () => {
+                tray.classList.remove('open');
+                if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('active'); }
+                this._clearBottomNavActive();
+            });
+        }
+
+        // --- Settings button ---
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                document.getElementById('open-settings-btn')?.click();
+            });
+        }
+
+        // --- Profile button ---
+        if (profileBtn && profileSheet) {
+            profileBtn.addEventListener('click', () => {
+                profileSheet.classList.add('open');
+                if (overlay) { overlay.classList.remove('hidden'); overlay.classList.add('active'); }
+                this._setBottomNavActive('bottomNavProfile');
+            });
+        }
+
+        // --- Close profile sheet ---
+        if (closeProfile && profileSheet) {
+            closeProfile.addEventListener('click', () => {
+                profileSheet.classList.remove('open');
+                if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('active'); }
+                this._clearBottomNavActive();
+            });
+        }
+
+        // --- Profile sheet settings shortcut ---
+        const profileSheetSettings = document.getElementById('profileSheetSettings');
+        if (profileSheetSettings) {
+            profileSheetSettings.addEventListener('click', () => {
+                profileSheet?.classList.remove('open');
+                if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('active'); }
+                this._clearBottomNavActive();
+                document.getElementById('open-settings-btn')?.click();
+            });
+        }
+
+        // --- Profile sheet dark mode toggle ---
+        const profileDarkToggle = document.getElementById('profileSheetDarkMode');
+        if (profileDarkToggle) {
+            profileDarkToggle.addEventListener('change', () => {
+                this.toggleDarkMode();
+            });
+        }
+
+        // --- Unified overlay close (closes both sheets) ---
+        if (overlay) {
+            // Remove any existing click handlers by cloning
+            const newOverlay = overlay.cloneNode(true);
+            overlay.parentNode.replaceChild(newOverlay, overlay);
+
+            newOverlay.addEventListener('click', () => {
+                document.getElementById('mobile-history-tray')?.classList.remove('open');
+                document.getElementById('mobile-profile-sheet')?.classList.remove('open');
+                newOverlay.classList.add('hidden');
+                newOverlay.classList.remove('active');
+                this._clearBottomNavActive();
+            });
+        }
+    }
+
+    _setBottomNavActive(id) {
+        this._clearBottomNavActive();
+        document.getElementById(id)?.classList.add('active');
+    }
+
+    _clearBottomNavActive() {
+        document.querySelectorAll('.bottom-nav-item').forEach(item => item.classList.remove('active'));
     }
 
     /* ==================== SIDEBAR ==================== */
@@ -674,6 +784,9 @@ class TutorMindChat {
         }
     }
 }
+
+// Expose isMobile globally for other scripts (e.g. tutor_mysql.js)
+window.isMobile = () => window.matchMedia('(max-width: 768px)').matches;
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {

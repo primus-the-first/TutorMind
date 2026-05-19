@@ -242,6 +242,7 @@ try {
 
     <!-- Custom Styles -->
     <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= filemtime('assets/css/ui-overhaul.css') ?>">
+    <link rel="stylesheet" href="assets/css/mobile.css?v=<?= filemtime('assets/css/mobile.css') ?>">
     <link rel="stylesheet" href="assets/css/logo.css?v=<?= filemtime('assets/css/logo.css') ?>">
     <link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>"></noscript>
@@ -342,42 +343,7 @@ try {
     <div class="main-chat-wrapper">
         <header class="main-chat-header" style="justify-content: space-between;">
             <div class="header-left" style="display: flex; align-items: center; flex: 1;">
-                <!-- Premium Nav Selector (Mobile Only) -->
-                <div class="mobile-nav-selector mobile-only" id="mobileNavSelector">
-                    <?php 
-                    $showNavPulse = !isset($_SESSION['onboarding_complete']) || !$_SESSION['onboarding_complete'];
-                    if ($showNavPulse): ?>
-                    <span class="nav-pulse"></span>
-                    <?php endif; ?>
-<button type="button" class="nav-trigger-btn" id="navTrigger" title="Menu">
-                        <i class="fas fa-bars"></i>
-                        
-                    </button>
-                    
-                    <div class="nav-drawer" id="navDrawer">
-                        <div class="nav-name-display" id="navNameDisplay">Menu</div>
-                        <div class="nav-options-container">
-                            <a href="tutor_mysql.php" class="nav-option" data-name="New Chat" title="New Chat">
-                                <i class="fas fa-plus"></i>
-                            </a>
-                            <a href="dashboard.php" class="nav-option" data-name="Dashboard" title="Dashboard">
-                                <i class="fas fa-chart-line"></i>
-                            </a>
-                            <button type="button" class="nav-option" data-name="History" id="mobileHistoryBtn" title="Chat History">
-                                <i class="fas fa-history"></i>
-                            </button>
-                            <button type="button" class="nav-option" data-name="Settings" id="mobileSettingsBtn" title="Settings">
-                                <i class="fas fa-cog"></i>
-                            </button>
-                            <button type="button" class="nav-option" data-name="Theme" id="mobileThemeBtn" title="Toggle Theme">
-                                <i class="fas fa-moon"></i>
-                            </button>
-                            <a href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/auth_mysql?action=logout" class="nav-option" data-name="Logout" title="Logout">
-                                <i class="fas fa-sign-out-alt"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
+                <!-- Mobile nav moved to bottom nav bar (see #mobileBottomNav below) -->
 
                 <a href="index" class="header-logo-link">
                     <img src="assets/logo-bridge.svg" alt="TutorMind" style="width:28px;height:28px;display:block;">
@@ -614,8 +580,14 @@ try {
                              -->
                              <!-- Voice Mode (full conversation) -->
                              <button type="button" class="voice-mode-trigger-btn" title="Voice Mode" id="voice-mode-trigger">
-                                <i class="fas fa-waveform-lines default-voice-icon"></i>
-                                <i class="fas fa-microphone mobile-voice-icon" style="display:none"></i> 
+                                <svg class="default-voice-icon" width="18" height="14" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="0"  y="4" width="2" height="6"  rx="1"/>
+                                    <rect x="4"  y="1" width="2" height="12" rx="1"/>
+                                    <rect x="8"  y="3" width="2" height="8"  rx="1"/>
+                                    <rect x="12" y="0" width="2" height="14" rx="1"/>
+                                    <rect x="16" y="4" width="2" height="6"  rx="1"/>
+                                </svg>
+                                <i class="fas fa-microphone mobile-voice-icon" style="display:none"></i>
                                 <span>Voice Mode</span>
                             </button>
                              <!-- Submit -->
@@ -763,6 +735,72 @@ try {
         <?= $ssr_history_html ?>
         <?php endif; ?>
         </div>
+    </div>
+
+    <!-- Bottom Navigation Bar (Mobile Only) -->
+    <nav class="mobile-bottom-nav mobile-only" id="mobileBottomNav" aria-label="Main navigation">
+        <a href="tutor_mysql.php" class="bottom-nav-item" id="bottomNavNew" title="New Chat">
+            <i class="fas fa-plus" aria-hidden="true"></i>
+            <span>New</span>
+        </a>
+        <button type="button" class="bottom-nav-item" id="bottomNavHistory" title="History">
+            <i class="fas fa-history" aria-hidden="true"></i>
+            <span>History</span>
+        </button>
+        <div class="bottom-nav-brand" aria-hidden="true">
+            <img src="assets/logo-bridge.svg" alt="" width="26" height="26">
+        </div>
+        <button type="button" class="bottom-nav-item" id="bottomNavSettings" title="Settings">
+            <i class="fas fa-cog" aria-hidden="true"></i>
+            <span>Settings</span>
+        </button>
+        <button type="button" class="bottom-nav-item" id="bottomNavProfile" title="Profile">
+            <i class="fas fa-user" aria-hidden="true"></i>
+            <span>Profile</span>
+        </button>
+    </nav>
+
+    <!-- Mobile Profile Sheet -->
+    <div id="mobile-profile-sheet" class="mobile-profile-sheet mobile-only">
+        <div class="profile-sheet-handle"></div>
+        <div class="profile-sheet-header">
+            <div class="profile-sheet-avatar">
+                <?php if (isset($_SESSION['avatar_url']) && !empty($_SESSION['avatar_url'])): ?>
+                    <img src="<?= htmlspecialchars($_SESSION['avatar_url']) ?>" alt="Avatar" onerror="this.onerror=null; this.outerHTML='<?= htmlspecialchars(strtoupper(substr($displayName, 0, 1))) ?>';">
+                <?php else: ?>
+                    <?= htmlspecialchars(strtoupper(substr($displayName, 0, 1))) ?>
+                <?php endif; ?>
+            </div>
+            <div class="profile-sheet-info">
+                <h3><?= htmlspecialchars($displayName) ?></h3>
+                <p><?= htmlspecialchars($user_email) ?></p>
+            </div>
+            <button type="button" id="closeProfileSheet" class="profile-sheet-close" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <nav class="profile-sheet-nav">
+            <a href="dashboard.php" class="profile-sheet-item">
+                <i class="fas fa-chart-line"></i><span>Dashboard</span>
+                <i class="fas fa-chevron-right profile-sheet-chevron"></i>
+            </a>
+            <button type="button" class="profile-sheet-item" id="profileSheetSettings">
+                <i class="fas fa-cog"></i><span>Settings</span>
+                <i class="fas fa-chevron-right profile-sheet-chevron"></i>
+            </button>
+            <div class="profile-sheet-item profile-sheet-toggle-row">
+                <i class="fas fa-moon"></i><span>Dark Mode</span>
+                <label for="profileSheetDarkMode" class="toggle-switch" style="margin-left:auto;">
+                    <input type="checkbox" id="profileSheetDarkMode" class="sr-only"
+                           <?= ($user_dark_mode ?? false) ? 'checked' : '' ?>>
+                    <div class="slider"></div>
+                </label>
+            </div>
+            <a href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/auth_mysql?action=logout"
+               class="profile-sheet-item profile-sheet-logout">
+                <i class="fas fa-sign-out-alt"></i><span>Log out</span>
+            </a>
+        </nav>
     </div>
 </body>
 </html>

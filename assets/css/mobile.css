@@ -1,0 +1,806 @@
+/* ============================================================
+   TutorMind — Authoritative Mobile Stylesheet
+   Loaded AFTER ui-overhaul.css. Single source of truth for ≤768px.
+   Zero !important (except .mobile-only / .desktop-only visibility).
+   ============================================================ */
+
+/* --- Section 1: CSS Variables (root overrides) --- */
+:root {
+    --mobile-bottom-nav-height: 60px;
+    --mobile-input-bar-height: 72px;
+    --mobile-topbar-height: 56px;
+    --mobile-chat-bottom-clearance: calc(
+        var(--mobile-input-bar-height) + var(--mobile-bottom-nav-height)
+        + env(safe-area-inset-bottom, 0px)
+    );
+}
+
+@media (max-width: 768px) {
+
+    /* --- Section 2: Layout shell --- */
+
+    /* Override the high-specificity "bulletproof scroll fix" in ui-overhaul.css
+       (aside#sidebar.sidebar { display: flex !important }) so desktop sidebar
+       stays hidden on mobile. Same specificity, later load order wins. */
+    aside#sidebar.sidebar {
+        display: none !important;
+    }
+
+    .main-chat-wrapper {
+        width: 100%;
+        min-width: 0;
+    }
+    body {
+        overflow: hidden;
+    }
+
+    /* --- Section 3: Slim topbar --- */
+    .mobile-nav-selector {
+        display: none;
+    }
+    .header-logo-link {
+        display: none;
+    }
+    header.main-chat-header {
+        min-height: var(--mobile-topbar-height);
+        padding: 0 12px;
+        padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
+    }
+
+    /* --- Section 4: Chat content area --- */
+    .chat-content {
+        padding: 1rem;
+        padding-bottom: var(--mobile-chat-bottom-clearance);
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    /* --- Section 5: Input bar (floating above bottom nav) ---
+       Shared properties: override the high-specificity left: 300px rule from ui-overhaul.css.
+       State-specific rules below handle the center→bottom slide on mobile. */
+    .input-bar-area,
+    body.chat-empty .input-bar-area,
+    body:not(.chat-empty) .input-bar-area {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 200 !important;
+        transition: top 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+                    bottom 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+                    transform 0.55s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* Empty chat: vertically centered in the usable viewport */
+    body.chat-empty .input-bar-area {
+        top: 50% !important;
+        bottom: auto !important;
+        transform: translateY(calc(-50% + (var(--mobile-topbar-height) - var(--mobile-bottom-nav-height)) / 2)) !important;
+    }
+
+    /* Has messages: pinned just above the bottom nav */
+    body:not(.chat-empty) .input-bar-area {
+        top: auto !important;
+        bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
+        transform: none !important;
+    }
+    .combined-input-bar {
+        margin: 0 12px;
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 28px;
+        padding: 8px 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10);
+    }
+    /* Hide pill labels; keep icons */
+    .action-pill-btn span,
+    .voice-mode-trigger-btn span {
+        display: none;
+    }
+    .input-actions-row {
+        padding: 4px 8px;
+        gap: 8px;
+    }
+    .submit-circle-btn {
+        flex-shrink: 0;
+    }
+
+    /* --- Section 6: Bottom navigation bar --- */
+    .mobile-bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        display: flex !important;
+        align-items: center;
+        justify-content: space-around;
+        z-index: 100;
+        /* Frosted glass */
+        background: rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(28px) saturate(160%);
+        -webkit-backdrop-filter: blur(28px) saturate(160%);
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.04), 0 -8px 32px rgba(0, 0, 0, 0.08);
+    }
+
+    .bottom-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        flex: 1;
+        min-width: 0;
+        min-height: 44px;
+        padding: 6px 4px 4px;
+        background: none;
+        border: none;
+        color: #94a3b8;
+        font-size: 0.58rem;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        text-decoration: none;
+        cursor: pointer;
+        touch-action: manipulation;
+        transition: color 0.2s ease;
+    }
+
+    /* Icon sits inside its own pill that lights up on active */
+    .bottom-nav-item i,
+    .bottom-nav-item svg {
+        font-size: 1.2rem;
+        line-height: 1;
+        padding: 6px 14px;
+        border-radius: 20px;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .bottom-nav-item.active {
+        color: #7C3AED;
+    }
+    .bottom-nav-item.active i,
+    .bottom-nav-item.active svg {
+        background: rgba(124, 58, 237, 0.1);
+        color: #7C3AED;
+    }
+    .bottom-nav-item:active i,
+    .bottom-nav-item:active svg {
+        background: rgba(124, 58, 237, 0.08);
+    }
+
+    .bottom-nav-brand {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    .bottom-nav-brand img {
+        width: 28px;
+        height: 28px;
+    }
+
+    /* --- Section 7: History tray refinement --- */
+    .mobile-history-tray .history-tray-content {
+        padding-bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 20px);
+    }
+
+    /* --- Section 8: Profile sheet (new) --- */
+    .mobile-profile-sheet {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-height: 75vh;
+        background: var(--bg-card, #fff);
+        border-radius: 24px 24px 0 0;
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+        z-index: 450;
+        transform: translateY(100%);
+        transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+        pointer-events: none;
+        display: flex !important; /* beats .mobile-only { display: block !important } */
+        flex-direction: column;
+        overflow: hidden;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .mobile-profile-sheet.open {
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    /* Profile sheet handle */
+    .profile-sheet-handle {
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border, #d1d5db);
+        margin: 10px auto 6px;
+        flex-shrink: 0;
+    }
+
+    /* Profile sheet header */
+    .profile-sheet-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 20px 16px;
+        border-bottom: 1px solid var(--border, #e5e7eb);
+    }
+    .profile-sheet-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--primary, #7C3AED);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        font-weight: 700;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .profile-sheet-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+    .profile-sheet-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .profile-sheet-info h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--text-primary, #1f2937);
+    }
+    .profile-sheet-info p {
+        font-size: 0.8rem;
+        color: var(--text-secondary, #6b7280);
+        margin: 2px 0 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .profile-sheet-close {
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        color: var(--text-secondary, #6b7280);
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background 0.15s;
+    }
+    .profile-sheet-close:active {
+        background: rgba(0, 0, 0, 0.06);
+    }
+
+    /* Profile sheet navigation */
+    .profile-sheet-nav {
+        padding: 8px 12px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    .profile-sheet-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--text-primary, #1f2937);
+        text-decoration: none;
+        background: none;
+        border: none;
+        width: 100%;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .profile-sheet-item:active {
+        background: rgba(0, 0, 0, 0.04);
+    }
+    .profile-sheet-item i:first-child {
+        font-size: 1.1rem;
+        width: 24px;
+        text-align: center;
+        color: var(--text-secondary, #6b7280);
+    }
+    .profile-sheet-chevron {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--text-secondary, #9ca3af);
+    }
+    .profile-sheet-toggle-row {
+        cursor: default;
+    }
+    .profile-sheet-logout {
+        color: #ef4444;
+    }
+    .profile-sheet-logout i:first-child {
+        color: #ef4444;
+    }
+
+    /* --- Section 9: Z-index master table ---
+       100  — .mobile-bottom-nav
+       200  — .input-bar-area
+       300  — #mobile-sidebar-overlay
+       400  — #mobile-history-tray
+       450  — #mobile-profile-sheet
+       500  — .level-drawer (popup from input bar)
+       5000 — #recall-modal, #voice-mode-overlay
+       9999 — #copy-toast
+    */
+    #mobile-sidebar-overlay {
+        z-index: 300;
+    }
+    #mobile-history-tray {
+        z-index: 400;
+    }
+    .level-drawer {
+        z-index: 500;
+    }
+    #recall-modal,
+    #voice-mode-overlay {
+        z-index: 5000;
+    }
+    #copy-toast {
+        z-index: 9999;
+    }
+
+    /* --- Section 10: Dark mode overrides --- */
+    body.dark-mode .mobile-bottom-nav {
+        background: rgba(15, 15, 25, 0.9);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.04), 0 -8px 32px rgba(0, 0, 0, 0.3);
+    }
+    body.dark-mode .bottom-nav-item {
+        color: rgba(148, 163, 184, 0.6);
+    }
+    body.dark-mode .bottom-nav-item.active {
+        color: #a78bfa;
+    }
+    body.dark-mode .bottom-nav-item.active i,
+    body.dark-mode .bottom-nav-item.active svg {
+        background: rgba(167, 139, 250, 0.12);
+        color: #a78bfa;
+    }
+    body.dark-mode .bottom-nav-brand img {
+        box-shadow: 0 4px 20px rgba(124, 58, 237, 0.6),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    body.dark-mode .mobile-profile-sheet {
+        background: var(--bg-card, #1e1e2e);
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+    }
+    body.dark-mode .profile-sheet-header {
+        border-bottom-color: var(--border, #374151);
+    }
+    body.dark-mode .profile-sheet-handle {
+        background: var(--border, #4b5563);
+    }
+    body.dark-mode .profile-sheet-info h3 {
+        color: var(--text-primary, #f3f4f6);
+    }
+    body.dark-mode .profile-sheet-item {
+        color: var(--text-primary, #e5e7eb);
+    }
+    body.dark-mode .profile-sheet-item:active {
+        background: rgba(255, 255, 255, 0.06);
+    }
+    body.dark-mode .profile-sheet-close {
+        color: var(--text-secondary, #9ca3af);
+    }
+    body.dark-mode .profile-sheet-close:active {
+        background: rgba(255, 255, 255, 0.08);
+    }
+    body.dark-mode .combined-input-bar {
+        background: rgba(30, 30, 46, 0.85);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    /* --- Section: Message bubbles --- */
+    .message {
+        max-width: 92%;
+        padding: 0.5rem 0;
+    }
+    .message-content {
+        max-width: 100%;
+    }
+
+    /* --- Section: Code blocks --- */
+    pre {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    pre code {
+        white-space: pre;
+        word-break: normal;
+        overflow-wrap: normal;
+    }
+
+    /* --- Section: Setup link row --- */
+    /* In empty state the input bar is centered; put the link just below it.
+       In non-empty state welcome-screen is display:none so this rule is inert. */
+    body.chat-empty .setup-link-row {
+        position: fixed !important;
+        top: calc(50% + var(--mobile-input-bar-height) / 2 + 10px) !important;
+        bottom: auto !important;
+        left: 0 !important;
+        right: 0 !important;
+        transform: none !important;
+    }
+
+    /* --- Section: Message actions (always visible on mobile) --- */
+    .message-actions {
+        opacity: 1;
+        visibility: visible;
+    }
+    .edit-msg-btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    /* --- Section: Welcome screen --- */
+    /* Fill exactly the space from topbar bottom to the centered input bar's top edge. */
+    .welcome-section {
+        min-height: 0;
+        height: calc(50vh - var(--mobile-input-bar-height) / 2 - var(--mobile-topbar-height));
+        justify-content: center;
+        padding: 0;
+    }
+
+    /* Tighter content + smaller orb so everything fits comfortably */
+    .quick-start-content {
+        padding: 1rem;
+    }
+    .quick-start-orb {
+        width: 3.5rem;
+        height: 3.5rem;
+        margin-bottom: 0.75rem;
+        filter: blur(14px);
+    }
+    .quick-start-title,
+    .welcome-section h1 {
+        font-size: 1.85rem;
+        margin-bottom: 0.25rem;
+    }
+
+    /* --- Section: Copy toast position --- */
+    .copy-toast {
+        bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-input-bar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+    }
+
+    /* --- Section: Dialog box --- */
+    .tm-dialog-box {
+        width: calc(100vw - 32px);
+        max-width: 400px;
+    }
+
+    /* --- Section: Pomodoro compact --- */
+    .pomodoro-widget {
+        margin-right: 0.5rem;
+    }
+    .pomodoro-time-display {
+        font-size: 0.75rem;
+    }
+    .pomodoro-panel {
+        right: -20px;
+        width: 280px;
+    }
+
+    /* --- Section: History tray (structural — migrated from disabled ui-overhaul block) --- */
+    .mobile-history-tray {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 70vh;
+        background: var(--bg-card, #fff);
+        border-radius: 30px 30px 0 0;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
+        transform: translateY(100%);
+        transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+        display: flex !important; /* beats .mobile-only { display: block !important } */
+        flex-direction: column;
+        overflow: hidden;
+        pointer-events: none;
+    }
+    .mobile-history-tray.open {
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    .history-tray-header {
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        flex-shrink: 0;
+    }
+    .history-tray-header h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-primary, #1f2937);
+    }
+    .history-tray-header button {
+        background: #f1f5f9;
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .history-tray-content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 15px;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+    .history-tray-content .history-item {
+        margin-bottom: 8px;
+    }
+    .history-tray-content .history-item a {
+        display: flex;
+        padding: 14px;
+        border-radius: 12px;
+        background: #f8fafc;
+        text-decoration: none;
+        color: var(--text-primary, #1f2937);
+        font-weight: 500;
+        font-size: 0.95rem;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.2s ease;
+    }
+    .history-tray-content .history-item a i {
+        color: var(--primary, #7C3AED);
+        font-size: 1.1rem;
+        opacity: 0.7;
+    }
+    .history-tray-content .history-item a:active {
+        background: rgba(124, 58, 237, 0.1);
+        transform: scale(0.98);
+    }
+
+    /* Overlay: structural CSS is in the dead @media (max-width:0px) block — ported here.
+       ID selector beats any class-level rules in ui-overhaul.css. */
+    #mobile-sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+        /* z-index: 300 already set in Section 9 z-index table above */
+    }
+
+    /* Shown when hidden class is removed */
+    #mobile-sidebar-overlay:not(.hidden) {
+        opacity: 1;
+    }
+
+    /* Active = tappable so close-on-tap works */
+    #mobile-sidebar-overlay.active {
+        pointer-events: auto;
+    }
+
+    /* Dark mode — history tray */
+    body.dark-mode .mobile-history-tray {
+        background: var(--bg-card, #1e1e2e);
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+    }
+    body.dark-mode .history-tray-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+    body.dark-mode .history-tray-header button {
+        background: rgba(255, 255, 255, 0.1);
+        color: #94a3b8;
+    }
+    body.dark-mode .history-tray-content .history-item a {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary, #e2e8f0);
+    }
+    body.dark-mode .history-tray-content .history-item a:active {
+        background: rgba(124, 58, 237, 0.2);
+    }
+
+    /* --- Section 10b: Mobile Level Selector (dead block in ui-overhaul.css ported here) --- */
+    .mobile-level-selector {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .level-trigger-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: rgba(124, 58, 237, 0.1);
+        border: 1px solid rgba(124, 58, 237, 0.2);
+        color: var(--primary, #7C3AED);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        padding: 0;
+        z-index: 5;
+        outline: none;
+    }
+
+    .active-level-indicator {
+        position: absolute;
+        bottom: 6px;
+        right: 6px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--level-color, var(--primary, #7C3AED));
+        border: 1.5px solid white;
+        box-shadow: 0 0 5px var(--level-color, var(--primary, #7C3AED));
+        transition: all 0.3s ease;
+    }
+
+    .level-drawer {
+        position: absolute;
+        left: -10px;
+        bottom: calc(100% + 10px);
+        transform: translateY(8px) scale(0.96);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        background: #FFFFFF;
+        border: 3px solid #1F2937;
+        padding: 12px;
+        border-radius: 10px;
+        box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.22);
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.2s ease;
+        z-index: 500;
+        min-width: 250px;
+        transform-origin: bottom left;
+    }
+
+    .level-drawer::after { display: none; }
+
+    .mobile-level-selector.expanded .level-drawer {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+    }
+
+    .mobile-level-selector.expanded .level-trigger-btn {
+        background: white;
+        box-shadow: 0 0 20px var(--level-glow, rgba(124, 58, 237, 0.3));
+        border-color: var(--level-color, var(--primary, #7C3AED));
+        transform: scale(1.1);
+    }
+
+    .level-name-display {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--level-color, var(--primary, #7C3AED));
+        background: rgba(124, 58, 237, 0.05);
+        padding: 4px 12px;
+        border-radius: 12px;
+        margin-bottom: 2px;
+        transition: all 0.3s ease;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .level-options-container {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .level-option {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        background: #f8fafc;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 1rem;
+        padding: 0;
+    }
+
+    .level-option:active { transform: scale(0.9); }
+
+    .level-option.active {
+        background: var(--level-color);
+        color: white !important;
+        box-shadow: 0 4px 12px var(--level-glow);
+        border-color: transparent;
+        transform: scale(1.1);
+    }
+
+    /* Per-level coloring */
+    [data-value="Remember"]  { --level-color: #64748b; --level-glow: rgba(100, 116, 139, 0.4); }
+    [data-value="Understand"] { --level-color: #10b981; --level-glow: rgba(16, 185, 129, 0.4); }
+    [data-value="Apply"]     { --level-color: #f59e0b; --level-glow: rgba(245, 158, 11, 0.4); }
+    [data-value="Analyze"]   { --level-color: #06b6d4; --level-glow: rgba(6, 182, 212, 0.4); }
+    [data-value="Evaluate"]  { --level-color: #8b5cf6; --level-glow: rgba(139, 92, 246, 0.4); }
+    [data-value="Create"]    { --level-color: #ec4899; --level-glow: rgba(236, 72, 153, 0.4); }
+
+    body.dark-mode .level-drawer {
+        background: #1e1e2e;
+        border-color: #3a3a5c;
+        box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5);
+    }
+    body.dark-mode .level-option {
+        background: rgba(255, 255, 255, 0.05);
+        color: #94a3b8;
+        border-color: rgba(255, 255, 255, 0.05);
+    }
+    body.dark-mode .level-name-display {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    body.dark-mode .level-trigger-btn {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* --- Section 11: Small phone adjustments (480px) --- */
+    @media (max-width: 480px) {
+        .combined-input-bar {
+            margin: 0 8px;
+            padding: 6px 10px;
+        }
+        .chat-content {
+            padding: 0.75rem;
+            padding-bottom: var(--mobile-chat-bottom-clearance);
+        }
+        /* Icons only on tiny phones */
+        .bottom-nav-item span {
+            display: none;
+        }
+        .bottom-nav-item i {
+            font-size: 1.3rem;
+        }
+        .tm-dialog-box {
+            width: calc(100vw - 24px);
+        }
+        .recall-modal-content {
+            width: calc(100vw - 24px);
+            max-width: none;
+            padding: 1.25rem;
+        }
+        .pomodoro-panel {
+            width: 260px;
+            right: -40px;
+        }
+    }
+
+} /* end @media (max-width: 768px) */

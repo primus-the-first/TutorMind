@@ -7,6 +7,7 @@ TutorMind UI Overhaul - 2025 Refresh
   --primary: #7C3AED;
   --primary-light: #A78BFA;
   --primary-dark: #5B21B6;
+  --sidebar-width: 260px;
   --secondary: #ff6b35;
   --secondary-light: #ff8a5c;
   --accent: #ffb347;
@@ -705,19 +706,18 @@ body.chat-empty .suggestion-pills-row {
   max-width: 85%;
 }
 
-@media (max-width: 768px) {
+/* MIGRATED TO mobile.css — message widths/padding */
+@media (max-width: 0px) { /* was: @media (max-width: 768px) */
   .message {
     max-width: 95%;
-    /* Wider bubbles on mobile */
     margin-bottom: 1rem;
   }
 
   .message-content {
     padding: 1rem 1.25rem;
-    /* Slightly less padding */
     font-size: 0.95rem;
   }
-}
+} /* end MIGRATED */
 
 .message.user {
   margin-left: auto;
@@ -914,19 +914,15 @@ body.dark-mode .math-block {
   /* Subtle border for light mode */
 }
 
-@media (max-width: 768px) {
+/* MIGRATED TO mobile.css — pre/code wrapping */
+@media (max-width: 0px) { /* was: @media (max-width: 768px) */
   .message-content pre {
-    /* Mobile style: wrap text to prevent horizontal scroll breaking layout */
     white-space: pre-wrap !important;
     word-break: break-all !important;
-    /* Force break anywhere if needed */
     overflow-wrap: break-word !important;
     overflow-x: hidden !important;
-    /* Hide scrollbar since we are wrapping */
     padding: 0.75rem;
-    /* Slightly less padding */
     font-size: 0.85rem;
-    /* Slightly smaller font */
     max-width: 100% !important;
   }
 
@@ -934,7 +930,7 @@ body.dark-mode .math-block {
     white-space: pre-wrap !important;
     word-break: break-all !important;
   }
-}
+} /* end MIGRATED */
 
 /* Highlight.js already styles the code, we just add a subtle border */
 .message-content pre code {
@@ -1678,8 +1674,8 @@ body:not(.chat-empty) .setup-link-row {
   display: none;
 }
 
-/* --- Responsive Design --- */
-@media (max-width: 768px) {
+/* MIGRATED TO mobile.css — Main 768px responsive block (disabled via dead media query) */
+@media (max-width: 0px) { /* was: @media (max-width: 768px) */
   /* Global mobile touch optimizations */
   button, a, [role="button"], input[type="submit"], .clickable {
     touch-action: manipulation; /* Prevent double-tap zoom delay */
@@ -2160,11 +2156,11 @@ body:not(.chat-empty) .setup-link-row {
 
   @media (max-width: 480px) {
     .nav-option {
-      height: 44px;
-      padding: 8px;
+      height: 52px;
+      padding: 6px 4px;
     }
     .nav-option::after {
-      display: none;
+      font-size: 0.5rem;
     }
   }
 
@@ -2881,7 +2877,7 @@ body:not(.chat-empty) .setup-link-row {
     margin-bottom: 2rem;
     height: auto;
   }
-}
+} /* end MIGRATED dead media query */
 
 /* --- Utility & Other --- */
 .mobile-only {
@@ -6122,8 +6118,8 @@ body.chat-empty .welcome-section {
     margin-bottom: 1rem;
 }
 
-/* Mobile adjustments */
-@media (max-width: 768px) {
+/* MIGRATED TO mobile.css — input bar + welcome */
+@media (max-width: 0px) { /* was: @media (max-width: 768px) */
     .input-bar-area {
         left: 0 !important;
     }
@@ -6134,7 +6130,7 @@ body.chat-empty .welcome-section {
         justify-content: center !important;
         padding-top: 10vh !important;
     }
-}
+} /* end MIGRATED */
 
 /* =============================================
    MESSAGE EDITING UI
@@ -6268,8 +6264,8 @@ body.chat-empty .welcome-section {
     margin-left: 6px;
 }
 
-/* Mobile: show edit button always (no hover), position below */
-@media (max-width: 768px) {
+/* MIGRATED TO mobile.css — message actions always-visible */
+@media (max-width: 0px) { /* was: @media (max-width: 768px) */
     .message-actions {
         position: static;
         transform: none;
@@ -6305,10 +6301,10 @@ body.chat-empty .welcome-section {
         flex: 1;
         text-align: center;
     }
-}
+} /* end MIGRATED */
 
-/* Extra small phones */
-@media (max-width: 380px) {
+/* MIGRATED TO mobile.css — Dead on mobile (sidebar is desktop-only) */
+@media (max-width: 0px) { /* was: @media (max-width: 380px) */
     .sidebar {
         width: 200px;
     }
@@ -6335,7 +6331,7 @@ body.chat-empty .welcome-section {
     .user-name {
         font-size: 0.8rem;
     }
-}
+} /* end MIGRATED */
 
 /* ====== 100% BULLETPROOF SIDEBAR SCROLL FIX ====== */
 aside#sidebar.sidebar {
@@ -6714,15 +6710,16 @@ body.dark-mode .pomo-setting-row select {
     color: var(--text-primary, #e0e0e0);
 }
 
-@media (max-width: 600px) {
+/* MIGRATED TO mobile.css — pomodoro compact */
+@media (max-width: 0px) { /* was: @media (max-width: 600px) */
     .pomodoro-trigger-btn {
         padding: 5px 10px;
         font-size: 0.8rem;
         gap: 5px;
     }
-}
+} /* end MIGRATED */
 
-@media (max-width: 420px) {
+@media (max-width: 0px) { /* was: @media (max-width: 420px) */
     .pomodoro-trigger-btn {
         padding: 4px 8px;
         font-size: 0.75rem;
@@ -6734,16 +6731,16 @@ body.dark-mode .pomo-setting-row select {
         /* Kept visible but smaller */
     }
     .pomodoro-panel { width: 220px; right: -20px; }
-}
+} /* end MIGRATED */
 
-@media (max-width: 350px) {
+@media (max-width: 0px) { /* was: @media (max-width: 350px) */
     .pomodoro-time-display {
         font-size: 0.65rem;
     }
     .pomodoro-trigger-btn i {
         font-size: 0.75rem;
     }
-}
+} /* end MIGRATED */
 
 /* ============================================================
    ACTIVE RECALL QUIZ MODAL

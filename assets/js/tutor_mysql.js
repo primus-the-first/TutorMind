@@ -170,6 +170,14 @@ class QuizManager {
 
             if (!data.success) {
                 this._hideModal();
+                if (data.not_ready) {
+                    const missing = data.missing ?? [];
+                    const contactLabels = { analogy: 'connect it to something familiar', build: 'try building an example', predict: 'make a prediction' };
+                    const nudge = missing.length
+                        ? `Keep going — ${contactLabels[missing[0]] || 'engage a bit more'} before we test recall!`
+                        : 'Keep going — a little more engagement before we test recall!';
+                    showCopyToast(nudge, 'info');
+                }
                 return;
             }
 
@@ -2946,7 +2954,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const overlay = document.getElementById('sidebar-overlay') || document.getElementById('mobile-sidebar-overlay');
 
         // Restore state from localStorage on load (Desktop only)
-        if (window.innerWidth > 768) {
+        if (!window.isMobile || !window.isMobile()) {
             const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
             if (isCollapsed) {
                 sidebar.classList.add('collapsed');
@@ -2957,7 +2965,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Internal Sidebar Toggle (Desktop: Collapse, Mobile: Close)
         if (menuToggle) {
             menuToggle.addEventListener('click', () => {
-                if (window.innerWidth > 768) {
+                if (!window.isMobile || !window.isMobile()) {
                     // Desktop: Toggle collapse
                     sidebar.classList.toggle('collapsed');
                     document.body.classList.toggle('sidebar-collapsed');
@@ -2987,7 +2995,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Handle resize to reset states if needed
         window.addEventListener('resize', () => {
-            if (window.innerWidth > 768) {
+            if (!window.isMobile || !window.isMobile()) {
                 sidebar.classList.remove('open');
                 if (overlay) overlay.classList.add('hidden');
                 // Restore collapsed state

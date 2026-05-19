@@ -65,12 +65,27 @@ function handleGenerate($pdo, $user_id, $data, $geminiKey, $groqKey = null) {
         return;
     }
 
-    // Verify ownership
-    $stmt = $pdo->prepare("SELECT id FROM conversations WHERE id = ? AND user_id = ?");
+    // Verify ownership and fetch context_data for contact state gate
+    $stmt = $pdo->prepare("SELECT id, context_data FROM conversations WHERE id = ? AND user_id = ?");
     $stmt->execute([$conversation_id, $user_id]);
-    if (!$stmt->fetch()) {
+    $convo = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$convo) {
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Forbidden']);
+        return;
+    }
+
+    // Gate: skip quiz if student hasn't made at least 2 of 3 learning contacts
+    $contextData  = json_decode($convo['context_data'] ?? '{}', true) ?: [];
+    $contactState = $contextData['contactState'] ?? null;
+    $missing      = $contactState['missing'] ?? ['analogy', 'build', 'predict'];
+    if (count($missing) >= 2) {
+        echo json_encode([
+            'success'    => false,
+            'not_ready'  => true,
+            'missing'    => $missing,
+            'reason'     => 'not_enough_contacts',
+        ]);
         return;
     }
 
