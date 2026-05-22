@@ -373,8 +373,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     scrollToBottomBtn.addEventListener('click', () => {
         userHasScrolledUp = false;
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        scrollToBottomBtn.style.display = 'none';
+        chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+        scrollToBottomBtn.classList.remove('visible');
+        setTimeout(() => { scrollToBottomBtn.style.display = 'none'; }, 200);
     });
 
     // Detect user scroll
@@ -383,16 +384,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (distanceFromBottom > SCROLL_THRESHOLD) {
             userHasScrolledUp = true;
             scrollToBottomBtn.style.display = 'flex';
+            requestAnimationFrame(() => scrollToBottomBtn.classList.add('visible'));
         } else {
             userHasScrolledUp = false;
-            scrollToBottomBtn.style.display = 'none';
+            scrollToBottomBtn.classList.remove('visible');
+            setTimeout(() => { scrollToBottomBtn.style.display = 'none'; }, 200);
         }
     });
 
     // Smart scroll function - only scrolls if user hasn't scrolled up
     function smartScrollToBottom(force) {
         if (force || !userHasScrolledUp) {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
         }
     }
 
@@ -405,7 +408,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Hydrate existing messages (attach listeners)
             if (DEBUG) console.log('Hydrating SSR messages...');
             hydrateMessages();
-            // Scroll to bottom (forced on initial load)
+            // Scroll to bottom instantly on initial load (no animation)
             chatMessages.scrollTop = chatMessages.scrollHeight;
         } else {
             loadConversation(conversationIdInput.value);

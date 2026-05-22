@@ -313,6 +313,7 @@ body.dark-mode .conversation-item {
     flex: 1;
     overflow-y: auto;
     padding: var(--chat-padding);
+    padding-bottom: 20px;
     display: flex;
     flex-direction: column;
     gap: var(--chat-gap);
@@ -336,6 +337,45 @@ body.dark-mode .conversation-item {
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
+}
+
+/* ==================== SCROLL TO BOTTOM BUTTON ==================== */
+.scroll-to-bottom-btn {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.15s ease;
+    font-size: 13px;
+}
+
+.scroll-to-bottom-btn.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.scroll-to-bottom-btn:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    background: var(--bg-secondary, #f5f5f5);
+}
+
+.dark-mode .scroll-to-bottom-btn {
+    background: var(--bg-secondary, #2a2a2a);
+    border-color: var(--border-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* ==================== MESSAGE BUBBLES ==================== */
@@ -787,6 +827,7 @@ body.dark-mode .quick-action-card {
 
     .chat-messages {
         padding: 1rem;
+        padding-bottom: 20px;
         gap: 1rem;
     }
 
