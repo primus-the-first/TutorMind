@@ -587,6 +587,7 @@ a.desktop-only {
   flex-grow: 1;
   overflow-y: auto;
   padding: 2rem;
+  padding-bottom: 20px;
 }
 
 /* Welcome Screen */

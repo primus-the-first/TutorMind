@@ -7,7 +7,7 @@
 /* --- Section 1: CSS Variables (root overrides) --- */
 :root {
     --mobile-bottom-nav-height: 60px;
-    --mobile-input-bar-height: 72px;
+    --mobile-input-bar-height: 130px;
     --mobile-topbar-height: 56px;
     --mobile-chat-bottom-clearance: calc(
         var(--mobile-input-bar-height) + var(--mobile-bottom-nav-height)
