@@ -496,7 +496,7 @@ body {
   background: transparent;
   position: relative;
   overflow-x: hidden;
-  /* Prevent horizontal scroll */
+  padding-bottom: 120px; /* Reserve space for fixed input bar */
 }
 
 .main-chat-header {
