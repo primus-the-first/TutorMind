@@ -29,6 +29,8 @@
     .main-chat-wrapper {
         width: 100%;
         min-width: 0;
+        /* Push the layout floor up so the fixed input never overlaps chat content */
+        padding-bottom: var(--mobile-chat-bottom-clearance);
     }
     body {
         overflow: hidden;
@@ -50,7 +52,7 @@
     /* --- Section 4: Chat content area --- */
     .chat-content {
         padding: 1rem;
-        padding-bottom: var(--mobile-chat-bottom-clearance);
+        padding-bottom: 1rem;
         overflow-x: hidden;
         width: 100%;
     }
@@ -780,7 +782,6 @@
         }
         .chat-content {
             padding: 0.75rem;
-            padding-bottom: var(--mobile-chat-bottom-clearance);
         }
         /* Icons only on tiny phones */
         .bottom-nav-item span {
