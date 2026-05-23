@@ -598,18 +598,15 @@ body.dark-mode {
   padding-bottom: 20px;
 }
 
-.chat-content::after {
+.input-bar-area::before {
   content: '';
-  display: block;
-  position: sticky;
-  bottom: 0;
+  position: absolute;
+  top: -80px;
+  left: 0;
+  right: 0;
   height: 80px;
-  margin-top: -80px;
   background: linear-gradient(to bottom, transparent, var(--chat-fade-color));
   pointer-events: none;
-  flex-shrink: 0;
-  align-self: stretch;
-  z-index: 5;
 }
 
 /* Welcome Screen */
