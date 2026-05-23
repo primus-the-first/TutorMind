@@ -53,6 +53,16 @@
         padding-bottom: var(--mobile-chat-bottom-clearance);
         overflow-x: hidden;
         width: 100%;
+        -webkit-mask-image: linear-gradient(
+            to bottom,
+            black calc(100% - calc(var(--mobile-chat-bottom-clearance) + 60px)),
+            transparent calc(100% - var(--mobile-chat-bottom-clearance))
+        );
+        mask-image: linear-gradient(
+            to bottom,
+            black calc(100% - calc(var(--mobile-chat-bottom-clearance) + 60px)),
+            transparent calc(100% - var(--mobile-chat-bottom-clearance))
+        );
     }
 
     /* --- Section 5: Input bar (floating above bottom nav) ---
@@ -781,6 +791,16 @@
         .chat-content {
             padding: 0.75rem;
             padding-bottom: var(--mobile-chat-bottom-clearance);
+            -webkit-mask-image: linear-gradient(
+                to bottom,
+                black calc(100% - calc(var(--mobile-chat-bottom-clearance) + 60px)),
+                transparent calc(100% - var(--mobile-chat-bottom-clearance))
+            );
+            mask-image: linear-gradient(
+                to bottom,
+                black calc(100% - calc(var(--mobile-chat-bottom-clearance) + 60px)),
+                transparent calc(100% - var(--mobile-chat-bottom-clearance))
+            );
         }
         /* Icons only on tiny phones */
         .bottom-nav-item span {
