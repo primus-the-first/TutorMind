@@ -55,6 +55,7 @@
         padding-bottom: 1rem;
         overflow-x: hidden;
         width: 100%;
+        min-height: 0;
     }
 
     /* --- Section 5: Input bar (floating above bottom nav) ---
