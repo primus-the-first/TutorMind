@@ -602,10 +602,10 @@ body.dark-mode {
 .input-bar-area::before {
   content: '';
   position: absolute;
-  top: -80px;
+  top: -120px;
   left: 0;
   right: 0;
-  height: 80px;
+  height: 120px;
   background: linear-gradient(to bottom, transparent, var(--chat-fade-color));
   pointer-events: none;
 }
