@@ -597,17 +597,8 @@ body.dark-mode {
   overflow-y: auto;
   padding: 2rem;
   padding-bottom: 20px;
-}
-
-.input-bar-area::before {
-  content: '';
-  position: absolute;
-  top: -120px;
-  left: 0;
-  right: 0;
-  height: 120px;
-  background: linear-gradient(to bottom, transparent, var(--chat-fade-color));
-  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 80px), transparent 100%);
+  mask-image: linear-gradient(to bottom, black calc(100% - 80px), transparent 100%);
 }
 
 /* Welcome Screen */
