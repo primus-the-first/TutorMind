@@ -140,13 +140,26 @@ function fetchYoutubeTranscript(string $videoId): string
         return '';
     }
 
-    // YouTube embeds all player data in a JS variable on the page
-    if (!preg_match('/ytInitialPlayerResponse\s*=\s*(\{.+?\});(?:\s*(?:var|const|let)\s|\s*<\/script>)/s', $html, $m)) {
-        error_log("YouTube transcript: ytInitialPlayerResponse not found in page");
+    // Extract ytInitialPlayerResponse by finding the opening brace and counting
+    // braces to its close — more robust than a regex over the full JSON blob.
+    if (!preg_match('/ytInitialPlayerResponse\s*=\s*\{/s', $html, $m, PREG_OFFSET_CAPTURE)) {
+        error_log("YouTube transcript: ytInitialPlayerResponse not found in page (len=" . strlen($html) . ")");
+        return '';
+    }
+    $start = $m[0][1] + strlen($m[0][0]) - 1; // position of the opening {
+    $depth = 0;
+    $end   = $start;
+    $len   = strlen($html);
+    for ($i = $start; $i < $len; $i++) {
+        if ($html[$i] === '{')      $depth++;
+        elseif ($html[$i] === '}') { $depth--; if ($depth === 0) { $end = $i; break; } }
+    }
+    if ($depth !== 0) {
+        error_log("YouTube transcript: unmatched braces in ytInitialPlayerResponse");
         return '';
     }
 
-    $player = json_decode($m[1], true);
+    $player = json_decode(substr($html, $start, $end - $start + 1), true);
     if (!is_array($player)) {
         error_log("YouTube transcript: could not parse ytInitialPlayerResponse JSON");
         return '';
