@@ -532,3 +532,67 @@ All sections have graceful empty states with "Start a Session" CTAs. Charts rebu
 **Note:** If Imunify360 is ever updated or reconfigured by the host to decode base64 before scanning, this workaround would break. The permanent fix is to ask hosting support to whitelist `/includes/server_mysql.php` in Imunify360.
 
 ---
+
+## Progress Log - June 3, 2026
+
+### 1. Chat Scroll UX Overhaul — Gemini/ChatGPT Style
+
+**Objective:** Match the scroll behavior, auto-scroll logic, and bottom fade-out effect of Gemini/ChatGPT.
+
+**Files changed:** `assets/js/tutor_mysql.js`, `assets/css/ui-overhaul.css`, `assets/css/mobile.css`, `assets/css/chat-interface.css`
+
+#### Scroll Behavior (`tutor_mysql.js`)
+- **Smart scroll**: tracks `userHasScrolledUp` flag — auto-scroll pauses when user scrolls up, resumes when they return to the bottom
+- **Smooth scrolling**: replaced `scrollTop = scrollHeight` with `scrollTo({ behavior: 'smooth' })` throughout; initial page load keeps instant scroll
+- **Scroll-to-bottom button**: floating circle button fades in (via `.visible` class + CSS transition) when user scrolls up; clicking smoothly scrolls back and resumes auto-scroll
+
+#### Bottom Fade Effect (`ui-overhaul.css`, `mobile.css`)
+The Gemini-style fade where chat content disappears before the input field.
+
+**Final solution (after several failed attempts):**
+```css
+/* On .chat-content */
+-webkit-mask-image: linear-gradient(to bottom, black calc(100% - 80px), transparent 100%);
+mask-image: linear-gradient(to bottom, black calc(100% - 80px), transparent 100%);
+```
+`mask-image` on a scroll container applies to the element's **visible viewport**, not total scroll content — so `100%` always means the bottom of what's currently visible. The fade is always anchored at the bottom edge regardless of scroll position.
+
+**Layout fix (content going behind input):**
+The `.input-bar-area` is `position: fixed !important` on both desktop AND mobile (see `ui-overhaul.css` line ~6064 — "Gemini/ChatGPT-style centered input" block). This means the input always overlays chat content unless explicitly constrained.
+
+Fix: `padding-bottom: 120px` on `.main-chat-wrapper` (desktop) and `padding-bottom: var(--mobile-chat-bottom-clearance)` (mobile). With `height: 100vh; box-sizing: border-box`, the inner content area physically ends above the fixed input. The gap between content and input shows the wrapper's background (`#FFFEF9` light / `#1a1625` dark) which matches `--chat-fade-color` — seamless transition.
+
+Also required: `min-height: 0` on `.chat-content` to fix the flex overflow bug (`min-height: auto` default allows flex children to overflow their container).
+
+**Mobile-specific (`mobile.css`):**
+- `--mobile-input-bar-height` bumped from `72px` → `130px` (actual combined input bar height)
+- `padding-bottom: var(--mobile-chat-bottom-clearance)` moved to `.main-chat-wrapper`, not `.chat-content`
+
+**Failed approaches (don't retry):**
+- `::before` overlay on `.input-bar-area` — unreliable z-index/stacking against `position: fixed` parent
+- `position: sticky; bottom: 0` `::after` inside flex scroll container — appeared mid-content, not at bottom edge
+
+---
+
+## Design Decision Log - May 18, 2026
+
+### Quiz Gate: Skipping Assessment When Student Hasn't Understood
+
+**Edge case:** When a Pomodoro timer expires and the student still doesn't understand the concept, firing a quiz is counterproductive — it tests recall of material that was never encoded.
+
+**Trigger chain for reference:**
+`PomodoroManager._notifyComplete()` → `pomodoro.onComplete` (tutor_mysql.js:3231) → `QuizManager.start(mode)` → `POST api/quiz.php?action=generate` → `handleGenerate()`
+
+**Decision: gate on contact state only, not comprehension score.**
+
+The comprehension score was considered as a threshold signal (e.g. skip if `< 0.4`) but rejected:
+- It starts at 0.5 (neutral) and only drifts on explicit signals — a silent confused student never moves it
+- Ambiguous short replies ("ok", "right") can score positive when the student is actually lost
+- It's cumulative across the whole session, so resolved early confusion still drags the score down at quiz time
+
+Contact state is a stronger and more direct signal. If a student hasn't made a Build or Predict contact, they haven't actively engaged with the material — there's nothing meaningful to test recall of. This is grounded in the same learning-science logic as the Three-Contact Rule itself.
+
+**Gate rule (pending implementation):**
+Skip the quiz and return `not_ready: true` from `handleGenerate()` in `api/quiz.php` if **fewer than 2 of 3 contacts have been made** (`contactState` from `context_data`). The client shows an encouraging nudge instead of the quiz modal.
+
+---

@@ -87,34 +87,36 @@
          HERO SECTION
          ============================================= -->
     <section class="hero-section">
+        <!-- Three.js canvas background -->
+        <div id="canvas-container"></div>
+
         <!-- Floating LaTeX Equation Markers -->
         <div class="floating-equations">
-            <div class="equation-marker" style="top: 20%; left: 10%; animation-delay: -1.2s;">
+            <div class="equation-marker" data-depth="0.006" style="top: 20%; left: 10%; animation-delay: -1.2s;">
                 \(a^2 + b^2 = c^2\)
             </div>
-            <div class="equation-marker" style="top: 35%; left: 5%; animation-delay: -3.5s;">
+            <div class="equation-marker" data-depth="0.004" style="top: 35%; left: 5%; animation-delay: -3.5s;">
                 \(E = mc^2\)
             </div>
-            <div class="equation-marker" style="top: 65%; left: 15%; animation-delay: -0.8s;">
+            <div class="equation-marker" data-depth="0.008" style="top: 65%; left: 15%; animation-delay: -0.8s;">
                 \(\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}\)
             </div>
-            <div class="equation-marker" style="top: 80%; left: 40%; animation-delay: -4.2s;">
+            <div class="equation-marker" data-depth="0.005" style="top: 80%; left: 40%; animation-delay: -4.2s;">
                 \(e^{i\pi} + 1 = 0\)
             </div>
-            <div class="equation-marker" style="top: 50%; left: 3%; animation-delay: -2.1s;">
+            <div class="equation-marker" data-depth="0.007" style="top: 50%; left: 3%; animation-delay: -2.1s;">
                 \(\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}\)
             </div>
-            <!-- Replaced Icons with Text/Symbols for a more "Notebook" feel -->
-            <div class="equation-marker" style="top: 15%; right: 8%; animation-delay: -4.8s;">
+            <div class="equation-marker" data-depth="0.009" style="top: 15%; right: 8%; animation-delay: -4.8s;">
                 notes
             </div>
-            <div class="equation-marker" style="top: 45%; right: 5%; animation-delay: -3.1s;">
+            <div class="equation-marker" data-depth="0.003" style="top: 45%; right: 5%; animation-delay: -3.1s;">
                 study
             </div>
-            <div class="equation-marker" style="top: 75%; right: 12%; animation-delay: -1.5s;">
+            <div class="equation-marker" data-depth="0.006" style="top: 75%; right: 12%; animation-delay: -1.5s;">
                 learn
             </div>
-            <div class="equation-marker" style="top: 25%; right: 15%; animation-delay: -5.8s;">
+            <div class="equation-marker" data-depth="0.005" style="top: 25%; right: 15%; animation-delay: -5.8s;">
                 idea
             </div>
         </div>
@@ -122,7 +124,7 @@
         <div class="hero-container">
             <div class="hero-grid">
                 <!-- Left Side - Content -->
-                <div class="hero-content">
+                <div class="hero-content" data-depth="0.008">
                     <h1 class="hero-title">
                         Your Personal <br>
                         <span class="hero-highlight">AI Tutor</span>, <br>
@@ -146,10 +148,10 @@
                 </div>
                 
                 <!-- Right Side - Illustration -->
-                <div class="hero-illustration">
+                <div class="hero-illustration" data-depth="0.012">
                     <div class="illustration-container">
                         <!-- Student Image -->
-                        <div class="student-image-wrapper">
+                        <div class="student-image-wrapper" data-depth="0.018">
                             <img 
                                 src="assets/student_studying.png" 
                                 alt="Student learning with TutorMind" 
@@ -161,7 +163,7 @@
                         </div>
                         
                         <!-- Floating Chat Bubble -->
-                        <div class="chat-bubble">
+                        <div class="chat-bubble" data-depth="0.038">
                             <div class="chat-bubble-header">
                                 <span class="chat-bubble-name">TutorMind</span>
                             </div>
@@ -169,13 +171,13 @@
                         </div>
                         
                         <!-- Floating Math Bubble -->
-                        <div class="math-bubble">
+                        <div class="math-bubble" data-depth="0.028">
                             <span class="math-bubble-content">x² + 5x = 12</span>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+</div>
     </section>
 
     <!-- =============================================
@@ -371,7 +373,7 @@
             themeToggle.addEventListener('click', function() {
                 body.classList.toggle('dark-mode');
                 body.classList.toggle('light-mode');
-                
+
                 if (body.classList.contains('dark-mode')) {
                     icon.classList.remove('fa-moon');
                     icon.classList.add('fa-sun');
@@ -381,6 +383,8 @@
                     icon.classList.add('fa-moon');
                     localStorage.setItem('tutormind-theme', 'light');
                 }
+
+                if (window._updateThreeJsTheme) window._updateThreeJsTheme();
             });
 
              // Mobile Menu

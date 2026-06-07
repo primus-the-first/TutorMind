@@ -2055,8 +2055,10 @@ try {
         // Process each file
         foreach ($files as $file) {
             try {
-                $part = prepareFileParts($file, $question);
-                $user_message_parts[] = $part;
+                $parts = prepareFileParts($file, $question);
+                foreach ($parts as $part) {
+                    $user_message_parts[] = $part;
+                }
             } catch (Exception $e) {
                 if (DEBUG_MODE) {
                     file_put_contents('debug_log.txt', "Error processing file: " . $e->getMessage() . "\n", FILE_APPEND);

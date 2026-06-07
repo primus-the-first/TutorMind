@@ -7062,3 +7062,37 @@ body.dark-mode .recall-score-badge.score-low   { background: #1c0505; }
 @media (max-width: 480px) {
     .recall-modal-content { padding: 1.25rem 1rem; }
 }
+
+
+/* --- AI Fetched Images --- */
+.ai-fetched-image {
+    display: block;
+    margin: 1.25rem auto;
+    text-align: center;
+    max-width: 420px;
+}
+.ai-fetched-image img {
+    max-width: 100%;
+    height: auto;
+    border: 2px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm, 0 4px 6px rgba(0,0,0,0.05));
+    background: #fff;
+    display: block;
+    margin: 0 auto;
+}
+.ai-fetched-image figcaption {
+    margin-top: 0.45rem;
+    font-size: 0.78rem;
+    color: var(--text-secondary, #6b7280);
+    font-style: italic;
+    letter-spacing: 0.01em;
+}
+body.dark-mode .ai-fetched-image img {
+    border-color: var(--border, #374151);
+    background: #1e1e2e;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+body.dark-mode .ai-fetched-image figcaption {
+    color: var(--text-secondary, #9ca3af);
+}
