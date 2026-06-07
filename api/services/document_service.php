@@ -114,6 +114,121 @@ function compactDocumentText($text, $apiKey) {
 }
 
 /**
+ * Fetch a YouTube transcript using only PHP/cURL — no Python or exec() needed.
+ * Works by extracting the caption track URL embedded in the YouTube page HTML.
+ * Returns plain transcript text, or empty string if captions are unavailable.
+ */
+function fetchYoutubeTranscript(string $videoId): string
+{
+    $pageUrl = 'https://www.youtube.com/watch?v=' . urlencode($videoId);
+
+    $ch = curl_init($pageUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        CURLOPT_HTTPHEADER     => ['Accept-Language: en-US,en;q=0.9'],
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+    $html = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if (!$html || $httpCode !== 200) {
+        error_log("YouTube transcript: failed to fetch page (HTTP {$httpCode})");
+        return '';
+    }
+
+    // YouTube embeds all player data in a JS variable on the page
+    if (!preg_match('/ytInitialPlayerResponse\s*=\s*(\{.+?\});(?:\s*(?:var|const|let)\s|\s*<\/script>)/s', $html, $m)) {
+        error_log("YouTube transcript: ytInitialPlayerResponse not found in page");
+        return '';
+    }
+
+    $player = json_decode($m[1], true);
+    if (!is_array($player)) {
+        error_log("YouTube transcript: could not parse ytInitialPlayerResponse JSON");
+        return '';
+    }
+
+    // Navigate to caption tracks
+    $tracks = $player['captions']['playerCaptionsTracklistRenderer']['captionTracks'] ?? [];
+    if (empty($tracks)) {
+        error_log("YouTube transcript: no caption tracks found for video {$videoId}");
+        return '';
+    }
+
+    // Prefer English; fall back to first available track
+    $trackUrl = null;
+    foreach ($tracks as $track) {
+        $lang = strtolower($track['languageCode'] ?? '');
+        if (str_starts_with($lang, 'en')) {
+            $trackUrl = $track['baseUrl'] ?? null;
+            break;
+        }
+    }
+    if (!$trackUrl) {
+        $trackUrl = $tracks[0]['baseUrl'] ?? null;
+    }
+    if (!$trackUrl) {
+        return '';
+    }
+
+    // Fetch the caption XML
+    $ch = curl_init($trackUrl . '&fmt=json3');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 10,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0',
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+    $captionJson = curl_exec($ch);
+    curl_close($ch);
+
+    // Try JSON3 format first (cleaner)
+    $captionData = json_decode($captionJson, true);
+    if (isset($captionData['events'])) {
+        $lines = [];
+        foreach ($captionData['events'] as $event) {
+            if (empty($event['segs'])) continue;
+            $seg = implode('', array_column($event['segs'], 'utf8'));
+            $seg = trim($seg);
+            if ($seg !== '') $lines[] = $seg;
+        }
+        return implode(' ', $lines);
+    }
+
+    // Fallback: fetch as XML
+    $ch = curl_init($trackUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 10,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0',
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+    $captionXml = curl_exec($ch);
+    curl_close($ch);
+
+    if (!$captionXml) return '';
+
+    libxml_use_internal_errors(true);
+    $xml = simplexml_load_string($captionXml);
+    if (!$xml) return '';
+
+    $lines = [];
+    foreach ($xml->text as $node) {
+        $line = html_entity_decode((string)$node, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $line = trim(preg_replace('/\s+/', ' ', $line));
+        if ($line !== '') $lines[] = $line;
+    }
+
+    return implode(' ', $lines);
+}
+
+/**
  * Extract text from a file or URL using MarkItDown (Python).
  * Returns extracted text, or empty string on failure.
  */

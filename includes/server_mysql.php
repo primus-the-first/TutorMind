@@ -672,15 +672,19 @@ try {
         }
     }
 
-    // If the question contains a YouTube URL, extract the transcript via MarkItDown
-    // and inject it as context so the AI can answer questions about the video.
+    // If the question contains a YouTube URL, fetch the transcript and inject it as context.
+    // Uses pure-PHP cURL first (works on shared hosting), falls back to MarkItDown/Python.
     if (!empty($question) && preg_match('#https?://(?:www\.)?(?:youtube\.com/watch\S*[?&]v=|youtu\.be/)([a-zA-Z0-9_-]{11})#', $question, $ytMatch)) {
-        $ytUrl = 'https://www.youtube.com/watch?v=' . $ytMatch[1];
-        $transcript = extractWithMarkItDown($ytUrl);
+        $ytVideoId = $ytMatch[1];
+        $ytUrl     = 'https://www.youtube.com/watch?v=' . $ytVideoId;
+        $transcript = fetchYoutubeTranscript($ytVideoId);
+        if (empty(trim($transcript))) {
+            $transcript = extractWithMarkItDown($ytUrl); // Python fallback (localhost)
+        }
         if (!empty(trim($transcript))) {
             $user_message_parts[] = ['text' => "Transcript from YouTube video ({$ytUrl}):\n\n{$transcript}"];
         } else {
-            $user_message_parts[] = ['text' => "Note: A YouTube link was provided ({$ytUrl}) but the transcript could not be retrieved (the video may have no captions)."];
+            $user_message_parts[] = ['text' => "Note: A YouTube link was provided ({$ytUrl}) but no transcript could be retrieved — the video likely has no captions enabled."];
         }
     }
 
