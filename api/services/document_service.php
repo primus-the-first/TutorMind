@@ -280,7 +280,11 @@ function extractWithMarkItDown(string $source): string
 
     $script = escapeshellarg(__DIR__ . '/markitdown_extract.py');
     $arg    = escapeshellarg($source);
-    $cmd    = "{$python} -X utf8 {$script} {$arg} 2>&1";
+    // Set HOME so Python can locate user site-packages installed via pip --user,
+    // even when exec() runs under the web server process with a stripped environment.
+    $home   = '/home/' . get_current_user();
+    $envPrefix = is_dir($home) ? "HOME={$home} " : '';
+    $cmd    = "{$envPrefix}{$python} -X utf8 {$script} {$arg} 2>&1";
 
     exec($cmd, $lines, $exitCode);
     $output = implode("\n", $lines);
