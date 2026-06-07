@@ -248,13 +248,19 @@ function fetchYoutubeTranscript(string $videoId): string
 function extractWithMarkItDown(string $source): string
 {
     $pythonCandidates = [
+        // cPanel / CloudLinux (Namecheap production)
+        '/opt/alt/python311/bin/python3',
+        '/opt/alt/python310/bin/python3',
+        '/opt/alt/python39/bin/python3',
+        // Windows (XAMPP localhost)
         'C:\\Python314\\python.exe',
         'C:\\Python313\\python.exe',
         'C:\\Python312\\python.exe',
         'C:\\Python311\\python.exe',
         'C:\\Python310\\python.exe',
         'C:\\Python39\\python.exe',
-        'python', 'python3', 'py',
+        // Generic fallback
+        'python3', 'python', 'py',
     ];
     $python = null;
     foreach ($pythonCandidates as $candidate) {
