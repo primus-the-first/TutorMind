@@ -25,7 +25,6 @@ function extractTableOfContents($filePath, $extension, $apiKey) {
             }
         } elseif ($extension === 'docx') {
             $phpWord = \PhpOffice\PhpWord\IOFactory::load($filePath);
-            $count = 0;
             foreach ($phpWord->getSections() as $section) {
                 foreach ($section->getElements() as $element) {
                     if ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
@@ -114,6 +113,64 @@ function compactDocumentText($text, $apiKey) {
     return substr($text, 0, 15000) . "... [Truncated due to length]";
 }
 
+/**
+ * Extract text from a file or URL using MarkItDown (Python).
+ * Returns extracted text, or empty string on failure.
+ */
+function extractWithMarkItDown(string $source): string
+{
+    $pythonCandidates = [
+        'C:\\Python314\\python.exe',
+        'C:\\Python313\\python.exe',
+        'C:\\Python312\\python.exe',
+        'C:\\Python311\\python.exe',
+        'C:\\Python310\\python.exe',
+        'C:\\Python39\\python.exe',
+        'python', 'python3', 'py',
+    ];
+    $python = null;
+    foreach ($pythonCandidates as $candidate) {
+        $quoted = escapeshellarg($candidate);
+        exec("{$quoted} --version 2>&1", $out, $code);
+        if ($code === 0) {
+            $python = $quoted;
+            break;
+        }
+        $out = [];
+    }
+
+    if (!$python) {
+        error_log("MarkItDown: No Python interpreter found");
+        return '';
+    }
+
+    $script = escapeshellarg(__DIR__ . '/markitdown_extract.py');
+    $arg    = escapeshellarg($source);
+    $cmd    = "{$python} -X utf8 {$script} {$arg} 2>&1";
+
+    exec($cmd, $lines, $exitCode);
+    $output = implode("\n", $lines);
+
+    // Python may emit warnings before or after the JSON; extract just the JSON object
+    if (!preg_match('/(\{.*\})/s', $output, $jsonMatch)) {
+        error_log("MarkItDown: No JSON found in output — " . substr($output, 0, 300));
+        return '';
+    }
+
+    $data = json_decode($jsonMatch[1], true);
+    if (!is_array($data)) {
+        error_log("MarkItDown: JSON decode failed — " . substr($jsonMatch[1], 0, 300));
+        return '';
+    }
+
+    if (!($data['success'] ?? false)) {
+        error_log("MarkItDown: " . ($data['error'] ?? 'unknown error'));
+        return '';
+    }
+
+    return $data['text'] ?? '';
+}
+
 function ocrImageBasedPdf($pdfPath, $originalName) {
     $config = null;
     foreach ([__DIR__ . '/../../includes/config-sql.ini', __DIR__ . '/../../includes/config.ini'] as $configFile) {
@@ -122,8 +179,6 @@ function ocrImageBasedPdf($pdfPath, $originalName) {
             if ($config !== false) break;
         }
     }
-
-    $errors = [];
 
     // 1. Try Google Cloud Vision API (primary)
     if (!empty($config['GOOGLE_CLOUD_VISION_API_KEY'])) {
@@ -134,7 +189,6 @@ function ocrImageBasedPdf($pdfPath, $originalName) {
                 return $text;
             }
         } catch (Exception $e) {
-            $errors[] = "Google Cloud Vision: " . $e->getMessage();
             error_log("Google Cloud Vision OCR failed: " . $e->getMessage());
         }
     }
@@ -148,20 +202,18 @@ function ocrImageBasedPdf($pdfPath, $originalName) {
                 return $text;
             }
         } catch (Exception $e) {
-            $errors[] = "OCR.space: " . $e->getMessage();
             error_log("OCR.space OCR failed: " . $e->getMessage());
         }
     }
 
     // 3. Try Tesseract (local fallback - last resort)
     try {
-        $text = ocrWithTesseract($pdfPath, $originalName);
+        $text = ocrWithTesseract($pdfPath);
         if (!empty(trim($text))) {
             error_log("OCR [{$originalName}]: Success with Tesseract (local)");
             return $text;
         }
     } catch (Exception $e) {
-        $errors[] = "Tesseract: " . $e->getMessage();
         error_log("Tesseract OCR failed: " . $e->getMessage());
     }
 
@@ -286,7 +338,7 @@ function ocrWithOcrSpace($pdfPath, $apiKey) {
     return trim($fullText);
 }
 
-function ocrWithTesseract($pdfPath, $originalName) {
+function ocrWithTesseract($pdfPath) {
     $tesseractPath = '';
     $possiblePaths = [
         'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
@@ -392,6 +444,117 @@ function ocrWithTesseract($pdfPath, $originalName) {
     }
 }
 
+/**
+ * Resize raw image bytes to fit within 800×800 and re-encode as JPEG.
+ * Returns the compressed JPEG bytes, or null if GD can't load the image.
+ */
+function resizeImageData(string $raw): ?string
+{
+    if (!extension_loaded('gd')) return $raw; // no GD — pass through as-is
+
+    $src = @imagecreatefromstring($raw);
+    if (!$src) return null;
+
+    $ow = imagesx($src);
+    $oh = imagesy($src);
+    $max = 600;
+
+    if ($ow <= $max && $oh <= $max) {
+        // Already small enough — just re-encode as JPEG to normalise format
+        $nw = $ow;
+        $nh = $oh;
+    } else {
+        $scale = min($max / $ow, $max / $oh);
+        $nw    = (int) ($ow * $scale);
+        $nh    = (int) ($oh * $scale);
+    }
+
+    $dst = imagecreatetruecolor($nw, $nh);
+    imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $ow, $oh);
+    imagedestroy($src);
+
+    ob_start();
+    imagejpeg($dst, null, 75);
+    $jpeg = ob_get_clean();
+    imagedestroy($dst);
+
+    return $jpeg ?: null;
+}
+
+/**
+ * Pull all raster images out of a PPTX (which is a ZIP) from its ppt/media/ folder.
+ * Returns an array of ['mime' => ..., 'data' => base64] entries, one per image.
+ */
+function extractImagesFromPptx(string $filePath): array
+{
+    if (!class_exists('ZipArchive')) return [];
+
+    $zip = new ZipArchive();
+    if ($zip->open($filePath) !== true) return [];
+
+    $mimeMap = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'bmp' => 'image/bmp', 'webp' => 'image/webp'];
+    $images = [];
+
+    for ($i = 0; $i < $zip->numFiles; $i++) {
+        $name = $zip->getNameIndex($i);
+        if (!preg_match('#^ppt/media/.+\.(' . implode('|', array_keys($mimeMap)) . ')$#i', $name, $m)) continue;
+        $raw = $zip->getFromIndex($i);
+        if ($raw === false || strlen($raw) < 100) continue;
+
+        // Resize to max 800px to keep token usage low
+        $resized = resizeImageData($raw);
+        if ($resized === null) continue;
+
+        $images[] = ['mime' => 'image/jpeg', 'data' => base64_encode($resized)];
+    }
+
+    $zip->close();
+    return $images;
+}
+
+/**
+ * Send slide images to Gemini Vision and return the extracted text.
+ */
+function ocrPptxWithGemini(array $images, string $apiKey): string
+{
+    if (empty($images) || !$apiKey) return '';
+
+    $parts = [];
+    foreach (array_slice($images, 0, 6) as $img) {
+        $parts[] = ['inline_data' => ['mime_type' => $img['mime'], 'data' => $img['data']]];
+    }
+    $parts[] = ['text' => 'These are slides from a presentation. Extract ALL text visible in each slide, organized by slide. Preserve headings, bullet points, and any labels or captions. Return only the extracted text content.'];
+
+    $payload  = json_encode(['contents' => [['parts' => $parts]]]);
+    $apiUrl   = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $apiKey;
+
+    $ch = curl_init($apiUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 60,
+    ]);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200) {
+        error_log("ocrPptxWithGemini: HTTP {$httpCode} — " . substr($response, 0, 300));
+        return '';
+    }
+
+    $data = json_decode($response, true);
+    $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+    if (empty($text)) {
+        $finishReason = $data['candidates'][0]['finishReason'] ?? 'unknown';
+        error_log("ocrPptxWithGemini: empty text, finishReason={$finishReason} — " . substr($response, 0, 500));
+    }
+    return $text;
+}
+
 function prepareFileParts($file, $user_question)
 {
     $filePath = $file['tmp_name'];
@@ -420,10 +583,9 @@ function prepareFileParts($file, $user_question)
         throw new Exception("Unsupported file type: {$extension}.");
     }
 
-    if (!in_array($fileType, $allowed_types)) {
-        if ($extension !== 'docx' || $fileType !== 'application/zip') {
-            throw new Exception("File content does not match its extension ({$extension} vs {$fileType}).");
-        }
+    // DOCX and PPTX are ZIP-based; mime_content_type() returns zip/octet-stream/ooxml depending on OS — trust the extension
+    if (!in_array($extension, ['docx', 'pptx']) && !in_array($fileType, $allowed_types)) {
+        throw new Exception("File content does not match its extension ({$extension} vs {$fileType}).");
     }
 
     // Handle images
@@ -500,86 +662,9 @@ function prepareFileParts($file, $user_question)
         ];
     }
 
-    $text = '';
-    switch ($extension) {
-        case 'txt':
-            $text = file_get_contents($filePath);
-            break;
-        case 'pdf':
-            if (!class_exists('\Smalot\PdfParser\Parser')) {
-                throw new Exception("PDF parsing library is not installed. Please run 'composer require smalot/pdfparser'.");
-            }
-            $parser = new \Smalot\PdfParser\Parser();
-            $pdf = $parser->parseFile($filePath);
-            $text = $pdf->getText();
-
-            $pageCount = count($pdf->getPages());
-            error_log("PDF [{$originalName}]: {$pageCount} pages, " . strlen($text) . " chars extracted");
-
-            if (empty(trim($text)) && $pageCount > 0) {
-                foreach ($pdf->getPages() as $page) {
-                    $text .= $page->getText() . "\n\n";
-                }
-            }
-
-            if (empty(trim($text))) {
-                $text = ocrImageBasedPdf($filePath, $originalName);
-            }
-            break;
-        case 'docx':
-            if (!class_exists('\PhpOffice\PhpWord\IOFactory')) {
-                throw new Exception("Word document parsing library is not installed. Please run 'composer require phpoffice/phpword'.");
-            }
-            if (!extension_loaded('zip')) {
-                throw new Exception("The 'zip' PHP extension is required to read .docx files but it is not enabled. Please enable it in your php.ini file.");
-            }
-            $phpWord = \PhpOffice\PhpWord\IOFactory::load($filePath);
-            foreach ($phpWord->getSections() as $section) {
-                foreach ($section->getElements() as $element) {
-                    if ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
-                        foreach ($element->getElements() as $textElement) {
-                            if ($textElement instanceof \PhpOffice\PhpWord\Element\Text) {
-                                $text .= $textElement->getText() . ' ';
-                            }
-                        }
-                    }
-                }
-            }
-            break;
-        case 'pptx':
-            if (!class_exists('\PhpOffice\PhpPresentation\IOFactory')) {
-                throw new Exception("PowerPoint parsing library is not installed. Please run 'composer require phpoffice/phppresentation'.");
-            }
-            if (!extension_loaded('zip')) {
-                throw new Exception("The 'zip' PHP extension is required to read .pptx files but it is not enabled. Please enable it in your php.ini file.");
-            }
-            $originalMemoryLimit = ini_get('memory_limit');
-            ini_set('memory_limit', '1G');
-            try {
-                $phpPresentation = \PhpOffice\PhpPresentation\IOFactory::load($filePath);
-            } finally {
-                ini_set('memory_limit', $originalMemoryLimit);
-            }
-            foreach ($phpPresentation->getAllSlides() as $slide) {
-                foreach ($slide->getShapeCollection() as $shape) {
-                    if ($shape instanceof \PhpOffice\PhpPresentation\Shape\RichText) {
-                        $text .= $shape->getPlainText() . "\n\n";
-                    }
-                }
-            }
-            break;
-    }
-
-    $text = trim($text);
-    if (empty($text)) {
-        error_log("Empty text extraction for [{$originalName}], extension: {$extension}");
-        throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based (scanned), or use fonts that cannot be parsed.");
-    }
-
-    // Get API Key for AI-powered processing
+    // Load API key early — needed for PPTX image fallback and later compaction
     $apiKey = defined('GEMINI_API_KEY') ? GEMINI_API_KEY : null;
     if (!$apiKey) {
-        // Fallback to config file if constant not defined
         foreach ([__DIR__ . '/../../includes/config-sql.ini', __DIR__ . '/../../includes/config.ini'] as $configFile) {
             if (file_exists($configFile)) {
                 $cfg = parse_ini_file($configFile);
@@ -591,15 +676,62 @@ function prepareFileParts($file, $user_question)
         }
     }
 
+    $text = '';
+    switch ($extension) {
+        case 'txt':
+            $text = file_get_contents($filePath);
+            break;
+        case 'pdf':
+            $text = extractWithMarkItDown($filePath);
+            error_log("MarkItDown PDF [{$originalName}]: " . strlen($text) . " chars extracted");
+            if (empty(trim($text))) {
+                $text = ocrImageBasedPdf($filePath, $originalName);
+            }
+            break;
+        case 'docx':
+            $text = extractWithMarkItDown($filePath);
+            error_log("MarkItDown docx [{$originalName}]: " . strlen($text) . " chars extracted");
+            break;
+        case 'pptx':
+            $pptxSizeBytes = filesize($filePath);
+            if ($pptxSizeBytes > 50 * 1024 * 1024) {
+                $mb = round($pptxSizeBytes / 1024 / 1024, 1);
+                throw new Exception("The presentation '{$originalName}' is {$mb} MB, which is too large to process (limit: 50 MB). Please compress the images in the file or export a lower-resolution version before uploading.");
+            }
+            $text = extractWithMarkItDown($filePath);
+            error_log("MarkItDown pptx [{$originalName}]: " . strlen($text) . " chars extracted");
+            // Strip markdown image refs and HTML comments to detect truly text-free decks
+            $strippedText = trim(preg_replace(['/<!--.*?-->/s', '/!\[.*?\]\(.*?\)/'], '', $text));
+            if (empty($strippedText)) {
+                // Image-only deck — pass slide images directly into the Gemini chat request
+                $slideImages = extractImagesFromPptx($filePath);
+                error_log("MarkItDown pptx [{$originalName}]: image-only, returning " . count($slideImages) . " slide images as inline_data");
+                if (!empty($slideImages)) {
+                    $parts = [['text' => "The following images are slides from the uploaded presentation '{$originalName}'. Analyse their content to answer the user's question."]];
+                    foreach (array_slice($slideImages, 0, 6) as $img) {
+                        $parts[] = ['inline_data' => ['mime_type' => 'image/jpeg', 'data' => $img['data']]];
+                    }
+                    return $parts;
+                }
+                // No raster images found (slides may use vector graphics) — surface as a soft error
+                return [['text' => "System note: The presentation '{$originalName}' could not be read. It appears to contain only vector graphics or no extractable content. Ask the user to export it as a PDF or copy-paste the text."]];
+            }
+            break;
+    }
+
+    $text = trim($text);
+    if (empty($text)) {
+        error_log("Empty text extraction for [{$originalName}], extension: {$extension}");
+        throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based, or use fonts that cannot be parsed.");
+    }
+
     $toc = "";
     if ($apiKey && ($extension === 'pdf' || $extension === 'docx')) {
-        // Attempt structure extraction for larger documents
         if (strlen($text) > 8000) {
             $toc = extractTableOfContents($filePath, $extension, $apiKey);
         }
     }
 
-    // Compact text if it's very long to save tokens while preserving meaning
     if ($apiKey && strlen($text) > 12000) {
         $text = compactDocumentText($text, $apiKey);
     } else {
@@ -615,7 +747,5 @@ function prepareFileParts($file, $user_question)
     }
     $combined_text .= "### CONTENT PREVIEW / SUMMARY\n{$text}\n---\n";
 
-    return [
-        'text' => $combined_text
-    ];
+    return [['text' => $combined_text]];
 }

@@ -32,70 +32,42 @@ require_once __DIR__ . '/../api/services/ai_service.php';
 
 // --- CHAT RATE LIMITING ---
 function checkChatRateLimit($pdo, $user_id) {
-    $window = 60;        // 60-second window
-    $max_requests = 15;  // Max 15 messages per minute per user
-    $now = time();
+    $window       = 60;  // seconds
+    $max_requests = 15;
 
     try {
-        // Start transaction for atomic read-modify-write with locking
-        $pdo->beginTransaction();
+        $now = time();
 
-        // 1. Clean up old entries first
-        $pdo->prepare("DELETE FROM chat_rate_limits WHERE window_start < (UNIX_TIMESTAMP() - ?)")
-            ->execute([$window * 2]);
+        // Single atomic upsert — no transaction or FOR UPDATE needed.
+        // Resets the window when expired; increments within the window.
+        // Atomicity is guaranteed by MySQL at the statement level, which eliminates
+        // the lock contention that caused SQLSTATE 1205 with the old FOR UPDATE pattern.
+        $pdo->prepare("
+            INSERT INTO chat_rate_limits (user_id, request_count, window_start)
+            VALUES (:uid, 1, :now)
+            ON DUPLICATE KEY UPDATE
+                request_count = IF(:now2 - window_start >= :win1, 1, request_count + 1),
+                window_start  = IF(:now3 - window_start >= :win2, :now4, window_start)
+        ")->execute([
+            ':uid'  => $user_id,
+            ':now'  => $now,
+            ':now2' => $now,
+            ':now3' => $now,
+            ':now4' => $now,
+            ':win1' => $window,
+            ':win2' => $window,
+        ]);
 
-        // 2. Get and LOCK the current record for this user
-        $stmt = $pdo->prepare("
-            SELECT request_count, window_start 
-            FROM chat_rate_limits 
-            WHERE user_id = ?
-            FOR UPDATE
-        ");
+        // Read back to check whether the limit was exceeded
+        $stmt = $pdo->prepare("SELECT request_count FROM chat_rate_limits WHERE user_id = ?");
         $stmt->execute([$user_id]);
         $record = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$record) {
-            // First request — create record
-            $pdo->prepare("
-                INSERT INTO chat_rate_limits (user_id, request_count, window_start) 
-                VALUES (?, 1, ?)
-            ")->execute([$user_id, $now]);
-            $pdo->commit();
-            return true;
-        }
+        return !$record || (int)$record['request_count'] <= $max_requests;
 
-        if (($now - $record['window_start']) > $window) {
-            // Window expired — reset
-            $pdo->prepare("
-                UPDATE chat_rate_limits 
-                SET request_count = 1, window_start = ? 
-                WHERE user_id = ?
-            ")->execute([$now, $user_id]);
-            $pdo->commit();
-            return true;
-        }
-
-        if ($record['request_count'] >= $max_requests) {
-            // Limit exceeded
-            $pdo->rollBack();
-            return false;
-        }
-
-        // Increment count
-        $pdo->prepare("
-            UPDATE chat_rate_limits 
-            SET request_count = request_count + 1 
-            WHERE user_id = ?
-        ")->execute([$user_id]);
-        
-        $pdo->commit();
-        return true;
     } catch (Exception $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
         error_log("Rate limit check failed: " . $e->getMessage());
-        return true; // Fail-open approach: allow request if limit logic fails
+        return true; // fail-open: allow request if rate limit logic fails
     }
 }
 
@@ -107,6 +79,7 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
 require_once __DIR__ . '/../api/knowledge.php';
 require_once __DIR__ . '/../api/learning_strategies.php';
 require_once __DIR__ . '/../api/services/response_formatter.php';
+require_once __DIR__ . '/../api/services/image_service.php';
 require_once __DIR__ . '/../api/services/comprehension_service.php';
 require_once __DIR__ . '/../api/services/tutor_service.php';
 
@@ -509,30 +482,30 @@ if ($action) {
                     break;
                 }
 
-                // Wrap database operations in a transaction for atomicity
-                $pdo->beginTransaction();
+                // Wrap in pdo_retry so a transient lock conflict retries rather than failing
+                pdo_retry(function () use ($pdo, $new_content, $message_id, $edit_convo_id) {
+                    if ($pdo->inTransaction()) $pdo->rollBack();
+                    $pdo->beginTransaction();
+                    try {
+                        $pdo->prepare("UPDATE messages SET content = ?, is_edited = 1, content_html = NULL WHERE id = ? AND conversation_id = ?")
+                            ->execute([json_encode([['text' => $new_content]]), $message_id, $edit_convo_id]);
 
-                try {
-                    // Update the user message content
-                    $stmt = $pdo->prepare("UPDATE messages SET content = ?, is_edited = 1, content_html = NULL WHERE id = ? AND conversation_id = ?");
-                    $stmt->execute([json_encode([['text' => $new_content]]), $message_id, $edit_convo_id]);
+                        $pdo->prepare("DELETE FROM messages WHERE conversation_id = ? AND id > ?")
+                            ->execute([$edit_convo_id, $message_id]);
 
-                    // Delete all messages after the edited message (the AI response)
-                    $stmt = $pdo->prepare("DELETE FROM messages WHERE conversation_id = ? AND id > ?");
-                    $stmt->execute([$edit_convo_id, $message_id]);
-                    
-                    // Update conversation timestamp
-                    $stmt = $pdo->prepare("UPDATE conversations SET updated_at = NOW() WHERE id = ?");
-                    $stmt->execute([$edit_convo_id]);
+                        $pdo->prepare("UPDATE conversations SET updated_at = NOW() WHERE id = ?")
+                            ->execute([$edit_convo_id]);
 
-                    $pdo->commit();
-                    ob_clean();
-                    echo json_encode(['success' => true]);
-                } catch (Exception $innerE) {
-                    $pdo->rollBack();
-                    throw $innerE;
-                }
+                        $pdo->commit();
+                    } catch (Exception $innerE) {
+                        $pdo->rollBack();
+                        throw $innerE;
+                    }
+                });
+                ob_clean();
+                echo json_encode(['success' => true]);
             } catch (Exception $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
                 error_log("Edit message error: " . $e->getMessage());
                 http_response_code(500);
                 echo json_encode(['success' => false, 'error' => 'Could not edit message.']);
@@ -683,8 +656,10 @@ try {
         // Process each file
         foreach ($files as $file) {
             try {
-                $part = prepareFileParts($file, $question);
-                $user_message_parts[] = $part;
+                $parts = prepareFileParts($file, $question);
+                foreach ($parts as $part) {
+                    $user_message_parts[] = $part;
+                }
             } catch (Exception $e) {
                 if (DEBUG_MODE) {
                     file_put_contents('debug_log.txt', "Error processing file: " . $e->getMessage() . "\n", FILE_APPEND);
@@ -694,6 +669,18 @@ try {
                 $errorMsg = "System Error: Could not process file '{$file['name']}'. Reason: " . $e->getMessage();
                 $user_message_parts[] = ['text' => $errorMsg];
             }
+        }
+    }
+
+    // If the question contains a YouTube URL, extract the transcript via MarkItDown
+    // and inject it as context so the AI can answer questions about the video.
+    if (!empty($question) && preg_match('#https?://(?:www\.)?(?:youtube\.com/watch\S*[?&]v=|youtu\.be/)([a-zA-Z0-9_-]{11})#', $question, $ytMatch)) {
+        $ytUrl = 'https://www.youtube.com/watch?v=' . $ytMatch[1];
+        $transcript = extractWithMarkItDown($ytUrl);
+        if (!empty(trim($transcript))) {
+            $user_message_parts[] = ['text' => "Transcript from YouTube video ({$ytUrl}):\n\n{$transcript}"];
+        } else {
+            $user_message_parts[] = ['text' => "Note: A YouTube link was provided ({$ytUrl}) but the transcript could not be retrieved (the video may have no captions)."];
         }
     }
 
@@ -1059,7 +1046,7 @@ EOT;
     if (!empty($answer)) {
         
         // PERFORMANCE: Pre-format HTML and cache it immediately
-        $formattedAnswer = formatResponse($answer);
+        $formattedAnswer = resolveImageMarkers(formatResponse($answer));
 
         // Save AI response to the database with cached HTML
         $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content, content_html) VALUES (?, 'model', ?, ?)");
@@ -1140,54 +1127,50 @@ EOT;
         $hybridProgress = calculateHybridProgress($contextData);
         $contextData['calculatedProgress'] = $hybridProgress;
 
-        // Save updated context and progress to database
-        $stmt = $pdo->prepare("UPDATE conversations SET context_data = ?, progress = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
-        $stmt->execute([json_encode($contextData), $hybridProgress, $conversation_id, $_SESSION['user_id']]);
-
-        // Also update session_goal if provided and not already set
-        if ($session_goal && !$convoData['session_goal']) {
-            $stmt = $pdo->prepare("UPDATE conversations SET session_goal = ? WHERE id = ?");
-            $stmt->execute([$session_goal, $conversation_id]);
-        }
-        // --- END HYBRID PROGRESS TRACKING ---
-
-        // For new chats, generate an AI title
+        // For new chats, generate an AI title before the single conversation UPDATE
         $generated_title = null;
         if (count($chat_history) === 1) {
-            // This is a new chat - generate a title using AI
             try {
                 $title_prompt = "Based on this user question: \"$question\"\n\nGenerate a very concise, descriptive title for this conversation in 3-5 words maximum. The title should capture the main topic or question. Respond with ONLY the title, nothing else.";
-
                 $title_payload = json_encode([
-                    "contents" => [
-                        [
-                            "role" => "user",
-                            "parts" => [["text" => $title_prompt]]
-                        ]
-                    ]
+                    "contents" => [["role" => "user", "parts" => [["text" => $title_prompt]]]]
                 ]);
-
                 $title_response = callGeminiAPI($title_payload, GEMINI_API_KEY);
-
                 if (isset($title_response['candidates'][0]['content']['parts'][0]['text'])) {
                     $generated_title = trim($title_response['candidates'][0]['content']['parts'][0]['text']);
-
-                    // Limit to 60 characters max and remove any quotes
                     $generated_title = str_replace(['"', "'"], '', $generated_title);
                     if (strlen($generated_title) > 60) {
                         $generated_title = substr($generated_title, 0, 57) . '...';
                     }
-
-                    // Update the conversation title
-                    $stmt = $pdo->prepare("UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ?");
-                    $stmt->execute([$generated_title, $conversation_id]);
                 }
             } catch (Exception $e) {
-                // If title generation fails, use a fallback
                 error_log("Title generation failed: " . $e->getMessage());
                 $generated_title = "New Chat";
             }
         }
+
+        // Single UPDATE covers context_data, progress, session_goal, title, updated_at —
+        // merging what were 3 separate UPDATE statements to minimise lock contention on the
+        // conversations row when session_context.php fires concurrently (Pomodoro timer, etc.)
+        $setClauses = ["context_data = ?", "progress = ?", "updated_at = NOW()"];
+        $updateParams = [json_encode($contextData), $hybridProgress];
+
+        if ($session_goal && !$convoData['session_goal']) {
+            $setClauses[] = "session_goal = ?";
+            $updateParams[] = $session_goal;
+        }
+        if ($generated_title !== null) {
+            $setClauses[] = "title = ?";
+            $updateParams[] = $generated_title;
+        }
+
+        $updateParams[] = $conversation_id;
+        $updateParams[] = $_SESSION['user_id'];
+        $sql = "UPDATE conversations SET " . implode(', ', $setClauses) . " WHERE id = ? AND user_id = ?";
+        pdo_retry(function () use ($pdo, $sql, $updateParams) {
+            $pdo->prepare($sql)->execute($updateParams);
+        });
+        // --- END HYBRID PROGRESS TRACKING ---
 
         // --- RAG: Detect and Process Resource Mentions ---
         // Detect books, papers, articles mentioned in AI response for knowledge acquisition
@@ -1323,6 +1306,14 @@ EOT;
         throw new Exception('No content generated or unexpected response structure from AI.');
     }
 } catch (Exception $e) {
+    // Log with file+line so we know exactly which query threw the 1205 or any other error.
+    error_log(sprintf(
+        'Chat error [%s] %s in %s:%d',
+        $e->getCode(),
+        $e->getMessage(),
+        $e->getFile(),
+        $e->getLine()
+    ));
     // Return 200 for chat errors so the frontend can properly display the error message
     // instead of throwing a JS exception and showing "couldn't connect" network error.
     http_response_code(200);

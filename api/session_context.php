@@ -120,8 +120,9 @@ try {
             if (!empty($updates)) {
                 $params[] = $conversation_id;
                 $sql = "UPDATE conversations SET " . implode(', ', $updates) . ", updated_at = NOW() WHERE id = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($params);
+                pdo_retry(function () use ($pdo, $sql, $params) {
+                    $pdo->prepare($sql)->execute($params);
+                });
             }
             
             echo json_encode(['success' => true]);
@@ -140,12 +141,13 @@ try {
             $progress = max(0, min(100, $progress));
             $completed = ($progress >= 95);
             
-            $stmt = $pdo->prepare("
-                UPDATE conversations 
-                SET progress = ?, completed = ?, updated_at = NOW() 
-                WHERE id = ? AND user_id = ?
-            ");
-            $stmt->execute([$progress, $completed, $conversation_id, $user_id]);
+            pdo_retry(function () use ($pdo, $progress, $completed, $conversation_id, $user_id) {
+                $pdo->prepare("
+                    UPDATE conversations
+                    SET progress = ?, completed = ?, updated_at = NOW()
+                    WHERE id = ? AND user_id = ?
+                ")->execute([$progress, $completed, $conversation_id, $user_id]);
+            });
             
             echo json_encode(['success' => true, 'progress' => $progress, 'completed' => $completed]);
             break;
