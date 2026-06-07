@@ -83,7 +83,7 @@ function getDbConnection() {
  * @return mixed             Whatever $fn returns on success.
  * @throws PDOException      Re-thrown if all attempts fail or the error is not lock-related.
  */
-function pdo_retry(callable $fn, int $attempts = 3): mixed
+function pdo_retry(callable $fn, int $attempts = 3)
 {
     $try = 0;
     while (true) {
