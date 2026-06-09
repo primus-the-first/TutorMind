@@ -309,6 +309,23 @@ function extractWithMarkItDown(string $source): string
     return $data['text'] ?? '';
 }
 
+/**
+ * Extract text from a PDF using smalot/pdfparser (pure PHP, no exec).
+ * Returns extracted text, or empty string if parsing fails or yields nothing.
+ */
+function extractPdfWithParser(string $pdfPath): string
+{
+    try {
+        $parser = new \Smalot\PdfParser\Parser();
+        $pdf    = $parser->parseFile($pdfPath);
+        $text   = $pdf->getText();
+        return $text ?? '';
+    } catch (\Throwable $e) {
+        error_log("smalot/pdfparser error: " . $e->getMessage());
+        return '';
+    }
+}
+
 function ocrImageBasedPdf($pdfPath, $originalName) {
     $config = null;
     foreach ([__DIR__ . '/../../includes/config-sql.ini', __DIR__ . '/../../includes/config.ini'] as $configFile) {
@@ -820,8 +837,12 @@ function prepareFileParts($file, $user_question)
             $text = file_get_contents($filePath);
             break;
         case 'pdf':
-            $text = extractWithMarkItDown($filePath);
-            error_log("MarkItDown PDF [{$originalName}]: " . strlen($text) . " chars extracted");
+            $text = extractPdfWithParser($filePath);
+            error_log("pdfparser PDF [{$originalName}]: " . strlen($text) . " chars extracted");
+            if (empty(trim($text))) {
+                $text = extractWithMarkItDown($filePath);
+                error_log("MarkItDown PDF [{$originalName}]: " . strlen($text) . " chars extracted");
+            }
             if (empty(trim($text))) {
                 $text = ocrImageBasedPdf($filePath, $originalName);
             }
