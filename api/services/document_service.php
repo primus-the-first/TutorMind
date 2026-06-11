@@ -813,7 +813,7 @@ function prepareFileParts($file, $user_question)
         $base64Data = base64_encode($fileData);
 
         return [
-            'inline_data' => ['mime_type' => $fileType, 'data' => $base64Data]
+            ['inline_data' => ['mime_type' => $fileType, 'data' => $base64Data]]
         ];
     }
 

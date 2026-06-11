@@ -1093,7 +1093,7 @@ function prepareFileParts($file, $user_question)
         $base64Data = base64_encode($fileData);
 
         return [
-            'inline_data' => ['mime_type' => $fileType, 'data' => $base64Data]
+            ['inline_data' => ['mime_type' => $fileType, 'data' => $base64Data]]
         ];
     }
 
@@ -1188,7 +1188,7 @@ function prepareFileParts($file, $user_question)
 
     $combined_text = "Context from uploaded file '{$originalName}':\n---\n{$text}\n---\n";
     return [
-        'text' => $combined_text
+        ['text' => $combined_text]
     ];
 }
 
