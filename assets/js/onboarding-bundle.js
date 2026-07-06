@@ -121,6 +121,7 @@ class OnboardingWizard {
             studySchedule: null,
             sessionLength: null,
             explanationStyle: null,
+            interests: [],
             notificationsEnabled: true,
             notificationFrequency: null,
             notificationTime: null,
@@ -899,6 +900,40 @@ class OnboardingWizard {
         bindSelect('.schedule-option', 'studySchedule');
         bindSelect('.duration-option', 'sessionLength');
         bindSelect('.style-card', 'explanationStyle');
+
+        const interestInput = document.getElementById('interests-entry');
+        const addInterestBtn = document.getElementById('add-interest-btn');
+        const interestsList = document.getElementById('interests-list');
+
+        const renderInterestTags = () => {
+            interestsList.innerHTML = '';
+            this.profileData.interests.forEach(interest => {
+                const tag = document.createElement('div');
+                tag.className = 'uni-subject-tag';
+                tag.innerHTML = `${interest} <i class="fas fa-times"></i>`;
+                tag.querySelector('i').onclick = () => {
+                    this.profileData.interests = this.profileData.interests.filter(i => i !== interest);
+                    renderInterestTags();
+                    this.saveProgress();
+                };
+                interestsList.appendChild(tag);
+            });
+        };
+
+        const addInterest = () => {
+            const value = interestInput.value.trim();
+            if (value && !this.profileData.interests.includes(value)) {
+                this.profileData.interests.push(value);
+                interestInput.value = '';
+                renderInterestTags();
+                this.saveProgress();
+            }
+        };
+
+        addInterestBtn.onclick = addInterest;
+        interestInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addInterest(); } };
+
+        renderInterestTags();
 
         document.getElementById('preferences-continue-btn').onclick = () => this.nextScreen();
         this.checkPreferences();

@@ -761,7 +761,7 @@ try {
     }
 
     // Fetch user personalization data for AI context
-    $stmt = $pdo->prepare("SELECT country, primary_language, education_level, field_of_study, knowledge_level FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT country, primary_language, education_level, field_of_study, knowledge_level, interests FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $user_profile = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -769,7 +769,7 @@ try {
     $personalization_context = "";
 
     // Only add profile context if user has profile data
-    $hasProfile = $user_profile && ($user_profile['country'] || $user_profile['education_level'] || $user_profile['field_of_study'] || $user_profile['primary_language'] || $user_profile['knowledge_level']);
+    $hasProfile = $user_profile && ($user_profile['country'] || $user_profile['education_level'] || $user_profile['field_of_study'] || $user_profile['primary_language'] || $user_profile['knowledge_level'] || $user_profile['interests']);
 
     if ($hasProfile) {
         // CRITICAL: Add instruction to use personalization subtly
@@ -818,6 +818,14 @@ EOT;
             ];
             $personalization_context .= "- Prior knowledge level (from onboarding assessment): **{$kl}**\n";
             $personalization_context .= "  → {$kl_instructions[$kl]}\n";
+        }
+        if (!empty($user_profile['interests'])) {
+            $interestsList = json_decode($user_profile['interests'], true);
+            if (is_array($interestsList) && !empty($interestsList)) {
+                $interestsStr = implode(', ', $interestsList);
+                $personalization_context .= "- **Known interests/experience: {$interestsStr}**\n";
+                $personalization_context .= "  → If the learner struggles to produce their own analogy, you may bridge a new concept to one of these — but always ask for their own connection first. Frame any interest-based analogy as a starting point (\"Here's one way to see it, using {$interestsList[0]} — but does anything else come to mind for you?\"), never as the final word.\n";
+            }
         }
     }
 

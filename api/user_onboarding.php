@@ -34,6 +34,55 @@ if (!in_array($knowledge_level, $valid_levels, true)) {
     $knowledge_level = null;
 }
 
+// Build field_of_study from whichever subject fields the user filled in
+$field_of_study = null;
+$edu = $input['educationLevel'] ?? null;
+if ($edu === 'college' || $edu === 'university' || $edu === 'University') {
+    $parts = array_filter([
+        $input['universityProgram'] ?? null,
+        !empty($input['customSubjects']) ? implode(', ', (array)$input['customSubjects']) : null,
+    ]);
+    $field_of_study = implode(' — ', $parts) ?: null;
+} elseif ($edu === 'high' || $edu === 'shs' || $edu === 'Secondary') {
+    $parts = array_filter([
+        $input['shsProgram'] ?? null,
+        !empty($input['shsElectives']) ? implode(', ', (array)$input['shsElectives']) : null,
+    ]);
+    $field_of_study = implode(': ', $parts) ?: null;
+} else {
+    $primary = $input['primarySubject'] ?? null;
+    $others  = !empty($input['subjects']) ? implode(', ', (array)$input['subjects']) : null;
+    $field_of_study = $primary ?: $others ?: null;
+}
+if ($field_of_study) {
+    $field_of_study = substr($field_of_study, 0, 255);
+}
+
+// Map education level to the DB ENUM
+$edu_level_map = [
+    'primary'    => 'Primary',
+    'jhs'        => 'Secondary',
+    'high'       => 'Secondary',
+    'shs'        => 'Secondary',
+    'secondary'  => 'Secondary',
+    'college'    => 'University',
+    'university' => 'University',
+    'graduate'   => 'Graduate',
+    'professional' => 'Professional',
+];
+$education_level  = $edu_level_map[strtolower($edu ?? '')] ?? null;
+$country          = isset($input['country'])  ? substr($input['country'], 0, 100) : null;
+$primary_language = isset($input['language']) ? substr($input['language'], 0, 50)  : null;
+
+// Personal interests/hobbies — used as a fallback source for teaching analogies
+$interests = null;
+if (!empty($input['interests']) && is_array($input['interests'])) {
+    $cleanInterests = array_slice(array_values(array_filter(array_map('trim', array_map('strval', $input['interests'])))), 0, 20);
+    if (!empty($cleanInterests)) {
+        $interests = json_encode($cleanInterests);
+    }
+}
+
 try {
     $pdo = getDbConnection();
 
@@ -56,16 +105,25 @@ try {
         throw $e; // Trigger catch block for file backup
     }
 
-    // Step 3: Save knowledge_level to dedicated column (best-effort — column may not exist yet)
-    if ($knowledge_level) {
-        try {
-            $stmt = $pdo->prepare("UPDATE users SET knowledge_level = ? WHERE id = ?");
-            $stmt->execute([$knowledge_level, $user_id]);
-        } catch (Exception $e) {
-            // Column missing — not fatal, profile_data JSON has the value as fallback
-            error_log("Error updating knowledge_level: " . $e->getMessage() . " [Code: " . $e->getCode() . "]");
-            $response['errors'][] = "Unable to read user knowledge level; please retry or contact support";
+    // Step 3: Save personalization columns extracted from profile JSON (best-effort)
+    try {
+        $fields = [];
+        $params = [];
+        if ($knowledge_level)  { $fields[] = 'knowledge_level = ?';  $params[] = $knowledge_level; }
+        if ($field_of_study)   { $fields[] = 'field_of_study = ?';   $params[] = $field_of_study; }
+        if ($education_level)  { $fields[] = 'education_level = ?';  $params[] = $education_level; }
+        if ($country)          { $fields[] = 'country = ?';          $params[] = $country; }
+        if ($primary_language) { $fields[] = 'primary_language = ?'; $params[] = $primary_language; }
+        if ($interests)        { $fields[] = 'interests = ?';        $params[] = $interests; }
+
+        if (!empty($fields)) {
+            $params[] = $user_id;
+            $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?");
+            $stmt->execute($params);
         }
+    } catch (Exception $e) {
+        error_log("Error saving personalization columns: " . $e->getMessage());
+        $response['errors'][] = "Personalization data partially saved; some fields may not appear immediately.";
     }
 
 } catch (Exception $e) {

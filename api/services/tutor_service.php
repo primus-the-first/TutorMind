@@ -197,7 +197,7 @@ function buildSystemPrompt($learningLevel, $personalization_context, $contact_st
         } else {
             $items = '';
             if (in_array('analogy', $missing)) {
-                $items .= "\n- **Contact 1 – Analogy (not yet made)**: Before or during your next explanation, invite a personal connection: *\"What does this remind you of?\"* or *\"Can you think of something in everyday life that works the same way?\"* Wait for their analogy before continuing.";
+                $items .= "\n- **Contact 1 – Analogy (not yet made)**: Before or during your next explanation, invite a personal connection: *\"What does this remind you of?\"* or *\"Can you think of something in everyday life that works the same way?\"* Wait for their analogy before continuing. If they genuinely cannot produce one, check the Learner Profile section above for known interests/experience and offer a bridge from there — framed as a starting point, not the answer.";
             }
             if (in_array('build', $missing)) {
                 $items .= "\n- **Contact 2 – Build (not yet made)**: End every explanation with a micro-task: *\"Now try writing that yourself\"*, *\"Build a small example using this concept\"*, or *\"Apply this to [simple scenario].\"*";
