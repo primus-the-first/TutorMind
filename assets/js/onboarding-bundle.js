@@ -149,6 +149,33 @@ class OnboardingWizard {
         this.setupAnimations();
         this.setupEventListeners();
         this.loadProgress(); // Restore state if available
+
+        // Update mode: a user who already completed onboarding is back to fill
+        // in newly added fields (e.g. interests). Preload their saved profile so
+        // re-saving doesn't wipe earlier answers, and jump straight to preferences.
+        this.updateMode = window.TUTORMIND_UPDATE_MODE === true;
+        this.isCompleting = false;
+        if (this.updateMode) {
+            const existing = window.TUTORMIND_EXISTING_PROFILE;
+            if (existing && typeof existing === 'object') {
+                Object.keys(this.profileData).forEach(key => {
+                    if (existing[key] !== undefined && existing[key] !== null) {
+                        this.profileData[key] = existing[key];
+                    }
+                });
+            }
+            if (!Array.isArray(this.profileData.interests)) this.profileData.interests = [];
+            this.currentScreen = 6;
+
+            // Step counter is meaningless for a single-screen update
+            const heading = document.querySelector('.wizard-progress h2');
+            if (heading) heading.textContent = 'Almost there! Just one more thing 🎯';
+            const counter = document.getElementById('wizard-progress-text');
+            if (counter) counter.style.display = 'none';
+            const bar = document.querySelector('.wizard-progress-bar-container');
+            if (bar) bar.style.display = 'none';
+        }
+
         this.showScreen(this.currentScreen);
     }
 
@@ -935,7 +962,17 @@ class OnboardingWizard {
 
         renderInterestTags();
 
-        document.getElementById('preferences-continue-btn').onclick = () => this.nextScreen();
+        const continueBtn = document.getElementById('preferences-continue-btn');
+        if (this.updateMode) {
+            // Returning user only updates this screen: no wizard back-navigation,
+            // and continuing saves the profile instead of moving to notifications
+            const backBtn = document.querySelector('#screen6 .screen-navigation .btn-secondary');
+            if (backBtn) backBtn.style.display = 'none';
+            continueBtn.innerHTML = 'Save & Finish <i class="fas fa-check"></i>';
+            continueBtn.onclick = () => this.completeOnboarding();
+        } else {
+            continueBtn.onclick = () => this.nextScreen();
+        }
         this.checkPreferences();
     }
 
@@ -1079,6 +1116,7 @@ class OnboardingWizard {
 
         // Prevent accidental page refresh during onboarding
         window.addEventListener('beforeunload', (e) => {
+            if (this.isCompleting) return;
             if (this.currentScreen > 1 && this.currentScreen < this.totalScreens) {
                 e.preventDefault();
                 e.returnValue = 'Your progress is saved. Are you sure you want to leave?';
@@ -1107,9 +1145,12 @@ class OnboardingWizard {
 
     async completeOnboarding() {
         console.log('🎓 Completing onboarding...');
-        
+        this.isCompleting = true;
+
         // Show loading state
-        const btn = document.querySelector('.btn-primary.btn-large');
+        const btn = this.updateMode
+            ? document.getElementById('preferences-continue-btn')
+            : document.querySelector('.btn-primary.btn-large');
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -1137,13 +1178,16 @@ class OnboardingWizard {
             }
         } catch (error) {
             console.error('❌ Onboarding completion error:', error);
-            
+            this.isCompleting = false;
+
             // Reset button
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = 'Go to Dashboard <i class="fas fa-rocket"></i>';
+                btn.innerHTML = this.updateMode
+                    ? 'Save & Finish <i class="fas fa-check"></i>'
+                    : 'Go to Dashboard <i class="fas fa-rocket"></i>';
             }
-            
+
             alert('There was an error saving your profile. Please try again or contact support.');
         }
     }

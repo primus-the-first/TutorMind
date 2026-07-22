@@ -74,7 +74,9 @@ $education_level  = $edu_level_map[strtolower($edu ?? '')] ?? null;
 $country          = isset($input['country'])  ? substr($input['country'], 0, 100) : null;
 $primary_language = isset($input['language']) ? substr($input['language'], 0, 50)  : null;
 
-// Personal interests/hobbies — used as a fallback source for teaching analogies
+// Personal interests/hobbies — mined by the tutor for examples, scenarios, and
+// widget content; kept out of the tutor's hands only when inviting the learner's
+// own analogy, so that specific connection stays learner-generated
 $interests = null;
 if (!empty($input['interests']) && is_array($input['interests'])) {
     $cleanInterests = array_slice(array_values(array_filter(array_map('trim', array_map('strval', $input['interests'])))), 0, 20);

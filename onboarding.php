@@ -19,20 +19,30 @@ require_once 'includes/db_mysql.php';
 $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'there');
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
-// Check if onboarding is already completed
+// Check if onboarding is already completed.
+// Completed users are only bounced to chat when nothing is missing; if fields
+// added after their original onboarding (e.g. interests) are still empty, they
+// re-enter in "update mode" to fill in just those gaps.
+$update_mode = false;
+$existing_profile = null;
+$user_dark_mode = false;
 if ($user_id) {
     try {
         $pdo = getDbConnection();
-        $stmt = $pdo->prepare("SELECT onboarding_completed, dark_mode FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT onboarding_completed, dark_mode, interests, profile_data FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        $user_dark_mode = false;
-        
+
         if ($user) {
             $user_dark_mode = (bool)($user['dark_mode'] ?? false);
             if ($user['onboarding_completed']) {
-                header('Location: chat');
-                exit;
+                $saved_interests = json_decode($user['interests'] ?? '', true);
+                if (is_array($saved_interests) && count($saved_interests) > 0) {
+                    header('Location: chat');
+                    exit;
+                }
+                $update_mode = true;
+                $existing_profile = $user['profile_data'];
             }
         }
     } catch (Exception $e) {
@@ -526,6 +536,17 @@ if ($user_id) {
                             </div>
                         </div>
                     </div>
+
+                    <!-- Section D: Interests -->
+                    <div class="preference-section">
+                        <h4>🎯 What do you already know or enjoy?</h4>
+                        <p class="helper-text">Hobbies, games, sports, your job — anything. We'll use these to make new ideas click faster. (Optional)</p>
+                        <div class="uni-subject-input-group">
+                            <input type="text" id="interests-entry" placeholder="e.g., basketball, cooking, Minecraft">
+                            <button type="button" id="add-interest-btn" class="btn-icon-only"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div id="interests-list" class="uni-tags-container"></div>
+                    </div>
                 </div>
 
                 <!-- Error Message -->
@@ -652,7 +673,14 @@ if ($user_id) {
     
     <!-- GSAP Animation Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
-    
+
+    <!-- Update mode: completed users returning to fill in newly added fields.
+         Their saved profile is preloaded so re-saving doesn't wipe earlier answers. -->
+    <script>
+        window.TUTORMIND_UPDATE_MODE = <?= json_encode($update_mode) ?>;
+        window.TUTORMIND_EXISTING_PROFILE = <?= ($existing_profile !== null && json_decode($existing_profile) !== null) ? $existing_profile : 'null' ?>;
+    </script>
+
     <!-- Consolidated Wizard Logic and Animations -->
     <script src="assets/js/onboarding-bundle.js?v=<?= time() ?>"></script>
 </body>
