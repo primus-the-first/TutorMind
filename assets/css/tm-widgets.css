@@ -1,0 +1,439 @@
+/**
+ * TutorMind Interactive Widgets
+ * Brilliant-style in-chat components rendered from tm-* fenced blocks the AI emits.
+ * Inherits theme tokens from ui-overhaul.css (--primary, --cta, --bg-card, --border,
+ * --text-primary/secondary), so dark mode flips automatically via body.dark-mode.
+ */
+
+:root {
+  --tm-good: #10b981;
+  --tm-good-bg: rgba(16, 185, 129, 0.12);
+  --tm-bad: #ef4444;
+  --tm-bad-bg: rgba(239, 68, 68, 0.10);
+  --tm-widget-radius: 14px;
+}
+
+/* ---------- Shared shell ---------- */
+.tm-widget {
+  border: 1.5px solid var(--border);
+  border-radius: var(--tm-widget-radius);
+  background: var(--bg-card, #fff);
+  box-shadow: var(--shadow-md, 0 10px 20px rgba(124, 58, 237, 0.1));
+  padding: 1rem 1.1rem;
+  margin: 0.85rem 0;
+}
+
+.tm-widget-kind {
+  font-family: "Source Sans Pro", system-ui, sans-serif;
+  font-size: 0.66rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--cta, #f59e0b);
+  font-weight: 700;
+  margin-bottom: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tm-widget-q {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+.tm-widget-q:last-child { margin-bottom: 0; }
+
+/* ---------- Reply chips ---------- */
+.tm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tm-chip {
+  font-family: inherit;
+  font-size: 0.87rem;
+  padding: 0.5rem 0.9rem;
+  border: 1.5px solid var(--primary);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.tm-chip:hover { background: var(--primary); color: #fff; transform: translateY(-1px); }
+.tm-chips.tm-done .tm-chip { opacity: 0.4; pointer-events: none; }
+.tm-chips.tm-done .tm-chip.tm-picked {
+  opacity: 1;
+  background: var(--primary);
+  color: #fff;
+}
+
+/* ---------- MCQ check ---------- */
+.tm-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.tm-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: left;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card, #fff);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+.tm-opt:hover:not([disabled]) {
+  border-color: var(--primary);
+  transform: translateX(2px);
+}
+.tm-opt-key {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-family: "Source Sans Pro", system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-secondary);
+}
+.tm-opt-text { flex: 1; }
+.tm-opt.tm-correct { border-color: var(--tm-good); background: var(--tm-good-bg); }
+.tm-opt.tm-correct .tm-opt-key { border-color: var(--tm-good); background: var(--tm-good); color: #fff; }
+.tm-opt.tm-wrong { border-color: var(--tm-bad); background: var(--tm-bad-bg); animation: tm-shake 0.3s ease; }
+.tm-opt.tm-wrong .tm-opt-key { border-color: var(--tm-bad); background: var(--tm-bad); color: #fff; }
+.tm-opt[disabled] { cursor: default; }
+
+@keyframes tm-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* ---------- Verdict panel (check + task) ---------- */
+.tm-verdict {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.87rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.tm-verdict.tm-v-good { background: var(--tm-good-bg); border: 1.5px solid var(--tm-good); }
+.tm-verdict.tm-v-bad { background: var(--tm-bad-bg); border: 1.5px solid var(--tm-bad); }
+.tm-verdict-title { font-weight: 700; font-size: 0.82rem; margin-bottom: 0.15rem; }
+.tm-verdict.tm-v-good .tm-verdict-title { color: var(--tm-good); }
+.tm-verdict.tm-v-bad .tm-verdict-title { color: var(--tm-bad); }
+
+/* ---------- Hint ladder ---------- */
+.tm-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+.tm-hint-row { display: flex; flex-direction: column; gap: 0.4rem; }
+.tm-hint-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  padding: 0.42rem 0.85rem;
+  border: 1.5px dashed var(--cta, #f59e0b);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cta, #f59e0b);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.tm-hint-btn:hover:not([disabled]) { background: rgba(245, 158, 11, 0.12); }
+.tm-hint-btn[disabled] { opacity: 0.4; cursor: default; }
+.tm-hint-text {
+  font-size: 0.87rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--cta, #f59e0b);
+  padding: 0.15rem 0 0.15rem 0.75rem;
+}
+
+/* ---------- Step reveal ---------- */
+.tm-steps { display: flex; flex-direction: column; gap: 0.5rem; }
+.tm-step {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  padding: 0.65rem 0.8rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-main, rgba(124, 58, 237, 0.03));
+}
+.tm-step-n {
+  flex: none;
+  font-family: "Source Sans Pro", system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+  padding-top: 0.1rem;
+}
+.tm-step-nudge {
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  padding-left: 0.15rem;
+}
+.tm-step-btn,
+.tm-check-btn {
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.tm-step-btn {
+  align-self: flex-start;
+  margin-top: 0.55rem;
+  font-size: 0.84rem;
+  padding: 0.5rem 1rem;
+  border: 1.5px solid var(--primary);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--primary);
+}
+.tm-step-btn:hover { background: var(--primary); color: #fff; }
+.tm-step-btn[hidden] { display: none; }
+
+/* ---------- Short-answer task ---------- */
+.tm-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.tm-answer textarea {
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-main, rgba(124, 58, 237, 0.03));
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  min-height: 70px;
+  resize: vertical;
+}
+.tm-answer textarea:focus { outline: none; border-color: var(--primary); }
+.tm-check-btn {
+  align-self: flex-end;
+  font-size: 0.87rem;
+  padding: 0.55rem 1.3rem;
+  border: none;
+  border-radius: 9px;
+  background: var(--cta, #f59e0b);
+  color: #1f2937;
+  box-shadow: var(--shadow-sm, 0 4px 6px rgba(0, 0, 0, 0.05));
+}
+.tm-check-btn:hover:not([disabled]) { transform: translateY(-1px); filter: brightness(1.03); }
+.tm-check-btn[disabled] { opacity: 0.5; cursor: default; }
+
+/* ---------- Three-Contact progress chip (chat header) ---------- */
+.tm-contact-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 1.25rem;
+  padding: 0.4rem 0.75rem;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card, #fff);
+  cursor: help;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.tm-contact-dots { display: flex; gap: 0.3rem; }
+.tm-contact-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  background: transparent;
+  transition: background 0.4s ease, transform 0.4s ease;
+}
+.tm-contact-dot.tm-filled { background: var(--primary); transform: scale(1.15); }
+.tm-contact-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.tm-contact-chip.tm-complete {
+  border-color: var(--tm-good);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+.tm-contact-chip.tm-complete .tm-contact-dot {
+  border-color: var(--tm-good);
+  background: var(--tm-good);
+}
+.tm-contact-chip.tm-complete .tm-contact-label { color: var(--tm-good); }
+.tm-contact-tip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 200;
+  width: 235px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 9px;
+  background: #1f2937;
+  color: #f9fafb;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+.tm-contact-chip:hover .tm-contact-tip,
+.tm-contact-chip:focus .tm-contact-tip,
+.tm-contact-chip:focus-within .tm-contact-tip { display: block; }
+
+@media (max-width: 640px) {
+  .tm-contact-chip { margin-right: 0.6rem; padding: 0.35rem 0.55rem; }
+  .tm-contact-label { display: none; }
+  .tm-contact-tip { right: auto; left: 0; }
+}
+
+/* ---------- Sequence ordering (tm-order) ---------- */
+.tm-order {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.tm-order-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: left;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  padding: 0.7rem 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card, #fff);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+.tm-order-item:hover:not(.tm-correct):not(.tm-wrong) {
+  border-color: var(--primary);
+  transform: translateX(2px);
+}
+.tm-order-badge {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1.5px dashed var(--border);
+  border-radius: 50%;
+  color: var(--text-secondary);
+}
+.tm-order-item.tm-picked { border-color: var(--primary); }
+.tm-order-item.tm-picked .tm-order-badge {
+  border-style: solid;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.tm-order-item.tm-correct { border-color: var(--tm-good); background: var(--tm-good-bg); }
+.tm-order-item.tm-correct .tm-order-badge { border-color: var(--tm-good); background: var(--tm-good); color: #fff; }
+.tm-order-item.tm-wrong { border-color: var(--tm-bad); background: var(--tm-bad-bg); }
+.tm-order-item.tm-wrong .tm-order-badge { border-color: var(--tm-bad); background: var(--tm-bad); color: #fff; }
+.tm-order-controls {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+.tm-order-controls .tm-step-btn { margin-top: 0; }
+.tm-order-controls .tm-check-btn { align-self: auto; }
+.tm-order-controls [hidden] { display: none; }
+
+/* ---------- Fill-in-the-blank code (tm-cloze) ---------- */
+.tm-cloze-code {
+  background: #1e1e2e;
+  color: #e6e1ff;
+  font-family: "Roboto Mono", Consolas, monospace;
+  font-size: 0.84rem;
+  line-height: 1.7;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  margin: 0.5rem 0 0;
+  overflow-x: auto;
+  white-space: pre;
+}
+.tm-cloze-blank {
+  font-family: inherit;
+  font-size: 0.95em;
+  font-weight: 700;
+  min-width: 3ch;
+  padding: 0.05rem 0.5rem;
+  margin: 0 0.15rem;
+  border: 1.5px dashed var(--cta, #f59e0b);
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #ffd479;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  vertical-align: baseline;
+}
+.tm-cloze-blank:hover { background: rgba(245, 158, 11, 0.3); }
+.tm-cloze-blank.tm-filled { border-style: solid; }
+.tm-cloze-blank.tm-correct {
+  border-color: var(--tm-good);
+  background: rgba(16, 185, 129, 0.25);
+  color: #7ef0c4;
+}
+.tm-cloze-blank.tm-wrong {
+  border-color: var(--tm-bad);
+  background: rgba(239, 68, 68, 0.25);
+  color: #ffb3b3;
+}
+
+/* ---------- Focus visibility (a11y) ---------- */
+.tm-chip:focus-visible,
+.tm-opt:focus-visible,
+.tm-hint-btn:focus-visible,
+.tm-step-btn:focus-visible,
+.tm-check-btn:focus-visible,
+.tm-order-item:focus-visible,
+.tm-cloze-blank:focus-visible {
+  outline: 3px solid var(--cta, #f59e0b);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-opt, .tm-chip, .tm-step-btn, .tm-check-btn,
+  .tm-order-item, .tm-cloze-blank { transition: none; }
+  .tm-opt.tm-wrong { animation: none; }
+}

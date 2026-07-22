@@ -20,6 +20,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
 $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'User';
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 $user_program = null;
+$setup_needed = false;
 
 // Initialize Database Connection Globally
 try {
@@ -55,7 +56,22 @@ if ($user_id) {
             // Profile columns might be missing on older installs
             error_log("Profile fetch error (column might be missing): " . $e->getMessage());
         }
-        
+
+        // Setup is needed when onboarding was never finished, or when fields added
+        // after the user's original onboarding (e.g. interests) are still empty
+        try {
+            $stmt = $pdo->prepare("SELECT onboarding_completed, interests FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $setup = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($setup) {
+                $saved_interests = json_decode($setup['interests'] ?? '', true);
+                $setup_needed = !$setup['onboarding_completed']
+                    || !is_array($saved_interests) || count($saved_interests) === 0;
+            }
+        } catch (Exception $e) {
+            error_log("Setup status fetch error (column might be missing): " . $e->getMessage());
+        }
+
     } catch (Exception $e) {
         error_log("Tutor page user fetch error: " . $e->getMessage());
     }
@@ -72,6 +88,7 @@ $selectedPrompts = [
 // --- Server-Side Rendering of Chat Messages ---
 $ssr_messages_html = '';
 $ssr_chat_active = false;
+$ssr_contact_state = [];
 $ssr_conversation_title = 'TutorMind';
 
 if (isset($_GET['conversation_id'])) {
@@ -80,13 +97,17 @@ if (isset($_GET['conversation_id'])) {
         require_once 'vendor/autoload.php'; // Needed for Parsedown
         
         // Verify ownership
-        $stmt = $pdo->prepare("SELECT title FROM conversations WHERE id = ? AND user_id = ?");
+        $stmt = $pdo->prepare("SELECT title, context_data FROM conversations WHERE id = ? AND user_id = ?");
         $stmt->execute([$convo_id, $user_id]);
         $convo = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($convo) {
             $ssr_chat_active = true;
             $ssr_conversation_title = $convo['title'];
+
+            // Three-Contact state for the header progress chip
+            $ssr_ctx = json_decode($convo['context_data'] ?? '{}', true) ?: [];
+            $ssr_contact_state = $ssr_ctx['contactState'] ?? [];
             
             // Fetch messages (limit 50 for initial load to be fast)
             $stmt = $pdo->prepare("SELECT id, role, content, is_edited FROM messages WHERE conversation_id = ? ORDER BY created_at ASC");
@@ -242,6 +263,7 @@ try {
 
     <!-- Custom Styles -->
     <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= filemtime('assets/css/ui-overhaul.css') ?>">
+    <link rel="stylesheet" href="assets/css/tm-widgets.css?v=<?= filemtime('assets/css/tm-widgets.css') ?>">
     <link rel="stylesheet" href="assets/css/mobile.css?v=<?= filemtime('assets/css/mobile.css') ?>">
     <link rel="stylesheet" href="assets/css/logo.css?v=<?= filemtime('assets/css/logo.css') ?>">
     <link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>" media="print" onload="this.media='all'">
@@ -358,6 +380,26 @@ try {
 
             <!-- Pomodoro Timer Widget and Dark Mode Toggle -->
             <div class="header-right" style="display: flex; justify-content: flex-end; flex: 1; align-items: center;">
+                <?php
+                    $csA = !empty($ssr_contact_state['analogy']);
+                    $csB = !empty($ssr_contact_state['build']);
+                    $csP = !empty($ssr_contact_state['predict']);
+                    $csMade = (int)$csA + (int)$csB + (int)$csP;
+                ?>
+                <div class="tm-contact-chip<?= $csMade === 3 ? ' tm-complete' : '' ?>"
+                     id="contactChip"
+                     style="<?= $ssr_chat_active ? '' : 'display:none' ?>"
+                     tabindex="0"
+                     role="img"
+                     aria-label="Learning progress: <?= $csMade ?> of 3 contacts made">
+                    <span class="tm-contact-dots">
+                        <span class="tm-contact-dot<?= $csA ? ' tm-filled' : '' ?>" data-contact="analogy"></span>
+                        <span class="tm-contact-dot<?= $csB ? ' tm-filled' : '' ?>" data-contact="build"></span>
+                        <span class="tm-contact-dot<?= $csP ? ' tm-filled' : '' ?>" data-contact="predict"></span>
+                    </span>
+                    <span class="tm-contact-label" id="contactChipLabel"><?= $csMade === 3 ? 'Encoded' : $csMade . ' / 3' ?></span>
+                    <span class="tm-contact-tip" id="contactChipTip"></span>
+                </div>
                 <div class="pomodoro-widget" id="pomodoroWidget" style="margin-right: 1.5rem;">
                     <button type="button" class="pomodoro-trigger-btn" id="pomodoroTrigger" title="Study Timer">
                         <i class="fas fa-clock"></i>
@@ -601,11 +643,13 @@ try {
         </footer>
         
         <!-- Complete setup link for personalized experience (Moved after input area for mobile flexibility) -->
+        <?php if ($setup_needed): ?>
         <div class="setup-link-row">
             <a href="onboarding" class="setup-link">
                 <i class="fas fa-magic"></i> Complete setup for a personalized experience
             </a>
         </div>
+        <?php endif; ?>
     </div>
 
     <!-- Voice Mode Overlay -->
@@ -703,6 +747,7 @@ try {
     <script src="assets/js/settings.js?v=<?= filemtime('assets/js/settings.js') ?>"></script>
     <script src="assets/js/session-context.js?v=<?= filemtime('assets/js/session-context.js') ?>"></script>
     <script src="assets/js/quick-start.js?v=<?= filemtime('assets/js/quick-start.js') ?>"></script>
+    <script src="assets/js/tm-widgets.js?v=<?= filemtime('assets/js/tm-widgets.js') ?>"></script>
     <script src="assets/js/tutor_mysql.js?v=<?= filemtime('assets/js/tutor_mysql.js') ?>"></script>
     
     <!-- Initialize Highlight.js -->

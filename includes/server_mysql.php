@@ -120,7 +120,7 @@ if ($action) {
             try {
                 $pdo = getDbConnection();
                 // First, verify the user owns this conversation
-                $stmt = $pdo->prepare("SELECT id, title FROM conversations WHERE id = ? AND user_id = ?");
+                $stmt = $pdo->prepare("SELECT id, title, context_data FROM conversations WHERE id = ? AND user_id = ?");
                 $stmt->execute([$convo_id, $_SESSION['user_id']]);
                 $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -128,6 +128,16 @@ if ($action) {
                     echo json_encode(['success' => false, 'error' => 'Conversation not found or access denied.']);
                     break;
                 }
+
+                // Three-Contact state for the header progress chip
+                $convoCtx = json_decode($conversation['context_data'] ?? '{}', true) ?: [];
+                $convoContacts = $convoCtx['contactState'] ?? [];
+                $conversation['contactState'] = [
+                    'analogy' => (bool)($convoContacts['analogy'] ?? false),
+                    'build'   => (bool)($convoContacts['build']   ?? false),
+                    'predict' => (bool)($convoContacts['predict'] ?? false),
+                ];
+                unset($conversation['context_data']); // not needed client-side
 
                 // PERFORMANCE: Fetch only the most recent 15 messages (visible on screen initially)
                 // We order by created_at DESC first to get the latest, then reverse in PHP
@@ -774,18 +784,30 @@ try {
     if ($hasProfile) {
         // CRITICAL: Add instruction to use personalization subtly
         $personalization_context .= <<<EOT
-**⚠️ CRITICAL INSTRUCTION - READ CAREFULLY:**
-The following profile information is for YOUR INTERNAL USE ONLY to calibrate your responses.
+**⚠️ HOW TO USE THIS PROFILE:**
+Draw on the profile below to make your examples and scenarios concrete and relevant to this specific learner. Personalization should be **felt, not announced**.
 
-**NEVER explicitly mention or reference this information in your responses.** Examples of what NOT to do:
+**DO use it as raw material for your own examples and scenarios:**
+- ✅ Pick example domains from their interests and field: if they are into football, use a league table for a sorting example; if they work with networks, route packets rather than abstract "nodes".
+- ✅ Use their region's currency, units, spellings, and everyday conventions.
+- ✅ Pitch vocabulary and depth at their stated level.
+
+**DO NOT announce the personalization or state the profile back to them:**
 - ❌ "In the world of Information Technology..." or "As someone in IT..."
-- ❌ "Since you're studying [field]..."
-- ❌ "As a university student..."
-- ❌ "Given your background in..."
+- ❌ "Since you're studying [field]..." / "As a university student..." / "Given your background in..."
+- ❌ Naming their field/interests inside a question: "...or perhaps in your work in IT?", "...maybe from your programming experience?"
+- ❌ Any sentence whose purpose is to show that you know their profile.
 
-**INSTEAD:** Just answer the question naturally. Use appropriate vocabulary and examples that match their level, but don't call attention to WHY you're doing it. The personalization should be invisible to the user.
+Just *use* the material. Reach for their world silently — the example itself does the work, with no preamble explaining why you chose it.
 
-Profile context (USE IMPLICITLY, DO NOT MENTION):
+**THE ONE HARD EXCEPTION — inviting the learner's own analogy:**
+When you ask the learner what a concept reminds them of, you must NOT offer profile-derived candidates:
+- ❌ "What does this remind you of — maybe [their interest] or [local landmark]?"
+- ✅ "What does this remind you of?" — then wait.
+
+Handing them an analogy turns *generating* a connection into merely *recognising* one, which destroys the encoding benefit. The analogy must be theirs. Only if they have been asked and genuinely come up empty may you offer ONE bridge from their interests, framed as a starting point ("Here's one way to see it — but does anything else come to mind for you?"), never as the final word. Once the learner has produced any mental model of their own, extend THEIR model rather than substituting one from the profile.
+
+Profile context (USE IMPLICITLY, DO NOT ANNOUNCE):
 
 EOT;
 
@@ -793,10 +815,9 @@ EOT;
             $country = $user_profile['country'];
             $personalization_context .= <<<EOT
 - **Region: {$country}**
-  → Use real-world examples, scenarios, and analogies from {$country}
-  → Reference local landmarks, companies, sports, foods, or cultural elements when explaining concepts
-  → Use the local currency, measurement systems, and conventions familiar to someone from {$country}
-  → Example: If explaining economics, use local businesses or industries. If explaining biology, reference local flora/fauna.
+  → Use the local currency, measurement systems, spellings, and conventions familiar to someone from {$country}
+  → Local places, institutions, and everyday references from {$country} are good raw material for your examples and scenarios — use them naturally, without pointing out that you are doing so
+  → EXCEPTION: do not offer them as candidate answers when inviting the learner's OWN analogy — that question stays open
 
 EOT;
         }
@@ -823,8 +844,12 @@ EOT;
             $interestsList = json_decode($user_profile['interests'], true);
             if (is_array($interestsList) && !empty($interestsList)) {
                 $interestsStr = implode(', ', $interestsList);
-                $personalization_context .= "- **Known interests/experience: {$interestsStr}**\n";
-                $personalization_context .= "  → If the learner struggles to produce their own analogy, you may bridge a new concept to one of these — but always ask for their own connection first. Frame any interest-based analogy as a starting point (\"Here's one way to see it, using {$interestsList[0]} — but does anything else come to mind for you?\"), never as the final word.\n";
+                $personalization_context .= "- **Interests / experience: {$interestsStr}**\n";
+                $personalization_context .= "  → Actively mine these when you need a concrete example, scenario, or problem to illustrate a concept. Prefer a scenario drawn from this list over a generic textbook one — e.g. build the worked example around {$interestsList[0]} rather than abstract widgets or foo/bar. Do this silently: use the domain, never announce that you picked it because of their profile.\n";
+                $personalization_context .= "  → This applies with full force to INTERACTIVE ELEMENTS: the questions, options, and scenarios inside your tm- blocks should be framed in these domains too. A practice question, prediction scenario, or follow-up check set in a world they love lands harder than an abstract one. Keep the framing in the CONTENT of the question — still never announce why you chose it.\n";
+                $personalization_context .= "  → EXCEPTION: never offer these as candidate answers when you ask the learner what a concept reminds THEM of. That specific question must stay open, and the analogy must be generated by them.\n";
+                $personalization_context .= "  → If the learner has been asked for their own analogy and genuinely comes up empty, THEN offer ONE interest as a starting point (\"Here's one way to see it, using {$interestsList[0]} — but does anything else come to mind for you?\"), never as the final word.\n";
+                $personalization_context .= "  → Once the learner has produced a mental model of their own, extend THEIR model rather than substituting one built from these interests.\n";
             }
         }
     }
@@ -1237,7 +1262,13 @@ EOT;
             'success' => true,
             'answer' => $formattedAnswer,
             'conversation_id' => $conversation_id,
-            'user_message_id' => $user_message_id
+            'user_message_id' => $user_message_id,
+            // Three-Contact state drives the progress chip in the chat header
+            'contactState' => [
+                'analogy' => (bool)($contactState['analogy'] ?? false),
+                'build'   => (bool)($contactState['build']   ?? false),
+                'predict' => (bool)($contactState['predict'] ?? false),
+            ],
         ];
         if ($generated_title) {
             $response_payload['generated_title'] = $generated_title;

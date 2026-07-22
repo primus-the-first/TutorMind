@@ -485,9 +485,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatMessages.appendChild(messageWrapper);
 
         if (animate && sender === 'ai') {
-            // Use typewriter effect for AI messages
-            typeWriter(messageBubble, messageHtml, 10, () => {
+            // Pull interactive widget blocks out first so their raw JSON never
+            // types into view; type the prose, then drop the widgets into place.
+            const extracted = window.TMWidgets
+                ? window.TMWidgets.extract(messageHtml)
+                : { html: messageHtml, specs: [] };
+            typeWriter(messageBubble, extracted.html, 10, () => {
                 // Callback after typing finishes
+                if (window.TMWidgets) window.TMWidgets.fill(messageBubble, extracted.specs);
                 finalizeMessage(messageBubble);
             });
         } else {
@@ -547,6 +552,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Helper to finalize message (highlighting, mathjax, etc) ---
     function finalizeMessage(messageBubble) {
+        // Swap interactive tm-* blocks into widgets BEFORE code highlighting,
+        // so they never get treated as (or wrapped like) plain code blocks.
+        if (window.TMWidgets) window.TMWidgets.render(messageBubble);
+
         // Add copy buttons to code blocks and trigger syntax highlighting
         addCopyButtonsToCodeBlocks(messageBubble);
 
@@ -570,6 +579,50 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     }
+
+    // --- Three-Contact progress chip in the header ---
+    // Reflects which of the three learning contacts (analogy / build / predict)
+    // the server has detected in this conversation.
+    function updateContactChip(state) {
+        const chip = document.getElementById('contactChip');
+        if (!chip || !state) return;
+        chip.style.display = '';
+
+        let made = 0;
+        ['analogy', 'build', 'predict'].forEach(name => {
+            const dot = chip.querySelector('.tm-contact-dot[data-contact="' + name + '"]');
+            if (!dot) return;
+            if (state[name]) { dot.classList.add('tm-filled'); made++; }
+            else { dot.classList.remove('tm-filled'); }
+        });
+
+        chip.classList.toggle('tm-complete', made === 3);
+        chip.setAttribute('aria-label', 'Learning progress: ' + made + ' of 3 contacts made');
+
+        const label = document.getElementById('contactChipLabel');
+        if (label) label.textContent = made === 3 ? 'Encoded' : made + ' / 3';
+
+        const tip = document.getElementById('contactChipTip');
+        if (tip) {
+            tip.textContent = made === 3
+                ? 'All three contacts made — you connected this to something you already knew, built with it, and predicted with it. That combination is what moves a concept into long-term memory.'
+                : 'Concepts stick after three kinds of contact: connecting them to something you know, building something with them, and predicting with them. ' + made + ' of 3 so far this session.';
+        }
+    }
+
+    // Interactive widgets live in assets/js/tm-widgets.js (window.TMWidgets).
+    // Wire its reply/reveal hooks into this page's chat pipeline.
+    if (window.TMWidgets) {
+        window.TMWidgets.init({
+            onReply: function (text) {
+                if (!text) return;
+                questionInput.value = text;
+                tutorForm.requestSubmit(submitBtn);
+            },
+            onReveal: function (el) { finalizeMessage(el); }
+        });
+    }
+
     // --- Handle edit submission (two-phase: update DB, then regenerate AI response) ---
     async function handleEditSubmit(msgWrapper, messageId, newContent, conversationId) {
         const messageBubble = msgWrapper.querySelector('.message-content');
@@ -666,6 +719,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 `;
                 addMessage('ai', messageContent, true);
+                updateContactChip(aiResult.contactState);
             } else {
                 addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>${aiResult.error || 'An unknown error occurred.'}</span></div>`);
             }
@@ -2419,6 +2473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 `;
                 addMessage('ai', messageContent, true);
+                updateContactChip(result.contactState);
 
                 // Event listeners are now attached in finalizeMessage after typing is complete
 
@@ -2724,6 +2779,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.body.classList.remove('chat-empty');
                 chatMessages.innerHTML = '';
                 conversationIdInput.value = id;
+                updateContactChip(result.conversation.contactState);
                 // Find last user message index for edit button
                 let lastUserIndex = -1;
                 result.conversation.chat_history.forEach((item, i) => {
