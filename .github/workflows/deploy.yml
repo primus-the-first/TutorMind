@@ -1,0 +1,76 @@
+name: Deploy to Production
+
+# dev is the production branch (deployed to the live server via SSH + git
+# pull). Every push runs the checks below first; the deploy job only runs if
+# they pass. See scripts/ci-check-dom-ids.js for why the checks include more
+# than just syntax linting.
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Lint & smoke checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+
+      - name: PHP syntax check (php -l)
+        run: |
+          set -e
+          status=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" || status=1
+          done < <(find . -name "*.php" -not -path "./vendor/*" -print0)
+          exit $status
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: JS syntax check (node --check)
+        run: |
+          set -e
+          status=0
+          while IFS= read -r -d '' f; do
+            node --check "$f" || status=1
+          done < <(find assets/js -name "*.js" -print0)
+          exit $status
+
+      - name: DOM-id cross-check (informational — see script header)
+        run: node scripts/ci-check-dom-ids.js
+
+  deploy:
+    name: Deploy via SSH
+    needs: checks
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    timeout-minutes: 5
+    steps:
+      - name: SSH in and reset the server to origin/dev
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git fetch origin dev
+            # Hard reset (not a plain pull) so the live tree always matches
+            # git exactly — no partial-pull or merge-conflict state can be
+            # left behind. Does NOT touch untracked/gitignored files (local
+            # config, uploads, logs), only files git already tracks.
+            git reset --hard origin/dev
+            echo "Deployed $(git rev-parse --short HEAD) at $(date -u +%FT%TZ)"
