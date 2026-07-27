@@ -255,6 +255,18 @@ body.dark-mode .btn-secondary {
     transform: none;
 }
 
+/* preferences-continue-btn intentionally stays clickable while "disabled" —
+   the JS click handler gates actual navigation on validity and reveals
+   #preferences-error on a failed attempt. A pointer-events:none block here
+   would swallow the click before that handler ever runs, silently
+   reproducing the exact "nothing happens" bug this is meant to fix. */
+#preferences-error {
+    display: none;
+}
+#preferences-error.visible {
+    display: flex;
+}
+
 .screen-navigation {
     display: flex;
     justify-content: space-between;

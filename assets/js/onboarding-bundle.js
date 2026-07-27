@@ -219,19 +219,25 @@ class OnboardingWizard {
             target.style.display = 'block';
             target.classList.add('active');
             
-            // Neo-Brutalist Slide Animation with slight bounce
-            const xOffset = direction === 'backward' ? -60 : 60;
-            gsap.fromTo(target, 
-                { opacity: 0, x: xOffset, scale: 0.97 },
-                { 
-                    opacity: 1, 
-                    x: 0, 
-                    scale: 1,
-                    duration: 0.45,
-                    ease: "back.out(1.3)", // Elastic overshoot
-                    clearProps: "all" 
-                }
-            );
+            // Neo-Brutalist Slide Animation with slight bounce.
+            // Guarded: if the GSAP CDN script fails/is slow to load (flaky mobile
+            // data), this must not throw — a throw here aborts everything below
+            // (updateProgressBar, initializeScreenLogic), leaving the new screen's
+            // buttons completely unbound and silently inert.
+            if (typeof gsap !== 'undefined') {
+                const xOffset = direction === 'backward' ? -60 : 60;
+                gsap.fromTo(target,
+                    { opacity: 0, x: xOffset, scale: 0.97 },
+                    {
+                        opacity: 1,
+                        x: 0,
+                        scale: 1,
+                        duration: 0.45,
+                        ease: "back.out(1.3)", // Elastic overshoot
+                        clearProps: "all"
+                    }
+                );
+            }
 
             this.updateProgressBar(screenNumber);
             this.initializeScreenLogic(screenNumber);
@@ -262,12 +268,16 @@ class OnboardingWizard {
         
         if (progressBar) {
             const percentage = (screenNumber / this.totalScreens) * 100;
-            // Animate the progress bar growth
-            gsap.to(progressBar, {
-                width: `${percentage}%`,
-                duration: 0.6,
-                ease: "power2.out"
-            });
+            // Animate the progress bar growth (guarded — see showScreen())
+            if (typeof gsap !== 'undefined') {
+                gsap.to(progressBar, {
+                    width: `${percentage}%`,
+                    duration: 0.6,
+                    ease: "power2.out"
+                });
+            } else {
+                progressBar.style.width = `${percentage}%`;
+            }
         }
         if (progressText) {
             progressText.textContent = `${screenNumber} / ${this.totalScreens}`;
@@ -928,59 +938,98 @@ class OnboardingWizard {
         bindSelect('.duration-option', 'sessionLength');
         bindSelect('.style-card', 'explanationStyle');
 
+        // Guarded: if any of these three elements are missing (stale cached HTML,
+        // a partial deploy, etc.) this must not throw — a throw here would abort
+        // before the Continue button below ever gets its click handler bound,
+        // making the button look completely dead with no visible error.
         const interestInput = document.getElementById('interests-entry');
         const addInterestBtn = document.getElementById('add-interest-btn');
         const interestsList = document.getElementById('interests-list');
 
-        const renderInterestTags = () => {
-            interestsList.innerHTML = '';
-            this.profileData.interests.forEach(interest => {
-                const tag = document.createElement('div');
-                tag.className = 'uni-subject-tag';
-                tag.innerHTML = `${interest} <i class="fas fa-times"></i>`;
-                tag.querySelector('i').onclick = () => {
-                    this.profileData.interests = this.profileData.interests.filter(i => i !== interest);
+        if (interestInput && addInterestBtn && interestsList) {
+            const renderInterestTags = () => {
+                interestsList.innerHTML = '';
+                this.profileData.interests.forEach(interest => {
+                    const tag = document.createElement('div');
+                    tag.className = 'uni-subject-tag';
+                    tag.innerHTML = `${interest} <i class="fas fa-times"></i>`;
+                    tag.querySelector('i').onclick = () => {
+                        this.profileData.interests = this.profileData.interests.filter(i => i !== interest);
+                        renderInterestTags();
+                        this.saveProgress();
+                    };
+                    interestsList.appendChild(tag);
+                });
+            };
+
+            const addInterest = () => {
+                const value = interestInput.value.trim();
+                if (value && !this.profileData.interests.includes(value)) {
+                    this.profileData.interests.push(value);
+                    interestInput.value = '';
                     renderInterestTags();
                     this.saveProgress();
-                };
-                interestsList.appendChild(tag);
-            });
-        };
+                }
+            };
 
-        const addInterest = () => {
-            const value = interestInput.value.trim();
-            if (value && !this.profileData.interests.includes(value)) {
-                this.profileData.interests.push(value);
-                interestInput.value = '';
-                renderInterestTags();
-                this.saveProgress();
+            addInterestBtn.onclick = addInterest;
+            interestInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addInterest(); } };
+
+            renderInterestTags();
+        }
+
+        const continueBtn = document.getElementById('preferences-continue-btn');
+        const proceed = this.updateMode
+            ? () => this.completeOnboarding()
+            : () => this.nextScreen();
+
+        // Gate the actual navigation on validity in the handler itself, rather
+        // than relying solely on CSS to block the click — a CSS-only "disabled"
+        // state (opacity, no pointer-events) still fires its click handler, so a
+        // learner tapping an incomplete form would silently skip validation.
+        continueBtn.onclick = () => {
+            if (this.isPreferencesComplete()) {
+                this.hidePreferencesError();
+                proceed();
+            } else {
+                this.showPreferencesError();
             }
         };
 
-        addInterestBtn.onclick = addInterest;
-        interestInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addInterest(); } };
-
-        renderInterestTags();
-
-        const continueBtn = document.getElementById('preferences-continue-btn');
         if (this.updateMode) {
             // Returning user only updates this screen: no wizard back-navigation,
             // and continuing saves the profile instead of moving to notifications
             const backBtn = document.querySelector('#screen6 .screen-navigation .btn-secondary');
             if (backBtn) backBtn.style.display = 'none';
             continueBtn.innerHTML = 'Save & Finish <i class="fas fa-check"></i>';
-            continueBtn.onclick = () => this.completeOnboarding();
-        } else {
-            continueBtn.onclick = () => this.nextScreen();
         }
         this.checkPreferences();
     }
 
-    checkPreferences() {
+    isPreferencesComplete() {
         const { studySchedule, sessionLength, explanationStyle } = this.profileData;
+        return Boolean(studySchedule && sessionLength && explanationStyle);
+    }
+
+    showPreferencesError() {
+        const err = document.getElementById('preferences-error');
+        if (err) err.classList.add('visible');
+    }
+
+    hidePreferencesError() {
+        const err = document.getElementById('preferences-error');
+        if (err) err.classList.remove('visible');
+    }
+
+    checkPreferences() {
         const btn = document.getElementById('preferences-continue-btn');
-        if (studySchedule && sessionLength && explanationStyle) btn.classList.remove('disabled');
-        else btn.classList.add('disabled');
+        if (!btn) return;
+        if (this.isPreferencesComplete()) {
+            btn.classList.remove('disabled');
+            this.hidePreferencesError();
+        } else {
+            btn.classList.add('disabled');
+        }
     }
 
     /* ==================== SCREEN 7: NOTIFICATIONS ==================== */
