@@ -90,7 +90,6 @@ if ($user_id) {
         <div class="wizard-progress">
             <div class="wizard-progress-text">
                 <h2>Let's Get Started, <?= htmlspecialchars($displayName) ?>! 👋</h2>
-                <span id="wizard-progress-text">1 / 9</span>
             </div>
             <div class="wizard-progress-bar-container">
                 <div id="wizard-progress-bar" style="width: 11%;"></div>

@@ -167,11 +167,8 @@ class OnboardingWizard {
             if (!Array.isArray(this.profileData.interests)) this.profileData.interests = [];
             this.currentScreen = 6;
 
-            // Step counter is meaningless for a single-screen update
             const heading = document.querySelector('.wizard-progress h2');
             if (heading) heading.textContent = 'Almost there! Just one more thing 🎯';
-            const counter = document.getElementById('wizard-progress-text');
-            if (counter) counter.style.display = 'none';
             const bar = document.querySelector('.wizard-progress-bar-container');
             if (bar) bar.style.display = 'none';
         }
@@ -264,8 +261,7 @@ class OnboardingWizard {
 
     updateProgressBar(screenNumber) {
         const progressBar = document.getElementById('wizard-progress-bar');
-        const progressText = document.getElementById('wizard-progress-text');
-        
+
         if (progressBar) {
             const percentage = (screenNumber / this.totalScreens) * 100;
             // Animate the progress bar growth (guarded — see showScreen())
@@ -278,9 +274,6 @@ class OnboardingWizard {
             } else {
                 progressBar.style.width = `${percentage}%`;
             }
-        }
-        if (progressText) {
-            progressText.textContent = `${screenNumber} / ${this.totalScreens}`;
         }
     }
 
