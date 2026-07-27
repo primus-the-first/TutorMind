@@ -129,6 +129,21 @@ body.dark-mode #onboarding-container {
     line-height: 1.5;
 }
 
+/* Screen 1 welcome icons — was unstyled (bare <div> per icon), so it fell
+   back to default block stacking: four full-width lines with big vertical
+   gaps, worst on narrow viewports. This lays them out as one compact row. */
+.hero-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.hero-icon {
+    font-size: 1.75rem;
+    line-height: 1;
+}
+
 /* ==================== CARDS (Education, Subjects, Goals) ==================== */
 .education-grid, .subject-grid, .goal-grid {
     display: grid;
