@@ -159,8 +159,12 @@ EOT;
  * Contact 2 – Build   : student attempts or constructs something (code, steps, example)
  * Contact 3 – Predict : student reasons about a novel scenario or consequence
  *
+ * When an analogy is detected, the student's message is captured verbatim in
+ * 'analogy_text' so the tutor can anchor on the learner's own mental model.
+ * The most recent analogy wins — a learner offering a new model replaces the old one.
+ *
  * @param array $messages Gemini-format chat history: [['role'=>..., 'parts'=>[['text'=>...]]], ...]
- * @return array ['analogy'=>bool, 'build'=>bool, 'predict'=>bool, 'missing'=>string[]]
+ * @return array ['analogy'=>bool, 'build'=>bool, 'predict'=>bool, 'missing'=>string[], 'analogy_text'=>?string]
  */
 function detectContactState($messages)
 {
@@ -171,6 +175,10 @@ function detectContactState($messages)
         '/\bso basically\b/',
         '/\bthink of it as\b/',
         '/\bkind of like\b/',
+        '/\bjust like\b/',
+        '/\bsame as when\b/',
+        '/\bas an analogy\b/',
+        "/\b(i'?ll|i will|let me) use .{2,80} as (an |the |my )?(example|analogy)\b/",
     ];
     $buildPatterns = [
         '/\bi tried\b/',
@@ -191,6 +199,7 @@ function detectContactState($messages)
     $analogy = false;
     $build   = false;
     $predict = false;
+    $analogyText = null;
 
     foreach ($messages as $message) {
         if (($message['role'] ?? '') !== 'user') {
@@ -205,9 +214,16 @@ function detectContactState($messages)
         }
         $lower = strtolower($text);
 
-        if (!$analogy) {
-            foreach ($analogyPatterns as $p) {
-                if (preg_match($p, $lower)) { $analogy = true; break; }
+        // Keep scanning even after the first hit so the latest analogy wins
+        foreach ($analogyPatterns as $p) {
+            if (preg_match($p, $lower)) {
+                $analogy = true;
+                $snippet = trim($text);
+                if (mb_strlen($snippet) > 400) {
+                    $snippet = mb_substr($snippet, 0, 400) . '…';
+                }
+                $analogyText = $snippet;
+                break;
             }
         }
         if (!$build) {
@@ -232,7 +248,13 @@ function detectContactState($messages)
     if (!$build)   $missing[] = 'build';
     if (!$predict) $missing[] = 'predict';
 
-    return ['analogy' => $analogy, 'build' => $build, 'predict' => $predict, 'missing' => $missing];
+    return [
+        'analogy'      => $analogy,
+        'build'        => $build,
+        'predict'      => $predict,
+        'missing'      => $missing,
+        'analogy_text' => $analogyText,
+    ];
 }
 
 /**
