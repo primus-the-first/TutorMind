@@ -880,6 +880,8 @@ The learner is preparing for an exam. Prioritize:
 - **Quick review** of key concepts and formulas
 - **Exam strategies** (time management, common mistakes to avoid)
 - **Confidence building** while being honest about areas needing work
+
+This is review of material the learner has likely already encountered, not first-pass learning — treat it accordingly. If you ask them to construct anything, keep it small and targeted, never broad: "pick the 3 formulas you're least confident about and explain how they relate," not "map this whole unit." Move quickly — confirm their attempt, name what's right and what's off, then move on. Save slow, unhurried Socratic exploration for a session with an "explore" or "homework_help" goal instead.
 EOT;
                 break;
             case 'explore':
@@ -1021,12 +1023,15 @@ EOT;
     try {
         $responseData = callGeminiAPI($payload, $activeApiKey);
     } catch (Exception $geminiError) {
-        $isRateLimitError = strpos($geminiError->getMessage(), 'rate limit') !== false || 
+        $isFallbackEligible = strpos($geminiError->getMessage(), 'rate limit') !== false ||
                            strpos($geminiError->getMessage(), '429') !== false ||
+                           strpos($geminiError->getMessage(), '400') !== false ||
+                           strpos($geminiError->getMessage(), '401') !== false ||
+                           strpos($geminiError->getMessage(), '403') !== false ||
                            strpos($geminiError->getMessage(), '500') !== false ||
                            strpos($geminiError->getMessage(), '503') !== false;
-        
-        if (!$isRateLimitError) {
+
+        if (!$isFallbackEligible) {
             throw $geminiError;
         }
         
