@@ -90,6 +90,10 @@ $ssr_messages_html = '';
 $ssr_chat_active = false;
 $ssr_contact_state = [];
 $ssr_conversation_title = 'TutorMind';
+// tm-check questions already answered correctly (from the silent widget echo
+// tm-widgets.js posts) — the echo bubble itself is skipped below, and this list
+// tells the frontend to re-render those widgets in their locked/solved state.
+$ssr_solved_checks = [];
 
 if (isset($_GET['conversation_id'])) {
     $convo_id = $_GET['conversation_id'];
@@ -131,7 +135,19 @@ if (isset($_GET['conversation_id'])) {
                 $roleClass = ($role === 'user') ? 'user' : 'ai';
                 $avatar = ($role === 'user') ? '👤' : '🤖';
                 $parts = json_decode($msg['content'], true);
-                
+
+                // Silent widget echo (see tm-widgets.js buildCheck / tutor_mysql.js
+                // extractSolvedCheckQuestion) — record which check it answered, skip
+                // rendering the message itself since the widget already shows the verdict.
+                if ($role === 'user' && is_array($parts)) {
+                    foreach ($parts as $part) {
+                        if (isset($part['text']) && preg_match('/^For the check "([\s\S]+?)", I chose "[\s\S]+" — the correct answer\.$/u', trim($part['text']), $echoMatch)) {
+                            $ssr_solved_checks[] = $echoMatch[1];
+                            continue 2;
+                        }
+                    }
+                }
+
                 $messageContentHtml = '';
                 
                 // Handle parts (text/images)
@@ -469,6 +485,7 @@ try {
             </div>
             <!-- Chat messages will be appended here -->
             <?= $ssr_messages_html ?>
+            <script>window.__ssrSolvedChecks = <?= json_encode($ssr_solved_checks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
         </main>
 
         <footer class="input-bar-area">

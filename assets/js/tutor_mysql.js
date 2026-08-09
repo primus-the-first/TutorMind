@@ -317,6 +317,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set by a widget's silent auto-reply (e.g. tm-check's continue-the-lesson
     // ping) so the submit handler skips the redundant visible user bubble.
     let silentNextSubmit = false;
+    // tm-check questions already answered correctly earlier in the current
+    // conversation (rebuilt from history on load) so re-rendering the widget
+    // shows the locked/solved state instead of resetting it. See finalizeMessage().
+    let solvedCheckQuestions = new Set();
+    // Matches the exact echo text tm-widgets.js sends for a correct tm-check tap
+    // (assets/js/tm-widgets.js buildCheck()) — used to recover which question it
+    // was for, and to recognize+hide that echo when replaying history.
+    function extractSolvedCheckQuestion(text) {
+        if (!text) return null;
+        const m = /^For the check "([\s\S]+?)", I chose "[\s\S]+" — the correct answer\.$/.exec(text.trim());
+        return m ? m[1] : null;
+    }
     const chatMessages = document.getElementById('chat-container');
     const conversationIdInput = document.getElementById('conversation_id');
     const submitBtn = document.getElementById('ai-submit-btn');
@@ -515,6 +527,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Function to hydrate SSR messages ---
     function hydrateMessages() {
+        // tutor_mysql.php's SSR pass skips rendering silent widget echoes as bubbles
+        // (matching the client-side behavior) and hands us the solved questions here.
+        solvedCheckQuestions = new Set(Array.isArray(window.__ssrSolvedChecks) ? window.__ssrSolvedChecks : []);
         const bubbles = chatMessages.querySelectorAll('.message-content');
         bubbles.forEach(bubble => {
             const wrapper = bubble.closest('.message');
@@ -557,7 +572,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function finalizeMessage(messageBubble) {
         // Swap interactive tm-* blocks into widgets BEFORE code highlighting,
         // so they never get treated as (or wrapped like) plain code blocks.
-        if (window.TMWidgets) window.TMWidgets.render(messageBubble);
+        if (window.TMWidgets) window.TMWidgets.render(messageBubble, { solvedChecks: solvedCheckQuestions });
 
         // Add copy buttons to code blocks and trigger syntax highlighting
         addCopyButtonsToCodeBlocks(messageBubble);
@@ -2559,6 +2574,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatMessages.appendChild(welcomeScreen);
         welcomeScreen.style.display = 'flex';
         conversationIdInput.value = '';
+        solvedCheckQuestions = new Set();
         highlightActiveConversation(null);
 
         // Reset conversation title to default and hide it
@@ -2794,6 +2810,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (item.role === 'user') lastUserIndex = i;
                 });
 
+                // Rebuild which tm-check questions were already answered correctly,
+                // from the silent echo messages tm-widgets.js posts (see extractSolvedCheckQuestion).
+                solvedCheckQuestions = new Set();
+                result.conversation.chat_history.forEach((item) => {
+                    if (item.role !== 'user') return;
+                    const parts = Array.isArray(item.parts) ? item.parts : [item.parts];
+                    parts.forEach((part) => {
+                        const q = part && part.text ? extractSolvedCheckQuestion(part.text) : null;
+                        if (q) solvedCheckQuestions.add(q);
+                    });
+                });
+
                 result.conversation.chat_history.forEach((item, index) => {
                     // The user's message in history includes file context, which we don't want to re-display.
                     // We'll just show the question part.
@@ -2846,6 +2874,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 }
                             }
                         });
+
+                        // A silent widget echo (see extractSolvedCheckQuestion) is already
+                        // reflected in the check widget itself — skip the duplicate bubble.
+                        if (extractSolvedCheckQuestion(userQuestion)) {
+                            return;
+                        }
 
                         // Assemble the final message HTML
                         if (attachmentPills.length > 0) {

@@ -7,9 +7,12 @@
  * This module swaps those blocks for tappable widgets.
  *
  * Exposes window.TMWidgets:
- *   init({ onReply, onReveal })  — onReply(text): send text as the student's
- *       message; onReveal(el): re-run MathJax/scroll on freshly revealed content.
- *   render(container)            — swap raw tm-* blocks already in the DOM.
+ *   init({ onReply, onReveal })  — onReply(text, opts): send text as the student's
+ *       message; opts.silent skips the visible bubble. onReveal(el): re-run
+ *       MathJax/scroll on freshly revealed content.
+ *   render(container, opts)      — swap raw tm-* blocks already in the DOM.
+ *       opts.solvedChecks: optional Set of tm-check question strings already
+ *       answered correctly earlier in the conversation (re-render as locked/solved).
  *   extract(html) -> {html,specs}— pull blocks out before a typewriter pass.
  *   fill(container, specs)       — fill the placeholders extract() left behind.
  *
@@ -101,6 +104,9 @@
     }
 
     // Multiple-choice check with instant green/red feedback and per-option explanations.
+    // data.__solved marks a check the student already answered correctly in an earlier
+    // turn (detected from chat history) — it renders straight into the locked, correct
+    // state instead of waiting for a tap, so re-visiting the conversation doesn't reset it.
     function buildCheck(data) {
         var w = tmShell('Check · tap an answer');
         if (data.q) w.appendChild(tmQuestion(data.q));
@@ -111,7 +117,7 @@
         var verdict = document.createElement('div');
         verdict.className = 'tm-verdict';
         verdict.style.display = 'none';
-        var solved = false;
+        var solved = !!data.__solved;
 
         (data.options || []).forEach(function (opt, i) {
             var b = document.createElement('button');
@@ -125,34 +131,47 @@
             txt.textContent = opt;
             b.appendChild(key);
             b.appendChild(txt);
-            b.addEventListener('click', function () {
-                if (solved) return;
-                if (i === answer) {
-                    solved = true;
-                    b.classList.add('tm-correct');
-                    opts.querySelectorAll('.tm-opt').forEach(function (o) { o.setAttribute('disabled', ''); });
-                    verdict.className = 'tm-verdict tm-v-good';
-                    verdict.innerHTML = '<div class="tm-verdict-title">Correct!</div>';
-                    if (explain[i]) verdict.appendChild(document.createTextNode(explain[i]));
-                    verdict.style.display = 'block';
-                    reveal(verdict);
-                    // Always ping the AI so the lesson continues after a correct tap
-                    // instead of stalling until the student types something. The verdict
-                    // is already shown in the widget, so send it silently — no duplicate bubble.
-                    reply('For the check "' + data.q + '", I chose "' + opt + '" — the correct answer.', { silent: true });
-                } else {
-                    b.classList.add('tm-wrong');
-                    b.setAttribute('disabled', '');
-                    verdict.className = 'tm-verdict tm-v-bad';
-                    verdict.innerHTML = '<div class="tm-verdict-title">Not quite — try again</div>';
-                    if (explain[i]) verdict.appendChild(document.createTextNode(explain[i]));
-                    verdict.style.display = 'block';
-                    reveal(verdict);
-                }
-            });
+            if (solved) {
+                b.setAttribute('disabled', '');
+                if (i === answer) b.classList.add('tm-correct');
+            } else {
+                b.addEventListener('click', function () {
+                    if (solved) return;
+                    if (i === answer) {
+                        solved = true;
+                        b.classList.add('tm-correct');
+                        opts.querySelectorAll('.tm-opt').forEach(function (o) { o.setAttribute('disabled', ''); });
+                        verdict.className = 'tm-verdict tm-v-good';
+                        verdict.innerHTML = '<div class="tm-verdict-title">Correct!</div>';
+                        if (explain[i]) verdict.appendChild(document.createTextNode(explain[i]));
+                        verdict.style.display = 'block';
+                        reveal(verdict);
+                        // Always ping the AI so the lesson continues after a correct tap
+                        // instead of stalling until the student types something. The verdict
+                        // is already shown in the widget, so send it silently — no duplicate bubble.
+                        reply('For the check "' + data.q + '", I chose "' + opt + '" — the correct answer.', { silent: true });
+                    } else {
+                        b.classList.add('tm-wrong');
+                        b.setAttribute('disabled', '');
+                        verdict.className = 'tm-verdict tm-v-bad';
+                        verdict.innerHTML = '<div class="tm-verdict-title">Not quite — try again</div>';
+                        if (explain[i]) verdict.appendChild(document.createTextNode(explain[i]));
+                        verdict.style.display = 'block';
+                        reveal(verdict);
+                    }
+                });
+            }
             opts.appendChild(b);
         });
         w.appendChild(opts);
+
+        if (solved) {
+            verdict.className = 'tm-verdict tm-v-good';
+            verdict.innerHTML = '<div class="tm-verdict-title">Correct!</div>';
+            if (explain[answer]) verdict.appendChild(document.createTextNode(explain[answer]));
+            verdict.style.display = 'block';
+        }
+
         w.appendChild(verdict);
         return w;
     }
@@ -508,11 +527,16 @@
         return w;
     }
 
-    function buildTmWidget(spec) {
+    // solvedChecks (optional Set of question strings) marks tm-check widgets the
+    // student already answered correctly in an earlier turn — see buildCheck().
+    function buildTmWidget(spec, solvedChecks) {
         if (!spec || !spec.data) return null;
         switch (spec.type) {
             case 'chips': return buildChips(spec.data);
-            case 'check': return buildCheck(spec.data);
+            case 'check': {
+                var isSolved = !!(solvedChecks && solvedChecks.has(String(spec.data.q || '')));
+                return buildCheck(isSolved ? Object.assign({}, spec.data, { __solved: true }) : spec.data);
+            }
             case 'hints': return buildHints(spec.data);
             case 'steps': return buildSteps(spec.data);
             case 'task':  return buildTask(spec.data);
@@ -524,12 +548,15 @@
 
     // Swap any raw tm-* code blocks already in the DOM for their widgets.
     // Used for instant renders, SSR hydration, and history reload.
-    function renderInteractiveWidgets(container) {
+    // opts.solvedChecks: optional Set of tm-check question strings already answered
+    // correctly earlier in this conversation (see tutor_mysql.js for how it's built).
+    function renderInteractiveWidgets(container, opts) {
         if (!container || !container.querySelectorAll) return;
+        var solvedChecks = opts && opts.solvedChecks;
         container.querySelectorAll('pre').forEach(function (pre) {
             var spec = parseTmSpec(pre);
             if (!spec) return;
-            var widget = buildTmWidget(spec);
+            var widget = buildTmWidget(spec, solvedChecks);
             if (!widget) return;
             var target = pre.closest('.code-block') || pre;
             target.replaceWith(widget);
