@@ -179,6 +179,18 @@ function detectContactState($messages)
         '/\bsame as when\b/',
         '/\bas an analogy\b/',
         "/\b(i'?ll|i will|let me) use .{2,80} as (an |the |my )?(example|analogy)\b/",
+        // Broader natural phrasings that don't use a canned "like"/"reminds me" cue —
+        // e.g. "The closest would be how traffic wardens control traffic when..."
+        '/\bclosest (?:\w+ )?(would be|is|comes? to)\b/',
+        '/\banalogous to\b/',
+        '/\breminiscent of\b/',
+        '/\bsounds like\b/',
+        '/\bmakes? me think of\b/',
+        '/\b(a bit|a lot|somewhat) like\b/',
+        '/\bakin to\b/',
+        '/\bin the same way (as|that)\b/',
+        "/\bit'?s (basically|essentially|pretty much|sort of|kind of)\b/",
+        "/\bthat'?s (basically|essentially|pretty much|like)\b/",
     ];
     $buildPatterns = [
         '/\bi tried\b/',
