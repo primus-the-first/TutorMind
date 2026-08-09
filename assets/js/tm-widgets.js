@@ -134,11 +134,9 @@
                     if (explain[i]) verdict.appendChild(document.createTextNode(explain[i]));
                     verdict.style.display = 'block';
                     reveal(verdict);
-                    // Self-contained by default; the model can opt into a follow-up
-                    // turn (e.g. to keep a Socratic thread going) with "followup": true.
-                    if (data.followup === true) {
-                        reply('For the check "' + data.q + '", I chose "' + opt + '" — the correct answer.');
-                    }
+                    // Always ping the AI so the lesson continues after a correct tap
+                    // instead of stalling until the student types something.
+                    reply('For the check "' + data.q + '", I chose "' + opt + '" — the correct answer.');
                 } else {
                     b.classList.add('tm-wrong');
                     b.setAttribute('disabled', '');
