@@ -314,6 +314,9 @@ class QuizManager {
 document.addEventListener('DOMContentLoaded', async () => {
     const tutorForm = document.getElementById('tutorForm');
     const questionInput = document.getElementById('question');
+    // Set by a widget's silent auto-reply (e.g. tm-check's continue-the-lesson
+    // ping) so the submit handler skips the redundant visible user bubble.
+    let silentNextSubmit = false;
     const chatMessages = document.getElementById('chat-container');
     const conversationIdInput = document.getElementById('conversation_id');
     const submitBtn = document.getElementById('ai-submit-btn');
@@ -614,8 +617,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Wire its reply/reveal hooks into this page's chat pipeline.
     if (window.TMWidgets) {
         window.TMWidgets.init({
-            onReply: function (text) {
+            onReply: function (text, opts) {
                 if (!text) return;
+                silentNextSubmit = !!(opts && opts.silent);
                 questionInput.value = text;
                 tutorForm.requestSubmit(submitBtn);
             },
@@ -2395,10 +2399,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             userMessageHtml += `</div>`;
         }
         const escapedQuestion = question.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const userMsgWrapper = addMessage('user', userMessageHtml + escapedQuestion);
+        // A silent widget auto-reply (its content is already shown in the widget
+        // itself) skips the redundant chat bubble but still posts to the server below.
+        const isSilent = silentNextSubmit;
+        silentNextSubmit = false;
+        const userMsgWrapper = isSilent ? null : addMessage('user', userMessageHtml + escapedQuestion);
 
         // Store original HTML for cancel-edit fallback
-        const userMsgBubble = userMsgWrapper.querySelector('.message-content');
+        const userMsgBubble = userMsgWrapper ? userMsgWrapper.querySelector('.message-content') : null;
         if (userMsgBubble) userMsgWrapper._originalHtml = userMsgBubble.innerHTML;
 
         // Hide welcome screen on first message and show title

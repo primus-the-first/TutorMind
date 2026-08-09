@@ -23,9 +23,11 @@
 
     // Send text back through the chat pipeline as if the student typed it,
     // so the AI reacts and server-side contact detection sees the interaction.
-    function reply(text) {
+    // opts.silent skips the visible chat bubble for synthesized text (e.g. the
+    // tm-check "I chose X" echo) whose content is already shown in the widget.
+    function reply(text, opts) {
         if (!text || !onReply) return;
-        try { onReply(text); } catch (e) { console.error('tm-widget: reply failed', e); }
+        try { onReply(text, opts || {}); } catch (e) { console.error('tm-widget: reply failed', e); }
     }
 
     // Re-run MathJax / scroll on newly revealed content (verdicts, hints, steps).
@@ -135,8 +137,9 @@
                     verdict.style.display = 'block';
                     reveal(verdict);
                     // Always ping the AI so the lesson continues after a correct tap
-                    // instead of stalling until the student types something.
-                    reply('For the check "' + data.q + '", I chose "' + opt + '" — the correct answer.');
+                    // instead of stalling until the student types something. The verdict
+                    // is already shown in the widget, so send it silently — no duplicate bubble.
+                    reply('For the check "' + data.q + '", I chose "' + opt + '" — the correct answer.', { silent: true });
                 } else {
                     b.classList.add('tm-wrong');
                     b.setAttribute('disabled', '');
