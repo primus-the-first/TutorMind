@@ -1143,6 +1143,14 @@ body.dark-mode .math-block {
   line-height: 1.5;
   max-height: 200px;
   resize: none;
+  transition: opacity 0.2s ease;
+}
+
+/* Dims the field while a request is in flight — including a widget's own
+   silent auto-reply — so it reads as "busy" rather than just inert. */
+.main-text-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .main-text-input::placeholder {
@@ -6424,9 +6432,13 @@ body.dark-mode .chat-main::before {
 }
 
 /* --- 10. Scroll-to-Bottom Button --- */
+/* bottom/z-index must clear .input-bar-area, which is position:fixed with
+   z-index:100 (desktop, ~6061) / 3000 (mobile, ~2014) and sits over the last
+   ~120-160px of the viewport — at bottom:20px/z-index:50 this button used to
+   render underneath it, invisible and unclickable. */
 .scroll-to-bottom-btn {
     position: absolute;
-    bottom: 20px;
+    bottom: 140px;
     right: 20px;
     width: 40px;
     height: 40px;
@@ -6440,7 +6452,7 @@ body.dark-mode .chat-main::before {
     justify-content: center;
     box-shadow: 0 4px 12px rgba(123, 63, 242, 0.4);
     transition: all 0.2s ease;
-    z-index: 50;
+    z-index: 3001;
 }
 
 .scroll-to-bottom-btn:hover {
