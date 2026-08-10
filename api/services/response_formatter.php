@@ -10,18 +10,6 @@ if (!function_exists('formatResponse')) {
         $protections = [];
         $counter = 0;
 
-        // Protect [FETCH_IMAGE:] markers so Parsedown doesn't mangle them as link refs
-        $text = preg_replace_callback(
-            '/\[FETCH_IMAGE:\s*([^\]]+)\]/i',
-            function ($matches) use (&$protections, &$counter) {
-                $placeholder = 'XPROTECTX' . $counter . 'XPROTECTX';
-                $protections[$placeholder] = ['type' => 'fetch_image', 'content' => trim($matches[1])];
-                $counter++;
-                return $placeholder;
-            },
-            $text
-        );
-
         // IMPORTANT: Protect code blocks FIRST, before LaTeX or inline code
         // This prevents ${variables} in code from being caught by LaTeX $ protection
         // Regex notes:
@@ -51,6 +39,19 @@ if (!function_exists('formatResponse')) {
                 $placeholder = 'XPROTECTX' . $counter . 'XPROTECTX';
                 // Store the inner content of the code block
                 $protections[$placeholder] = ['type' => 'code', 'content' => $matches[1]];
+                $counter++;
+                return $placeholder;
+            },
+            $text
+        );
+
+        // Protect [FETCH_IMAGE:] markers AFTER code protection so markers inside
+        // code blocks are already opaque placeholders and won't match here.
+        $text = preg_replace_callback(
+            '/\[FETCH_IMAGE:\s*([^\]]+)\]/i',
+            function ($matches) use (&$protections, &$counter) {
+                $placeholder = 'XPROTECTX' . $counter . 'XPROTECTX';
+                $protections[$placeholder] = ['type' => 'fetch_image', 'content' => trim($matches[1])];
                 $counter++;
                 return $placeholder;
             },

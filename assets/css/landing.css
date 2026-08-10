@@ -841,6 +841,16 @@ h1, h2, h3, h4, .navbar-logo {
     .math-bubble {
         animation: none;
     }
+
+    /* Hero content must be visible immediately — disable reveal animations */
+    .hero-title,
+    .hero-subtitle,
+    .hero-actions,
+    .hero-illustration {
+        opacity: 1;
+        animation: none;
+        animation-delay: 0s;
+    }
 }
 
 /* Mobile Menu Styles (Copied/Adapted) */

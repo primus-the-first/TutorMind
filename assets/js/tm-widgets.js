@@ -116,6 +116,7 @@
         var answer = Number(data.answer);
         var verdict = document.createElement('div');
         verdict.className = 'tm-verdict';
+        verdict.setAttribute('role', 'status');
         verdict.style.display = 'none';
         var solved = !!data.__solved;
 
@@ -316,6 +317,7 @@
 
         var verdict = document.createElement('div');
         verdict.className = 'tm-verdict';
+        verdict.setAttribute('role', 'status');
         verdict.style.display = 'none';
 
         var checkBtn = document.createElement('button');
@@ -475,6 +477,7 @@
 
         var verdict = document.createElement('div');
         verdict.className = 'tm-verdict';
+        verdict.setAttribute('role', 'status');
         verdict.style.display = 'none';
 
         var checkBtn = document.createElement('button');

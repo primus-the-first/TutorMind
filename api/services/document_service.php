@@ -147,12 +147,19 @@ function fetchYoutubeTranscript(string $videoId): string
         return '';
     }
     $start = $m[0][1] + strlen($m[0][0]) - 1; // position of the opening {
-    $depth = 0;
-    $end   = $start;
-    $len   = strlen($html);
+    $depth    = 0;
+    $end      = $start;
+    $len      = strlen($html);
+    $inString = false;
+    $escape   = false;
     for ($i = $start; $i < $len; $i++) {
-        if ($html[$i] === '{')      $depth++;
-        elseif ($html[$i] === '}') { $depth--; if ($depth === 0) { $end = $i; break; } }
+        $ch = $html[$i];
+        if ($escape) { $escape = false; continue; }
+        if ($ch === '\\' && $inString) { $escape = true; continue; }
+        if ($ch === '"') { $inString = !$inString; continue; }
+        if ($inString) continue;
+        if ($ch === '{')      $depth++;
+        elseif ($ch === '}') { $depth--; if ($depth === 0) { $end = $i; break; } }
     }
     if ($depth !== 0) {
         error_log("YouTube transcript: unmatched braces in ytInitialPlayerResponse");
@@ -600,12 +607,17 @@ function ocrWithTesseract($pdfPath) {
 }
 
 /**
- * Resize raw image bytes to fit within 800×800 and re-encode as JPEG.
- * Returns the compressed JPEG bytes, or null if GD can't load the image.
+ * Resize raw image bytes to fit within 600×600 and re-encode as JPEG.
+ * Returns ['bytes' => string, 'mime' => string], or null if GD can't load the image.
+ * - When GD is unavailable the original bytes are returned with the provided MIME.
+ * - When the image is already within the limit it is still re-encoded as JPEG.
  */
-function resizeImageData(string $raw): ?string
+function resizeImageData(string $raw, string $originalMime = 'image/jpeg'): ?array
 {
-    if (!extension_loaded('gd')) return $raw; // no GD — pass through as-is
+    if (!extension_loaded('gd')) {
+        // No GD — pass through as-is, preserving the original MIME type
+        return ['bytes' => $raw, 'mime' => $originalMime];
+    }
 
     $src = @imagecreatefromstring($raw);
     if (!$src) return null;
@@ -634,7 +646,8 @@ function resizeImageData(string $raw): ?string
     $jpeg = ob_get_clean();
     imagedestroy($dst);
 
-    return $jpeg ?: null;
+    if (!$jpeg) return null;
+    return ['bytes' => $jpeg, 'mime' => 'image/jpeg'];
 }
 
 /**
@@ -657,11 +670,13 @@ function extractImagesFromPptx(string $filePath): array
         $raw = $zip->getFromIndex($i);
         if ($raw === false || strlen($raw) < 100) continue;
 
-        // Resize to max 800px to keep token usage low
-        $resized = resizeImageData($raw);
+        // Resize to max 600px to keep token usage low; preserve the effective MIME type
+        $ext        = strtolower($m[1]);
+        $origMime   = $mimeMap[$ext] ?? 'image/jpeg';
+        $resized    = resizeImageData($raw, $origMime);
         if ($resized === null) continue;
 
-        $images[] = ['mime' => 'image/jpeg', 'data' => base64_encode($resized)];
+        $images[] = ['mime' => $resized['mime'], 'data' => base64_encode($resized['bytes'])];
     }
 
     $zip->close();
@@ -848,8 +863,32 @@ function prepareFileParts($file, $user_question)
             }
             break;
         case 'docx':
-            $text = extractWithMarkItDown($filePath);
-            error_log("MarkItDown docx [{$originalName}]: " . strlen($text) . " chars extracted");
+            try {
+                $text = extractWithMarkItDown($filePath);
+                error_log("MarkItDown docx [{$originalName}]: " . strlen($text) . " chars extracted");
+            } catch (Exception $e) {
+                error_log("MarkItDown docx [{$originalName}] failed ({$e->getMessage()}), falling back to PhpWord");
+                try {
+                    $phpWord = \PhpOffice\PhpWord\IOFactory::load($filePath);
+                    $textParts = [];
+                    foreach ($phpWord->getSections() as $section) {
+                        foreach ($section->getElements() as $element) {
+                            if (method_exists($element, 'getText')) {
+                                $textParts[] = $element->getText();
+                            } elseif ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
+                                foreach ($element->getElements() as $child) {
+                                    if (method_exists($child, 'getText')) $textParts[] = $child->getText();
+                                }
+                            }
+                        }
+                    }
+                    $text = implode("\n", array_filter($textParts));
+                    error_log("PhpWord docx [{$originalName}]: " . strlen($text) . " chars extracted");
+                } catch (Exception $e2) {
+                    error_log("PhpWord docx [{$originalName}] also failed: " . $e2->getMessage());
+                    $text = '';
+                }
+            }
             break;
         case 'pptx':
             $pptxSizeBytes = filesize($filePath);
@@ -868,7 +907,7 @@ function prepareFileParts($file, $user_question)
                 if (!empty($slideImages)) {
                     $parts = [['text' => "The following images are slides from the uploaded presentation '{$originalName}'. Analyse their content to answer the user's question."]];
                     foreach (array_slice($slideImages, 0, 6) as $img) {
-                        $parts[] = ['inline_data' => ['mime_type' => 'image/jpeg', 'data' => $img['data']]];
+                        $parts[] = ['inline_data' => ['mime_type' => $img['mime'], 'data' => $img['data']]];
                     }
                     return $parts;
                 }

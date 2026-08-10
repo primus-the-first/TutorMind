@@ -596,7 +596,7 @@ body.dark-mode {
   min-height: 0;
   overflow-y: auto;
   padding: 2rem;
-  padding-bottom: 20px;
+  padding-bottom: 80px;
   -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 80px), transparent 100%);
   mask-image: linear-gradient(to bottom, black calc(100% - 80px), transparent 100%);
 }
@@ -2174,15 +2174,6 @@ body:not(.chat-empty) .setup-link-row {
     line-height: 1;
   }
 
-  @media (max-width: 480px) {
-    .nav-option {
-      height: 52px;
-      padding: 6px 4px;
-    }
-    .nav-option::after {
-      font-size: 0.5rem;
-    }
-  }
 
   .nav-option:active {
     transform: scale(0.9);

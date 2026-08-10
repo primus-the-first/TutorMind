@@ -14,17 +14,36 @@ def extract_youtube_id(url):
 
 
 def get_youtube_transcript(video_id):
-    """Returns (text, None) on success, (None, error_msg) on failure."""
+    """Returns (text, None) on success, (None, error_msg) on failure.
+    Supports both youtube-transcript-api 0.x (static methods, dict segments)
+    and 1.x (instance methods, object segments with .text attribute).
+    """
+    def seg_text(seg):
+        """Normalise a segment that may be a dict or an object."""
+        if isinstance(seg, dict):
+            return seg.get('text', '')
+        return getattr(seg, 'text', '')
+
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
+        api = YouTubeTranscriptApi()
         try:
+            # 1.x instance API
+            segments = api.fetch(video_id, languages=['en', 'en-US', 'en-GB'])
+        except TypeError:
+            # 0.x static API fallback
             segments = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-US', 'en-GB'])
         except Exception:
-            # Try any available language
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            try:
+                transcript_list = api.list(video_id)
+            except TypeError:
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
             first = next(iter(transcript_list))
-            segments = first.fetch()
-        text = " ".join(seg['text'] for seg in segments)
+            try:
+                segments = first.fetch()
+            except TypeError:
+                segments = first.fetch()
+        text = " ".join(seg_text(seg) for seg in segments)
         return text, None
     except Exception as e:
         return None, str(e)

@@ -103,18 +103,34 @@ function fetchWikipediaImage(string $query): ?string
  * Scan formatted HTML for [FETCH_IMAGE: query|subject] markers left by the
  * response formatter, fetch each image, and replace markers with <figure> HTML.
  * Unfulfilled markers are silently removed.
+ * At most 5 images are resolved per response; duplicate query|subject keys
+ * reuse the cached URL from the first fetch.
  */
 function resolveImageMarkers(string $html): string
 {
-    return preg_replace_callback(
+    $resolved = 0;
+    $maxImages = 5;
+    $cache = [];
+
+    return (string) preg_replace_callback(
         '/\[FETCH_IMAGE:\s*([^|\]]+?)(?:\|([^\]]+))?\]/i',
-        function (array $matches): string {
+        function (array $matches) use (&$resolved, $maxImages, &$cache): string {
+            if ($resolved >= $maxImages) return '';
+
             $query   = trim($matches[1]);
             $subject = isset($matches[2]) ? trim($matches[2]) : 'general';
+            $cacheKey = $query . '|' . $subject;
 
-            $imageUrl = fetchRelevantImage($query, $subject);
+            if (array_key_exists($cacheKey, $cache)) {
+                $imageUrl = $cache[$cacheKey];
+            } else {
+                $imageUrl = fetchRelevantImage($query, $subject);
+                $cache[$cacheKey] = $imageUrl;
+            }
+
             if (!$imageUrl) return '';
 
+            $resolved++;
             $safeAlt     = htmlspecialchars($query, ENT_QUOTES, 'UTF-8');
             $safeUrl     = htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8');
             $safeCaption = htmlspecialchars(ucwords($query), ENT_QUOTES, 'UTF-8');

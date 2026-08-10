@@ -592,7 +592,7 @@ The comprehension score was considered as a threshold signal (e.g. skip if `< 0.
 
 Contact state is a stronger and more direct signal. If a student hasn't made a Build or Predict contact, they haven't actively engaged with the material — there's nothing meaningful to test recall of. This is grounded in the same learning-science logic as the Three-Contact Rule itself.
 
-**Gate rule (pending implementation):**
-Skip the quiz and return `not_ready: true` from `handleGenerate()` in `api/quiz.php` if **fewer than 2 of 3 contacts have been made** (`contactState` from `context_data`). The client shows an encouraging nudge instead of the quiz modal.
+**Gate rule (implemented):**
+`handleGenerate()` in `api/quiz.php` returns `not_ready: true` when two or more of the three contacts are missing (`contactState` from `context_data`). `assets/js/tutor_mysql.js` intercepts this flag and displays an encouraging nudge toast instead of opening the quiz modal.
 
 ---

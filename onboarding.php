@@ -36,8 +36,10 @@ if ($user_id) {
         if ($user) {
             $user_dark_mode = (bool)($user['dark_mode'] ?? false);
             if ($user['onboarding_completed']) {
-                $saved_interests = json_decode($user['interests'] ?? '', true);
-                if (is_array($saved_interests) && count($saved_interests) > 0) {
+                // NULL interests means the user never submitted an interests payload;
+                // any valid JSON array (including []) means they did submit one.
+                $saved_interests = json_decode($user['interests'] ?? 'null', true);
+                if (is_array($saved_interests)) {
                     header('Location: chat');
                     exit;
                 }
@@ -677,7 +679,18 @@ if ($user_id) {
          Their saved profile is preloaded so re-saving doesn't wipe earlier answers. -->
     <script>
         window.TUTORMIND_UPDATE_MODE = <?= json_encode($update_mode) ?>;
-        window.TUTORMIND_EXISTING_PROFILE = <?= ($existing_profile !== null && json_decode($existing_profile) !== null) ? $existing_profile : 'null' ?>;
+        <?php
+            // Re-encode profile_data with HTML-safe flags so sequences like
+            // </script> in user-supplied values cannot terminate this element.
+            $safe_profile = null;
+            if ($existing_profile !== null && json_decode($existing_profile) !== null) {
+                $safe_profile = json_encode(
+                    json_decode($existing_profile),
+                    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE
+                );
+            }
+        ?>
+        window.TUTORMIND_EXISTING_PROFILE = <?= $safe_profile !== null ? $safe_profile : 'null' ?>;
     </script>
 
     <!-- Consolidated Wizard Logic and Animations -->

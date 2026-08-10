@@ -78,7 +78,8 @@ function handleGenerate($pdo, $user_id, $data, $geminiKey, $groqKey = null) {
     // Gate: skip quiz if student hasn't made at least 2 of 3 learning contacts
     $contextData  = json_decode($convo['context_data'] ?? '{}', true) ?: [];
     $contactState = $contextData['contactState'] ?? null;
-    $missing      = $contactState['missing'] ?? ['analogy', 'build', 'predict'];
+    $rawMissing   = $contactState['missing'] ?? null;
+    $missing      = is_array($rawMissing) ? $rawMissing : ['analogy', 'build', 'predict'];
     if (count($missing) >= 2) {
         echo json_encode([
             'success'    => false,

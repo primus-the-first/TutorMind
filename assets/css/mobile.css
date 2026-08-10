@@ -803,6 +803,14 @@
             width: 260px;
             right: -40px;
         }
+        /* Bottom-nav option adjustments for very small screens */
+        .nav-option {
+            height: 52px;
+            padding: 6px 4px;
+        }
+        .nav-option::after {
+            font-size: 0.5rem;
+        }
     }
 
 } /* end @media (max-width: 768px) */

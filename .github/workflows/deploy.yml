@@ -57,7 +57,7 @@ jobs:
     if: github.ref == 'refs/heads/dev'
     timeout-minutes: 5
     steps:
-      - name: SSH in and reset the server to origin/dev
+      - name: SSH in and reset the server to the deployed commit
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -72,5 +72,7 @@ jobs:
             # git exactly — no partial-pull or merge-conflict state can be
             # left behind. Does NOT touch untracked/gitignored files (local
             # config, uploads, logs), only files git already tracks.
-            git reset --hard origin/dev
+            # Pin to the exact commit that triggered this workflow, not the
+            # moving origin/dev tip, to avoid racing a concurrent push.
+            git reset --hard ${{ github.sha }}
             echo "Deployed $(git rev-parse --short HEAD) at $(date -u +%FT%TZ)"

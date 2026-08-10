@@ -36,22 +36,22 @@ if (!in_array($knowledge_level, $valid_levels, true)) {
 
 // Build field_of_study from whichever subject fields the user filled in
 $field_of_study = null;
-$edu = $input['educationLevel'] ?? null;
+$edu = isset($input['educationLevel']) && is_string($input['educationLevel']) ? $input['educationLevel'] : null;
 if ($edu === 'college' || $edu === 'university' || $edu === 'University') {
     $parts = array_filter([
-        $input['universityProgram'] ?? null,
+        isset($input['universityProgram']) && is_string($input['universityProgram']) ? $input['universityProgram'] : null,
         !empty($input['customSubjects']) ? implode(', ', (array)$input['customSubjects']) : null,
     ]);
     $field_of_study = implode(' — ', $parts) ?: null;
 } elseif ($edu === 'high' || $edu === 'shs' || $edu === 'Secondary') {
     $parts = array_filter([
-        $input['shsProgram'] ?? null,
+        isset($input['shsProgram']) && is_string($input['shsProgram']) ? $input['shsProgram'] : null,
         !empty($input['shsElectives']) ? implode(', ', (array)$input['shsElectives']) : null,
     ]);
     $field_of_study = implode(': ', $parts) ?: null;
 } else {
-    $primary = $input['primarySubject'] ?? null;
-    $others  = !empty($input['subjects']) ? implode(', ', (array)$input['subjects']) : null;
+    $primary = isset($input['primarySubject']) && is_string($input['primarySubject']) ? $input['primarySubject'] : null;
+    $others  = !empty($input['subjects']) ? implode(', ', array_filter(array_map(fn($s) => is_string($s) ? $s : null, (array)$input['subjects']))) : null;
     $field_of_study = $primary ?: $others ?: null;
 }
 if ($field_of_study) {
@@ -70,19 +70,21 @@ $edu_level_map = [
     'graduate'   => 'Graduate',
     'professional' => 'Professional',
 ];
-$education_level  = $edu_level_map[strtolower($edu ?? '')] ?? null;
-$country          = isset($input['country'])  ? substr($input['country'], 0, 100) : null;
-$primary_language = isset($input['language']) ? substr($input['language'], 0, 50)  : null;
+$education_level  = $edu !== null ? ($edu_level_map[strtolower($edu)] ?? null) : null;
+$rawCountry       = $input['country'] ?? null;
+$country          = (isset($rawCountry) && is_string($rawCountry)) ? substr($rawCountry, 0, 100) : null;
+$rawLanguage      = $input['language'] ?? null;
+$primary_language = (isset($rawLanguage) && is_string($rawLanguage)) ? substr($rawLanguage, 0, 50) : null;
 
 // Personal interests/hobbies — mined by the tutor for examples, scenarios, and
 // widget content; kept out of the tutor's hands only when inviting the learner's
-// own analogy, so that specific connection stays learner-generated
+// own analogy, so that specific connection stays learner-generated.
+// An explicitly supplied [] (empty array) is still stored as '[]' so onboarding.php
+// can distinguish "interests saved" from "interests never submitted" (NULL).
 $interests = null;
-if (!empty($input['interests']) && is_array($input['interests'])) {
+if (isset($input['interests']) && is_array($input['interests'])) {
     $cleanInterests = array_slice(array_values(array_filter(array_map('trim', array_map('strval', $input['interests'])))), 0, 20);
-    if (!empty($cleanInterests)) {
-        $interests = json_encode($cleanInterests);
-    }
+    $interests = json_encode($cleanInterests);
 }
 
 try {

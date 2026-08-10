@@ -1,0 +1,6 @@
+# Deployment exclusions — files that must not ship to the production server.
+# The deploy workflow uses `git reset --hard` which respects this file so the
+# export-ignore attribute prevents these paths from appearing in any archive or
+# sparse-checkout used by a CI deploy step. For SSH-based deploys, add the
+# file to .gitignore on the server or exclude it in the deploy script.
+tm_guardrail_test.php  export-ignore

@@ -296,22 +296,24 @@ class OnboardingWizard {
     /* ==================== SCREEN 1: WELCOME ==================== */
     initWelcome() {
         // Reset and Animate Hero Elements
-        gsap.from('#screen1 h1', { y: 30, opacity: 0, delay: 0.1 });
-        gsap.from('#screen1 .subtitle', { y: 20, opacity: 0, delay: 0.2 });
-        
-        // Floating Icons
-        gsap.from('.hero-icon', { 
-            scale: 0, opacity: 0, stagger: 0.1, duration: 0.6, ease: "back.out(1.7)" 
-        });
-        
-        // Continuous float
-        gsap.to('.hero-icon', { y: -10, duration: 2, repeat: -1, yoyo: true, ease: 'sine.inOut', stagger: 0.2 });
+        if (typeof gsap !== 'undefined') {
+            gsap.from('#screen1 h1', { y: 30, opacity: 0, delay: 0.1 });
+            gsap.from('#screen1 .subtitle', { y: 20, opacity: 0, delay: 0.2 });
 
-        // Pulse Button
-        gsap.to('#get-started-btn', { 
-            boxShadow: '0 0 25px rgba(245, 158, 11, 0.6)', 
-            repeat: -1, yoyo: true, duration: 1.5 
-        });
+            // Floating Icons
+            gsap.from('.hero-icon', {
+                scale: 0, opacity: 0, stagger: 0.1, duration: 0.6, ease: "back.out(1.7)"
+            });
+
+            // Continuous float
+            gsap.to('.hero-icon', { y: -10, duration: 2, repeat: -1, yoyo: true, ease: 'sine.inOut', stagger: 0.2 });
+
+            // Pulse Button
+            gsap.to('#get-started-btn', {
+                boxShadow: '0 0 25px rgba(245, 158, 11, 0.6)',
+                repeat: -1, yoyo: true, duration: 1.5
+            });
+        }
 
         document.getElementById('get-started-btn').onclick = () => this.nextScreen();
     }
@@ -338,15 +340,17 @@ class OnboardingWizard {
                 // Remove selection from others
                 document.querySelectorAll('.education-card').forEach(c => {
                     c.classList.remove('selected');
-                    gsap.to(c, { scale: 1, duration: 0.2 });
+                    if (typeof gsap !== 'undefined') gsap.to(c, { scale: 1, duration: 0.2 });
                 });
-                
+
                 // Select and animate this card
                 card.classList.add('selected');
-                gsap.fromTo(card, 
-                    { scale: 1 },
-                    { scale: 1.05, duration: 0.15, yoyo: true, repeat: 1, ease: "power1.inOut" }
-                );
+                if (typeof gsap !== 'undefined') {
+                    gsap.fromTo(card,
+                        { scale: 1 },
+                        { scale: 1.05, duration: 0.15, yoyo: true, repeat: 1, ease: "power1.inOut" }
+                    );
+                }
                 
                 const level = card.dataset.level;
                 this.profileData.educationLevel = level;
@@ -945,12 +949,19 @@ class OnboardingWizard {
                 this.profileData.interests.forEach(interest => {
                     const tag = document.createElement('div');
                     tag.className = 'uni-subject-tag';
-                    tag.innerHTML = `${interest} <i class="fas fa-times"></i>`;
-                    tag.querySelector('i').onclick = () => {
+                    // Use textContent for the label to avoid XSS on user-provided values
+                    const label = document.createElement('span');
+                    label.textContent = interest;
+                    const icon = document.createElement('i');
+                    icon.className = 'fas fa-times';
+                    icon.setAttribute('aria-label', 'Remove');
+                    icon.onclick = () => {
                         this.profileData.interests = this.profileData.interests.filter(i => i !== interest);
                         renderInterestTags();
                         this.saveProgress();
                     };
+                    tag.appendChild(label);
+                    tag.appendChild(icon);
                     interestsList.appendChild(tag);
                 });
             };
@@ -1187,7 +1198,6 @@ class OnboardingWizard {
 
     async completeOnboarding() {
         console.log('🎓 Completing onboarding...');
-        this.isCompleting = true;
 
         // Show loading state
         const btn = this.updateMode
@@ -1209,11 +1219,13 @@ class OnboardingWizard {
 
             if (result.success) {
                 console.log('✅ Profile saved successfully');
-                
+
                 // Clear progress cache
                 localStorage.removeItem('tutormind_wizard_v2');
-                
-                // Redirect to dashboard
+
+                // Mark completing only immediately before redirect so beforeunload
+                // warning remains active during stalled or failed saves.
+                this.isCompleting = true;
                 window.location.href = 'chat';
             } else {
                 throw new Error(result.error || 'Failed to save profile');

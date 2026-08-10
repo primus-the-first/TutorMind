@@ -462,22 +462,21 @@ class TutorMindChat {
         // --- Profile sheet dark mode toggle ---
         const profileDarkToggle = document.getElementById('profileSheetDarkMode');
         if (profileDarkToggle) {
+            profileDarkToggle.checked = this.darkMode;
             profileDarkToggle.addEventListener('change', () => {
-                this.toggleDarkMode();
+                if (profileDarkToggle.checked !== this.darkMode) {
+                    this.toggleDarkMode();
+                }
             });
         }
 
         // --- Unified overlay close (closes both sheets) ---
         if (overlay) {
-            // Remove any existing click handlers by cloning
-            const newOverlay = overlay.cloneNode(true);
-            overlay.parentNode.replaceChild(newOverlay, overlay);
-
-            newOverlay.addEventListener('click', () => {
+            overlay.addEventListener('click', () => {
                 document.getElementById('mobile-history-tray')?.classList.remove('open');
                 document.getElementById('mobile-profile-sheet')?.classList.remove('open');
-                newOverlay.classList.add('hidden');
-                newOverlay.classList.remove('active');
+                overlay.classList.add('hidden');
+                overlay.classList.remove('active');
                 this._clearBottomNavActive();
             });
         }

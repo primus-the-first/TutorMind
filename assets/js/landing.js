@@ -98,7 +98,9 @@ if (canvasContainer) {
         renderer.render(scene, camera);
     }
 
-    animateThree();
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        animateThree();
+    }
 
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -127,4 +129,6 @@ function tickParallax() {
     requestAnimationFrame(tickParallax);
 }
 
-tickParallax();
+if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    tickParallax();
+}

@@ -2825,10 +2825,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 chatMessages.innerHTML = '';
                 conversationIdInput.value = id;
                 updateContactChip(result.conversation.contactState);
-                // Find last user message index for edit button
+                // Find last user message index for edit button.
+                // Silent tm-check echoes are excluded (they are filtered out during
+                // the render loop below) so lastUserIndex reflects the last *visible*
+                // user bubble, keeping the edit button on the correct message.
                 let lastUserIndex = -1;
                 result.conversation.chat_history.forEach((item, i) => {
-                    if (item.role === 'user') lastUserIndex = i;
+                    if (item.role !== 'user') return;
+                    const parts = Array.isArray(item.parts) ? item.parts : [item.parts];
+                    const text = parts.map(p => (p && p.text) ? p.text : '').join('');
+                    if (extractSolvedCheckQuestion(text)) return; // silent echo — skip
+                    lastUserIndex = i;
                 });
 
                 // Rebuild which tm-check questions were already answered correctly,
