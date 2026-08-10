@@ -93,7 +93,8 @@ try {
         $stmt = $pdo->prepare("UPDATE users SET onboarding_completed = 1 WHERE id = ?");
         $stmt->execute([$user_id]);
     } catch (Exception $e) {
-        $response['errors'][] = "Status Update Failed: " . $e->getMessage();
+        error_log("Onboarding status update failed for user $user_id: " . $e->getMessage());
+        $response['errors'][] = "Status update failed; retrying profile save.";
         // Continue to try saving profile...
     }
 
@@ -103,7 +104,8 @@ try {
         $stmt->execute([$profile_data, $user_id]);
         $response['success'] = true;
     } catch (Exception $e) {
-        $response['errors'][] = "DB Profile Save Failed: " . $e->getMessage();
+        error_log("Onboarding profile save failed for user $user_id: " . $e->getMessage());
+        $response['errors'][] = "Profile save failed; attempting backup.";
         throw $e; // Trigger catch block for file backup
     }
 
@@ -130,8 +132,9 @@ try {
 
 } catch (Exception $e) {
     // OUTER CATCH: Handles Connection Failures OR Query Failures
-    $response['errors'][] = "Critical DB Error: " . $e->getMessage();
-    
+    error_log("Onboarding critical DB error for user $user_id: " . $e->getMessage());
+    $response['errors'][] = "Could not save to the database; attempting backup.";
+
     // Attempt File Backup
     if (saveToFileBackup($user_id, $profile_data)) {
         $response['success'] = true;

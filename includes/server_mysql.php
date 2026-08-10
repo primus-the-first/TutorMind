@@ -18,13 +18,13 @@ register_shutdown_function(function () {
         http_response_code(500);
         $msg = basename($error['file']) . ':' . $error['line'] . ' — ' . $error['message'];
         error_log('[server_mysql fatal] ' . $msg);
-        echo json_encode(['success' => false, 'error' => 'Server error. Check PHP error log.', '_debug' => $msg]);
+        echo json_encode(['success' => false, 'error' => 'Something went wrong on our end. Please try again.']);
     }
 });
 
 // --- PERFORMANCE: Debug Mode ---
 // Set to false in production to disable debug logging (saves disk I/O)
-define('DEBUG_MODE', true);
+define('DEBUG_MODE', false);
 
 require_once 'check_auth.php'; // Secure all API endpoints
 require_once __DIR__ . '/../api/services/document_service.php';
@@ -198,9 +198,8 @@ if ($action) {
                 ob_start(); // Restart clean buffer for JSON response
                 http_response_code(500);
                 echo json_encode([
-                    'success' => false, 
-                    'error' => 'Could not fetch conversation.',
-                    'debug' => 'DB error: ' . $e->getMessage()
+                    'success' => false,
+                    'error' => 'Could not fetch conversation.'
                 ]);
             }
             break;
@@ -228,10 +227,16 @@ if ($action) {
                 break;
             }
 
-            $pdo = getDbConnection();
-            $stmt = $pdo->prepare("UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
-            $stmt->execute([$new_title, $convo_id, $_SESSION['user_id']]);
-            echo json_encode(['success' => true]);
+            try {
+                $pdo = getDbConnection();
+                $stmt = $pdo->prepare("UPDATE conversations SET title = ?, updated_at = NOW() WHERE id = ? AND user_id = ?");
+                $stmt->execute([$new_title, $convo_id, $_SESSION['user_id']]);
+                echo json_encode(['success' => true]);
+            } catch (Exception $e) {
+                error_log("rename_conversation error [convo_id=$convo_id]: " . $e->getMessage());
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Could not rename the conversation.']);
+            }
             break;
 
         case 'generate_suggestions':
@@ -676,7 +681,8 @@ try {
                 }
                 // Instead of failing the whole request, let's add a system message to the parts
                 // so the AI (and the user) knows something went wrong with this specific file.
-                $errorMsg = "System Error: Could not process file '{$file['name']}'. Reason: " . $e->getMessage();
+                // The real exception stays in the debug log above — never in conversation content.
+                $errorMsg = "System Error: Could not process file '{$file['name']}'.";
                 $user_message_parts[] = ['text' => $errorMsg];
             }
         }
@@ -1364,6 +1370,8 @@ EOT;
     ));
     // Return 200 for chat errors so the frontend can properly display the error message
     // instead of throwing a JS exception and showing "couldn't connect" network error.
+    // The message shown to the student is always generic — the real exception (with
+    // file/line above) stays in the server log, never in the response.
     http_response_code(200);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Something went wrong while generating a response. Please try again in a moment.']);
 }

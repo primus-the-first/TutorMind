@@ -75,8 +75,9 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
         }
     } catch (PDOException $e) {
         // In case of a database error, return a 500 Internal Server Error.
+        error_log("Failed to fetch settings: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Failed to fetch settings: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'error' => 'Failed to fetch settings.']);
     }
 }
 
@@ -171,8 +172,9 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields): void 
             http_response_code(409); // Conflict
             echo json_encode(['success' => false, 'error' => 'Email or username already exists.']);
         } else {
+            error_log("Failed to update settings: " . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['success' => false, 'error' => 'Failed to update settings: ' . $e->getMessage()]);
+            echo json_encode(['success' => false, 'error' => 'Failed to update settings.']);
         }
     }
 }

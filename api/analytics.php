@@ -367,7 +367,8 @@ try {
     ]);
 
 } catch (Exception $e) {
+    error_log("Analytics API error: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Could not load analytics.']);
 }
 ?>
