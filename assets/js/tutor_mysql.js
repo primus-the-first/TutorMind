@@ -701,18 +701,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (aiResponse.status === 429) {
-                showCopyToast('⏳ Slow down! Wait a moment before sending again.');
+                showCopyToast('⏳ Slow down! Wait a moment before sending again.', 'warning');
                 submitBtn.disabled = false;
                 questionInput.disabled = false;
                 questionInput.focus();
                 showTypingIndicator(false);
                 return;
             }
-            if (!aiResponse.ok) throw new Error(`HTTP error! status: ${aiResponse.status}`);
-
+            // Don't throw on a non-ok status before reading the body: the server sends a
+            // proper {success:false, error:'<safe message>'} JSON body for expected failures
+            // too (401 session expired, 413 file too large, etc.), not just for 200s — and
+            // that message is more useful to the student than a generic "HTTP error" bubble.
             const contentType = aiResponse.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Server returned non-JSON response.');
+                throw new Error('Server returned an unexpected response. Please try again.');
             }
 
             const aiResult = await aiResponse.json();
@@ -754,7 +756,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             const actionsDiv = msgWrapper.querySelector('.message-actions');
             if (actionsDiv) actionsDiv.style.display = '';
-            addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>Edit failed: ${error.message}</span></div>`);
+            addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>Edit failed. Please try again.</span></div>`);
         } finally {
             showTypingIndicator(false);
             submitBtn.disabled = false;
@@ -1160,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 voiceBtn.addEventListener('click', () => {
                     if (!this.recognition) {
-                        showCopyToast('Voice input not supported in this browser. Try Chrome or Edge.');
+                        showCopyToast('Voice input not supported in this browser. Try Chrome or Edge.', 'error');
                         return;
                     }
                     this.toggleListening();
@@ -2064,10 +2066,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.removeChild(ta);
     }
 
+    // There's only one #copy-toast element, so concurrent calls used to just
+    // clobber each other (the second message silently replaced the first before
+    // it was ever read). Queue them instead — each gets its own full display window.
+    const toastQueue = [];
+    let toastShowing = false;
+
     function showCopyToast(msg, type = 'info') {
+        toastQueue.push({ msg, type });
+        processToastQueue();
+    }
+
+    function processToastQueue() {
+        if (toastShowing || toastQueue.length === 0) return;
         const toast = document.getElementById('copy-toast');
-        if (!toast) return;
-        // Clear previous type classes
+        if (!toast) { toastQueue.length = 0; return; }
+
+        const { msg, type } = toastQueue.shift();
+        toastShowing = true;
+
         toast.classList.remove('toast-success', 'toast-error', 'toast-warning', 'toast-info');
         toast.classList.add(`toast-${type}`);
         toast.textContent = msg;
@@ -2081,6 +2098,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 toast.style.display = 'none';
                 toast.style.transition = '';
                 toast.classList.remove('toast-success', 'toast-error', 'toast-warning', 'toast-info');
+                toastShowing = false;
+                processToastQueue();
             }, 280);
         }, 2600);
     }
@@ -2238,7 +2257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         handleFiles(newFiles) {
             const totalFiles = this.files.length + newFiles.length;
             if (totalFiles > this.maxFiles) {
-                showCopyToast(`Maximum ${this.maxFiles} files allowed per message.`);
+                showCopyToast(`Maximum ${this.maxFiles} files allowed per message.`, 'warning');
                 return;
             }
 
@@ -2462,14 +2481,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showCopyToast('⏳ Slow down! Wait a moment before sending again.', 'warning');
                 return;
             }
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
+            // Don't throw on a non-ok status before reading the body: the server sends a
+            // proper {success:false, error:'<safe message>'} JSON body for expected failures
+            // too (401 session expired, 413 file too large, etc.), not just for 200s — and
+            // that message is more useful to the student than a generic "HTTP error" bubble.
             // Check if response is actually JSON before parsing
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
                 console.error('Expected JSON but got:', text.substring(0, 200));
-                throw new Error('Server returned non-JSON response. Check server logs.');
+                throw new Error('Server returned an unexpected response. Please try again.');
             }
 
             const result = await response.json();
@@ -2935,6 +2956,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             console.error('Error loading conversation:', error);
+            showCopyToast('Could not load this conversation. Please try again.', 'error');
         }
     }
 
@@ -2959,9 +2981,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     newChatBtn.click(); // Start a new chat if the active one was deleted
                 }
                 loadChatHistory(); // Refresh the history list
+            } else {
+                showCopyToast('Could not delete the conversation. Please try again.', 'error');
             }
         } catch (error) {
             console.error('Error deleting conversation:', error);
+            showCopyToast('Could not delete the conversation. Please try again.', 'error');
         }
     }
 
@@ -3254,14 +3279,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.body.removeChild(modal);
                 
                 if (result.success) {
-                    showCopyToast('Thank you for your feedback!');
+                    showCopyToast('Thank you for your feedback!', 'success');
                 } else {
-                    showCopyToast('Could not submit feedback');
+                    showCopyToast('Could not submit feedback', 'error');
                 }
             } catch (error) {
                 console.error('Feedback submission failed:', error);
                 document.body.removeChild(modal);
-                showCopyToast('Could not submit feedback');
+                showCopyToast('Could not submit feedback', 'error');
             }
         });
         
