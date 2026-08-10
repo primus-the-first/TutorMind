@@ -199,6 +199,18 @@ function detectContactState($messages)
         '/\bi wrote\b/',
         "/\bhere'?s my\b/",
         '/\blet me try\b/',
+        // Applying the concept to a new scenario with reasoning ("I'd use X because...,
+        // for the second I'd recommend Y because...") is the canonical Build contact for
+        // conceptual topics — the original list only caught literal code/pseudocode attempts.
+        "/\bi'?d (use|recommend|choose|go with|apply|pick|implement)\b/",
+        '/\bi would (use|recommend|choose|go with|apply|pick|implement)\b/',
+        "/\bi'?ll (use|apply|implement)\b/",
+        '/\bmy (approach|solution|recommendation) (would be|is)\b/',
+        '/\bthe (steps|process|algorithm|approach) (would be|is|are)\b/',
+        '/\bstep \d/',
+        '/\bpseudocode\b/',
+        "/\bhere'?s (the|an) (solution|attempt|approach)\b/",
+        '/\bfirst[,.]?\s+(then|next|after)\b/',
     ];
     $predictPatterns = [
         '/\bi think it would\b/',
@@ -206,6 +218,17 @@ function detectContactState($messages)
         '/\bso then it should\b/',
         '/\bthat means\b/',
         '/\btherefore\b/',
+        // Reasoning about a consequence ("...meaning requests could still be sent...",
+        // "the algorithm will reroute...") without the original list's narrow lead-ins.
+        '/\bwould (cause|lead to|result in|mean)\b/',
+        '/\bcould (cause|lead to|result in|mean|still)\b/',
+        '/\bmight (cause|lead to|result in|mean)\b/',
+        '/\bwill (?:\w+ )?(cause|lead to|result in|mean|reroute|redirect|continue|stop|switch)\b/',
+        '/\bwhich (would|could|might) (cause|lead to|result in|mean)\b/',
+        '/\bas a result\b/',
+        '/\bconsequently\b/',
+        '/\bif .{3,80} then\b/',
+        '/\bin (that|this) case\b/',
     ];
 
     $analogy = false;
