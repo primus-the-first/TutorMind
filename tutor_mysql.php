@@ -359,7 +359,7 @@ try {
                 <nav class="user-menu-nav">
                     <a href="dashboard.php" target="_blank"><i class="fas fa-chart-line"></i> Dashboard</a>
                     <a href="#"><i class="fas fa-star"></i> Upgrade plan</a>
-                    <a href="#"><i class="fas fa-user-edit"></i> Personalization</a>
+                    <a href="#" id="open-personalization-btn"><i class="fas fa-user-edit"></i> Personalization</a>
                     <a href="#" id="open-settings-btn"><i class="fas fa-cog"></i> Settings</a>
                     <a href="#" id="open-feedback-btn"><i class="fas fa-comment-dots"></i> Send Feedback</a>
                     <a href="#"><i class="fas fa-question-circle"></i> Help</a>

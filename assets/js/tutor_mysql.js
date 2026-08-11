@@ -3203,6 +3203,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // --- Personalization shortcut: opens Settings straight to Appearance
+    // (font size, legibility, density) rather than duplicating a separate screen ---
+    const openPersonalizationBtn = document.getElementById('open-personalization-btn');
+    if (openPersonalizationBtn) {
+        openPersonalizationBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.settingsManager) {
+                window.settingsManager.open();
+                window.settingsManager.switchTab('appearance');
+            }
+        });
+    }
+
     // --- General Feedback Modal Trigger ---
     const openFeedbackBtn = document.getElementById('open-feedback-btn');
     if (openFeedbackBtn) {
