@@ -314,6 +314,15 @@ class QuizManager {
 document.addEventListener('DOMContentLoaded', async () => {
     const tutorForm = document.getElementById('tutorForm');
     const questionInput = document.getElementById('question');
+    // The input pill shows mic/voice-mode when empty, a send button once
+    // there's text (see .has-text in ui-overhaul.css). Setting questionInput.value
+    // programmatically doesn't fire 'input', so every such call site — mic
+    // dictation, quick-start, suggestion pills, clearing after send — calls this
+    // directly. Function declaration: hoisted, callable from anywhere in this scope.
+    function syncPillHasText() {
+        const row = document.getElementById('inputPillRow');
+        if (row && questionInput) row.classList.toggle('has-text', questionInput.value.trim().length > 0);
+    }
     // Set by a widget's silent auto-reply (e.g. tm-check's continue-the-lesson
     // ping) so the submit handler skips the redundant visible user bubble.
     let silentNextSubmit = false;
@@ -636,6 +645,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!text) return;
                 silentNextSubmit = !!(opts && opts.silent);
                 questionInput.value = text;
+                syncPillHasText();
                 tutorForm.requestSubmit(submitBtn);
             },
             onReveal: function (el) { finalizeMessage(el); }
@@ -1121,6 +1131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     if (DEBUG) console.log('Transcript:', transcript);
                     questionInput.value = transcript;
+                    syncPillHasText();
                 };
                 
                 this.recognition.onstart = () => {
@@ -2456,6 +2467,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Clear inputs immediately for better UX
         questionInput.value = '';
+        syncPillHasText();
         questionInput.style.height = 'auto'; // Reset expanded height back to single row
         questionInput.style.overflowY = 'hidden';
         attachmentManager.clear(); // Clear the manager state and UI
@@ -3166,6 +3178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.addEventListener('click', () => {
             const promptText = btn.dataset.prompt;
             questionInput.value = promptText;
+            syncPillHasText();
             questionInput.focus();
         });
         // Add keyboard accessibility
@@ -3305,28 +3318,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Tools Dropdown Menu ---
-    const toolsBtn = document.getElementById('tools-btn');
-    const toolsMenu = document.getElementById('tools-menu');
+    // --- Combined "+" panel: add files, or a quick-start goal ---
+    const attachTrigger = document.getElementById('attachTrigger');
+    const attachPanel = document.getElementById('attachPanel');
+    const panelBackdrop = document.getElementById('panelBackdrop');
+    const addFilesRow = document.getElementById('addFilesRow');
 
-    if (toolsBtn && toolsMenu) {
-        // Toggle menu on button click
-        toolsBtn.addEventListener('click', (e) => {
+    if (attachTrigger && attachPanel) {
+        const openPanel = () => {
+            attachPanel.classList.add('open');
+            if (panelBackdrop) panelBackdrop.classList.add('open');
+            attachTrigger.setAttribute('aria-expanded', 'true');
+        };
+        const closePanel = () => {
+            attachPanel.classList.remove('open');
+            if (panelBackdrop) panelBackdrop.classList.remove('open');
+            attachTrigger.setAttribute('aria-expanded', 'false');
+        };
+
+        attachTrigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            const isHidden = toolsMenu.classList.toggle('hidden');
-            toolsBtn.setAttribute('aria-expanded', !isHidden);
+            attachPanel.classList.contains('open') ? closePanel() : openPanel();
         });
-
-        // Close menu when clicking outside
+        if (panelBackdrop) panelBackdrop.addEventListener('click', closePanel);
         document.addEventListener('click', (e) => {
-            if (!toolsMenu.contains(e.target) && !toolsBtn.contains(e.target)) {
-                toolsMenu.classList.add('hidden');
-                toolsBtn.setAttribute('aria-expanded', 'false');
-            }
+            if (!attachPanel.contains(e.target) && e.target !== attachTrigger) closePanel();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePanel();
         });
 
-        // Handle menu item clicks
-        const toolsMenuItems = toolsMenu.querySelectorAll('.tools-menu-item');
+        // "Add photos & files" — same trigger the old attach button used
+        if (addFilesRow) {
+            addFilesRow.addEventListener('click', () => {
+                closePanel();
+                document.getElementById('file-attachment')?.click();
+            });
+        }
+
+        // Quick-start goals
+        const goalRows = attachPanel.querySelectorAll('.goal-row');
 
         // Prompt templates for each goal
         const promptTemplates = {
@@ -3336,7 +3367,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             practice: "Give me practice problems on "
         };
 
-        toolsMenuItems.forEach(item => {
+        goalRows.forEach(item => {
             item.addEventListener('click', () => {
                 const goal = item.dataset.goal;
 
@@ -3352,9 +3383,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Insert prompt template into input
                 const template = promptTemplates[goal] || '';
                 questionInput.value = template;
+                syncPillHasText();
 
-                // Close the menu
-                toolsMenu.classList.add('hidden');
+                closePanel();
 
                 // Focus the input and place cursor at the end
                 questionInput.focus();
@@ -3362,6 +3393,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
     }
+
+    // Swap mic/voice-mode for the send button the moment there's text — mirrors
+    // the reviewed mockup. Setting questionInput.value programmatically (mic
+    // dictation, quick-start, suggestion pills, clearing after send) doesn't
+    // fire a native 'input' event, so each of those call sites also calls this
+    // directly. Function declaration, so it's callable from anywhere above it
+    // in this scope too — see syncPillHasText() calls elsewhere in this file.
+    if (questionInput) questionInput.addEventListener('input', syncPillHasText);
+    syncPillHasText();
 
     // --------------------------------------------------------
     // Pomodoro Timer + Active Recall Quiz

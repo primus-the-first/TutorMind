@@ -493,164 +493,71 @@ try {
                 <input type="hidden" id="conversation_id" name="conversation_id" value="<?= isset($_GET['conversation_id']) ? htmlspecialchars($_GET['conversation_id']) : '' ?>">
                 <input type="file" id="file-attachment" name="attachment[]" class="hidden-input" multiple>
                 
+                <!-- Learning Level now lives only in Settings; this hidden select just
+                     keeps form submission + the settings.js sync working. -->
+                <select id="learningLevel" name="learningLevel" class="hidden-input" aria-hidden="true">
+                    <option value="Remember">Remember</option>
+                    <option value="Understand" selected>Understand</option>
+                    <option value="Apply">Apply</option>
+                    <option value="Analyze">Analyze</option>
+                    <option value="Evaluate">Evaluate</option>
+                    <option value="Create">Create</option>
+                </select>
+
                 <!-- Combined Input Bar -->
                 <div class="combined-input-bar">
                     <!-- Preview Area (Inside the bar now) -->
                     <div id="attachment-preview-area"></div>
 
-                    <!-- Input Main Area (Text) -->
-                    <div class="input-main-area">
-                         <textarea id="question" name="question" class="main-text-input" placeholder="Ask anything" rows="1" required style="resize: none; overflow-y: hidden;"></textarea>
+                    <!-- Combined "+" panel: add files, or a quick-start goal -->
+                    <div class="panel-backdrop" id="panelBackdrop"></div>
+                    <div class="attach-panel" id="attachPanel" role="menu">
+                        <button type="button" class="panel-row" id="addFilesRow" role="menuitem">
+                            <i class="fas fa-paperclip" aria-hidden="true"></i> Add photos &amp; files
+                        </button>
+                        <div class="panel-divider"></div>
+                        <div class="panel-section-label">Quick start</div>
+                        <div class="goal-grid">
+                            <button type="button" class="panel-row goal-row" data-goal="homework_help" role="menuitem">
+                                <span class="emoji">📚</span> Homework Help
+                            </button>
+                            <button type="button" class="panel-row goal-row" data-goal="test_prep" role="menuitem">
+                                <span class="emoji">🎯</span> Test Prep
+                            </button>
+                            <button type="button" class="panel-row goal-row" data-goal="explore" role="menuitem">
+                                <span class="emoji">💡</span> Explore Topic
+                            </button>
+                            <button type="button" class="panel-row goal-row" data-goal="practice" role="menuitem">
+                                <span class="emoji">✏️</span> Practice
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Input Actions Row (Bottom) -->
-                    <div class="input-actions-row">
-                        <!-- Left Actions -->
-                        <div class="left-actions">
-                            <!-- Attach Button -->
-                            <label for="file-attachment" class="action-pill-btn attach-pill" title="Add attachments">
-                                <i class="fas fa-paperclip"></i> <span>Attach</span>
-                            </label>
+                    <!-- Input row: + | flowing text | mic / voice mode ⇄ send -->
+                    <div class="input-pill-row" id="inputPillRow">
+                        <button type="button" id="attachTrigger" class="icon-btn attach-trigger" title="Add files or a quick start" aria-label="More options" aria-haspopup="true" aria-expanded="false">
+                            <i class="fas fa-plus" aria-hidden="true"></i>
+                        </button>
 
-                            <!-- Tools Menu -->
-                            <div class="tools-dropdown-wrapper">
-                                <button type="button" id="tools-btn" class="action-pill-btn tool-pill" title="Tools" aria-haspopup="true" aria-expanded="false" aria-controls="tools-menu">
-                                    <i class="fas fa-sliders-h" aria-hidden="true"></i> <span>Tools</span>
+                        <textarea id="question" name="question" class="main-text-input" placeholder="Ask anything" rows="1" required style="resize: none; overflow-y: hidden;"></textarea>
+
+                        <div class="trailing-actions">
+                            <span class="voice-cluster">
+                                <button type="button" class="icon-btn voice-btn" title="Voice input" style="display:none">
+                                    <i class="fas fa-microphone-lines"></i>
                                 </button>
-                                <!-- Tools Menu Content (Same as before) -->
-                                <div id="tools-menu" class="tools-menu hidden" role="menu" aria-labelledby="tools-btn">
-                                    <button type="button" class="tools-menu-item" data-goal="homework_help">
-                                        <span class="tools-menu-emoji">📚</span>
-                                        <div class="tools-menu-text">
-                                            <span class="tools-menu-title">Homework Help</span>
-                                            <span class="tools-menu-desc">Get step-by-step guidance</span>
-                                        </div>
-                                    </button>
-                                    <button type="button" class="tools-menu-item" data-goal="test_prep">
-                                        <span class="tools-menu-emoji">🎯</span>
-                                        <div class="tools-menu-text">
-                                            <span class="tools-menu-title">Test Prep</span>
-                                            <span class="tools-menu-desc">Prepare for exams</span>
-                                        </div>
-                                    </button>
-                                    <button type="button" class="tools-menu-item" data-goal="explore">
-                                        <span class="tools-menu-emoji">💡</span>
-                                        <div class="tools-menu-text">
-                                            <span class="tools-menu-title">Explore Topic</span>
-                                            <span class="tools-menu-desc">Learn something new</span>
-                                        </div>
-                                    </button>
-                                    <button type="button" class="tools-menu-item" data-goal="practice">
-                                        <span class="tools-menu-emoji">✏️</span>
-                                        <div class="tools-menu-text">
-                                            <span class="tools-menu-title">Practice</span>
-                                            <span class="tools-menu-desc">Solve problems</span>
-                                        </div>
-                                    </button>
-                                </div>
-                            </div>
-                              <!-- Learning Level Section -->
-                            <div class="learning-level-wrapper">
-                                <!-- Desktop Custom Dropdown (Hidden on mobile) -->
-                                <div class="desktop-level-dropdown desktop-only" id="desktopLevelDropdown">
-                                    <button type="button" class="desktop-level-trigger action-pill-btn tool-pill" id="desktopLevelTrigger" aria-haspopup="listbox" aria-expanded="false">
-                                        <i class="fas fa-brain"></i>
-                                        <span id="desktopLevelLabel">Understand</span>
-                                        <i class="fas fa-chevron-down desktop-level-chevron"></i>
-                                    </button>
-                                    <div class="desktop-level-menu hidden" id="desktopLevelMenu" role="listbox">
-                                        <div class="desktop-level-header">Bloom's Taxonomy</div>
-                                        <button type="button" class="desktop-level-item" data-value="Remember" role="option">
-                                            <i class="fas fa-box-archive"></i> <span>Remember</span>
-                                            <span class="desktop-level-hint">Recall facts</span>
-                                        </button>
-                                        <button type="button" class="desktop-level-item" data-value="Understand" role="option">
-                                            <i class="fas fa-puzzle-piece"></i> <span>Understand</span>
-                                            <span class="desktop-level-hint">Connect concepts</span>
-                                        </button>
-                                        <button type="button" class="desktop-level-item" data-value="Apply" role="option">
-                                            <i class="fas fa-bolt-lightning"></i> <span>Apply</span>
-                                            <span class="desktop-level-hint">Knowledge in action</span>
-                                        </button>
-                                        <button type="button" class="desktop-level-item" data-value="Analyze" role="option">
-                                            <i class="fas fa-microscope"></i> <span>Analyze</span>
-                                            <span class="desktop-level-hint">Deep dissection</span>
-                                        </button>
-                                        <button type="button" class="desktop-level-item" data-value="Evaluate" role="option">
-                                            <i class="fas fa-scale-balanced"></i> <span>Evaluate</span>
-                                            <span class="desktop-level-hint">Judge &amp; verify</span>
-                                        </button>
-                                        <button type="button" class="desktop-level-item" data-value="Create" role="option">
-                                            <i class="fas fa-atom"></i> <span>Create</span>
-                                            <span class="desktop-level-hint">Original genesis</span>
-                                        </button>
-                                    </div>
-                                    <!-- Hidden native select for form submission -->
-                                    <select id="learningLevel" name="learningLevel" style="display:none;" aria-hidden="true">
-                                        <option value="Remember">Remember</option>
-                                        <option value="Understand" selected>Understand</option>
-                                        <option value="Apply">Apply</option>
-                                        <option value="Analyze">Analyze</option>
-                                        <option value="Evaluate">Evaluate</option>
-                                        <option value="Create">Create</option>
-                                    </select>
-                                </div>
-
-                                <!-- Mobile Custom Selector (Hidden on desktop) -->
-                                <div class="mobile-level-selector mobile-only" id="mobileLevelSelector">
-                                    <button type="button" class="level-trigger-btn" id="levelTrigger" title="Set thinking level">
-                                        <i class="fas fa-brain"></i>
-                                        <span class="active-level-indicator"></span>
-                                    </button>
-                                    
-                                    <div class="level-drawer" id="levelDrawer">
-                                        <div class="level-name-display" id="levelNameDisplay">Understand</div>
-                                        <div class="level-options-container">
-                                            <button type="button" class="level-option" data-value="Remember" data-name="Remember" title="Remember (Recall facts)">
-                                                <i class="fas fa-box-archive"></i>
-                                            </button>
-                                            <button type="button" class="level-option" data-value="Understand" data-name="Understand" title="Understand (Connect concepts)">
-                                                <i class="fas fa-puzzle-piece"></i>
-                                            </button>
-                                            <button type="button" class="level-option" data-value="Apply" data-name="Apply" title="Apply (Knowledge in action)">
-                                                <i class="fas fa-bolt-lightning"></i>
-                                            </button>
-                                            <button type="button" class="level-option" data-value="Analyze" data-name="Analyze" title="Analyze (Deep dissection)">
-                                                <i class="fas fa-microscope"></i>
-                                            </button>
-                                            <button type="button" class="level-option" data-value="Evaluate" data-name="Evaluate" title="Evaluate (Judge &amp; Verify)">
-                                                <i class="fas fa-scale-balanced"></i>
-                                            </button>
-                                            <button type="button" class="level-option" data-value="Create" data-name="Create" title="Create (Original Genesis)">
-                                                <i class="fas fa-atom"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Right Actions -->
-                        <div class="right-actions">
-                             <!-- Voice input (quick) - Moved
-                             <button type="button" class="voice-action-btn voice-btn" title="Voice input" style="display:none">
-                                <i class="fas fa-microphone-lines"></i> <span>Voice</span>
-                            </button>
-                             -->
-                             <!-- Voice Mode (full conversation) -->
-                             <button type="button" class="voice-mode-trigger-btn" title="Voice Mode" id="voice-mode-trigger">
-                                <svg class="default-voice-icon" width="18" height="14" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-                                    <rect x="0"  y="4" width="2" height="6"  rx="1"/>
-                                    <rect x="4"  y="1" width="2" height="12" rx="1"/>
-                                    <rect x="8"  y="3" width="2" height="8"  rx="1"/>
-                                    <rect x="12" y="0" width="2" height="14" rx="1"/>
-                                    <rect x="16" y="4" width="2" height="6"  rx="1"/>
-                                </svg>
-                                <i class="fas fa-microphone mobile-voice-icon" style="display:none"></i>
-                                <span>Voice Mode</span>
-                            </button>
-                             <!-- Submit -->
-                            <button type="submit" id="ai-submit-btn" class="submit-circle-btn" title="Send message" aria-label="Send message">
+                                <button type="button" class="icon-btn voice-mode-trigger-btn" title="Voice Mode" id="voice-mode-trigger">
+                                    <svg class="default-voice-icon" width="18" height="14" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                                        <rect x="0"  y="4" width="2" height="6"  rx="1"/>
+                                        <rect x="4"  y="1" width="2" height="12" rx="1"/>
+                                        <rect x="8"  y="3" width="2" height="8"  rx="1"/>
+                                        <rect x="12" y="0" width="2" height="14" rx="1"/>
+                                        <rect x="16" y="4" width="2" height="6"  rx="1"/>
+                                    </svg>
+                                    <i class="fas fa-microphone mobile-voice-icon" style="display:none"></i>
+                                </button>
+                            </span>
+                            <button type="submit" id="ai-submit-btn" class="icon-btn submit-circle-btn" title="Send message" aria-label="Send message">
                                 <i class="fas fa-arrow-up" aria-hidden="true"></i>
                             </button>
                         </div>
