@@ -475,13 +475,14 @@
         overflow-wrap: normal;
     }
 
-    /* --- Section: Setup link row --- */
-    /* In empty state the input bar is centered; put the link just below it.
-       In non-empty state welcome-screen is display:none so this rule is inert. */
+    /* --- Section: Setup link row ---
+       The input bar is now pinned above the bottom nav (not centered at 50%),
+       so anchor this the same way — just above the input bar — instead of the
+       stale "below the centered bar" math. */
     body.chat-empty .setup-link-row {
         position: fixed !important;
-        top: calc(50% + var(--mobile-input-bar-height) / 2 + 10px) !important;
-        bottom: auto !important;
+        top: auto !important;
+        bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-input-bar-height) + env(safe-area-inset-bottom, 0px) + 6px) !important;
         left: 0 !important;
         right: 0 !important;
         transform: none !important;
