@@ -17,6 +17,18 @@
 
 @media (max-width: 768px) {
 
+    /* --- Token block: spacing scale & type scale ---
+       Use these instead of ad-hoc px literals throughout this file. */
+    :root {
+        --m-xs:   8px;
+        --m-sm:  12px;
+        --m-md:  16px;
+        --m-lg:  20px;
+        --t-body: 0.95rem;
+        --t-sm:   0.80rem;
+        --t-xs:   0.72rem;
+    }
+
     /* --- Section 2: Layout shell --- */
 
     /* Override the high-specificity "bulletproof scroll fix" in ui-overhaul.css
@@ -40,8 +52,19 @@
     .mobile-nav-selector {
         display: none;
     }
+    /* Logo stays hidden during an active conversation (title takes its place,
+       unchanged pre-existing behavior) but shows on the idle welcome screen —
+       this is the only in-scope state per the redesign plan. */
     .header-logo-link {
         display: none;
+    }
+    body.chat-empty .header-logo-link {
+        display: flex;
+        align-items: center;
+    }
+    .header-logo-link img {
+        width: 24px !important;
+        height: 24px !important;
     }
     header.main-chat-header {
         min-height: var(--mobile-topbar-height);
@@ -57,31 +80,41 @@
         width: 100%;
         min-height: 0;
     }
+    /* ui-overhaul.css has an unscoped (all-viewport) body.chat-empty rule that
+       sets height:100vh + overflow:hidden — that's what was clipping/hiding
+       the populated empty state. Override it on mobile only; desktop keeps
+       the original behavior since this file's media query doesn't apply there. */
+    body.chat-empty .chat-content {
+        height: auto !important;
+        overflow-y: auto !important;
+    }
 
     /* --- Section 5: Input bar (floating above bottom nav) ---
        Shared properties: override the high-specificity left: 300px rule from ui-overhaul.css.
        State-specific rules below handle the center→bottom slide on mobile. */
-    .input-bar-area,
-    body.chat-empty .input-bar-area,
-    body:not(.chat-empty) .input-bar-area {
+    /* Always pinned just above the bottom nav — same position whether the
+       welcome screen or an active conversation is showing, so the idle state
+       reads as a normal chat composer instead of floating mid-screen with
+       dead space beneath it. */
+    .input-bar-area {
         position: fixed !important;
         left: 0 !important;
         right: 0 !important;
+        top: auto !important;
+        bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
+        transform: none !important;
         z-index: 200 !important;
-        transition: top 0.55s cubic-bezier(0.4, 0, 0.2, 1),
-                    bottom 0.55s cubic-bezier(0.4, 0, 0.2, 1),
-                    transform 0.55s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        transition: bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
-
-    /* Empty chat: vertically centered in the usable viewport */
+    /* ui-overhaul.css has an unscoped, higher-specificity
+       "body.chat-empty .input-bar-area { top:50%!important; transform:translateY(-50%)!important }"
+       rule (line ~6060) that beats the plain .input-bar-area rule above on
+       specificity alone, regardless of !important or file load order — so on
+       the idle screen the input bar was still being centered at 50% instead of
+       pinned to the bottom, landing on top of / underneath the flowed welcome
+       content and swallowing taps meant for the textarea. Match its selector
+       specificity here to actually win. */
     body.chat-empty .input-bar-area {
-        top: 50% !important;
-        bottom: auto !important;
-        transform: translateY(calc(-50% + (var(--mobile-topbar-height) - var(--mobile-bottom-nav-height)) / 2)) !important;
-    }
-
-    /* Has messages: pinned just above the bottom nav */
-    body:not(.chat-empty) .input-bar-area {
         top: auto !important;
         bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
         transform: none !important;
@@ -118,7 +151,7 @@
         padding-bottom: env(safe-area-inset-bottom, 0px);
         display: flex !important;
         align-items: center;
-        justify-content: space-around;
+        justify-content: space-evenly;
         z-index: 100;
         /* Frosted glass */
         background: rgba(255, 255, 255, 0.55);
@@ -139,7 +172,7 @@
         padding: 6px 4px 4px;
         background: none;
         border: none;
-        color: #94a3b8;
+        color: #6b7280;
         font-size: 0.58rem;
         font-weight: 500;
         letter-spacing: 0.06em;
@@ -159,6 +192,19 @@
         border-radius: 20px;
         transition: background 0.2s ease, color 0.2s ease;
     }
+    /* Explicit box-model sizing for the inline SVG icons — don't rely on the
+       svg's own width="1em"/height="1em" attributes resolving correctly, since
+       support for em-unit SVG geometry attributes is inconsistent across
+       mobile WebViews. */
+    .bottom-nav-item svg {
+        display: inline-block;
+        width: 1.2rem;
+        height: 1.2rem;
+        box-sizing: content-box;
+        vertical-align: middle;
+        stroke: currentColor;
+        fill: none;
+    }
 
     .bottom-nav-item.active {
         color: #7C3AED;
@@ -171,18 +217,6 @@
     .bottom-nav-item:active i,
     .bottom-nav-item:active svg {
         background: rgba(124, 58, 237, 0.08);
-    }
-
-    .bottom-nav-brand {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
-    .bottom-nav-brand img {
-        width: 28px;
-        height: 28px;
     }
 
     /* --- Section 7: History tray refinement --- */
@@ -369,7 +403,7 @@
         box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.04), 0 -8px 32px rgba(0, 0, 0, 0.3);
     }
     body.dark-mode .bottom-nav-item {
-        color: rgba(148, 163, 184, 0.6);
+        color: #94a3b8;
     }
     body.dark-mode .bottom-nav-item.active {
         color: #a78bfa;
@@ -378,10 +412,6 @@
     body.dark-mode .bottom-nav-item.active svg {
         background: rgba(167, 139, 250, 0.12);
         color: #a78bfa;
-    }
-    body.dark-mode .bottom-nav-brand img {
-        box-shadow: 0 4px 20px rgba(124, 58, 237, 0.6),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
     body.dark-mode .mobile-profile-sheet {
         background: var(--bg-card, #1e1e2e);
@@ -456,29 +486,102 @@
         font-size: 0.75rem;
     }
 
-    /* --- Section: Welcome screen --- */
-    /* Fill exactly the space from topbar bottom to the centered input bar's top edge. */
+    /* --- Section: Welcome screen ---
+       Flows from the top bar down to just above the (now bottom-pinned) input
+       bar, instead of centering a small amount of content in a fixed-height
+       mid-screen band — the fixed-height/centered approach is what left a
+       dead gap between the input and the bottom nav. */
+    /* ui-overhaul.css has an unscoped body.chat-empty rule (display/align/justify/
+       height/padding/margin/max-width, all !important) that vertically- AND
+       horizontally-centers this section in a fixed-height band — that's the root
+       cause of the original centered-input, dead-space-below layout. Override it
+       explicitly on mobile with matching selector + !important; desktop is
+       untouched since this file's media query doesn't reach it. */
+    body.chat-empty .welcome-section {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
     .welcome-section {
         min-height: 0;
-        height: calc(50vh - var(--mobile-input-bar-height) / 2 - var(--mobile-topbar-height));
-        justify-content: center;
+        height: auto;
+        flex: 1;
+        justify-content: flex-start;
         padding: 0;
+        padding-bottom: calc(var(--mobile-input-bar-height) + var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+        overflow-y: auto;
     }
 
-    /* Tighter content + smaller orb so everything fits comfortably */
     .quick-start-content {
-        padding: 1rem;
-    }
-    .quick-start-orb {
-        width: 3.5rem;
-        height: 3.5rem;
-        margin-bottom: 0.75rem;
-        filter: blur(14px);
+        padding: 1.5rem 1rem 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1.1rem;
     }
     .quick-start-title,
     .welcome-section h1 {
-        font-size: 1.85rem;
-        margin-bottom: 0.25rem;
+        font-size: 1.6rem;
+        margin: 0;
+        text-align: left;
+    }
+
+    /* "Continue last session" resume card */
+    .continue-card {
+        display: block;
+        text-decoration: none;
+        background: var(--bg-card, #fff);
+        border: 1px solid rgba(124, 58, 237, 0.14);
+        border-radius: 16px;
+        padding: 12px 14px;
+    }
+    .continue-card .cc-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+    }
+    .continue-card .cc-label {
+        font-size: 0.66rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--primary, #7C3AED);
+    }
+    .continue-card .cc-pct {
+        font-size: 0.7rem;
+        color: var(--text-secondary, #6b7280);
+        font-variant-numeric: tabular-nums;
+    }
+    .continue-card .cc-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary, #1F2937);
+        margin: 3px 0 8px;
+    }
+    .continue-card .cc-bar {
+        height: 4px;
+        border-radius: 99px;
+        background: rgba(124, 58, 237, 0.12);
+        overflow: hidden;
+    }
+    .continue-card .cc-bar i {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary, #7C3AED), #A78BFA);
+        border-radius: 99px;
+    }
+    body.dark-mode .continue-card {
+        background: var(--bg-card, #1e1e2e);
+        border-color: rgba(167, 139, 250, 0.2);
+    }
+    body.dark-mode .continue-card .cc-title {
+        color: var(--text-primary, #f3f4f6);
     }
 
     /* --- Section: Copy toast position --- */
@@ -629,152 +732,6 @@
         background: rgba(124, 58, 237, 0.2);
     }
 
-    /* --- Section 10b: Mobile Level Selector (dead block in ui-overhaul.css ported here) --- */
-    .mobile-level-selector {
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
-
-    .level-trigger-btn {
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
-        background: rgba(124, 58, 237, 0.1);
-        border: 1px solid rgba(124, 58, 237, 0.2);
-        color: var(--primary, #7C3AED);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        padding: 0;
-        z-index: 5;
-        outline: none;
-    }
-
-    .active-level-indicator {
-        position: absolute;
-        bottom: 6px;
-        right: 6px;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--level-color, var(--primary, #7C3AED));
-        border: 1.5px solid white;
-        box-shadow: 0 0 5px var(--level-color, var(--primary, #7C3AED));
-        transition: all 0.3s ease;
-    }
-
-    .level-drawer {
-        position: absolute;
-        left: -10px;
-        bottom: calc(100% + 10px);
-        transform: translateY(8px) scale(0.96);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        background: #FFFFFF;
-        border: 3px solid #1F2937;
-        padding: 12px;
-        border-radius: 10px;
-        box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.22);
-        opacity: 0;
-        pointer-events: none;
-        transition: all 0.2s ease;
-        z-index: 500;
-        min-width: 250px;
-        transform-origin: bottom left;
-    }
-
-    .level-drawer::after { display: none; }
-
-    .mobile-level-selector.expanded .level-drawer {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-        pointer-events: auto;
-    }
-
-    .mobile-level-selector.expanded .level-trigger-btn {
-        background: white;
-        box-shadow: 0 0 20px var(--level-glow, rgba(124, 58, 237, 0.3));
-        border-color: var(--level-color, var(--primary, #7C3AED));
-        transform: scale(1.1);
-    }
-
-    .level-name-display {
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--level-color, var(--primary, #7C3AED));
-        background: rgba(124, 58, 237, 0.05);
-        padding: 4px 12px;
-        border-radius: 12px;
-        margin-bottom: 2px;
-        transition: all 0.3s ease;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-    }
-
-    .level-options-container {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        width: 100%;
-    }
-
-    .level-option {
-        width: 36px;
-        height: 36px;
-        border-radius: 12px;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        background: #f8fafc;
-        color: #64748b;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 1rem;
-        padding: 0;
-    }
-
-    .level-option:active { transform: scale(0.9); }
-
-    .level-option.active {
-        background: var(--level-color);
-        color: white !important;
-        box-shadow: 0 4px 12px var(--level-glow);
-        border-color: transparent;
-        transform: scale(1.1);
-    }
-
-    /* Per-level coloring */
-    [data-value="Remember"]  { --level-color: #64748b; --level-glow: rgba(100, 116, 139, 0.4); }
-    [data-value="Understand"] { --level-color: #10b981; --level-glow: rgba(16, 185, 129, 0.4); }
-    [data-value="Apply"]     { --level-color: #f59e0b; --level-glow: rgba(245, 158, 11, 0.4); }
-    [data-value="Analyze"]   { --level-color: #06b6d4; --level-glow: rgba(6, 182, 212, 0.4); }
-    [data-value="Evaluate"]  { --level-color: #8b5cf6; --level-glow: rgba(139, 92, 246, 0.4); }
-    [data-value="Create"]    { --level-color: #ec4899; --level-glow: rgba(236, 72, 153, 0.4); }
-
-    body.dark-mode .level-drawer {
-        background: #1e1e2e;
-        border-color: #3a3a5c;
-        box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5);
-    }
-    body.dark-mode .level-option {
-        background: rgba(255, 255, 255, 0.05);
-        color: #94a3b8;
-        border-color: rgba(255, 255, 255, 0.05);
-    }
-    body.dark-mode .level-name-display {
-        background: rgba(255, 255, 255, 0.05);
-    }
-    body.dark-mode .level-trigger-btn {
-        background: rgba(255, 255, 255, 0.05);
-    }
-
     /* --- Section 11: Small phone adjustments (480px) --- */
     @media (max-width: 480px) {
         .combined-input-bar {
@@ -802,14 +759,6 @@
         .pomodoro-panel {
             width: 260px;
             right: -40px;
-        }
-        /* Bottom-nav option adjustments for very small screens */
-        .nav-option {
-            height: 52px;
-            padding: 6px 4px;
-        }
-        .nav-option::after {
-            font-size: 0.5rem;
         }
     }
 

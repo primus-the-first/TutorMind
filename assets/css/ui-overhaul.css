@@ -613,30 +613,6 @@ body.dark-mode {
   height: 100%;
 }
 
-.gradient-orb {
-  width: 100px;
-  height: 100px;
-  background: linear-gradient(45deg, var(--primary), var(--secondary));
-  border-radius: 50%;
-  margin-bottom: 2rem;
-  animation: pulse-glow 5s infinite ease-in-out;
-  filter: blur(15px);
-}
-
-@keyframes pulse-glow {
-
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-
-  50% {
-    transform: scale(1.1);
-    opacity: 1;
-  }
-}
-
 .welcome-section h1 {
   font-size: 3rem;
   /* Slightly larger for desktop */
@@ -1363,6 +1339,15 @@ body.dark-mode .desktop-level-hint { color: #7070a0; }
     justify-content: center;
     cursor: pointer;
     transition: transform 0.2s, background-color 0.2s;
+}
+/* Explicit sizing for the inline SVG send icon — don't rely on the svg's own
+   width="1em"/height="1em" attributes, which don't resolve reliably in every
+   mobile WebView. Desktop and mobile share this button/icon markup. */
+.submit-circle-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
 }
 .submit-circle-btn:disabled {
     opacity: 0.5;
@@ -3573,7 +3558,12 @@ body.dark-mode .toggle-switch .slider {
   margin: 0 auto 2rem;
   filter: blur(20px);
   opacity: 0.8;
-  animation: quick-start-pulse 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .quick-start-orb {
+    animation: quick-start-pulse 4s ease-in-out infinite;
+  }
 }
 
 @keyframes quick-start-pulse {
@@ -5697,15 +5687,15 @@ button.quick-action-card:hover {
 .quick-start-title,
 .welcome-section h1,
 .welcome-section h2 {
-    font-family: 'Funnel Display', sans-serif !important;
-    font-size: clamp(1.8rem, 5vw, 3rem) !important;
-    font-weight: 700 !important;
-    letter-spacing: -0.5px !important;
-    margin-bottom: 0.5rem !important;
-    color: #1F2937 !important;
-    -webkit-text-fill-color: #1F2937 !important;
-    background: none !important;
-    white-space: nowrap !important;
+    font-family: 'Funnel Display', sans-serif;
+    font-size: clamp(1.8rem, 5vw, 3rem);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 0.5rem;
+    color: #1F2937;
+    -webkit-text-fill-color: #1F2937;
+    background: none;
+    white-space: nowrap;
 }
 
 /* Typewriter greeting with blinking cursor */

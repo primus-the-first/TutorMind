@@ -218,11 +218,24 @@ if (isset($_GET['conversation_id'])) {
 
 // --- Server-Side Rendering of Chat History ---
 $ssr_history_html = '';
+$ssr_continue_card = null;
 try {
-    $stmt = $pdo->prepare("SELECT id, title FROM conversations WHERE user_id = ? ORDER BY updated_at DESC");
+    $stmt = $pdo->prepare("SELECT id, title, progress, context_data FROM conversations WHERE user_id = ? ORDER BY updated_at DESC");
     $stmt->execute([$user_id]);
     $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
+    // "Continue last session" card on the idle welcome screen — most recent
+    // conversation, same topic-decode pattern used above for contactState.
+    if (!empty($history)) {
+        $mostRecent = $history[0];
+        $mostRecentCtx = json_decode($mostRecent['context_data'] ?? '{}', true) ?: [];
+        $ssr_continue_card = [
+            'id' => $mostRecent['id'],
+            'label' => !empty($mostRecentCtx['topic']) ? $mostRecentCtx['topic'] : $mostRecent['title'],
+            'progress' => max(0, min(100, (int)($mostRecent['progress'] ?? 0))),
+        ];
+    }
+
     foreach ($history as $convo) {
         $activeClass = (isset($convo_id) && $convo_id == $convo['id']) ? 'active' : '';
         $ssr_history_html .= '
@@ -383,8 +396,8 @@ try {
             <div class="header-left" style="display: flex; align-items: center; flex: 1;">
                 <!-- Mobile nav moved to bottom nav bar (see #mobileBottomNav below) -->
 
-                <a href="index" class="header-logo-link">
-                    <img src="assets/logo-bridge.svg" alt="TutorMind" style="width:28px;height:28px;display:block;">
+                <a href="index" class="header-logo-link" aria-label="TutorMind home">
+                    <img src="assets/logo-bridge.svg" alt="" aria-hidden="true" style="width:28px;height:28px;display:block;">
                 </a>
 
                 <h2 id="conversation-title" class="conversation-title" style="<?= $ssr_chat_active ? 'display:block' : 'display:none' ?>;"><?= htmlspecialchars($ssr_conversation_title) ?></h2>
@@ -466,21 +479,24 @@ try {
         </header>
 
         <main id="chat-container" class="chat-content">
-            <!-- Welcome Screen (Now contains the Quick Start content) -->
             <div id="welcome-screen" class="welcome-section" style="<?= $ssr_chat_active ? 'display:none' : 'display:flex' ?>">
                 <div class="quick-start-content">
-                    <!-- Glowing Orb Effect -->
-                    <div class="quick-start-orb"></div>
-
-                    <!-- Welcome Header with Typewriter Effect -->
+                    <!-- Welcome Header -->
                     <h1 class="quick-start-title">
                         <span id="welcome-greeting" data-username="<?= htmlspecialchars($displayName) ?>">Welcome back, <?= htmlspecialchars($displayName) ?>!</span>
                     </h1>
-                    
-                    
 
-                    
-
+                    <?php if ($ssr_continue_card): ?>
+                    <a href="chat/<?= (int)$ssr_continue_card['id'] ?>" class="continue-card" id="continueCard"
+                       onclick="event.preventDefault(); loadConversation(<?= (int)$ssr_continue_card['id'] ?>);">
+                        <div class="cc-top">
+                            <span class="cc-label">Continue</span>
+                            <span class="cc-pct"><?= $ssr_continue_card['progress'] ?>%</span>
+                        </div>
+                        <div class="cc-title"><?= htmlspecialchars($ssr_continue_card['label']) ?></div>
+                        <div class="cc-bar"><i style="width:<?= $ssr_continue_card['progress'] ?>%"></i></div>
+                    </a>
+                    <?php endif; ?>
                 </div>
             </div>
             <!-- Chat messages will be appended here -->
@@ -543,9 +559,6 @@ try {
 
                         <div class="trailing-actions">
                             <span class="voice-cluster">
-                                <button type="button" class="icon-btn voice-btn" title="Voice input" style="display:none">
-                                    <i class="fas fa-microphone-lines"></i>
-                                </button>
                                 <button type="button" class="icon-btn voice-mode-trigger-btn" title="Voice Mode" id="voice-mode-trigger">
                                     <svg class="default-voice-icon" width="18" height="14" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                                         <rect x="0"  y="4" width="2" height="6"  rx="1"/>
@@ -558,7 +571,7 @@ try {
                                 </button>
                             </span>
                             <button type="submit" id="ai-submit-btn" class="icon-btn submit-circle-btn" title="Send message" aria-label="Send message">
-                                <i class="fas fa-arrow-up" aria-hidden="true"></i>
+                                <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="6 11 12 5 18 11"/></svg>
                             </button>
                         </div>
                     </div>
@@ -708,23 +721,20 @@ try {
 
     <!-- Bottom Navigation Bar (Mobile Only) -->
     <nav class="mobile-bottom-nav mobile-only" id="mobileBottomNav" aria-label="Main navigation">
-        <a href="tutor_mysql.php" class="bottom-nav-item" id="bottomNavNew" title="New Chat">
-            <i class="fas fa-plus" aria-hidden="true"></i>
+        <a href="tutor_mysql.php" class="bottom-nav-item" id="bottomNavNew" title="New Chat" aria-label="New chat">
+            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>New</span>
         </a>
-        <button type="button" class="bottom-nav-item" id="bottomNavHistory" title="History">
-            <i class="fas fa-history" aria-hidden="true"></i>
+        <button type="button" class="bottom-nav-item" id="bottomNavHistory" title="History" aria-label="History">
+            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><polyline points="12 8 12 12 15 14"/></svg>
             <span>History</span>
         </button>
-        <div class="bottom-nav-brand" aria-hidden="true">
-            <img src="assets/logo-bridge.svg" alt="" width="26" height="26">
-        </div>
-        <button type="button" class="bottom-nav-item" id="bottomNavSettings" title="Settings">
-            <i class="fas fa-cog" aria-hidden="true"></i>
+        <button type="button" class="bottom-nav-item" id="bottomNavSettings" title="Settings" aria-label="Settings">
+            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>
             <span>Settings</span>
         </button>
-        <button type="button" class="bottom-nav-item" id="bottomNavProfile" title="Profile">
-            <i class="fas fa-user" aria-hidden="true"></i>
+        <button type="button" class="bottom-nav-item" id="bottomNavProfile" title="Profile" aria-label="Profile">
+            <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
             <span>Profile</span>
         </button>
     </nav>
@@ -753,10 +763,6 @@ try {
                 <i class="fas fa-chart-line"></i><span>Dashboard</span>
                 <i class="fas fa-chevron-right profile-sheet-chevron"></i>
             </a>
-            <button type="button" class="profile-sheet-item" id="profileSheetSettings">
-                <i class="fas fa-cog"></i><span>Settings</span>
-                <i class="fas fa-chevron-right profile-sheet-chevron"></i>
-            </button>
             <div class="profile-sheet-item profile-sheet-toggle-row">
                 <i class="fas fa-moon"></i><span>Dark Mode</span>
                 <label for="profileSheetDarkMode" class="toggle-switch" style="margin-left:auto;">

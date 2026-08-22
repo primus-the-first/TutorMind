@@ -68,18 +68,6 @@ class TutorMindChat {
             imageBtn.addEventListener('click', () => this.handleImageUpload());
         }
 
-        // Suggestion chips
-        document.querySelectorAll('.suggestion-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                const textarea = document.querySelector('.input-box textarea');
-                if (textarea) {
-                    textarea.value = chip.textContent.trim();
-                    this.autoResizeTextarea(textarea);
-                    textarea.focus();
-                }
-            });
-        });
-
         // Copy code buttons
         document.querySelectorAll('.copy-code-btn').forEach(btn => {
             btn.addEventListener('click', (e) => this.copyCode(e.target));
@@ -423,12 +411,6 @@ class TutorMindChat {
             });
         }
 
-        // --- Settings button ---
-        if (settingsBtn) {
-            settingsBtn.addEventListener('click', () => {
-                document.getElementById('open-settings-btn')?.click();
-            });
-        }
 
         // --- Profile button ---
         if (profileBtn && profileSheet) {
@@ -448,13 +430,9 @@ class TutorMindChat {
             });
         }
 
-        // --- Profile sheet settings shortcut ---
-        const profileSheetSettings = document.getElementById('profileSheetSettings');
-        if (profileSheetSettings) {
-            profileSheetSettings.addEventListener('click', () => {
-                profileSheet?.classList.remove('open');
-                if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('active'); }
-                this._clearBottomNavActive();
+        // --- Settings button ---
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
                 document.getElementById('open-settings-btn')?.click();
             });
         }
