@@ -71,6 +71,14 @@
         padding: 0 12px;
         padding-top: calc(0.75rem + env(safe-area-inset-top, 0px));
     }
+    /* #dark-mode-toggle renders as an empty button (its icon-setting JS was
+       gutted — see chat-interface.js updateDarkModeIcon()) but still occupies
+       flex space next to the timer. Dark mode is already reachable via the
+       profile sheet's toggle on mobile, so drop the redundant empty control
+       here and let the timer sit further right. Desktop untouched. */
+    #dark-mode-toggle {
+        display: none;
+    }
 
     /* --- Section 4: Chat content area --- */
     .chat-content {
