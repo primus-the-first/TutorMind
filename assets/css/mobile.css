@@ -119,6 +119,17 @@
         bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
         transform: none !important;
     }
+    /* Same problem, other half: ui-overhaul.css also has an unscoped, higher-
+       specificity "body:not(.chat-empty) .input-bar-area { bottom:0!important }"
+       rule (line ~6067) for the active-conversation state, which beat the plain
+       rule above once a conversation loaded (e.g. tapping the Continue card) —
+       snapping the input bar flush to the viewport bottom, on top of the
+       bottom nav underneath it. Match specificity here too. */
+    body:not(.chat-empty) .input-bar-area {
+        top: auto !important;
+        bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
+        transform: none !important;
+    }
     .combined-input-bar {
         margin: 0 12px;
         background: rgba(255, 255, 255, 0.78);
