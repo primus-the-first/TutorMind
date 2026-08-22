@@ -65,6 +65,11 @@
     .header-logo-link img {
         width: 24px !important;
         height: 24px !important;
+        /* The logo SVG's own artwork sits in the upper ~2/3 of its viewBox
+           (an open arch shape with empty space below the base dots), so a
+           mathematically-centered box still reads as floating high next to
+           the solid timer pill. Nudge down to align by visual weight. */
+        margin-top: 4px;
     }
     header.main-chat-header {
         min-height: var(--mobile-topbar-height);
