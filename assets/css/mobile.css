@@ -532,8 +532,12 @@
         text-align: left;
     }
 
-    /* "Continue last session" resume card */
-    .continue-card {
+    /* "Continue last session" resume card.
+       Named .resume-card (not .continue-card) — ui-overhaul.css already has an
+       unrelated, apparently-unused .continue-card component (different markup:
+       .continue-card-icon/-content/-label/-topic/-arrow) that this collided
+       with, inheriting its flex layout + thick border + hard drop-shadow. */
+    .resume-card {
         display: block;
         text-decoration: none;
         background: var(--bg-card, #fff);
@@ -541,46 +545,47 @@
         border-radius: 16px;
         padding: 12px 14px;
     }
-    .continue-card .cc-top {
+    .resume-card .rc-top {
         display: flex;
         justify-content: space-between;
         align-items: baseline;
+        gap: 8px;
     }
-    .continue-card .cc-label {
+    .resume-card .rc-label {
         font-size: 0.66rem;
         letter-spacing: 0.06em;
         text-transform: uppercase;
         font-weight: 700;
         color: var(--primary, #7C3AED);
     }
-    .continue-card .cc-pct {
+    .resume-card .rc-pct {
         font-size: 0.7rem;
         color: var(--text-secondary, #6b7280);
         font-variant-numeric: tabular-nums;
     }
-    .continue-card .cc-title {
+    .resume-card .rc-title {
         font-size: 0.95rem;
         font-weight: 600;
         color: var(--text-primary, #1F2937);
         margin: 3px 0 8px;
     }
-    .continue-card .cc-bar {
+    .resume-card .rc-bar {
         height: 4px;
         border-radius: 99px;
         background: rgba(124, 58, 237, 0.12);
         overflow: hidden;
     }
-    .continue-card .cc-bar i {
+    .resume-card .rc-bar i {
         display: block;
         height: 100%;
         background: linear-gradient(90deg, var(--primary, #7C3AED), #A78BFA);
         border-radius: 99px;
     }
-    body.dark-mode .continue-card {
+    body.dark-mode .resume-card {
         background: var(--bg-card, #1e1e2e);
         border-color: rgba(167, 139, 250, 0.2);
     }
-    body.dark-mode .continue-card .cc-title {
+    body.dark-mode .resume-card .rc-title {
         color: var(--text-primary, #f3f4f6);
     }
 

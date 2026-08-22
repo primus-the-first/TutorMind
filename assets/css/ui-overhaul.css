@@ -7387,6 +7387,12 @@ body.dark-mode #ai-submit-btn:hover:not(:disabled) {
         inset: 0;
         display: block;
         z-index: 3000;
+        /* Closed by default — the .open rule below only adds opacity/pointer-events,
+           so without an explicit closed state this invisibly covered the whole
+           screen and ate every tap, including on the "Ask anything" textarea. */
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
     }
     .panel-backdrop.open {
         opacity: 1;

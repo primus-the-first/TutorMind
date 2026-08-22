@@ -487,14 +487,14 @@ try {
                     </h1>
 
                     <?php if ($ssr_continue_card): ?>
-                    <a href="chat/<?= (int)$ssr_continue_card['id'] ?>" class="continue-card" id="continueCard"
+                    <a href="chat/<?= (int)$ssr_continue_card['id'] ?>" class="resume-card" id="resumeCard"
                        onclick="event.preventDefault(); loadConversation(<?= (int)$ssr_continue_card['id'] ?>);">
-                        <div class="cc-top">
-                            <span class="cc-label">Continue</span>
-                            <span class="cc-pct"><?= $ssr_continue_card['progress'] ?>%</span>
+                        <div class="rc-top">
+                            <span class="rc-label">Continue</span>
+                            <span class="rc-pct"><?= $ssr_continue_card['progress'] ?>%</span>
                         </div>
-                        <div class="cc-title"><?= htmlspecialchars($ssr_continue_card['label']) ?></div>
-                        <div class="cc-bar"><i style="width:<?= $ssr_continue_card['progress'] ?>%"></i></div>
+                        <div class="rc-title"><?= htmlspecialchars($ssr_continue_card['label']) ?></div>
+                        <div class="rc-bar"><i style="width:<?= $ssr_continue_card['progress'] ?>%"></i></div>
                     </a>
                     <?php endif; ?>
                 </div>
