@@ -606,6 +606,7 @@ body.dark-mode .loading-spinner-overlay {
         padding: 0;
     }
     .tab-btn {
+        width: auto;
         border-left: none;
         border-bottom: 3px solid transparent;
         padding: 15px 20px;

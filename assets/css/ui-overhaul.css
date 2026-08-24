@@ -7166,7 +7166,7 @@ body.dark-mode .combined-input-bar {
 
 .input-pill-row {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 4px;
     padding: 3px 3px 3px 7px;
 }
@@ -7179,11 +7179,6 @@ body.dark-mode .combined-input-bar {
     .input-pill-row .icon-btn {
         width: 32px;
         height: 32px;
-        font-size: 0.9rem;
-    }
-    .input-pill-row .main-text-input {
-        padding: 6px 4px;
-        min-height: 32px;
         font-size: 0.9rem;
     }
 }
@@ -7240,6 +7235,19 @@ body.dark-mode .combined-input-bar {
     box-shadow: none;
     padding: 9px 4px;
     min-height: 36px;
+}
+
+/* Placed after the unconditional rule above so it actually wins on mobile —
+   an earlier copy of this override sat inside the @media block further up
+   the file, before this rule of identical specificity, so source order let
+   the unconditional 36px silently beat the mobile 32px on phones, leaving
+   the textarea taller than the now-32px icon buttons beside it. */
+@media (max-width: 768px) {
+    .input-pill-row .main-text-input {
+        padding: 6px 4px;
+        min-height: 32px;
+        font-size: 0.9rem;
+    }
 }
 
 /* Earlier "neo-brutalist" rules (~5480, ~5829) force a thick border + hard
