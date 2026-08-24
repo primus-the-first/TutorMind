@@ -119,6 +119,11 @@ RewriteRule ^.*$ 404.html [L,NC]
     Require all granted
 </FilesMatch>
 
+# Allow the PWA manifest (needed by browsers for install/push support)
+<FilesMatch "^manifest\.json$">
+    Require all granted
+</FilesMatch>
+
 <IfModule mod_expires.c>
     ExpiresActive On
     

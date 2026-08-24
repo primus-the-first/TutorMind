@@ -210,6 +210,13 @@ class SettingsManager {
                     </div>
                     <label class="switch"><input type="checkbox" data-setting="weekly_summary"><span class="slider"></span></label>
                 </div>
+                <div class="toggle-group">
+                    <div class="toggle-label">
+                        <h4>Push Notifications</h4>
+                        <p>Get reminders on this device, even when TutorMind isn't open.</p>
+                    </div>
+                    <label class="switch"><input type="checkbox" id="settings-push-toggle"><span class="slider"></span></label>
+                </div>
             </div>
 
             <!-- APPEARANCE PANEL -->
@@ -338,6 +345,7 @@ class SettingsManager {
         this.modal.querySelectorAll('.switch input[type="checkbox"]').forEach(toggle => {
             toggle.addEventListener('change', (e) => {
                 const setting = e.target.dataset.setting;
+                if (!setting) return; // Not a users-column toggle (e.g. the push-notifications toggle below)
                 const value = e.target.checked;
                 console.log('Toggle changed:', setting, '=', value); // Debug logging
                 this.debouncedSave({ [setting]: value });
@@ -354,7 +362,28 @@ class SettingsManager {
                 }
             });
         });
-        
+
+        // Push notifications toggle (per-browser subscription, not a users column)
+        const pushToggle = this.modal.querySelector('#settings-push-toggle');
+        if (pushToggle) {
+            pushToggle.addEventListener('change', async (e) => {
+                const enabling = e.target.checked;
+                try {
+                    if (enabling) {
+                        await subscribeToPush();
+                        this.showToast('Push notifications enabled!', 'success');
+                    } else {
+                        await unsubscribeFromPush();
+                        this.showToast('Push notifications disabled.', 'success');
+                    }
+                } catch (error) {
+                    console.error('Push toggle error:', error);
+                    this.showToast('Error: ' + error.message, 'error');
+                    e.target.checked = !enabling; // Revert on failure
+                }
+            });
+        }
+
         // Appearance option buttons (font size, density)
         this.modal.querySelectorAll('.option-group').forEach(group => {
             group.addEventListener('click', e => {
@@ -648,6 +677,17 @@ class SettingsManager {
         
         // Sync dark mode toggle with main UI toggle
         const mainToggle = document.getElementById('darkModeToggle');
+
+        // Push toggle state lives in the browser, not in the settings API response
+        const pushToggle = this.modal.querySelector('#settings-push-toggle');
+        if (pushToggle && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistration().then(reg => {
+                return reg ? reg.pushManager.getSubscription() : null;
+            }).then(sub => {
+                pushToggle.checked = !!sub;
+            }).catch(err => console.error('Failed to check push subscription state:', err));
+        }
+
         this.resetFormState();
         
         // Clear the flag after a short delay to ensure all events have settled

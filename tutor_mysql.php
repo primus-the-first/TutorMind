@@ -14,6 +14,13 @@ header("Expires: 0");
 
 require_once 'includes/check_auth.php'; // Secure this page
 require_once 'includes/db_mysql.php';
+require_once 'includes/webpush_config.php';
+
+try {
+    $vapidPublicKey = getWebPushConfig()['vapid_public_key'];
+} catch (Exception $e) {
+    $vapidPublicKey = null;
+}
 
 $user_email = 'email@example.com';
 $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
@@ -260,6 +267,7 @@ try {
     <meta http-equiv="Expires" content="0">
     <title>TutorMind Chat | TutorMind</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="assets/favicon.png">
     <base href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/">
     <!-- Fonts and Icons -->
@@ -672,6 +680,7 @@ try {
             educationLevel: <?= json_encode($user_education    ?? null) ?>,
             fieldOfStudy:   <?= json_encode($user_program      ?? null) ?>
         };
+        window.TutorMindPushConfig = { vapidPublicKey: <?= json_encode($vapidPublicKey) ?> };
     </script>
 
     <!-- GSAP Animation Library -->
@@ -681,6 +690,7 @@ try {
     <script src="assets/js/tm-dialog.js?v=<?= filemtime('assets/js/tm-dialog.js') ?>"></script>
 
     <!-- Main application scripts -->
+    <script src="assets/js/push-notifications.js?v=<?= filemtime('assets/js/push-notifications.js') ?>"></script>
     <script src="assets/js/settings.js?v=<?= filemtime('assets/js/settings.js') ?>"></script>
     <script src="assets/js/session-context.js?v=<?= filemtime('assets/js/session-context.js') ?>"></script>
     <script src="assets/js/quick-start.js?v=<?= filemtime('assets/js/quick-start.js') ?>"></script>
