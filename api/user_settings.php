@@ -124,7 +124,7 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields): void 
             }
 
             // Special validation for notification_frequency
-            if ($field === 'notification_frequency' && !in_array($value, ['daily', 'three_weekly', 'weekly'], true)) {
+            if ($field === 'notification_frequency' && !in_array($value, ['daily', 'weekdays', 'weekends', 'three_weekly', 'weekly'], true)) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Invalid notification frequency.']);
                 return;

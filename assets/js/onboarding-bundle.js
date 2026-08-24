@@ -123,8 +123,8 @@ class OnboardingWizard {
             explanationStyle: null,
             interests: [],
             notificationsEnabled: true,
-            notificationFrequency: null,
-            notificationTime: null,
+            notificationFrequency: 'daily',
+            notificationTime: '17:00',
             firstLessonCompleted: false
         };
 
@@ -918,22 +918,9 @@ class OnboardingWizard {
 
     /* ==================== SCREEN 6: PREFERENCES ==================== */
     initPreferences() {
-        const bindSelect = (selector, key) => {
-            document.querySelectorAll(selector).forEach(el => {
-                if (this.profileData[key] === el.dataset.value) el.classList.add('selected');
-                el.onclick = () => {
-                    document.querySelectorAll(selector).forEach(x => x.classList.remove('selected'));
-                    el.classList.add('selected');
-                    this.profileData[key] = el.dataset.value;
-                    this.checkPreferences();
-                    this.saveProgress();
-                };
-            });
-        };
-
-        bindSelect('.schedule-option', 'studySchedule');
-        bindSelect('.duration-option', 'sessionLength');
-        bindSelect('.style-card', 'explanationStyle');
+        this.bindOptionSelect('.schedule-option', 'studySchedule', () => this.checkPreferences());
+        this.bindOptionSelect('.duration-option', 'sessionLength', () => this.checkPreferences());
+        this.bindOptionSelect('.style-card', 'explanationStyle', () => this.checkPreferences());
 
         // Guarded: if any of these three elements are missing (stale cached HTML,
         // a partial deploy, etc.) this must not throw — a throw here would abort
@@ -1040,7 +1027,7 @@ class OnboardingWizard {
     initNotifications() {
         const toggle = document.getElementById('notification-toggle');
         const timeInput = document.getElementById('notification-time');
-        
+
         const updateUI = () => {
             if (this.profileData.notificationsEnabled) {
                 toggle.classList.add('active');
@@ -1053,8 +1040,19 @@ class OnboardingWizard {
 
         toggle.onclick = () => {
             this.profileData.notificationsEnabled = !this.profileData.notificationsEnabled;
+            this.saveProgress();
             updateUI();
         };
+
+        this.bindOptionSelect('.frequency-option', 'notificationFrequency');
+
+        if (timeInput) {
+            if (this.profileData.notificationTime) timeInput.value = this.profileData.notificationTime;
+            timeInput.onchange = () => {
+                this.profileData.notificationTime = timeInput.value;
+                this.saveProgress();
+            };
+        }
 
         document.getElementById('notifications-continue-btn').onclick = () => {
             if (this.profileData.notificationsEnabled) {
@@ -1143,6 +1141,19 @@ class OnboardingWizard {
     }
 
     /* ==================== UTILS ==================== */
+    bindOptionSelect(selector, key, onSelect) {
+        document.querySelectorAll(selector).forEach(el => {
+            if (this.profileData[key] === el.dataset.value) el.classList.add('selected');
+            el.onclick = () => {
+                document.querySelectorAll(selector).forEach(x => x.classList.remove('selected'));
+                el.classList.add('selected');
+                this.profileData[key] = el.dataset.value;
+                this.saveProgress();
+                if (onSelect) onSelect();
+            };
+        });
+    }
+
     saveProgress() {
         const data = {
             currentScreen: this.currentScreen,

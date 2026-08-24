@@ -40,6 +40,8 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
 // Frequency -> minimum days inactive before reminding, and minimum days between reminders.
 $FREQUENCY_RULES = [
     'daily'        => ['inactive_days' => 1, 'cooldown_days' => 1],
+    'weekdays'     => ['inactive_days' => 2, 'cooldown_days' => 2],
+    'weekends'     => ['inactive_days' => 7, 'cooldown_days' => 7],
     'three_weekly' => ['inactive_days' => 2, 'cooldown_days' => 2],
     'weekly'       => ['inactive_days' => 7, 'cooldown_days' => 7],
 ];
@@ -115,7 +117,7 @@ try {
          FROM users
          WHERE notifications_enabled = 1
            AND email IS NOT NULL AND email != ''
-           AND notification_frequency IN ('daily', 'three_weekly', 'weekly')"
+           AND notification_frequency IN ('daily', 'weekdays', 'weekends', 'three_weekly', 'weekly')"
     );
     $users = $stmt->fetchAll();
 

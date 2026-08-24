@@ -132,6 +132,80 @@ try {
         $response['errors'][] = "Personalization data partially saved; some fields may not appear immediately.";
     }
 
+    // Step 4: Save comprehensive learning profile columns (best-effort)
+    try {
+        $fields = [];
+        $params = [];
+
+        if (!empty($input['subjects']) || !empty($input['customSubjects'])) {
+            $subjectList = array_merge((array)($input['subjects'] ?? []), (array)($input['customSubjects'] ?? []));
+            $subjectList = array_values(array_filter(array_map('strval', $subjectList)));
+            if (!empty($subjectList)) {
+                $fields[] = 'subjects_of_interest = ?';
+                $params[] = json_encode($subjectList);
+            }
+        }
+
+        if (!empty($input['learningGoal']) && is_string($input['learningGoal'])) {
+            $fields[] = 'learning_goal = ?';
+            $params[] = $input['learningGoal'];
+        }
+
+        if (isset($input['assessmentResults']) && is_array($input['assessmentResults'])) {
+            $fields[] = 'assessment_results = ?';
+            $params[] = json_encode($input['assessmentResults']);
+
+            if (!empty($input['assessmentResults']['level']) && is_string($input['assessmentResults']['level'])) {
+                $fields[] = 'baseline_mastery_level = ?';
+                $params[] = $input['assessmentResults']['level'];
+            }
+        }
+
+        if (!empty($input['studySchedule']) && is_string($input['studySchedule'])) {
+            $fields[] = 'study_schedule = ?';
+            $params[] = $input['studySchedule'];
+        }
+
+        if (!empty($input['sessionLength']) && is_string($input['sessionLength'])) {
+            $fields[] = 'session_length = ?';
+            $params[] = $input['sessionLength'];
+        }
+
+        if (!empty($input['explanationStyle']) && is_string($input['explanationStyle'])) {
+            $fields[] = 'explanation_style = ?';
+            $params[] = $input['explanationStyle'];
+        }
+
+        if (isset($input['notificationsEnabled'])) {
+            $fields[] = 'notifications_enabled = ?';
+            $params[] = $input['notificationsEnabled'] ? 1 : 0;
+        }
+
+        if (!empty($input['notificationFrequency']) && in_array($input['notificationFrequency'], ['daily', 'weekdays', 'weekends', 'three_weekly', 'weekly'], true)) {
+            $fields[] = 'notification_frequency = ?';
+            $params[] = $input['notificationFrequency'];
+        }
+
+        if (!empty($input['notificationTime']) && is_string($input['notificationTime']) && preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $input['notificationTime'])) {
+            $fields[] = 'notification_time = ?';
+            $params[] = $input['notificationTime'];
+        }
+
+        if (isset($input['firstLessonCompleted'])) {
+            $fields[] = 'first_lesson_completed = ?';
+            $params[] = $input['firstLessonCompleted'] ? 1 : 0;
+        }
+
+        if (!empty($fields)) {
+            $params[] = $user_id;
+            $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?");
+            $stmt->execute($params);
+        }
+    } catch (Exception $e) {
+        error_log("Error saving learning profile columns: " . $e->getMessage());
+        $response['errors'][] = "Learning profile partially saved; some fields may not appear immediately.";
+    }
+
 } catch (Exception $e) {
     // OUTER CATCH: Handles Connection Failures OR Query Failures
     error_log("Onboarding critical DB error for user $user_id: " . $e->getMessage());
