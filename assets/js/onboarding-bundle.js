@@ -357,12 +357,14 @@ class OnboardingWizard {
                 
                 // Show Input with slide-down
                 inputContainer.classList.remove('hidden');
-                gsap.from(inputContainer, { 
-                    height: 0, 
-                    opacity: 0, 
-                    duration: 0.4,
-                    ease: "power2.out"
-                });
+                if (typeof gsap !== 'undefined') {
+                    gsap.from(inputContainer, {
+                        height: 0,
+                        opacity: 0,
+                        duration: 0.4,
+                        ease: "power2.out"
+                    });
+                }
 
                 // Configure Input text
                 if (level === 'college') {
@@ -779,7 +781,14 @@ class OnboardingWizard {
         setTimeout(() => {
             loading.classList.add('hidden');
             content.classList.remove('hidden');
-            gsap.from(content, { opacity: 0, y: 20 });
+            // Guarded: if the GSAP CDN script fails/is slow to load (flaky mobile
+            // data), this must not throw — a throw here aborts everything below
+            // (question generation, renderQuestion()), leaving the assessment
+            // screen showing its placeholder text with zero answer options and
+            // no way to proceed except "Skip assessment for now".
+            if (typeof gsap !== 'undefined') {
+                gsap.from(content, { opacity: 0, y: 20 });
+            }
 
             this.assessmentState.questions = this.getAssessmentQuestions();
             this.assessmentState.currentQuestion = 0;
