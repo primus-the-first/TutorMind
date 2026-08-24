@@ -5,7 +5,7 @@
  * Adds the legibility accessibility setting (90-150%) for font/line scaling.
  */
 
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 try {
     $pdo = getDbConnection();

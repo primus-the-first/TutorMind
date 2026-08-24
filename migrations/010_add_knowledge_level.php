@@ -6,7 +6,7 @@
  * Values: 'beginner' | 'intermediate' | 'advanced' | NULL (skipped / not yet assessed)
  */
 
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 try {
     $pdo = getDbConnection();

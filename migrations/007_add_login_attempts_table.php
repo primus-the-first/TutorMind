@@ -6,7 +6,7 @@
  * Command: php migrations/007_add_login_attempts_table.php
  */
 
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 try {
     $pdo = getDbConnection();

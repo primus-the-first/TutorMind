@@ -10,7 +10,7 @@
  * by ~50-100ms per message with code/math content.
  */
 
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 function migrate_add_message_cache() {
     try {

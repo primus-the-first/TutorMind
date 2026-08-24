@@ -5,7 +5,7 @@
  * Stores extracted content from web searches with embeddings for semantic retrieval.
  */
 
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 try {
     $pdo = getDbConnection();

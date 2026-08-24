@@ -11,7 +11,7 @@
  * Run this migration to significantly improve query performance.
  */
 
-require_once __DIR__ . '/../db_mysql.php';
+require_once __DIR__ . '/../includes/db_mysql.php';
 
 function migrate_add_performance_indexes() {
     try {
