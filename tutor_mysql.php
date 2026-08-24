@@ -563,7 +563,7 @@ try {
                             <i class="fas fa-plus" aria-hidden="true"></i>
                         </button>
 
-                        <textarea id="question" name="question" class="main-text-input" placeholder="Ask anything" rows="1" required style="resize: none; overflow-y: hidden;"></textarea>
+                        <textarea id="question" name="question" class="main-text-input" placeholder="Ask anything" rows="1" style="resize: none; overflow-y: hidden;"></textarea>
 
                         <div class="trailing-actions">
                             <span class="voice-cluster">

@@ -555,6 +555,7 @@
         font-size: 1.6rem;
         margin: 0;
         text-align: left;
+        white-space: normal;
     }
 
     /* "Continue last session" resume card.
@@ -633,8 +634,9 @@
         font-size: 0.75rem;
     }
     .pomodoro-panel {
-        right: -20px;
+        right: 0;
         width: 280px;
+        max-width: calc(100vw - 24px);
     }
 
     /* --- Section: History tray (structural — migrated from disabled ui-overhaul block) --- */
@@ -788,7 +790,8 @@
         }
         .pomodoro-panel {
             width: 260px;
-            right: -40px;
+            right: 0;
+            max-width: calc(100vw - 24px);
         }
     }
 
