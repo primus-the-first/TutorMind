@@ -12,7 +12,8 @@ require_once '../includes/db_mysql.php';
 $allowed_fields = [
     'first_name', 'last_name', 'email', 'username', 'learning_level', 'response_style',
     'email_notifications', 'study_reminders', 'feature_announcements', 'weekly_summary',
-    'data_sharing', 'dark_mode', 'font_size', 'chat_density', 'legibility'
+    'data_sharing', 'dark_mode', 'font_size', 'chat_density', 'legibility',
+    'notifications_enabled', 'notification_frequency', 'notification_time'
 ];
 
 // --- MAIN LOGIC ---
@@ -52,7 +53,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
     try {
         // Prepare and execute the query to get user settings.
         // We also fetch created_at for display purposes.
-        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $settings = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -64,6 +65,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
             $settings['weekly_summary'] = (bool)$settings['weekly_summary'];
             $settings['data_sharing'] = (bool)$settings['data_sharing'];
             $settings['dark_mode'] = (bool)$settings['dark_mode'];
+            $settings['notifications_enabled'] = (bool)$settings['notifications_enabled'];
 
             // Return the settings as JSON.
             http_response_code(200);
@@ -118,6 +120,20 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields): void 
             if ($field === 'username' && !preg_match('/^[a-zA-Z0-9_]+$/', $value)) {
                 http_response_code(400);
                 echo json_encode(['success' => false, 'error' => 'Username can only contain letters, numbers, and underscores.']);
+                return;
+            }
+
+            // Special validation for notification_frequency
+            if ($field === 'notification_frequency' && !in_array($value, ['daily', 'three_weekly', 'weekly'], true)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid notification frequency.']);
+                return;
+            }
+
+            // Special validation for notification_time (accepts "HH:MM" or "HH:MM:SS")
+            if ($field === 'notification_time' && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $value)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'Invalid notification time format.']);
                 return;
             }
 

@@ -87,7 +87,7 @@ OnboardingWizard.prototype.renderNotificationState = function() {
 
 OnboardingWizard.prototype.saveNotificationsAndNext = function() {
   console.log('✅ Notifications Configured:', this.notificationState);
-  
+
   // Log Screen 6/7 Transition explicitly as requested
   console.log('📍 Completed Screen 7, Moving to Screen 8');
 
@@ -95,7 +95,7 @@ OnboardingWizard.prototype.saveNotificationsAndNext = function() {
   if (this.notificationState.enabled) {
     this.profileData.notificationFrequency = this.notificationState.frequency;
     this.profileData.notificationTime = this.notificationState.time;
-    
+
     // Request browser permission if possible (non-blocking)
     if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
       Notification.requestPermission().then(permission => {
@@ -103,7 +103,30 @@ OnboardingWizard.prototype.saveNotificationsAndNext = function() {
       });
     }
   }
-  
+
+  // Persist to the backend (fire-and-forget, matches onboarding's non-blocking UX;
+  // saveProgress() below still keeps a localStorage copy as a fallback/local cache).
+  const payload = { notifications_enabled: this.notificationState.enabled };
+  if (this.notificationState.enabled) {
+    payload.notification_frequency = this.notificationState.frequency;
+    payload.notification_time = this.notificationState.time;
+  }
+
+  fetch('api/user_settings.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(response => response.json())
+    .then(result => {
+      if (!result.success) {
+        console.error('Failed to save notification prefs:', result.error);
+      }
+    })
+    .catch(err => {
+      console.error('Failed to save notification prefs:', err);
+    });
+
   this.saveProgress();
   this.nextScreen();
 };
