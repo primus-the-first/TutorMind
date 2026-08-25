@@ -26,8 +26,13 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics Dashboard - TutorMind</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
+    <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
     <link rel="stylesheet" href="assets/css/ui-overhaul.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Funnel+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
+    <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -843,6 +848,21 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             if (isDark && !document.body.classList.contains('dark-mode')) {
                 document.body.classList.add('dark-mode');
             }
+        })();
+    </script>
+
+    <!-- Boot loader: shown for at least 2 full animation cycles, extended to
+         cover real page-load time if that takes longer. -->
+    <script>
+        (function() {
+            var bootStart = Date.now();
+            if (typeof TmLoader === 'undefined') return;
+            TmLoader.showFullscreen('Loading TutorMind…');
+            window.addEventListener('load', function() {
+                var minDuration = 2 * TmLoader.FULL_CYCLE_MS;
+                var remaining = Math.max(0, minDuration - (Date.now() - bootStart));
+                setTimeout(function() { TmLoader.hide(); }, remaining);
+            });
         })();
     </script>
 

@@ -266,9 +266,10 @@ try {
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>TutorMind Chat | TutorMind</title>
-    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
+    <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="assets/favicon.png">
     <base href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/">
     <!-- Fonts and Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -306,6 +307,7 @@ try {
     <link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>"></noscript>
     <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
+    <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?> <?= $user_dark_mode ? 'dark-mode' : '' ?>">
     <!-- Unified Theme Script -->
@@ -316,6 +318,22 @@ try {
             if (isDark && !document.body.classList.contains('dark-mode')) {
                 document.body.classList.add('dark-mode');
             }
+        })();
+    </script>
+
+    <!-- Boot loader: shown for at least 2 full animation cycles, extended to
+         cover real page-load time if that takes longer, on both desktop and
+         mobile (same overlay, no separate mobile path needed). -->
+    <script>
+        (function() {
+            var bootStart = Date.now();
+            if (typeof TmLoader === 'undefined') return;
+            TmLoader.showFullscreen('Loading TutorMind…');
+            window.addEventListener('load', function() {
+                var minDuration = 2 * TmLoader.FULL_CYCLE_MS;
+                var remaining = Math.max(0, minDuration - (Date.now() - bootStart));
+                setTimeout(function() { TmLoader.hide(); }, remaining);
+            });
         })();
     </script>
 
@@ -692,7 +710,6 @@ try {
 
     <!-- Main application scripts -->
     <script src="assets/js/push-notifications.js?v=<?= filemtime('assets/js/push-notifications.js') ?>"></script>
-    <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
     <script src="assets/js/settings.js?v=<?= filemtime('assets/js/settings.js') ?>"></script>
     <script src="assets/js/session-context.js?v=<?= filemtime('assets/js/session-context.js') ?>"></script>
     <script src="assets/js/quick-start.js?v=<?= filemtime('assets/js/quick-start.js') ?>"></script>

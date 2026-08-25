@@ -58,23 +58,27 @@ if ($user_id) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Welcome to TutorMind - Interactive Setup</title>
-    <link rel="icon" type="image/png" href="assets/favicon.png">
-    <link rel="apple-touch-icon" href="assets/favicon.png">
-    
+    <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
+    <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
+
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Logo Styles -->
     <link rel="stylesheet" href="assets/css/logo.css?v=<?= time() ?>">
 
     <!-- Main Design System -->
     <link rel="stylesheet" href="assets/css/landing.css?v=<?= time() ?>">
-    
+
     <!-- Wizard Styles -->
     <link rel="stylesheet" href="assets/css/onboarding-wizard.css?v=<?= time() ?>">
+
+    <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
+    <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
 </head>
 <body class="<?= $user_dark_mode ? 'dark-mode' : '' ?>">
     <!-- Unified Theme Script -->
@@ -87,6 +91,22 @@ if ($user_id) {
             }
         })();
     </script>
+
+    <!-- Boot loader: shown for at least 2 full animation cycles, extended to
+         cover real page-load time if that takes longer. -->
+    <script>
+        (function() {
+            var bootStart = Date.now();
+            if (typeof TmLoader === 'undefined') return;
+            TmLoader.showFullscreen('Loading TutorMind…');
+            window.addEventListener('load', function() {
+                var minDuration = 2 * TmLoader.FULL_CYCLE_MS;
+                var remaining = Math.max(0, minDuration - (Date.now() - bootStart));
+                setTimeout(function() { TmLoader.hide(); }, remaining);
+            });
+        })();
+    </script>
+
     <div id="onboarding-container">
         <!-- Progress Bar -->
         <div class="wizard-progress">

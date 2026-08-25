@@ -27,7 +27,9 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - TutorMind</title>
-    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
+    <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
     
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
