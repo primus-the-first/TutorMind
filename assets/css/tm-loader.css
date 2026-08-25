@@ -1,0 +1,106 @@
+/**
+ * TutorMind Bridge Loader
+ * Branded loading animations built from the bridge-arch logo mark
+ * (assets/logo-bridge.svg). Two variants:
+ *   - .tm-loader-overlay  "Bridge Draw" — full-screen, big moments (TmLoader.showFullscreen)
+ *   - .tm-loader-inline   "Orbit Dot"   — small, sits inside a button (TmLoader.inlineHTML)
+ * See assets/js/tm-loader.js for usage.
+ */
+
+.tm-loader-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-main, #FAF9F6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 22px;
+    z-index: 10000;
+}
+
+body.dark-mode .tm-loader-overlay {
+    background: var(--bg-main, #16121F);
+}
+
+.tm-loader-overlay svg {
+    width: 72px;
+    height: 72px;
+}
+
+.tm-loader-overlay .tm-loader-message {
+    font-family: 'Funnel Display', 'Outfit', -apple-system, sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--text-primary, #1F2937);
+}
+
+body.dark-mode .tm-loader-overlay .tm-loader-message {
+    color: var(--text-primary, #EDE9F7);
+}
+
+/* ---------- Bridge Draw (full-screen) ---------- */
+.tm-loader-draw-arch {
+    stroke-width: 4;
+    stroke-linecap: round;
+    fill: none;
+    stroke-dasharray: 46;
+    stroke-dashoffset: 46;
+    animation: tm-loader-draw-arch 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.tm-loader-draw-dot-top {
+    fill: #F59E0B;
+    opacity: 0;
+    transform-origin: 20px 8px;
+    animation: tm-loader-pulse-dot 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes tm-loader-draw-arch {
+    0%   { stroke-dashoffset: 46; }
+    55%  { stroke-dashoffset: 0; }
+    80%  { stroke-dashoffset: 0; opacity: 1; }
+    100% { stroke-dashoffset: -46; opacity: 0.4; }
+}
+
+@keyframes tm-loader-pulse-dot {
+    0%, 50%  { opacity: 0; transform: scale(0.4); }
+    62%      { opacity: 1; transform: scale(1.3); }
+    75%      { opacity: 1; transform: scale(1); }
+    100%     { opacity: 0; transform: scale(1); }
+}
+
+/* ---------- Orbit Dot (inline, e.g. inside a button) ---------- */
+.tm-loader-inline {
+    width: 1em;
+    height: 1em;
+    vertical-align: middle;
+}
+
+.tm-loader-inline .tm-loader-orbit-arch {
+    stroke: currentColor;
+    opacity: 0.3;
+    stroke-width: 3;
+    stroke-linecap: round;
+    fill: none;
+}
+
+.tm-loader-inline .tm-loader-orbit-dot {
+    fill: currentColor;
+    offset-path: path("M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30");
+    animation: tm-loader-orbit 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes tm-loader-orbit {
+    0%   { offset-distance: 0%; }
+    100% { offset-distance: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tm-loader-draw-arch,
+    .tm-loader-draw-dot-top,
+    .tm-loader-orbit-dot {
+        animation-duration: 0.001s !important;
+        animation-iteration-count: 1 !important;
+    }
+}

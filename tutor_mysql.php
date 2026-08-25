@@ -305,6 +305,7 @@ try {
     <link rel="stylesheet" href="assets/css/logo.css?v=<?= filemtime('assets/css/logo.css') ?>">
     <link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>"></noscript>
+    <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?> <?= $user_dark_mode ? 'dark-mode' : '' ?>">
     <!-- Unified Theme Script -->
@@ -691,6 +692,7 @@ try {
 
     <!-- Main application scripts -->
     <script src="assets/js/push-notifications.js?v=<?= filemtime('assets/js/push-notifications.js') ?>"></script>
+    <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
     <script src="assets/js/settings.js?v=<?= filemtime('assets/js/settings.js') ?>"></script>
     <script src="assets/js/session-context.js?v=<?= filemtime('assets/js/session-context.js') ?>"></script>
     <script src="assets/js/quick-start.js?v=<?= filemtime('assets/js/quick-start.js') ?>"></script>

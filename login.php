@@ -37,8 +37,10 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
     
     <!-- Main Creative Styles -->
     <link rel="stylesheet" href="assets/css/landing.css?v=3">
-    
+    <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
+
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
 </head>
 <body>
     <!-- Unified Theme Script -->
@@ -223,6 +225,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                     try {
                          const result = JSON.parse(responseText);
                          if (result.success && result.redirect) {
+                             TmLoader.showFullscreen('Signing you in…');
                              if (result.db_theme) {
                                  localStorage.setItem('tutormind-theme', result.db_theme);
                                  if (result.db_theme === 'dark') {
@@ -233,7 +236,9 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                                      localStorage.setItem('theme', 'light');
                                  }
                              }
-                             window.location.href = result.redirect;
+                             // Let the loader play one full cycle before handing off, so it
+                             // never gets cut short by a fast network/page load.
+                             setTimeout(() => { window.location.href = result.redirect; }, TmLoader.FULL_CYCLE_MS || 2200);
                          } else {
                              alert(result.error || 'Login failed');
                              btn.disabled = false;
@@ -268,7 +273,10 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.redirect) {
-                    window.location.href = data.redirect;
+                    TmLoader.showFullscreen('Signing you in…');
+                    // Let the loader play one full cycle before handing off, so it
+                    // never gets cut short by a fast network/page load.
+                    setTimeout(() => { window.location.href = data.redirect; }, TmLoader.FULL_CYCLE_MS || 2200);
                 } else {
                     alert(data.error || 'Google login failed.');
                 }

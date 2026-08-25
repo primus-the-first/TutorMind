@@ -1074,7 +1074,11 @@ class SettingsManager {
         if (isLoading) {
             const spinner = document.createElement('div');
             spinner.className = 'loading-spinner-overlay';
-            spinner.innerHTML = '<i class="fas fa-spinner fa-spin fa-3x"></i>';
+            spinner.innerHTML = typeof TmLoader !== 'undefined'
+                ? TmLoader.inlineHTML()
+                : '<i class="fas fa-spinner fa-spin fa-3x"></i>'; // Fallback if tm-loader.js didn't load
+            const svg = spinner.querySelector('svg');
+            if (svg) { svg.style.width = '48px'; svg.style.height = '48px'; svg.style.color = 'var(--primary-color)'; }
             container.appendChild(spinner);
         } else {
             const spinner = container.querySelector('.loading-spinner-overlay');
