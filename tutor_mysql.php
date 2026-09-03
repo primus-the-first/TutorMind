@@ -15,6 +15,7 @@ header("Expires: 0");
 require_once 'includes/check_auth.php'; // Secure this page
 require_once 'includes/db_mysql.php';
 require_once 'includes/webpush_config.php';
+require_once 'includes/illustrations.php';
 
 try {
     $vapidPublicKey = getWebPushConfig()['vapid_public_key'];
@@ -360,7 +361,7 @@ try {
         <nav id="chat-history-container" class="chat-history">
             <?php if (empty($history)): ?>
         <div style="text-align:center; padding: 2rem; color: var(--text-secondary);">
-            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+            <div style="width: 44px; margin: 0 auto 1rem; filter: drop-shadow(0 4px 6px rgba(26,22,37,0.15));"><?= render_illustration('empty-states/chat-history-empty') ?></div>
             <p style="font-weight: 600; margin-bottom: 0.5rem;">No conversations yet</p>
             <p style="font-size: 0.875rem;">Start a new chat to begin learning!</p>
         </div>
@@ -738,7 +739,7 @@ try {
         <div class="history-tray-content">
             <?php if (empty($history)): ?>
         <div style="text-align:center; padding: 2rem; color: var(--text-secondary);">
-            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+            <div style="width: 44px; margin: 0 auto 1rem; filter: drop-shadow(0 4px 6px rgba(26,22,37,0.15));"><?= render_illustration('empty-states/chat-history-empty') ?></div>
             <p style="font-weight: 600; margin-bottom: 0.5rem;">No conversations yet</p>
             <p style="font-size: 0.875rem;">Start a new chat to begin learning!</p>
         </div>

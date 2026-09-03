@@ -3,13 +3,17 @@
  * Fully Aligned with landing.css
  */
 
-:root {
+/* Declared on body, not :root: body.dark-mode overrides --card-bg etc. on
+   <body>, and a var() indirection only tracks a reassigned variable when
+   it's resolved on the same element the override targets. Defining this
+   mapping on :root froze it at the light-mode value forever. */
+body {
     /* Mappings to Design System */
     --wizard-bg: var(--paper-bg);
     --wizard-card-bg: var(--card-bg); /* Mapped to card-bg from landing.css */
     --wizard-border: var(--border-strong);
     --wizard-text: var(--text-primary);
-    --wizard-shadow: var(--primary-ink); 
+    --wizard-shadow: var(--primary-ink);
     --wizard-highlight: var(--accent-purple);
     --wizard-accent: var(--accent-gold);
 }
