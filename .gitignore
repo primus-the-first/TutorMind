@@ -44,6 +44,7 @@ test_*.php
 NAME_ATOMIZATION_GUIDE.md
 CODE_CHANGES_GUIDE.md
 *.sql
+!migrations/*.sql
 
 # Backups and Temp files
 *.bak
