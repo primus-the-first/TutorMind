@@ -1165,6 +1165,26 @@ class OnboardingWizard {
     initSummary() {
         const container = document.getElementById('summary-content');
         const p = this.profileData;
+
+        const eduLabels = {
+            high: 'High School',
+            college: p.enrollmentStatus === 'graduated' ? 'College Graduate' : 'College/University',
+            adult: 'Adult Learner',
+            other: 'Other',
+        };
+        const goalLabels = {
+            homework_help: 'Homework Help',
+            exam_prep: 'Exam Preparation',
+            concept_mastery: 'Concept Mastery',
+            get_ahead: 'Get Ahead',
+            catch_up: 'Catch Up',
+            general_learning: 'General Learning',
+        };
+        const styleLabels = {
+            simple: 'Simple & Direct',
+            detailed: 'Detailed & In-depth',
+            socratic: 'Socratic',
+        };
         const levelLabels = { beginner: '🌱 Beginner', intermediate: '📈 Intermediate', advanced: '🏆 Advanced' };
         const levelLine = p.knowledgeLevel
             ? `<p><strong>Knowledge Level:</strong> ${levelLabels[p.knowledgeLevel] || p.knowledgeLevel}</p>`
@@ -1173,10 +1193,10 @@ class OnboardingWizard {
         container.innerHTML = `
             <div class="summary-card">
                 <h3>Ready to Learn! 🚀</h3>
-                <p><strong>Focus:</strong> ${p.educationLevel}</p>
-                <p><strong>Goal:</strong> ${p.learningGoal || 'General Learning'}</p>
+                <p><strong>Focus:</strong> ${eduLabels[p.educationLevel] || p.educationLevel}</p>
+                <p><strong>Goal:</strong> ${goalLabels[p.learningGoal] || 'General Learning'}</p>
                 ${levelLine}
-                <p><strong>Style:</strong> ${p.explanationStyle || 'Adaptive'}</p>
+                <p><strong>Style:</strong> ${styleLabels[p.explanationStyle] || 'Adaptive'}</p>
             </div>
         `;
     }

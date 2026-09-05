@@ -97,7 +97,7 @@ try {
     try {
         $stmt = $pdo->prepare("UPDATE users SET onboarding_completed = 1 WHERE id = ?");
         $stmt->execute([$user_id]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         error_log("Onboarding status update failed for user $user_id: " . $e->getMessage());
         $response['errors'][] = "Status update failed; retrying profile save.";
         // Continue to try saving profile...
@@ -108,7 +108,7 @@ try {
         $stmt = $pdo->prepare("UPDATE users SET profile_data = ? WHERE id = ?");
         $stmt->execute([$profile_data, $user_id]);
         $response['success'] = true;
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         error_log("Onboarding profile save failed for user $user_id: " . $e->getMessage());
         $response['errors'][] = "Profile save failed; attempting backup.";
         throw $e; // Trigger catch block for file backup
@@ -130,7 +130,7 @@ try {
             $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?");
             $stmt->execute($params);
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         error_log("Error saving personalization columns: " . $e->getMessage());
         $response['errors'][] = "Personalization data partially saved; some fields may not appear immediately.";
     }
@@ -204,12 +204,12 @@ try {
             $stmt = $pdo->prepare("UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?");
             $stmt->execute($params);
         }
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         error_log("Error saving learning profile columns: " . $e->getMessage());
         $response['errors'][] = "Learning profile partially saved; some fields may not appear immediately.";
     }
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     // OUTER CATCH: Handles Connection Failures OR Query Failures
     error_log("Onboarding critical DB error for user $user_id: " . $e->getMessage());
     $response['errors'][] = "Could not save to the database; attempting backup.";
