@@ -144,8 +144,28 @@ body.dark-mode #onboarding-container {
 }
 
 .hero-icon {
-    font-size: 1.75rem;
-    line-height: 1;
+    width: 56px;
+    height: 56px;
+    transform: rotate(var(--tilt, 0deg));
+    transition: transform 0.2s ease;
+}
+
+.hero-icon:hover {
+    transform: rotate(0deg) scale(1.08);
+}
+
+.hero-icon svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.hero-icon--gold {
+    --hero-accent: var(--accent-gold);
+}
+
+.hero-icon--purple {
+    --hero-accent: var(--accent-purple);
 }
 
 /* ==================== CARDS (Education, Subjects, Goals) ==================== */

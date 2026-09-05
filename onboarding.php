@@ -128,10 +128,37 @@ if ($user_id) {
                 <p class="subtitle">Get instant help, step-by-step explanations, and practice tailored to your needs</p>
                 
                 <div class="hero-icons">
-                    <div class="hero-icon">📚</div>
-                    <div class="hero-icon">🧠</div>
-                    <div class="hero-icon">🎯</div>
-                    <div class="hero-icon">🚀</div>
+                    <div class="hero-icon hero-icon--gold" style="--tilt: -6deg;">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="9" y="38" width="46" height="9" rx="2" transform="rotate(-2 32 42)" fill="var(--hero-accent)" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linejoin="round"/>
+                            <path d="M12 37c1-11 0-20-1-25 6-3 15-3 20 1 5-4 15-4 20-1-1 6-2 15 0 25" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M31 13v24" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linecap="round"/>
+                            <path d="M17 18c3-1 6-1 9 0M17 24c3-1 6-1 9 0M38 18c3-1 6-1 9 0M38 24c3-1 6-1 9 0" stroke="var(--primary-ink)" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="hero-icon hero-icon--purple" style="--tilt: 4deg;">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M26 12c-8-1-14 4-14 11-4 2-5 9-1 12-2 5 2 10 7 10 1 4 6 6 10 4 4 3 10 1 11-3 5 0 8-5 6-9 4-3 3-10-2-12 1-7-5-13-12-12-1-2-3-1-5-1z" fill="var(--hero-accent)" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linejoin="round"/>
+                            <path d="M27 20c-3 0-6 2-6 6M32 18v24M38 21c3 0 5 3 5 6-3 1-4 4-2 7" stroke="var(--primary-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M48 14l2 3 3 1-3 2-1 3-2-3-3-1z" fill="var(--primary-ink)"/>
+                        </svg>
+                    </div>
+                    <div class="hero-icon hero-icon--gold" style="--tilt: -3deg;">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="30" cy="32" r="19" stroke="var(--primary-ink)" stroke-width="2.5"/>
+                            <circle cx="30" cy="32" r="12" fill="var(--hero-accent)" stroke="var(--primary-ink)" stroke-width="2.5"/>
+                            <circle cx="30" cy="32" r="4" fill="var(--primary-ink)"/>
+                            <path d="M40 14l14-6-6 14-6-2z" fill="var(--primary-ink)" stroke="var(--primary-ink)" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="hero-icon hero-icon--purple" style="--tilt: 6deg;">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M32 8c8 4 12 14 11 26-3 2-8 3-11 3s-8-1-11-3c-1-12 3-22 11-26z" fill="var(--hero-accent)" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linejoin="round"/>
+                            <circle cx="32" cy="24" r="4.5" fill="var(--paper-bg)" stroke="var(--primary-ink)" stroke-width="2.2"/>
+                            <path d="M21 30c-5 2-7 7-7 13 5-1 9-3 11-7M43 30c5 2 7 7 7 13-5-1-9-3-11-7" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M27 37l-3 12 5-3M37 37l3 12-5-3" stroke="var(--primary-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
                 </div>
                 
                 <button id="get-started-btn" class="btn btn-primary btn-large">
