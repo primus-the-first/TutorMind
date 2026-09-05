@@ -116,6 +116,7 @@ class OnboardingWizard {
             customSubjects: [],
             learningGoal: null,
             educationLevel: null,
+            enrollmentStatus: null,
             schoolName: null,
             assessmentResults: {},
             studySchedule: null,
@@ -323,6 +324,22 @@ class OnboardingWizard {
         const inputContainer = document.getElementById('school-input-container');
         const schoolInput = document.getElementById('school-name-input');
         const label = document.getElementById('school-input-label');
+        const enrollmentToggle = document.getElementById('enrollment-status-toggle');
+
+        const updateCollegeCopy = () => {
+            const graduated = this.profileData.enrollmentStatus === 'graduated';
+            label.textContent = graduated ? "Which university did you attend?" : "Which university do you attend?";
+        };
+
+        enrollmentToggle.querySelectorAll('.enrollment-btn').forEach(btn => {
+            btn.onclick = () => {
+                enrollmentToggle.querySelectorAll('.enrollment-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this.profileData.enrollmentStatus = btn.dataset.status;
+                updateCollegeCopy();
+                this.saveProgress();
+            };
+        });
 
         // Populate Datalist
         const datalist = document.getElementById('university-list');
@@ -368,18 +385,25 @@ class OnboardingWizard {
 
                 // Configure Input text
                 if (level === 'college') {
-                    label.textContent = "Which university do you attend?";
+                    enrollmentToggle.classList.remove('hidden');
+                    if (!this.profileData.enrollmentStatus) this.profileData.enrollmentStatus = 'enrolled';
+                    enrollmentToggle.querySelectorAll('.enrollment-btn').forEach(b => {
+                        b.classList.toggle('selected', b.dataset.status === this.profileData.enrollmentStatus);
+                    });
+                    updateCollegeCopy();
                     schoolInput.setAttribute('list', 'university-list');
                     schoolInput.placeholder = "Search universities...";
                 } else if (level === 'high') {
+                    enrollmentToggle.classList.add('hidden');
                     label.textContent = "What is the name of your school?";
                     schoolInput.removeAttribute('list');
                     schoolInput.placeholder = "Enter school name...";
                 } else {
+                    enrollmentToggle.classList.add('hidden');
                     label.textContent = "Institution or Organization (Optional)";
                     schoolInput.removeAttribute('list');
                 }
-                
+
                 this.saveProgress();
             };
         });
@@ -434,9 +458,12 @@ class OnboardingWizard {
             searchContainer.classList.add('hidden'); // Hide search for SHS
         } else if (level === 'college') {
             this.initUniMode();
-            // Update heading for University
-            heading.textContent = "What are you studying at university?";
-            subtitle.textContent = "Tell us about your program and the subjects you need help with.";
+            // Update heading for University (tense depends on enrollment status)
+            const graduated = this.profileData.enrollmentStatus === 'graduated';
+            heading.textContent = graduated ? "What did you study at university?" : "What are you studying at university?";
+            subtitle.textContent = graduated
+                ? "Tell us about your program and the subjects you'd like help revisiting."
+                : "Tell us about your program and the subjects you need help with.";
             searchContainer.classList.add('hidden'); // Hide search for University
         } else {
             this.initStandardSubjectMode();
@@ -506,8 +533,16 @@ class OnboardingWizard {
         const container = document.getElementById('university-custom-form');
         container.classList.remove('hidden');
         document.getElementById('uni-school-name').value = this.profileData.schoolName || '';
-        
+
+        const graduated = this.profileData.enrollmentStatus === 'graduated';
+        document.getElementById('uni-form-heading').textContent = graduated
+            ? "What did you study at university?"
+            : "What are you studying at university?";
+
         const subInput = document.getElementById('uni-subject-entry');
+        subInput.placeholder = graduated
+            ? "e.g., Calculus II (subjects you'd like a refresher on)"
+            : "e.g., Calculus II";
         const addBtn = document.getElementById('add-uni-subject-btn');
         const list = document.getElementById('uni-subjects-list');
 

@@ -212,6 +212,35 @@ body.dark-mode .goal-card.selected {
     box-shadow: 5px 5px 0px var(--accent-purple);
 }
 
+/* Enrollment status toggle (College/University only) */
+.enrollment-toggle {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.enrollment-btn {
+    padding: 0.6rem 1.25rem;
+    border: 2px solid var(--wizard-border);
+    border-radius: 4px;
+    background: var(--wizard-card-bg);
+    color: var(--primary-ink);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.enrollment-btn:hover {
+    border-color: var(--wizard-highlight);
+    transform: translate(-2px, -2px);
+}
+
+.enrollment-btn.selected {
+    border-color: var(--wizard-highlight);
+    background: var(--wizard-highlight);
+    color: white;
+    box-shadow: 3px 3px 0px var(--wizard-accent);
+}
+
 .education-icon, .subject-icon, .goal-icon {
     font-size: 3rem;
     margin-bottom: 1rem;

@@ -71,6 +71,9 @@ $edu_level_map = [
     'professional' => 'Professional',
 ];
 $education_level  = $edu !== null ? ($edu_level_map[strtolower($edu)] ?? null) : null;
+if ($education_level === 'University' && ($input['enrollmentStatus'] ?? null) === 'graduated') {
+    $education_level = 'Graduate';
+}
 $rawCountry       = $input['country'] ?? null;
 $country          = (isset($rawCountry) && is_string($rawCountry)) ? substr($rawCountry, 0, 100) : null;
 $rawLanguage      = $input['language'] ?? null;

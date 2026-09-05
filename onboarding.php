@@ -202,6 +202,12 @@ if ($user_id) {
                     </div>
                 </div>
 
+                <!-- Enrollment Status (College/University only) -->
+                <div id="enrollment-status-toggle" class="enrollment-toggle hidden" style="margin-top: 2rem;">
+                    <button type="button" class="enrollment-btn" data-status="enrolled">Currently Enrolled</button>
+                    <button type="button" class="enrollment-btn" data-status="graduated">Graduated</button>
+                </div>
+
                 <!-- School/University Input -->
                 <div id="school-input-container" class="school-input-wrapper hidden" style="margin-top: 2rem;">
                     <label id="school-input-label" for="school-name-input" style="display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 500;">School or University Name</label>
@@ -390,14 +396,14 @@ if ($user_id) {
 
                 <!-- ==================== UNIVERSITY CUSTOM FORM ==================== -->
                 <div id="university-custom-form" class="university-custom-form hidden">
-                    <h2>What are you studying at university?</h2>
-                    
+                    <h2 id="uni-form-heading">What are you studying at university?</h2>
+
                     <label>School/University Name:</label>
                     <input type="text" id="uni-school-name" readonly style="background: var(--bg-secondary); cursor: not-allowed;">
-                    
+
                     <label>Your Program/Course:</label>
                     <input type="text" id="uni-program-input" placeholder="e.g., BSc Computer Science, BA Economics">
-                    
+
                     <label>Which subjects do you need help with?</label>
                     <div class="uni-subject-input-group">
                         <input type="text" id="uni-subject-entry" placeholder="e.g., Calculus II">
