@@ -1287,6 +1287,12 @@ class OnboardingWizard {
                 body: JSON.stringify(this.profileData)
             });
 
+            if (response.status === 401) {
+                alert('Your session has expired. Please log in again to finish setting up your account.');
+                window.location.href = 'login';
+                return;
+            }
+
             const result = await response.json();
 
             if (result.success) {
