@@ -396,8 +396,6 @@ if ($user_id) {
 
                 <!-- ==================== UNIVERSITY CUSTOM FORM ==================== -->
                 <div id="university-custom-form" class="university-custom-form hidden">
-                    <h2 id="uni-form-heading">What are you studying at university?</h2>
-
                     <label>School/University Name:</label>
                     <input type="text" id="uni-school-name" readonly style="background: var(--bg-secondary); cursor: not-allowed;">
 

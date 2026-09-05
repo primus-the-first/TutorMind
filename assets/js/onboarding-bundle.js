@@ -535,9 +535,6 @@ class OnboardingWizard {
         document.getElementById('uni-school-name').value = this.profileData.schoolName || '';
 
         const graduated = this.profileData.enrollmentStatus === 'graduated';
-        document.getElementById('uni-form-heading').textContent = graduated
-            ? "What did you study at university?"
-            : "What are you studying at university?";
 
         const subInput = document.getElementById('uni-subject-entry');
         subInput.placeholder = graduated
