@@ -43,13 +43,24 @@ try {
 $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $body['action'] ?? $_GET['action'] ?? '';
 
-switch ($action) {
-    case 'generate':     handleGenerate($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY); break;
-    case 'grade':        handleGrade($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY);    break;
-    case 'save_session': handleSaveSession($pdo, $user_id, $body);           break;
-    default:
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Unknown action']);
+try {
+    switch ($action) {
+        case 'generate':     handleGenerate($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY); break;
+        case 'grade':        handleGrade($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY);    break;
+        case 'save_session': handleSaveSession($pdo, $user_id, $body);           break;
+        default:
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Unknown action']);
+    }
+} catch (Throwable $e) {
+    // A DB failure here (e.g. a migration not yet applied) previously surfaced
+    // as an uncaught PDOException — a raw PHP fatal instead of JSON — which broke
+    // resp.json() on the client and silently closed the quiz modal with no
+    // indication of what went wrong. Always answer with JSON so the client's
+    // error handling actually runs.
+    error_log("quiz.php action '{$action}' failed: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Quiz feature unavailable']);
 }
 
 // ==========================================================================
