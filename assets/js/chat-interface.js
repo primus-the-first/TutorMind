@@ -338,7 +338,13 @@ class TutorMindChat {
 
         // Initialize syntax highlighting if messages exist
         if (typeof hljs !== 'undefined') {
-            document.querySelectorAll('pre code').forEach((block) => {
+            // tm-* blocks (assets/js/tm-widgets.js) are interactive widget markup,
+            // not real code — tutor_mysql.js's own DOMContentLoaded handler swaps
+            // them into widgets before this runs, but only after an awaited
+            // settings fetch, so this handler (registered second, but not gated
+            // on that await) can still reach them first. Skip them so hljs
+            // doesn't warn about a nonexistent "tm-task"/"tm-check" language.
+            document.querySelectorAll('pre code:not([class*="language-tm-"])').forEach((block) => {
                 hljs.highlightElement(block);
             });
         }
@@ -535,7 +541,8 @@ class TutorMindChat {
 
         // Re-initialize syntax highlighting and math
         if (typeof hljs !== 'undefined') {
-            messageDiv.querySelectorAll('pre code').forEach(block => {
+            // See initializeFeatures() above — skip tm-* interactive widget blocks.
+            messageDiv.querySelectorAll('pre code:not([class*="language-tm-"])').forEach(block => {
                 hljs.highlightElement(block);
             });
         }
