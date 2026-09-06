@@ -176,11 +176,11 @@ class QuizManager {
                     const nudge = missing.length
                         ? `Keep going — ${contactLabels[missing[0]] || 'engage a bit more'} before we test recall!`
                         : 'Keep going — a little more engagement before we test recall!';
-                    showCopyToast(nudge, 'info');
+                    window.showCopyToast(nudge, 'info');
                 } else if (!data.skip) {
                     // A hard failure (DB/AI error), not just "not enough context yet" —
                     // previously this closed the modal with zero explanation.
-                    showCopyToast("Couldn't prepare a recall question this time.", 'error');
+                    window.showCopyToast("Couldn't prepare a recall question this time.", 'error');
                 }
                 return;
             }
@@ -190,7 +190,7 @@ class QuizManager {
             this._displayQuestion(data);
         } catch (err) {
             if (DEBUG) console.error('QuizManager.start error:', err);
-            showCopyToast("Couldn't prepare a recall question this time.", 'error');
+            window.showCopyToast("Couldn't prepare a recall question this time.", 'error');
             this._hideModal();
         }
     }
@@ -2092,6 +2092,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         toastQueue.push({ msg, type });
         processToastQueue();
     }
+    // Exposed globally so QuizManager (a top-level class, outside this
+    // DOMContentLoaded closure) can also show toasts.
+    window.showCopyToast = showCopyToast;
 
     function processToastQueue() {
         if (toastShowing || toastQueue.length === 0) return;
