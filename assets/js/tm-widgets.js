@@ -13,6 +13,9 @@
  *   render(container, opts)      — swap raw tm-* blocks already in the DOM.
  *       opts.solvedChecks: optional Set of tm-check question strings already
  *       answered correctly earlier in the conversation (re-render as locked/solved).
+ *       opts.solvedChips: optional Map of tm-chips question -> chosen option text.
+ *       opts.solvedTasks: optional Map of tm-task question -> submitted answer text.
+ *       Same idea as solvedChecks — re-render those widgets already locked in.
  *   extract(html) -> {html,specs}— pull blocks out before a typewriter pass.
  *   fill(container, specs)       — fill the placeholders extract() left behind.
  *
@@ -81,22 +84,34 @@
     // ---- Individual widget builders. Each returns a DOM node. ----
 
     // Quick-reply chips → clicking submits that reply as the student's message.
+    // data.__solvedChoice (optional) marks a chip question already answered in an
+    // earlier turn (detected from chat history) — see extractSolvedChipChoice() in
+    // tutor_mysql.js. Renders straight into the locked, picked state.
     function buildChips(data) {
         var w = tmShell('Quick reply');
         if (data.q) w.appendChild(tmQuestion(data.q));
         var row = document.createElement('div');
         row.className = 'tm-chips';
+        var solved = data.__solvedChoice;
+        if (solved) row.classList.add('tm-done');
         (data.options || []).forEach(function (opt) {
             var b = document.createElement('button');
             b.type = 'button';
             b.className = 'tm-chip';
             b.textContent = opt;
-            b.addEventListener('click', function () {
-                if (row.classList.contains('tm-done')) return;
-                row.classList.add('tm-done');
-                b.classList.add('tm-picked');
-                reply(opt);
-            });
+            if (solved) {
+                b.setAttribute('disabled', '');
+                if (opt === solved) b.classList.add('tm-picked');
+            } else {
+                b.addEventListener('click', function () {
+                    if (row.classList.contains('tm-done')) return;
+                    row.classList.add('tm-done');
+                    b.classList.add('tm-picked');
+                    // Silent: the pick is already shown in the widget, so the
+                    // AI is pinged in the background without a redundant chat bubble.
+                    reply('For the question "' + data.q + '", I chose "' + opt + '".', { silent: true });
+                });
+            }
             row.appendChild(b);
         });
         w.appendChild(row);
@@ -210,13 +225,156 @@
         return w;
     }
 
+    // Draw a static graph shape (author-placed x/y, no layout algorithm) with a
+    // per-step highlight/dist delta merged in. graphShape: {nodes, edges}. visual:
+    // {highlight: {nodes:[ids], edges:[[from,to]]}, dist: {id: label}}.
+    // Shared logical coordinate box for every small node/edge graph canvas
+    // (tm-steps graph visuals, tm-path) — author-placed x/y, no layout algorithm.
+    var GRAPH_LOGICAL_W = 220, GRAPH_LOGICAL_H = 160, GRAPH_NODE_RADIUS = 14;
+
+    // Draw a graph shape (nodes/edges with author-placed x/y) onto a canvas
+    // context already scaled for DPR. opts:
+    //   hiNodes    — array of highlighted node ids (tm-steps + tm-path)
+    //   hiEdges    — array of [from, to] pairs to draw thicker/highlighted
+    //   dist       — {id: label} badge shown above a node (tm-steps only)
+    //   currentNodeId — draws a "you are here" ring around one node (tm-path only)
+    //   wrongNodeId   — fills one node with the bad/error color (tm-path wrong-tap flash)
+    function drawGraphOnCanvas(ctx, graphShape, opts) {
+        opts = opts || {};
+        var nodes = (graphShape && graphShape.nodes) || [];
+        var edges = (graphShape && graphShape.edges) || [];
+        var hiNodes = Array.isArray(opts.hiNodes) ? opts.hiNodes : [];
+        var hiEdges = Array.isArray(opts.hiEdges) ? opts.hiEdges : [];
+        var dist = opts.dist || {};
+        var currentNodeId = opts.currentNodeId;
+        var wrongNodeId = opts.wrongNodeId;
+
+        var byId = {};
+        nodes.forEach(function (n) { byId[n.id] = n; });
+
+        function isHiEdge(from, to) {
+            return hiEdges.some(function (pair) {
+                return (pair[0] === from && pair[1] === to) || (pair[0] === to && pair[1] === from);
+            });
+        }
+
+        var style = getComputedStyle(document.documentElement);
+        var primary = style.getPropertyValue('--primary').trim() || '#7c3aed';
+        var border = style.getPropertyValue('--border').trim() || '#ccc';
+        var text = style.getPropertyValue('--text-primary').trim() || '#222';
+        var bad = style.getPropertyValue('--tm-bad').trim() || '#ef4444';
+
+        ctx.clearRect(0, 0, GRAPH_LOGICAL_W, GRAPH_LOGICAL_H);
+
+        // Edges first, so nodes draw on top.
+        edges.forEach(function (e) {
+            var a = byId[e.from], b = byId[e.to];
+            if (!a || !b) return;
+            var hiE = isHiEdge(e.from, e.to);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = hiE ? primary : border;
+            ctx.lineWidth = hiE ? 2.5 : 1.5;
+            ctx.stroke();
+            if (e.weight != null) {
+                ctx.fillStyle = text;
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(String(e.weight), (a.x + b.x) / 2, (a.y + b.y) / 2 - 4);
+            }
+        });
+
+        // Nodes.
+        nodes.forEach(function (n) {
+            var isHi = hiNodes.indexOf(n.id) !== -1;
+            var isWrong = wrongNodeId != null && n.id === wrongNodeId;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, GRAPH_NODE_RADIUS, 0, Math.PI * 2);
+            ctx.fillStyle = isWrong ? bad : (isHi ? primary : (document.body.classList.contains('dark-mode') ? '#241E32' : '#fff'));
+            ctx.fill();
+            ctx.strokeStyle = isWrong ? bad : (isHi ? primary : border);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            if (currentNodeId != null && n.id === currentNodeId) {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, GRAPH_NODE_RADIUS + 5, 0, Math.PI * 2);
+                ctx.strokeStyle = primary;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([3, 3]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            ctx.fillStyle = (isHi || isWrong) ? '#fff' : text;
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(n.label != null ? n.label : n.id), n.x, n.y);
+
+            if (dist[n.id] != null) {
+                ctx.fillStyle = text;
+                ctx.font = '10px sans-serif';
+                ctx.textBaseline = 'alphabetic';
+                ctx.fillText(String(dist[n.id]), n.x, n.y - 18);
+            }
+        });
+    }
+
+    // Create a DPR-scaled canvas sized to the shared graph logical box.
+    function createGraphCanvas(className) {
+        var canvas = document.createElement('canvas');
+        canvas.className = className;
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width = GRAPH_LOGICAL_W * dpr;
+        canvas.height = GRAPH_LOGICAL_H * dpr;
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        return { canvas: canvas, ctx: ctx };
+    }
+
+    function buildStepGraph(graphShape, visual) {
+        var made = createGraphCanvas('tm-step-graph-canvas');
+        var hi = (visual && visual.highlight) || {};
+        drawGraphOnCanvas(made.ctx, graphShape, {
+            hiNodes: Array.isArray(hi.nodes) ? hi.nodes : [],
+            hiEdges: Array.isArray(hi.edges) ? hi.edges : [],
+            dist: (visual && visual.dist) || {}
+        });
+        return made.canvas;
+    }
+
+    // Render an array/list snapshot with highlighted indices.
+    function buildStepArray(visual) {
+        var row = document.createElement('div');
+        row.className = 'tm-step-array';
+        var arr = (visual && visual.array) || [];
+        var hi = (visual && visual.highlight) || [];
+        arr.forEach(function (val, i) {
+            var cell = document.createElement('div');
+            cell.className = 'tm-step-cell' + (hi.indexOf(i) !== -1 ? ' tm-step-cell-hi' : '');
+            cell.textContent = String(val);
+            row.appendChild(cell);
+        });
+        return row;
+    }
+
     // Worked example revealed one step at a time (optionally with a predict-first nudge).
+    // Each entry in data.steps is either a plain string (as before) or
+    // {text, visual} where visual is an array snapshot ({array, highlight}) or a
+    // graph-state delta ({highlight, dist}) merged against the top-level data.graph
+    // shape at draw time — the graph's node/edge positions are defined once, not
+    // repeated per step.
     function buildSteps(data) {
         var w = tmShell('Worked example · reveal step by step');
         if (data.q) w.appendChild(tmQuestion(data.q));
         var list = document.createElement('div');
         list.className = 'tm-steps';
-        var steps = (data.steps || []).map(function (s) {
+        var rawSteps = (data.steps || []).map(function (s) {
+            return typeof s === 'string' ? { text: s } : (s || {});
+        });
+        var steps = rawSteps.map(function (entry) {
             var row = document.createElement('div');
             row.className = 'tm-step';
             row.style.display = 'none';
@@ -224,9 +382,19 @@
             n.className = 'tm-step-n';
             n.textContent = 'STEP ' + (list.children.length + 1);
             var body = document.createElement('span');
-            body.textContent = s;
+            body.textContent = entry.text || '';
             row.appendChild(n);
             row.appendChild(body);
+
+            if (entry.visual) {
+                row.classList.add('tm-has-visual');
+                if (entry.visual.array) {
+                    row.appendChild(buildStepArray(entry.visual));
+                } else if (entry.visual.highlight || entry.visual.dist) {
+                    row.appendChild(buildStepGraph(data.graph, entry.visual));
+                }
+            }
+
             list.appendChild(row);
             return row;
         });
@@ -262,7 +430,10 @@
     }
 
     // "Your turn" short-answer task; submitting sends the answer as the student's
-    // message. May carry an embedded hint ladder.
+    // message. May carry an embedded hint ladder. data.__solvedAnswer (optional)
+    // marks a task already answered in an earlier turn (detected from chat history)
+    // — see extractSolvedTaskAnswer() in tutor_mysql.js. Renders straight into the
+    // same locked state a live submission already produces.
     function buildTask(data) {
         var w = tmShell('Your turn');
         if (data.q) w.appendChild(tmQuestion(data.q));
@@ -275,13 +446,21 @@
         btn.type = 'button';
         btn.className = 'tm-check-btn';
         btn.textContent = 'Submit answer';
-        btn.addEventListener('click', function () {
-            var val = ta.value.trim();
-            if (val.length < 2) { ta.focus(); return; }
-            btn.setAttribute('disabled', '');
+        if (data.__solvedAnswer) {
+            ta.value = data.__solvedAnswer;
             ta.setAttribute('disabled', '');
-            reply(val);
-        });
+            btn.setAttribute('disabled', '');
+        } else {
+            btn.addEventListener('click', function () {
+                var val = ta.value.trim();
+                if (val.length < 2) { ta.focus(); return; }
+                btn.setAttribute('disabled', '');
+                ta.setAttribute('disabled', '');
+                // Silent: the answer is already shown in the widget, so the AI is
+                // pinged in the background without a redundant chat bubble.
+                reply('For the task "' + data.q + '", I answered: ' + val, { silent: true });
+            });
+        }
         box.appendChild(ta);
         box.appendChild(btn);
         w.appendChild(box);
@@ -420,6 +599,94 @@
         return w;
     }
 
+    // Guided checkpoint navigation through a small node/edge graph. Unlike
+    // tm-order (reorder a flat list), the student taps their way through an
+    // actual spatially/structurally connected graph — correctness is by
+    // position in data.path (mirrors tm-order's _correctIndex check), not by
+    // graph adjacency, so the graph's edges stay purely illustrative/contextual.
+    function buildPath(data) {
+        var w = tmShell('Guide it · tap the next checkpoint');
+        if (data.q) w.appendChild(tmQuestion(data.q));
+
+        var graph = data.graph || {};
+        var path = Array.isArray(data.path) ? data.path : [];
+        var checkpoints = data.checkpoints || {};
+        var idx = 0; // index into path already reached
+
+        var made = createGraphCanvas('tm-path-canvas');
+        made.canvas.style.cursor = 'pointer';
+        w.appendChild(made.canvas);
+
+        var status = document.createElement('div');
+        status.className = 'tm-step-nudge tm-path-status';
+        status.style.display = 'none';
+        w.appendChild(status);
+
+        var verdict = document.createElement('div');
+        verdict.className = 'tm-verdict';
+        verdict.setAttribute('role', 'status');
+        verdict.style.display = 'none';
+        w.appendChild(verdict);
+
+        function redraw(wrongNodeId) {
+            drawGraphOnCanvas(made.ctx, graph, {
+                hiNodes: path.slice(0, idx + 1),
+                currentNodeId: idx < path.length - 1 ? path[idx] : null,
+                wrongNodeId: wrongNodeId
+            });
+        }
+        redraw();
+
+        var flashTimer = null;
+
+        made.canvas.addEventListener('click', function (evt) {
+            if (!path.length || idx >= path.length - 1) return; // no path, or already done
+
+            var rect = made.canvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            // The canvas's on-screen size (CSS) differs from its logical
+            // GRAPH_LOGICAL_W/H coordinate space, so click coordinates must be
+            // rescaled before hit-testing against author-placed node positions.
+            var scaleX = GRAPH_LOGICAL_W / rect.width;
+            var scaleY = GRAPH_LOGICAL_H / rect.height;
+            var x = (evt.clientX - rect.left) * scaleX;
+            var y = (evt.clientY - rect.top) * scaleY;
+
+            var hitNode = null;
+            (graph.nodes || []).forEach(function (n) {
+                var dx = x - n.x, dy = y - n.y;
+                if (Math.sqrt(dx * dx + dy * dy) <= GRAPH_NODE_RADIUS + 4) hitNode = n;
+            });
+            if (!hitNode) return;
+
+            if (hitNode.id === path[idx + 1]) {
+                clearTimeout(flashTimer);
+                idx++;
+                redraw();
+
+                var note = checkpoints[hitNode.id];
+                if (note) {
+                    status.textContent = note;
+                    status.style.display = 'block';
+                    reveal(status);
+                }
+
+                if (idx === path.length - 1) {
+                    verdict.className = 'tm-verdict tm-v-good';
+                    verdict.innerHTML = '<div class="tm-verdict-title">Done!</div>';
+                    verdict.style.display = 'block';
+                    reveal(verdict);
+                }
+            } else {
+                clearTimeout(flashTimer);
+                redraw(hitNode.id);
+                flashTimer = setTimeout(function () { redraw(); }, 400);
+            }
+        });
+
+        return w;
+    }
+
     // Fill-in-the-blank code. data.code holds {{1}}, {{2}}… placeholders; each
     // entry in data.blanks gives that blank's options and correct option index.
     function buildCloze(data) {
@@ -530,21 +797,279 @@
         return w;
     }
 
+    // ---- tm-graph: draggable slider graph ----
+    // Safety: the AI only ever selects a template name (enum lookup) and numeric
+    // coefficients — there is no eval()/new Function() anywhere in this widget, so
+    // there is no path from AI-authored JSON to arbitrary code execution.
+    function num(v, fallback) {
+        var n = Number(v);
+        return isFinite(n) ? n : fallback;
+    }
+    function clamp(v, lo, hi) {
+        return Math.min(hi, Math.max(lo, v));
+    }
+    var TEMPLATE_FNS = {
+        linear:      function (x, c) { return num(c.a, 1) * x + num(c.b, 0); },
+        quadratic:   function (x, c) { return num(c.a, 1) * x * x + num(c.b, 0) * x + num(c.c, 0); },
+        sine:        function (x, c) { return num(c.a, 1) * Math.sin(num(c.b, 1) * x + num(c.c, 0)) + num(c.d, 0); },
+        cosine:      function (x, c) { return num(c.a, 1) * Math.cos(num(c.b, 1) * x + num(c.c, 0)) + num(c.d, 0); },
+        exponential: function (x, c) { return num(c.a, 1) * Math.pow(clamp(num(c.b, 2), 0.01, 10), x); },
+        absolute:    function (x, c) { return num(c.a, 1) * Math.abs(x - num(c.b, 0)) + num(c.c, 0); },
+        // Rises from 0 and approaches a plateau (a) as x grows, rate of approach set
+        // by b — the common "diminishing returns" shape (photosynthesis rate vs.
+        // light/CO2, enzyme activity vs. substrate concentration, drug saturation),
+        // which none of the other templates fit (exponential is unbounded growth,
+        // not a plateau). Intended for x >= 0 domains.
+        saturating:  function (x, c) { return num(c.a, 1) * (1 - Math.exp(-clamp(num(c.b, 1), 0.01, 20) * x)); }
+    };
+
+    function buildGraph(data) {
+        var w = tmShell('Explore · drag the sliders');
+        if (data.q) w.appendChild(tmQuestion(data.q));
+
+        var fn = TEMPLATE_FNS[data.template];
+        if (!fn) {
+            var fallback = document.createElement('div');
+            fallback.className = 'tm-widget-q';
+            fallback.textContent = 'This graph type isn\'t available.';
+            w.appendChild(fallback);
+            return w;
+        }
+
+        var domain = Array.isArray(data.domain) ? data.domain : [-10, 10];
+        var range = Array.isArray(data.range) ? data.range : [-6, 6];
+        var params = Array.isArray(data.params) ? data.params : [];
+
+        var LOGICAL_W = 320, LOGICAL_H = 220;
+        var canvas = document.createElement('canvas');
+        canvas.className = 'tm-graph-canvas';
+        var dpr = window.devicePixelRatio || 1;
+        canvas.width = LOGICAL_W * dpr;
+        canvas.height = LOGICAL_H * dpr;
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        w.appendChild(canvas);
+
+        var coeffs = {};
+        params.forEach(function (p) { coeffs[p.key] = num(p.default, 0); });
+
+        function toPx(x, y) {
+            var px = (x - domain[0]) / (domain[1] - domain[0]) * LOGICAL_W;
+            var py = LOGICAL_H - (y - range[0]) / (range[1] - range[0]) * LOGICAL_H;
+            return [px, py];
+        }
+
+        function draw() {
+            var style = getComputedStyle(canvas.ownerDocument.documentElement);
+            var primary = style.getPropertyValue('--primary').trim() || '#7c3aed';
+            var border = style.getPropertyValue('--border').trim() || '#ccc';
+
+            ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+            // Axes.
+            ctx.strokeStyle = border;
+            ctx.lineWidth = 1;
+            var origin = toPx(0, 0);
+            ctx.beginPath();
+            ctx.moveTo(0, clamp(origin[1], 0, LOGICAL_H));
+            ctx.lineTo(LOGICAL_W, clamp(origin[1], 0, LOGICAL_H));
+            ctx.moveTo(clamp(origin[0], 0, LOGICAL_W), 0);
+            ctx.lineTo(clamp(origin[0], 0, LOGICAL_W), LOGICAL_H);
+            ctx.stroke();
+
+            // Curve — one sample per horizontal pixel.
+            ctx.strokeStyle = primary;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            var started = false;
+            for (var px = 0; px <= LOGICAL_W; px++) {
+                var x = domain[0] + (px / LOGICAL_W) * (domain[1] - domain[0]);
+                var y = fn(x, coeffs);
+                if (!isFinite(y)) { started = false; continue; }
+                var yClamped = clamp(y, range[0] - 1, range[1] + 1);
+                var pt = toPx(x, yClamped);
+                if (!started) { ctx.moveTo(pt[0], pt[1]); started = true; }
+                else ctx.lineTo(pt[0], pt[1]);
+            }
+            ctx.stroke();
+        }
+        draw();
+
+        if (params.length) {
+            var controls = document.createElement('div');
+            controls.className = 'tm-graph-controls';
+            params.forEach(function (p) {
+                var row = document.createElement('div');
+                row.className = 'tm-graph-row';
+                var label = document.createElement('label');
+                label.textContent = p.label || p.key;
+                var input = document.createElement('input');
+                input.type = 'range';
+                input.min = String(num(p.min, -10));
+                input.max = String(num(p.max, 10));
+                input.step = String(num(p.step, 1));
+                input.value = String(coeffs[p.key]);
+                var val = document.createElement('span');
+                val.className = 'tm-graph-val';
+                val.textContent = input.value;
+                input.addEventListener('input', function () {
+                    coeffs[p.key] = num(input.value, coeffs[p.key]);
+                    val.textContent = input.value;
+                    draw();
+                });
+                row.appendChild(label);
+                row.appendChild(input);
+                row.appendChild(val);
+                controls.appendChild(row);
+            });
+            w.appendChild(controls);
+        }
+
+        if (data.task) {
+            var nudge = document.createElement('div');
+            nudge.className = 'tm-step-nudge';
+            nudge.textContent = data.task;
+            w.appendChild(nudge);
+        }
+
+        return w;
+    }
+
+    // ---- tm-code: in-browser JavaScript runner ----
+    // Executes inside a Web Worker (assets/js/tm-code-worker.js) — no DOM/network
+    // access from within a worker — with a hard wall-clock timeout that terminates
+    // the worker on an infinite loop. See tm-code-worker.js for the sandboxed side.
+    function buildCode(data) {
+        var w = tmShell('Run it · JavaScript');
+        if (data.q) w.appendChild(tmQuestion(data.q));
+
+        var starterText = Array.isArray(data.starter) ? data.starter.join('\n') : String(data.starter || '');
+
+        if (data.language && data.language !== 'javascript') {
+            var pre = document.createElement('div');
+            pre.className = 'tm-code-editor';
+            pre.style.whiteSpace = 'pre-wrap';
+            pre.textContent = starterText;
+            var note = document.createElement('div');
+            note.className = 'tm-code-expected';
+            note.textContent = 'This language isn\'t runnable yet.';
+            w.appendChild(pre);
+            w.appendChild(note);
+            return w;
+        }
+
+        var editor = document.createElement('textarea');
+        editor.className = 'tm-code-editor';
+        editor.spellcheck = false;
+        editor.value = starterText;
+        w.appendChild(editor);
+
+        var controls = document.createElement('div');
+        controls.className = 'tm-code-controls';
+        var runBtn = document.createElement('button');
+        runBtn.type = 'button';
+        runBtn.className = 'tm-check-btn';
+        runBtn.textContent = 'Run';
+        controls.appendChild(runBtn);
+        if (data.expected) {
+            var expected = document.createElement('span');
+            expected.className = 'tm-code-expected';
+            expected.textContent = 'Expected: ' + data.expected;
+            controls.appendChild(expected);
+        }
+        w.appendChild(controls);
+
+        var output = document.createElement('div');
+        output.className = 'tm-code-output';
+        output.setAttribute('aria-live', 'polite');
+        w.appendChild(output);
+
+        var MAX_LINES = 200, MAX_CHARS = 20000, TIMEOUT_MS = 3000;
+
+        runBtn.addEventListener('click', function () {
+            runBtn.setAttribute('disabled', '');
+            output.className = 'tm-code-output';
+            output.textContent = 'Running…';
+            output.style.display = 'block';
+
+            var worker = new Worker('assets/js/tm-code-worker.js');
+            var done = false;
+
+            var timer = setTimeout(function () {
+                if (done) return;
+                done = true;
+                worker.terminate();
+                output.className = 'tm-code-output tm-v-bad';
+                output.textContent = 'Timed out after ' + (TIMEOUT_MS / 1000) + 's — check for an infinite loop.';
+                runBtn.removeAttribute('disabled');
+            }, TIMEOUT_MS);
+
+            worker.onmessage = function (e) {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                worker.terminate();
+                runBtn.removeAttribute('disabled');
+
+                var lines = (e.data && e.data.lines) || [];
+                var shown = lines.slice(0, MAX_LINES);
+                var text = shown.join('\n');
+                if (text.length > MAX_CHARS) text = text.slice(0, MAX_CHARS) + '\n… (truncated)';
+                else if (lines.length > MAX_LINES) text += '\n… (truncated)';
+
+                if (e.data && e.data.ok) {
+                    output.className = 'tm-code-output' + (text ? '' : ' tm-empty');
+                    output.textContent = text || '(no output — try adding a console.log)';
+                } else {
+                    output.className = 'tm-code-output tm-v-bad';
+                    output.textContent = (text ? text + '\n' : '') + ((e.data && e.data.error) || 'Error running code.');
+                }
+            };
+
+            worker.onerror = function (err) {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                worker.terminate();
+                runBtn.removeAttribute('disabled');
+                output.className = 'tm-code-output tm-v-bad';
+                output.textContent = 'Error: ' + (err && err.message ? err.message : 'could not run code.');
+            };
+
+            worker.postMessage(editor.value);
+        });
+
+        return w;
+    }
+
     // solvedChecks (optional Set of question strings) marks tm-check widgets the
     // student already answered correctly in an earlier turn — see buildCheck().
-    function buildTmWidget(spec, solvedChecks) {
+    // solved: { checks: Set<question>, chips: Map<question, choice>, tasks: Map<question, answer> }
+    // — all optional, describing which widgets in this conversation were already
+    // answered in an earlier turn so they render straight into their locked state.
+    function buildTmWidget(spec, solved) {
         if (!spec || !spec.data) return null;
+        solved = solved || {};
         switch (spec.type) {
-            case 'chips': return buildChips(spec.data);
+            case 'chips': {
+                var solvedChoice = solved.chips && solved.chips.get(String(spec.data.q || ''));
+                return buildChips(solvedChoice ? Object.assign({}, spec.data, { __solvedChoice: solvedChoice }) : spec.data);
+            }
             case 'check': {
-                var isSolved = !!(solvedChecks && solvedChecks.has(String(spec.data.q || '')));
+                var isSolved = !!(solved.checks && solved.checks.has(String(spec.data.q || '')));
                 return buildCheck(isSolved ? Object.assign({}, spec.data, { __solved: true }) : spec.data);
             }
             case 'hints': return buildHints(spec.data);
             case 'steps': return buildSteps(spec.data);
-            case 'task':  return buildTask(spec.data);
+            case 'task':  {
+                var solvedAnswer = solved.tasks && solved.tasks.get(String(spec.data.q || ''));
+                return buildTask(solvedAnswer ? Object.assign({}, spec.data, { __solvedAnswer: solvedAnswer }) : spec.data);
+            }
             case 'order': return buildOrder(spec.data);
             case 'cloze': return buildCloze(spec.data);
+            case 'graph': return buildGraph(spec.data);
+            case 'code':  return buildCode(spec.data);
+            case 'path':  return buildPath(spec.data);
             default:      return null;
         }
     }
@@ -555,11 +1080,15 @@
     // correctly earlier in this conversation (see tutor_mysql.js for how it's built).
     function renderInteractiveWidgets(container, opts) {
         if (!container || !container.querySelectorAll) return;
-        var solvedChecks = opts && opts.solvedChecks;
+        var solved = {
+            checks: opts && opts.solvedChecks,
+            chips: opts && opts.solvedChips,
+            tasks: opts && opts.solvedTasks
+        };
         container.querySelectorAll('pre').forEach(function (pre) {
             var spec = parseTmSpec(pre);
             if (!spec) return;
-            var widget = buildTmWidget(spec, solvedChecks);
+            var widget = buildTmWidget(spec, solved);
             if (!widget) return;
             var target = pre.closest('.code-block') || pre;
             target.replaceWith(widget);

@@ -183,10 +183,24 @@ function detectMilestoneCompletion($aiResponse, $milestones)
  * @param array|null $contact_state Output of detectContactState(), or null to omit protocol
  * @return string The complete system prompt
  */
-function buildSystemPrompt($learningLevel, $personalization_context, $contact_state = null)
+function buildSystemPrompt($learningLevel, $personalization_context, $contact_state = null, $widget_library_entries = [])
 {
     // Suppress undefined variable warnings from LaTeX math examples in the heredoc
     $a = $b = $c = $x = null;
+
+    // Reusable widget library: topics with a pre-validated tm-* payload the AI can
+    // reference by key (tm-ref) instead of re-authoring from scratch. Only title +
+    // topic_key are listed here (not full payloads) to keep this cheap as the
+    // library grows; the backend resolves the reference after generation
+    // (see api/services/widget_library_service.php). Empty list = omit the section.
+    $widget_library_section = '';
+    if (!empty($widget_library_entries)) {
+        $items = '';
+        foreach ($widget_library_entries as $entry) {
+            $items .= "\n- {$entry['topic_key']} — {$entry['title']}";
+        }
+        $widget_library_section = "\n\n## REUSABLE WIDGET LIBRARY\n\nIf you're about to teach one of these EXACT topics, prefer referencing the existing validated widget instead of authoring new JSON — emit a `tm-ref` block with just its key:\n```tm-ref\n{\"key\": \"dijkstra-basic-graph-a-to-e\"}\n```\nOnly use `tm-ref` when the topic is a genuine match — for anything else, author a normal tm-* widget as usual.\n\nAvailable:{$items}\n\n---";
+    }
 
     // Learner-owned mental model: once the student articulates their own analogy,
     // it becomes the session's canonical anchor for all further explanation
@@ -415,7 +429,7 @@ When you detect the subject area, apply these additional strategies on top of yo
 
 You can turn a check, a choice, a hint, or a task into a **tappable widget** by emitting a fenced block. The interface renders these as interactive components — the student clicks instead of only typing. This makes learning feel active, like Brilliant.
 
-**How to emit a widget:** a fenced block whose language tag is one of `tm-check`, `tm-chips`, `tm-hints`, `tm-steps`, `tm-task`, containing ONE valid JSON object.
+**How to emit a widget:** a fenced block whose language tag is one of `tm-check`, `tm-chips`, `tm-hints`, `tm-steps`, `tm-task`, `tm-order`, `tm-cloze`, `tm-graph`, `tm-code`, `tm-path`, containing ONE valid JSON object.
 
 **tm-check** — a multiple-choice check with instant right/wrong feedback. `answer` is the 0-based index of the correct option. `explain` gives one line per option (why it is right, or why each wrong one is wrong — make wrong-answer explanations diagnostic, targeting the specific misconception).
 ```tm-check
@@ -432,19 +446,38 @@ You can turn a check, a choice, a hint, or a task into a **tappable widget** by 
 {"q": "How would you find 23 in [2, 5, 8, 12, 16, 23]?", "hints": ["Where does every binary search start?", "After comparing with the middle (8), is 23 bigger or smaller — which half survives?", "You are left with indexes 3 to 5; the midpoint is index 4."]}
 ```
 
-**tm-steps** — a worked example revealed one step at a time. Set `predict` to true to nudge the student to guess before each reveal.
+**tm-steps** — a worked example revealed one step at a time. Set `predict` to true to nudge the student to guess before each reveal. Each entry in `steps` can be either a plain string (as before) or an object `{"text": "...", "visual": {...}}` when that step should show an array/list state or a small node-graph alongside the text — use this for tracing an algorithm's data structure over time, not for every step.
+
+For an array/list snapshot: `"visual": {"array": [5, 3, 8, 1, 9], "highlight": [1, 3]}` — `highlight` lists the 0-based indices to call out at this step (e.g. the ones just compared or swapped).
+
+For a small graph snapshot, define the graph's shape ONCE at the top level (`"graph": {"nodes": [...], "edges": [...]}`) — never repeat node positions per step — and give each relevant step only what CHANGED: `"visual": {"highlight": {"nodes": ["A"], "edges": [["A","B"]]}, "dist": {"A": "0", "B": "4"}}`. Each node in `graph.nodes` is `{"id", "x", "y", "label"}` placed within a 0-220 by 0-160 box — you are hand-placing a small, fixed diagram, not asking the interface to lay it out. Each edge is `{"from", "to", "weight"}`. `dist` is optional, shown as a small badge on the node (e.g. a running shortest-known distance) — only include the nodes whose distance is relevant at that step.
 ```tm-steps
 {"q": "Finding 16 in [2, 5, 8, 12, 16, 23]", "steps": ["Midpoint is index 2 (value 8). 16 is bigger, so drop the left half.", "Now search indexes 3 to 5. Midpoint is index 4 (value 16) — found it in 2 comparisons."], "predict": true}
 ```
 
-**tm-order** — the learner taps items into the correct sequence. **List `steps` in the CORRECT order** — the interface shuffles them for display. Ideal for algorithm steps, a process, historical events, or lines of a proof.
+**tm-order** — the learner taps items into the correct sequence. **List `steps` in the CORRECT order** — the interface shuffles them for display. Use this for reordering a flat list of steps with NO real connective structure between them — a process, historical events, lines of a proof.
 ```tm-order
 {"q": "Put these Dijkstra steps in the order the algorithm performs them.", "steps": ["Set the start node's distance to 0 and all others to infinity.", "Pick the unvisited node with the smallest known distance.", "Update (relax) the distances of its neighbours.", "Mark that node visited and repeat until all are visited."], "explain": "Every round is the same: pick the closest unvisited node, relax its neighbours, mark it done."}
+```
+
+**tm-path** — guided checkpoint navigation through a small labeled graph. Use this INSTEAD OF `tm-order` when the steps are stops along an actual spatially/structurally connected structure (a body system, a circuit, a map, a network) and the connections themselves are worth seeing — the student taps their way through the real structure instead of sorting a flat list. Define `graph` (`nodes`: `{"id","x","y","label"}` placed in a 0-220 by 0-160 box, no layout algorithm; `edges`: `{"from","to"}`, purely illustrative context — NOT the correctness check). `path` is the CORRECT sequence of node ids to tap, in order; the first one is pre-highlighted as the starting point. `checkpoints` is optional — a one-line note per node id, revealed the moment the student correctly reaches it (e.g. what happens at that stage). Tapping the wrong node flashes it and does not advance; tapping the correct next node advances and reveals its checkpoint note if any.
+```tm-path
+{"q": "Guide a red blood cell through the cardiac system, one checkpoint at a time.", "graph": {"nodes": [{"id": "RA", "x": 20, "y": 80, "label": "RA"}, {"id": "RV", "x": 70, "y": 130, "label": "RV"}, {"id": "PA", "x": 130, "y": 130, "label": "PA"}, {"id": "LUNGS", "x": 180, "y": 80, "label": "Lungs"}, {"id": "PV", "x": 130, "y": 30, "label": "PV"}, {"id": "LA", "x": 70, "y": 30, "label": "LA"}, {"id": "LV", "x": 20, "y": 30, "label": "LV"}], "edges": [{"from": "RA", "to": "RV"}, {"from": "RV", "to": "PA"}, {"from": "PA", "to": "LUNGS"}, {"from": "LUNGS", "to": "PV"}, {"from": "PV", "to": "LA"}, {"from": "LA", "to": "LV"}]}, "path": ["RA", "RV", "PA", "LUNGS", "PV", "LA", "LV"], "checkpoints": {"RV": "Blood passes through the tricuspid valve.", "LUNGS": "Gas exchange: CO2 out, O2 in.", "LV": "The strongest chamber — pumps to the whole body next."}}
 ```
 
 **tm-cloze** — fill-in-the-blank code. Put `{{1}}`, `{{2}}` … markers in `code`; each entry in `blanks` gives that blank's `options` and the 0-based index of the correct one. Tapping a blank cycles its options. **`code` MUST be an array of lines, one string per line** — never one string containing newlines (a raw newline inside a JSON string is invalid JSON and the widget will fail to render). Use spaces for indentation.
 ```tm-cloze
 {"q": "Complete the loop so it counts numbers greater than 10.", "code": ["count = 0", "for n in nums:", "    if n {{1}} 10:", "        count = count {{2}} 1"], "blanks": [{"options": [">", "<", "=="], "answer": 0}, {"options": ["+", "-", "*"], "answer": 0}], "explain": "Greater-than selects the values you want, and adding 1 accumulates the count."}
+```
+
+**tm-graph** — a draggable slider graph. Pick ONE `template` from this fixed list only: `linear`, `quadratic`, `sine`, `cosine`, `exponential`, `absolute`, `saturating`. Give each `params` entry a short coefficient `key` matching the template's variables (linear: a,b · quadratic: a,b,c · sine/cosine: a,b,c,d · exponential: a,b · absolute: a,b,c · saturating: a,b), a human `label`, a `min`/`max`/`step`, and a starting `default`. `saturating` (`a·(1−e^(−b·x))`, domain should start at 0) is the "rises then plateaus" shape — use it for anything with diminishing returns toward a maximum (photosynthesis rate vs. light or CO2, enzyme activity vs. substrate concentration, drug saturation), never `exponential` for these — `exponential` grows without bound and is the wrong shape for a plateau. Optionally add `task` — one line inviting the student to discover something by dragging, never stating the answer.
+```tm-graph
+{"q": "How does the amplitude and frequency of a sine wave change its shape?", "template": "sine", "params": [{"key": "a", "label": "Amplitude (a)", "min": -3, "max": 3, "step": 0.5, "default": 1}, {"key": "b", "label": "Frequency (b)", "min": 0.5, "max": 4, "step": 0.5, "default": 1}], "domain": [-6.28, 6.28], "range": [-4, 4], "task": "Drag each slider on its own — what does each one change about the wave?"}
+```
+
+**tm-code** — a runnable JavaScript sandbox. `language` is currently always `"javascript"`. `starter` is scaffold code **as an array of lines** (never one string with literal newlines — same rule as `tm-cloze`). Optionally give `expected` — a plain string of what correct output looks like, shown as a self-check hint, never auto-graded. Leave a `// your code here` gap for the part the student must write themselves; never hand them a complete, already-correct solution to just press Run on.
+```tm-code
+{"q": "Complete the function so it returns the sum of numbers in the list greater than the threshold.", "language": "javascript", "starter": ["function sumAbove(nums, threshold) {", "    // your code here", "}", "", "console.log(sumAbove([3, 12, 5, 20], 10));"], "expected": "32"}
 ```
 
 **tm-task** — a "your turn" short-answer box. What the student writes is sent as their message for you to assess. Optionally embed a hint ladder.
@@ -463,12 +496,15 @@ You can turn a check, a choice, a hint, or a task into a **tappable widget** by 
 | Test whether they grasped a specific point that has a right answer | `tm-check` |
 | Set a small exercise, attempt, or "now you try" | `tm-task` |
 | Walk through a multi-step solution or trace | `tm-steps` |
-| Check they know the ORDER of a process or algorithm | `tm-order` |
+| Check they know the ORDER of a process or algorithm (no real connective structure between the steps) | `tm-order` |
+| Guide them through a real spatially/structurally connected structure, checkpoint by checkpoint | `tm-path` |
 | Check they can complete a specific piece of code | `tm-cloze` |
 | Offer help on a problem they are stuck on | `tm-hints` |
+| Give them a manipulable graph to build intuition for how a parameter shapes a function | `tm-graph` |
+| Let them write and actually run a small piece of code, not just trace it on paper | `tm-code` |
 
 Only keep a question in plain prose when it is genuinely conversational and needs no answer to continue (e.g. "Ready to move on?").
-
+{$widget_library_section}
 ### Other rules
 - **At most ONE widget per response**, placed at the natural engagement point (usually the end). Everything else stays normal prose.
 - Never write a prose version of the same question alongside its widget — the widget IS the question. Lead into it with a sentence, then emit the block. A lead-in that itself ends in the question ("...so which realm would you pick?") followed by a widget asking the same thing counts as duplication.
@@ -478,9 +514,9 @@ Only keep a question in plain prose when it is genuinely conversational and need
 - When the student's next message looks like a widget reply (a chip answer, a chosen option, a typed task answer), just respond to it naturally — acknowledge, correct if needed, then continue.
 
 ### Which widget fits which discipline
-- **Mathematics:** `tm-steps` with `predict` for worked solutions; `tm-check` where each wrong option maps to a classic slip (sign error, forgetting to flip an inequality); `tm-order` for the stages of a derivation or proof.
-- **Programming:** `tm-check` for "what does this print?" / trace / spot-the-bug; `tm-cloze` to complete a specific line; `tm-order` for algorithm steps or execution order; `tm-task` for "write the pseudocode."
-- **Science:** `tm-check` where the wrong options ARE the common misconceptions; `tm-chips` for predict-the-outcome.
+- **Mathematics:** `tm-steps` with `predict` for worked solutions; `tm-check` where each wrong option maps to a classic slip (sign error, forgetting to flip an inequality); `tm-order` for the stages of a derivation or proof; `tm-graph` for building intuition for how a coefficient shapes a function's graph (never for a plot the student should be reading off values from statically — that's just an image).
+- **Programming:** `tm-check` for "what does this print?" / trace / spot-the-bug; `tm-cloze` to complete a specific line; `tm-order` for algorithm steps or execution order; `tm-task` for "write the pseudocode"; `tm-code` when the exercise is small and self-contained enough to run in-browser and see real output (leave the actual logic for the student to write — never ship a complete working solution in `starter`); `tm-steps` with `visual` array/graph snapshots when tracing how a data structure changes across an algorithm's steps (e.g. Dijkstra, sorting, tree traversal) makes the trace concrete instead of purely verbal; `tm-path` for a state-machine or graph-traversal walk where the nodes' actual connections matter, not just their order.
+- **Science:** `tm-check` where the wrong options ARE the common misconceptions; `tm-chips` for predict-the-outcome; `tm-graph` for decay/growth (exponential), wave motion (sine/cosine), plateauing relationships (`saturating` — photosynthesis rate vs. light/CO2, enzyme activity vs. substrate concentration, drug saturation), and other parametrized relationships (radioactive decay, population growth, AC circuits); `tm-steps` with a graph `visual` for pathways, food webs, or circuit diagrams — the same mechanism used for algorithm traces applies to any small labeled node/edge structure with state that changes over steps; `tm-path` when the student should ACTIVELY navigate a body system, circuit, or pathway checkpoint by checkpoint (e.g. tracing blood flow through the heart and lungs) rather than only reorder a flat list — this is the stronger choice whenever the topic has a genuine spatial/connective structure worth discovering, not just a sequence to memorize.
 - **Humanities:** prefer `tm-chips` (pick an interpretation to defend) and `tm-task` (make a claim with evidence) over `tm-check` — there is rarely one right answer. Use `tm-check` only for skills with a correct answer (e.g. "which quote best supports this claim?").
 
 ---{$contact_protocol}{$mental_model}

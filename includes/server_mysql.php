@@ -82,6 +82,7 @@ require_once __DIR__ . '/../api/services/response_formatter.php';
 require_once __DIR__ . '/../api/services/image_service.php';
 require_once __DIR__ . '/../api/services/comprehension_service.php';
 require_once __DIR__ . '/../api/services/tutor_service.php';
+require_once __DIR__ . '/../api/services/widget_library_service.php';
 
 header('Content-Type: application/json');
 
@@ -168,7 +169,7 @@ if ($action) {
                         if (!empty($message['content_html'])) {
                             $parts[0]['text'] = $message['content_html'];
                         } else {
-                            $formattedHtml = formatResponse($parts[0]['text']);
+                            $formattedHtml = resolveWidgetLibraryRefs(formatResponse($parts[0]['text']), $pdo);
                             $parts[0]['text'] = $formattedHtml;
                             // Queue for async caching (don't slow down response)
                             $messagesToCache[] = ['id' => $message['id'], 'html' => $formattedHtml];
@@ -996,8 +997,19 @@ EOT;
     // Detect three-contact state from the full chat history (including current user message)
     $contactState = detectContactState($chat_history);
 
+    // Reusable widget library: pre-validated tm-* payloads the AI can reference by
+    // key instead of re-authoring topic-canonical content from scratch. Fails soft
+    // to an empty list (section simply omitted) if the table isn't there yet.
+    $widgetLibraryEntries = [];
+    try {
+        $libStmt = $pdo->query("SELECT topic_key, title FROM widget_library");
+        $widgetLibraryEntries = $libStmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        error_log("widget_library: entry list fetch failed: " . $e->getMessage());
+    }
+
     // System prompt
-    $system_prompt = buildSystemPrompt($learningLevel, $personalization_context, $contactState);
+    $system_prompt = buildSystemPrompt($learningLevel, $personalization_context, $contactState, $widgetLibraryEntries);
     // Construct the prompt for the AI
     $payload = json_encode([
         "contents" => $chat_history,
@@ -1094,7 +1106,7 @@ EOT;
     if (!empty($answer)) {
         
         // PERFORMANCE: Pre-format HTML and cache it immediately
-        $formattedAnswer = resolveImageMarkers(formatResponse($answer));
+        $formattedAnswer = resolveWidgetLibraryRefs(resolveImageMarkers(formatResponse($answer)), $pdo);
 
         // Save AI response to the database with cached HTML
         $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content, content_html) VALUES (?, 'model', ?, ?)");

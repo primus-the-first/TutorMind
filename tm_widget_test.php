@@ -39,7 +39,7 @@ First, the single most important rule of the algorithm:
 Now let's actually run it from A. Try to predict each update before you reveal it:
 
 ```tm-steps
-{"q": "Shortest path from A to E", "steps": ["Start: dist(A)=0, everything else infinity. Visit A, relax its edges: C becomes 1, B becomes 4.", "Smallest unvisited is C (1). Relax from C: B via C is 1+2=3 (better than 4, so B becomes 3); D via C is 1+5=6.", "Smallest unvisited is B (3). Relax from B: D via B is 3+1=4 (better than 6, so D becomes 4).", "Smallest unvisited is D (4). Relax from D: E is 4+3=7.", "Visit E (7). Done — shortest A to E is 7, via A - C - B - D - E."], "predict": true}
+{"q": "Shortest path from A to E", "predict": true, "steps": [{"text": "Start: dist(A)=0, everything else infinity. Visit A, relax its edges: C becomes 1, B becomes 4.", "visual": {"highlight": {"nodes": ["A"], "edges": [["A","B"],["A","C"]]}, "dist": {"A": "0", "B": "4", "C": "1"}}}, {"text": "Smallest unvisited is C (1). Relax from C: B via C is 1+2=3 (better than 4, so B becomes 3); D via C is 1+5=6.", "visual": {"highlight": {"nodes": ["C"], "edges": [["C","B"],["C","D"]]}, "dist": {"A": "0", "B": "3", "C": "1", "D": "6"}}}, {"text": "Smallest unvisited is B (3). Relax from B: D via B is 3+1=4 (better than 6, so D becomes 4).", "visual": {"highlight": {"nodes": ["B"], "edges": [["B","D"]]}, "dist": {"A": "0", "B": "3", "C": "1", "D": "4"}}}, {"text": "Smallest unvisited is D (4). Relax from D: E is 4+3=7.", "visual": {"highlight": {"nodes": ["D"], "edges": [["D","E"]]}, "dist": {"A": "0", "B": "3", "C": "1", "D": "4", "E": "7"}}}, {"text": "Visit E (7). Done — shortest A to E is 7, via A - C - B - D - E.", "visual": {"highlight": {"nodes": ["A","C","B","D","E"], "edges": [["A","C"],["C","B"],["B","D"],["D","E"]]}, "dist": {"A": "0", "B": "3", "C": "1", "D": "4", "E": "7"}}}], "graph": {"nodes": [{"id": "A", "x": 20, "y": 80, "label": "A"}, {"id": "B", "x": 90, "y": 20, "label": "B"}, {"id": "C", "x": 90, "y": 140, "label": "C"}, {"id": "D", "x": 160, "y": 80, "label": "D"}, {"id": "E", "x": 210, "y": 40, "label": "E"}], "edges": [{"from": "A", "to": "B", "weight": "4"}, {"from": "A", "to": "C", "weight": "1"}, {"from": "C", "to": "B", "weight": "2"}, {"from": "C", "to": "D", "weight": "5"}, {"from": "B", "to": "D", "weight": "1"}, {"from": "D", "to": "E", "weight": "3"}]}}
 ```
 
 Notice the key moment in step 2 and 3:
@@ -69,9 +69,49 @@ Your turn to cement it:
 Nail that and you've got the core of Dijkstra locked in. Want to try what changes if an edge had a negative weight?
 MD;
 
+// Second hand-authored response: exercises tm-graph. No natural home in the
+// Dijkstra narrative above, so it's its own standalone example.
+$graphResponse = <<<'MD'
+Let's build some intuition for sine waves before we go further.
+
+```tm-graph
+{"q": "How does the amplitude and frequency of a sine wave change its shape?", "template": "sine", "params": [{"key": "a", "label": "Amplitude (a)", "min": -3, "max": 3, "step": 0.5, "default": 1}, {"key": "b", "label": "Frequency (b)", "min": 0.5, "max": 4, "step": 0.5, "default": 1}], "domain": [-6.28, 6.28], "range": [-4, 4], "task": "Drag each slider on its own — what does each one change about the wave?"}
+```
+
+And here's the `saturating` template — the "rises then plateaus" shape that fits photosynthesis rate vs. light intensity:
+
+```tm-graph
+{"q": "How does light intensity affect the rate of photosynthesis?", "template": "saturating", "params": [{"key": "a", "label": "Max rate (a)", "min": 1, "max": 10, "step": 0.5, "default": 5}, {"key": "b", "label": "Saturation speed (b)", "min": 0.1, "max": 2, "step": 0.1, "default": 0.5}], "domain": [0, 10], "range": [0, 10], "task": "Drag the saturation speed slider — why does the rate stop increasing?"}
+```
+MD;
+
+// Third hand-authored response: exercises tm-code.
+$codeResponse = <<<'MD'
+Time to write a little code and actually run it.
+
+```tm-code
+{"q": "Complete the function so it returns the sum of numbers in the list greater than the threshold.", "language": "javascript", "starter": ["function sumAbove(nums, threshold) {", "    // your code here", "}", "", "console.log(sumAbove([3, 12, 5, 20], 10));"], "expected": "32"}
+```
+MD;
+
+// Fourth hand-authored response: exercises tm-path (the case that motivated it —
+// see tm_anatomy_test.php, where the live model correctly used tm-order instead
+// of a graph visual for this exact topic, since blood flow is linear, not
+// branching. tm-path is for actively navigating that same structure spatially.)
+$pathResponse = <<<'MD'
+Let's trace this out ourselves instead of just reading the steps.
+
+```tm-path
+{"q": "Guide a red blood cell through the cardiac system, one checkpoint at a time.", "graph": {"nodes": [{"id": "RA", "x": 20, "y": 80, "label": "RA"}, {"id": "RV", "x": 70, "y": 130, "label": "RV"}, {"id": "PA", "x": 130, "y": 130, "label": "PA"}, {"id": "LUNGS", "x": 180, "y": 80, "label": "Lungs"}, {"id": "PV", "x": 130, "y": 30, "label": "PV"}, {"id": "LA", "x": 70, "y": 30, "label": "LA"}, {"id": "LV", "x": 20, "y": 30, "label": "LV"}], "edges": [{"from": "RA", "to": "RV"}, {"from": "RV", "to": "PA"}, {"from": "PA", "to": "LUNGS"}, {"from": "LUNGS", "to": "PV"}, {"from": "PV", "to": "LA"}, {"from": "LA", "to": "LV"}]}, "path": ["RA", "RV", "PA", "LUNGS", "PV", "LA", "LV"], "checkpoints": {"RV": "Blood passes through the tricuspid valve.", "LUNGS": "Gas exchange: CO2 out, O2 in.", "LV": "The strongest chamber — pumps to the whole body next."}}
+```
+MD;
+
 // (Live code also runs resolveImageMarkers() here; this test has no image
 // markers, so formatResponse alone is the exact contract under test.)
 $formattedHtml = formatResponse($aiResponse);
+$graphHtml = formatResponse($graphResponse);
+$codeHtml = formatResponse($codeResponse);
+$pathHtml = formatResponse($pathResponse);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -92,7 +132,10 @@ $formattedHtml = formatResponse($aiResponse);
     <link rel="stylesheet" href="assets/css/tm-widgets.css?v=<?= filemtime('assets/css/tm-widgets.css') ?>">
 
     <style>
-        body { max-width: 820px; margin: 0 auto; padding: 2rem 1rem 5rem; background: var(--bg-main); }
+        /* ui-overhaul.css sets body { overflow: hidden } for the live chat app's
+           fixed-viewport layout (internal containers scroll, body doesn't). This
+           harness is a plain long page, so it needs normal body scroll restored. */
+        body { max-width: 820px; margin: 0 auto; padding: 2rem 1rem 5rem; background: var(--bg-main); overflow-y: auto; }
         .harness-bar {
             display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
             margin-bottom: 1.5rem; padding: 0.9rem 1.1rem;
@@ -143,6 +186,18 @@ $formattedHtml = formatResponse($aiResponse);
             <div class="message-avatar">🤖</div>
             <div class="message-content" id="aiBubble"><?= $formattedHtml ?></div>
         </div>
+        <div class="message ai">
+            <div class="message-avatar">🤖</div>
+            <div class="message-content" id="graphBubble"><?= $graphHtml ?></div>
+        </div>
+        <div class="message ai">
+            <div class="message-avatar">🤖</div>
+            <div class="message-content" id="codeBubble"><?= $codeHtml ?></div>
+        </div>
+        <div class="message ai">
+            <div class="message-avatar">🤖</div>
+            <div class="message-content" id="pathBubble"><?= $pathHtml ?></div>
+        </div>
     </div>
 
     <!-- The REAL module under test -->
@@ -192,6 +247,9 @@ $formattedHtml = formatResponse($aiResponse);
 
         // This is the exact call finalizeMessage() makes in the live app.
         TMWidgets.render(document.getElementById('aiBubble'));
+        TMWidgets.render(document.getElementById('graphBubble'));
+        TMWidgets.render(document.getElementById('codeBubble'));
+        TMWidgets.render(document.getElementById('pathBubble'));
 
         // Highlight the plain (non-widget) code block that remains.
         if (window.hljs) document.querySelectorAll('#aiBubble pre code').forEach(function (b) { hljs.highlightElement(b); });

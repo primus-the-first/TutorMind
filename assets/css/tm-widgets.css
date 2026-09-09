@@ -420,6 +420,158 @@
   color: #ffb3b3;
 }
 
+/* ---------- Step visuals (array/list highlighting) ---------- */
+.tm-step.tm-has-visual {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+.tm-step-array {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+.tm-step-cell {
+  min-width: 2.2em;
+  padding: 0.35rem 0.5rem;
+  text-align: center;
+  font-family: "Roboto Mono", Consolas, monospace;
+  font-size: 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  color: var(--text-primary);
+}
+.tm-step-cell-hi {
+  border-color: var(--primary);
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ---------- Step visuals (node/edge graph) ---------- */
+.tm-step-graph-canvas {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  aspect-ratio: 220 / 160;
+  margin-top: 0.3rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-main, #fff);
+}
+
+/* ---------- Guided checkpoint navigation (tm-path) ---------- */
+.tm-path-canvas {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  aspect-ratio: 220 / 160;
+  margin: 0.25rem auto 0.6rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-main, #fff);
+}
+
+/* ---------- Graph manipulative (tm-graph) ---------- */
+.tm-graph-canvas {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  aspect-ratio: 320 / 220;
+  margin: 0.25rem auto 0.85rem;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-main, #fff);
+  touch-action: pan-y;
+}
+.tm-graph-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.tm-graph-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.tm-graph-row label {
+  flex: none;
+  width: 9.5em;
+}
+.tm-graph-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--primary);
+  touch-action: none;
+}
+.tm-graph-row .tm-graph-val {
+  flex: none;
+  width: 3.5em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* ---------- Code runner (tm-code) ---------- */
+.tm-code-editor {
+  width: 100%;
+  min-height: 110px;
+  font-family: "Roboto Mono", Consolas, monospace;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: #e6e1ff;
+  background: #1e1e2e;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  resize: vertical;
+  tab-size: 4;
+  box-sizing: border-box;
+}
+.tm-code-editor:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.tm-code-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+.tm-code-expected {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.tm-code-output {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-main, rgba(124, 58, 237, 0.03));
+  font-family: "Roboto Mono", Consolas, monospace;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+  display: none;
+}
+.tm-code-output.tm-v-bad {
+  border-color: var(--tm-bad);
+  background: var(--tm-bad-bg);
+  color: var(--tm-bad);
+}
+.tm-code-output.tm-empty {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 /* ---------- Focus visibility (a11y) ---------- */
 .tm-chip:focus-visible,
 .tm-opt:focus-visible,
