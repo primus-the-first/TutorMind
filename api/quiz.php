@@ -369,7 +369,10 @@ function callGroqJson($apiKey, $prompt, $timeoutSeconds = 20) {
     if (!$apiKey) return null;
 
     $payload = json_encode([
-        'model'       => 'llama-3.3-70b-versatile',
+        // llama-3.3-70b-versatile was retired by Groq (confirmed via GET
+        // /openai/v1/models — no longer in the catalog, hence the HTTP 404
+        // "model does not exist" this fallback started throwing).
+        'model'       => 'openai/gpt-oss-120b',
         'messages'    => [
             ['role' => 'system', 'content' => 'You are a quiz generator. Respond with valid JSON only — no markdown, no commentary.'],
             ['role' => 'user',   'content' => $prompt],

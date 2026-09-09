@@ -343,6 +343,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const m = /^For the check "([\s\S]+?)", I chose "[\s\S]+" — the correct answer\.$/.exec(text.trim());
         return m ? m[1] : null;
     }
+    // tm-chips questions already answered earlier in the conversation (question ->
+    // chosen option text), mirroring solvedCheckQuestions above but keyed by the
+    // actual pick since chips have no single "correct" answer to fall back on.
+    let solvedChipChoices = new Map();
+    // Matches the exact echo text tm-widgets.js sends for a tm-chips pick
+    // (assets/js/tm-widgets.js buildChips()).
+    function extractSolvedChipChoice(text) {
+        if (!text) return null;
+        const m = /^For the question "([\s\S]+?)", I chose "([\s\S]+)"\.$/.exec(text.trim());
+        return m ? { question: m[1], choice: m[2] } : null;
+    }
+    // tm-task answers already submitted earlier in the conversation (question ->
+    // the freeform answer text), same idea as solvedCheckQuestions/solvedChipChoices.
+    let solvedTaskAnswers = new Map();
+    // Matches the exact echo text tm-widgets.js sends for a tm-task submission
+    // (assets/js/tm-widgets.js buildTask()). The answer is NOT quote-wrapped (it may
+    // contain quotes itself), so it's everything after "I answered: " to the end —
+    // the /s flag lets "." match newlines so multi-line answers aren't truncated.
+    function extractSolvedTaskAnswer(text) {
+        if (!text) return null;
+        const m = /^For the task "([\s\S]+?)", I answered: ([\s\S]+)$/s.exec(text.trim());
+        return m ? { question: m[1], answer: m[2] } : null;
+    }
     const chatMessages = document.getElementById('chat-container');
     const conversationIdInput = document.getElementById('conversation_id');
     const submitBtn = document.getElementById('ai-submit-btn');
@@ -544,6 +567,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // tutor_mysql.php's SSR pass skips rendering silent widget echoes as bubbles
         // (matching the client-side behavior) and hands us the solved questions here.
         solvedCheckQuestions = new Set(Array.isArray(window.__ssrSolvedChecks) ? window.__ssrSolvedChecks : []);
+        solvedChipChoices = new Map(Object.entries(window.__ssrSolvedChips || {}));
+        solvedTaskAnswers = new Map(Object.entries(window.__ssrSolvedTasks || {}));
         const bubbles = chatMessages.querySelectorAll('.message-content');
         bubbles.forEach(bubble => {
             const wrapper = bubble.closest('.message');
@@ -586,7 +611,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     function finalizeMessage(messageBubble) {
         // Swap interactive tm-* blocks into widgets BEFORE code highlighting,
         // so they never get treated as (or wrapped like) plain code blocks.
-        if (window.TMWidgets) window.TMWidgets.render(messageBubble, { solvedChecks: solvedCheckQuestions });
+        if (window.TMWidgets) window.TMWidgets.render(messageBubble, {
+            solvedChecks: solvedCheckQuestions,
+            solvedChips: solvedChipChoices,
+            solvedTasks: solvedTaskAnswers
+        });
 
         // Add copy buttons to code blocks and trigger syntax highlighting
         addCopyButtonsToCodeBlocks(messageBubble);
@@ -2238,8 +2267,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 indicatorWrapper.innerHTML = `
                     <div class="message-avatar">🤖</div>
                     <div class="message-content">
-                        <div class="typing-indicator">
-                            <span></span><span></span><span></span>
+                        <div class="tm-typing-loader" role="status" aria-live="polite" aria-label="TutorMind is thinking">
+                            ${typeof TmLoader !== 'undefined' ? TmLoader.inlineHTML() : ''}
                         </div>
                     </div>
                 `;
@@ -2576,17 +2605,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                // Update session context with server-side progress data (hybrid progress with milestones)
+                // Update session context with server-side progress data (hybrid progress with milestones).
+                // Deliberately no toast here: naming a milestone's title exposes internal curriculum
+                // planning the student was never meant to see (the same reason widget machinery is
+                // never named in prose), and "complete" implies a certainty this keyword-overlap
+                // heuristic doesn't back up. The header progress dots (updated below) are the only
+                // signal shown — abstract, doesn't overclaim, doesn't leak the outline structure.
                 if (result.progress && window.sessionContextManager) {
                     window.sessionContextManager.updateFromServerProgress(result.progress);
                     if (DEBUG) console.log('Progress updated:', result.progress.percentage + '%',
                         `(${result.progress.milestonesCompleted}/${result.progress.milestonesTotal} milestones)`);
-                    // Show milestone completion toasts
-                    if (result.progress.recentlyCompleted?.length > 0) {
-                        result.progress.recentlyCompleted.forEach(m => {
-                            showCopyToast(`✅ Milestone complete: ${m.title}`);
-                        });
-                    }
                 }
             } else {
                 addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>${result.error || 'Something went wrong. Please try again.'}</span></div>`);
@@ -2616,6 +2644,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         welcomeScreen.style.display = 'flex';
         conversationIdInput.value = '';
         solvedCheckQuestions = new Set();
+        solvedChipChoices = new Map();
+        solvedTaskAnswers = new Map();
         highlightActiveConversation(null);
 
         // Reset conversation title to default and hide it
@@ -2846,27 +2876,34 @@ document.addEventListener('DOMContentLoaded', async () => {
                 conversationIdInput.value = id;
                 updateContactChip(result.conversation.contactState);
                 // Find last user message index for edit button.
-                // Silent tm-check echoes are excluded (they are filtered out during
-                // the render loop below) so lastUserIndex reflects the last *visible*
-                // user bubble, keeping the edit button on the correct message.
+                // Silent tm-check/tm-chips/tm-task echoes are excluded (they are
+                // filtered out during the render loop below) so lastUserIndex reflects
+                // the last *visible* user bubble, keeping the edit button correct.
                 let lastUserIndex = -1;
                 result.conversation.chat_history.forEach((item, i) => {
                     if (item.role !== 'user') return;
                     const parts = Array.isArray(item.parts) ? item.parts : [item.parts];
                     const text = parts.map(p => (p && p.text) ? p.text : '').join('');
-                    if (extractSolvedCheckQuestion(text)) return; // silent echo — skip
+                    if (extractSolvedCheckQuestion(text) || extractSolvedChipChoice(text) || extractSolvedTaskAnswer(text)) return; // silent echo — skip
                     lastUserIndex = i;
                 });
 
-                // Rebuild which tm-check questions were already answered correctly,
-                // from the silent echo messages tm-widgets.js posts (see extractSolvedCheckQuestion).
+                // Rebuild which tm-check/tm-chips/tm-task questions were already
+                // answered, from the silent echo messages tm-widgets.js posts.
                 solvedCheckQuestions = new Set();
+                solvedChipChoices = new Map();
+                solvedTaskAnswers = new Map();
                 result.conversation.chat_history.forEach((item) => {
                     if (item.role !== 'user') return;
                     const parts = Array.isArray(item.parts) ? item.parts : [item.parts];
                     parts.forEach((part) => {
-                        const q = part && part.text ? extractSolvedCheckQuestion(part.text) : null;
-                        if (q) solvedCheckQuestions.add(q);
+                        if (!part || !part.text) return;
+                        const q = extractSolvedCheckQuestion(part.text);
+                        if (q) { solvedCheckQuestions.add(q); return; }
+                        const chip = extractSolvedChipChoice(part.text);
+                        if (chip) { solvedChipChoices.set(chip.question, chip.choice); return; }
+                        const task = extractSolvedTaskAnswer(part.text);
+                        if (task) { solvedTaskAnswers.set(task.question, task.answer); }
                     });
                 });
 
@@ -2923,9 +2960,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             }
                         });
 
-                        // A silent widget echo (see extractSolvedCheckQuestion) is already
-                        // reflected in the check widget itself — skip the duplicate bubble.
-                        if (extractSolvedCheckQuestion(userQuestion)) {
+                        // A silent widget echo (see extractSolvedCheckQuestion /
+                        // extractSolvedChipChoice / extractSolvedTaskAnswer) is already
+                        // reflected in the widget itself — skip the duplicate bubble.
+                        if (extractSolvedCheckQuestion(userQuestion) || extractSolvedChipChoice(userQuestion) || extractSolvedTaskAnswer(userQuestion)) {
                             return;
                         }
 

@@ -4,15 +4,29 @@
  * Handles all external AI API calls: Gemini, Groq, DeepSeek, and Imagen.
  */
 
-function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'llama-3.3-70b-versatile') {
+// llama-3.3-70b-versatile and llama-3.1-8b-instant were retired by Groq (confirmed
+// via GET /openai/v1/models — neither appears in the current catalog, which is why
+// this fallback started hard-failing with HTTP 404 "model does not exist"). Replaced
+// with openai/gpt-oss-120b/20b, both currently active.
+//
+// IMPORTANT: the limits below are the account's TOKENS-PER-MINUTE rate limit, NOT
+// the model's context window (131072 for both — a much bigger, unrelated number).
+// Confirmed via the x-ratelimit-limit-tokens response header on this account's
+// on_demand tier: both models are capped at 8000 TPM. An earlier fix here mistakenly
+// used the context-window figure, which let the input budget run 10x+ over the real
+// limit and immediately started throwing HTTP 413 "Request too large... TPM Limit
+// 8000" — verify against the live header (not the model's advertised context
+// window) if this account's tier ever changes.
+function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'openai/gpt-oss-120b') {
     $apiUrl = "https://api.groq.com/openai/v1/chat/completions";
 
-    // Token limits per model (input tokens, leave ~2k headroom for response)
+    // Token limits per model (input tokens, leave headroom for the 2048-token response
+    // within the shared 8000 TPM ceiling — see note above).
     $tokenLimits = [
-        'llama-3.3-70b-versatile' => 10000,
-        'llama-3.1-8b-instant'    => 28000,
+        'openai/gpt-oss-120b' => 5000,
+        'openai/gpt-oss-20b'  => 5000,
     ];
-    $maxInputTokens = $tokenLimits[$model] ?? 10000;
+    $maxInputTokens = $tokenLimits[$model] ?? 5000;
 
     // Build history messages newest-first so we can truncate the oldest
     $historyMessages = [];
@@ -79,10 +93,10 @@ function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'llama-3.3-7
         $errorData = json_decode($response, true);
         $errorMsg = $errorData['error']['message'] ?? substr($response, 0, 200);
 
-        // If the 70b model exceeded the TPM limit, retry with the faster 8b model
-        if ($http_status === 413 && $model === 'llama-3.3-70b-versatile') {
-            error_log("Groq 70b TPM limit hit, retrying with llama-3.1-8b-instant");
-            return callGroqAPI($chatHistory, $systemPrompt, $apiKey, 'llama-3.1-8b-instant');
+        // If the 120b model exceeded the TPM limit, retry with the smaller 20b model
+        if ($http_status === 413 && $model === 'openai/gpt-oss-120b') {
+            error_log("Groq 120b TPM limit hit, retrying with openai/gpt-oss-20b");
+            return callGroqAPI($chatHistory, $systemPrompt, $apiKey, 'openai/gpt-oss-20b');
         }
 
         throw new Exception('Groq API Error (HTTP ' . $http_status . '): ' . $errorMsg);

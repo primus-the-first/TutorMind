@@ -102,6 +102,11 @@ $ssr_conversation_title = 'TutorMind';
 // tm-widgets.js posts) — the echo bubble itself is skipped below, and this list
 // tells the frontend to re-render those widgets in their locked/solved state.
 $ssr_solved_checks = [];
+// Same idea for tm-chips (question => chosen option) and tm-task (question =>
+// submitted answer) — these need the actual value, not just presence, so they're
+// associative rather than a plain list like $ssr_solved_checks.
+$ssr_solved_chips = [];
+$ssr_solved_tasks = [];
 
 if (isset($_GET['conversation_id'])) {
     $convo_id = $_GET['conversation_id'];
@@ -144,13 +149,24 @@ if (isset($_GET['conversation_id'])) {
                 $avatar = ($role === 'user') ? '👤' : '🤖';
                 $parts = json_decode($msg['content'], true);
 
-                // Silent widget echo (see tm-widgets.js buildCheck / tutor_mysql.js
-                // extractSolvedCheckQuestion) — record which check it answered, skip
-                // rendering the message itself since the widget already shows the verdict.
+                // Silent widget echo (see tm-widgets.js buildCheck/buildChips/buildTask
+                // and their extractSolved*() counterparts in tutor_mysql.js) — record
+                // which question it answered, skip rendering the message itself since
+                // the widget already shows the answer.
                 if ($role === 'user' && is_array($parts)) {
                     foreach ($parts as $part) {
-                        if (isset($part['text']) && preg_match('/^For the check "([\s\S]+?)", I chose "[\s\S]+" — the correct answer\.$/u', trim($part['text']), $echoMatch)) {
+                        if (!isset($part['text'])) continue;
+                        $text = trim($part['text']);
+                        if (preg_match('/^For the check "([\s\S]+?)", I chose "[\s\S]+" — the correct answer\.$/u', $text, $echoMatch)) {
                             $ssr_solved_checks[] = $echoMatch[1];
+                            continue 2;
+                        }
+                        if (preg_match('/^For the question "([\s\S]+?)", I chose "([\s\S]+)"\.$/u', $text, $echoMatch)) {
+                            $ssr_solved_chips[$echoMatch[1]] = $echoMatch[2];
+                            continue 2;
+                        }
+                        if (preg_match('/^For the task "([\s\S]+?)", I answered: ([\s\S]+)$/us', $text, $echoMatch)) {
+                            $ssr_solved_tasks[$echoMatch[1]] = $echoMatch[2];
                             continue 2;
                         }
                     }
@@ -530,6 +546,8 @@ try {
             <!-- Chat messages will be appended here -->
             <?= $ssr_messages_html ?>
             <script>window.__ssrSolvedChecks = <?= json_encode($ssr_solved_checks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+            <script>window.__ssrSolvedChips = <?= json_encode((object)$ssr_solved_chips, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+            <script>window.__ssrSolvedTasks = <?= json_encode((object)$ssr_solved_tasks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
         </main>
 
         <footer class="input-bar-area">

@@ -990,6 +990,15 @@ body.dark-mode .math-block {
   padding: 12px 18px;
 }
 
+/* Branded "Orbit Dot" spinner (assets/js/tm-loader.js TmLoader.inlineHTML())
+   replacing the old three-dot wave for the AI-is-thinking indicator. */
+.tm-typing-loader {
+  display: inline-flex;
+  align-items: center;
+  font-size: 36px;
+  color: var(--primary);
+}
+
 .typing-indicator span {
   height: 8px;
   width: 8px;
