@@ -164,6 +164,10 @@ function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'openai/gpt-
     throw new Exception('Groq returned unexpected response structure.');
 }
 
+// The 'deepseek-chat' / 'deepseek-reasoner' aliases this used to call were
+// deprecated and started hard-erroring on 2026-07-24 (confirmed against
+// DeepSeek's live /api/list-models docs) — this path was silently dead code
+// the whole time it went unconfigured. Current model ID is 'deepseek-flash'.
 function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
     $apiUrl = "https://api.deepseek.com/v1/chat/completions";
 
@@ -189,7 +193,7 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
     }
 
     $payload = json_encode([
-        'model' => 'deepseek-chat',
+        'model' => 'deepseek-flash',
         'messages' => $messages,
         'max_tokens' => 8192,
         'temperature' => 0.7,
