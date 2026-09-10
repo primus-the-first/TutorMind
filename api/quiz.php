@@ -25,8 +25,9 @@ foreach ($configFiles as $f) {
     }
 }
 
-$GEMINI_KEY = $config['QUIZ_API_KEY'] ?? $config['GEMINI_API_KEY'] ?? null;
-$GROQ_KEY   = $config['GROQ_API_KEY'] ?? null;
+$GEMINI_KEY   = $config['QUIZ_API_KEY'] ?? $config['GEMINI_API_KEY'] ?? null;
+$GROQ_KEY     = $config['GROQ_API_KEY'] ?? null;
+$DEEPSEEK_KEY = $config['DEEPSEEK_API_KEY'] ?? null;
 
 try {
     $pdo     = getDbConnection();
@@ -45,8 +46,8 @@ $action = $body['action'] ?? $_GET['action'] ?? '';
 
 try {
     switch ($action) {
-        case 'generate':     handleGenerate($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY); break;
-        case 'grade':        handleGrade($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY);    break;
+        case 'generate':     handleGenerate($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY, $DEEPSEEK_KEY); break;
+        case 'grade':        handleGrade($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY, $DEEPSEEK_KEY);    break;
         case 'save_session': handleSaveSession($pdo, $user_id, $body);           break;
         default:
             http_response_code(400);
@@ -66,7 +67,7 @@ try {
 // ==========================================================================
 // GENERATE — produce a quiz question from recent conversation messages
 // ==========================================================================
-function handleGenerate($pdo, $user_id, $data, $geminiKey, $groqKey = null) {
+function handleGenerate($pdo, $user_id, $data, $geminiKey, $groqKey = null, $deepseekKey = null) {
     $conversation_id = isset($data['conversation_id']) ? (int)$data['conversation_id'] : 0;
     $mode            = in_array($data['mode'] ?? '', ['gentle','standard','challenge']) ? $data['mode'] : 'standard';
     $session_id      = isset($data['session_id']) ? (int)$data['session_id'] : null;
@@ -180,7 +181,7 @@ Return ONLY valid JSON — no markdown, no commentary:
 }
 PROMPT;
 
-    $result = callGemini($geminiKey, $prompt, 12) ?? callGroqJson($groqKey, $prompt, 20);
+    $result = callGemini($geminiKey, $prompt, 12) ?? callGroqJson($groqKey, $prompt, 20) ?? callDeepSeekJson($deepseekKey, $prompt, 20);
 
     if (!$result) {
         http_response_code(502);
@@ -240,7 +241,7 @@ PROMPT;
 // ==========================================================================
 // GRADE — evaluate student's answer and persist
 // ==========================================================================
-function handleGrade($pdo, $user_id, $data, $geminiKey, $groqKey = null) {
+function handleGrade($pdo, $user_id, $data, $geminiKey, $groqKey = null, $deepseekKey = null) {
     $quizId     = isset($data['quiz_id']) ? (int)$data['quiz_id'] : 0;
     $userAnswer = trim($data['user_answer'] ?? '');
 
@@ -314,7 +315,7 @@ Return ONLY valid JSON:
 }
 PROMPT;
 
-    $result    = callGemini($geminiKey, $prompt, 10) ?? callGroqJson($groqKey, $prompt, 20);
+    $result    = callGemini($geminiKey, $prompt, 10) ?? callGroqJson($groqKey, $prompt, 20) ?? callDeepSeekJson($deepseekKey, $prompt, 20);
     $gradeData = $result ? json_decode($result, true) : null;
 
     $score    = isset($gradeData['score'])    ? (float)$gradeData['score']    : 0.5;
@@ -405,6 +406,48 @@ function callGroqJson($apiKey, $prompt, $timeoutSeconds = 20) {
     if (!$text) return null;
 
     // Strip markdown code fences if Groq wraps the JSON anyway
+    $text = preg_replace('/^```(?:json)?\s*/i', '', trim($text));
+    $text = preg_replace('/\s*```$/', '', $text);
+    return $text;
+}
+
+function callDeepSeekJson($apiKey, $prompt, $timeoutSeconds = 20) {
+    if (!$apiKey) return null;
+
+    $payload = json_encode([
+        'model'       => 'deepseek-flash',
+        'messages'    => [
+            ['role' => 'system', 'content' => 'You are a quiz generator. Respond with valid JSON only — no markdown, no commentary.'],
+            ['role' => 'user',   'content' => $prompt],
+        ],
+        'max_tokens'  => 512,
+        'temperature' => 0.6,
+        'stream'      => false,
+    ]);
+
+    $ch = curl_init('https://api.deepseek.com/v1/chat/completions');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey,
+        ],
+        CURLOPT_TIMEOUT => $timeoutSeconds,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200 || !$response) return null;
+
+    $decoded = json_decode($response, true);
+    $text    = $decoded['choices'][0]['message']['content'] ?? null;
+    if (!$text) return null;
+
+    // Strip markdown code fences if DeepSeek wraps the JSON anyway
     $text = preg_replace('/^```(?:json)?\s*/i', '', trim($text));
     $text = preg_replace('/\s*```$/', '', $text);
     return $text;
