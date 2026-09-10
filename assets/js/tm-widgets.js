@@ -62,13 +62,20 @@
 
     // ---- Shared shell helpers ----
 
-    function tmShell(kindLabel) {
+    function tmShell(kindLabel, kind) {
         var w = document.createElement('div');
-        w.className = 'tm-widget';
+        w.className = 'tm-widget tm-enter';
+        if (kind) w.setAttribute('data-tm-kind', kind);
         if (kindLabel) {
             var k = document.createElement('div');
             k.className = 'tm-widget-kind';
-            k.textContent = kindLabel;
+            var icon = document.createElement('span');
+            icon.className = 'tm-widget-icon';
+            icon.setAttribute('aria-hidden', 'true');
+            k.appendChild(icon);
+            var label = document.createElement('span');
+            label.textContent = kindLabel;
+            k.appendChild(label);
             w.appendChild(k);
         }
         return w;
@@ -88,7 +95,7 @@
     // earlier turn (detected from chat history) — see extractSolvedChipChoice() in
     // tutor_mysql.js. Renders straight into the locked, picked state.
     function buildChips(data) {
-        var w = tmShell('Quick reply');
+        var w = tmShell('Quick reply', 'chips');
         if (data.q) w.appendChild(tmQuestion(data.q));
         var row = document.createElement('div');
         row.className = 'tm-chips';
@@ -123,7 +130,7 @@
     // turn (detected from chat history) — it renders straight into the locked, correct
     // state instead of waiting for a tap, so re-visiting the conversation doesn't reset it.
     function buildCheck(data) {
-        var w = tmShell('Check · tap an answer');
+        var w = tmShell('Check · tap an answer', 'check');
         if (data.q) w.appendChild(tmQuestion(data.q));
         var opts = document.createElement('div');
         opts.className = 'tm-opts';
@@ -194,7 +201,7 @@
 
     // Progressive hint ladder — hints unlock one at a time, in order.
     function buildHints(data, kindLabel) {
-        var w = tmShell(kindLabel || 'Stuck? Reveal a hint');
+        var w = tmShell(kindLabel || 'Stuck? Reveal a hint', 'hints');
         if (data.q) w.appendChild(tmQuestion(data.q));
         var list = document.createElement('div');
         list.className = 'tm-hints';
@@ -367,7 +374,7 @@
     // shape at draw time — the graph's node/edge positions are defined once, not
     // repeated per step.
     function buildSteps(data) {
-        var w = tmShell('Worked example · reveal step by step');
+        var w = tmShell('Worked example · reveal step by step', 'steps');
         if (data.q) w.appendChild(tmQuestion(data.q));
         var list = document.createElement('div');
         list.className = 'tm-steps';
@@ -435,7 +442,7 @@
     // — see extractSolvedTaskAnswer() in tutor_mysql.js. Renders straight into the
     // same locked state a live submission already produces.
     function buildTask(data) {
-        var w = tmShell('Your turn');
+        var w = tmShell('Your turn', 'task');
         if (data.q) w.appendChild(tmQuestion(data.q));
         var box = document.createElement('div');
         box.className = 'tm-answer';
@@ -473,7 +480,7 @@
     // Sequence ordering — tap the items in the order they belong.
     // data.steps is authored in the CORRECT order; the widget shuffles for display.
     function buildOrder(data) {
-        var w = tmShell('Put these in order');
+        var w = tmShell('Put these in order', 'order');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
         var correct = data.steps || [];
@@ -605,7 +612,7 @@
     // position in data.path (mirrors tm-order's _correctIndex check), not by
     // graph adjacency, so the graph's edges stay purely illustrative/contextual.
     function buildPath(data) {
-        var w = tmShell('Guide it · tap the next checkpoint');
+        var w = tmShell('Guide it · tap the next checkpoint', 'path');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
         var graph = data.graph || {};
@@ -690,7 +697,7 @@
     // Fill-in-the-blank code. data.code holds {{1}}, {{2}}… placeholders; each
     // entry in data.blanks gives that blank's options and correct option index.
     function buildCloze(data) {
-        var w = tmShell('Complete the code');
+        var w = tmShell('Complete the code', 'cloze');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
         var hint = document.createElement('div');
@@ -824,7 +831,7 @@
     };
 
     function buildGraph(data) {
-        var w = tmShell('Explore · drag the sliders');
+        var w = tmShell('Explore · drag the sliders', 'graph');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
         var fn = TEMPLATE_FNS[data.template];
@@ -940,7 +947,7 @@
     // access from within a worker — with a hard wall-clock timeout that terminates
     // the worker on an infinite loop. See tm-code-worker.js for the sandboxed side.
     function buildCode(data) {
-        var w = tmShell('Run it · JavaScript');
+        var w = tmShell('Run it · JavaScript', 'code');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
         var starterText = Array.isArray(data.starter) ? data.starter.join('\n') : String(data.starter || '');
