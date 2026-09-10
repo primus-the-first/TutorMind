@@ -237,6 +237,12 @@ function callGeminiAPI($payload, $apiKey) {
     $retries = 0;
     $max_retries = 5;
     $delay = 2;
+    // Separate, smaller budget for cURL-level failures (timeout, connection
+    // reset) — each attempt can itself take up to CURLOPT_TIMEOUT seconds,
+    // unlike a 429/503 which fails fast, so this can't share $max_retries
+    // without risking the 300s set_time_limit() in server_mysql.php.
+    $curl_retries = 0;
+    $max_curl_retries = 2;
 
     while ($retries < $max_retries) {
         if (!function_exists('curl_init')) {
@@ -257,8 +263,15 @@ function callGeminiAPI($payload, $apiKey) {
         $curl_error = curl_error($ch);
         curl_close($ch);
 
-        if ($curl_error)
-            throw new Exception('cURL Error: ' . $curl_error);
+        if ($curl_error) {
+            $curl_retries++;
+            if ($curl_retries >= $max_curl_retries) {
+                throw new Exception('cURL Error: ' . $curl_error);
+            }
+            error_log("Gemini: cURL error ({$curl_error}), retrying ({$curl_retries}/{$max_curl_retries})");
+            sleep(1);
+            continue;
+        }
 
         if ($http_status === 429 || $http_status === 503) {
             $retries++;
