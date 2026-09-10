@@ -17,7 +17,49 @@
 // limit and immediately started throwing HTTP 413 "Request too large... TPM Limit
 // 8000" — verify against the live header (not the model's advertised context
 // window) if this account's tier ever changes.
+// Groq's account tier caps this app at 8000 TPM (see note above) — the full
+// tutor system prompt (~38.5k chars) already exceeds that estimate on its
+// own before any chat history is added, dominated by the ~15.4k-char
+// "## INTERACTIVE ELEMENTS" widget-authoring section. Trimming chat history
+// (below) can never bring a Groq request under budget while that section is
+// still in there. Strip it for Groq specifically — a real behavior change
+// (Groq responses won't emit tm-* widgets), but a working degraded fallback
+// beats a guaranteed HTTP 413 on every single call during a Gemini outage.
+// Gemini and DeepSeek keep the full prompt; DeepSeek has a much larger
+// context/rate budget so it isn't subject to this same failure.
+function stripWidgetSectionForGroq(string $systemPrompt): string {
+    $replacement = "## INTERACTIVE ELEMENTS\n\n" .
+        "Widgets are unavailable on this fallback provider — ask questions and " .
+        "give exercises directly in your prose instead of a fenced tm-* block.\n\n";
+    $stripped = preg_replace(
+        '/## INTERACTIVE ELEMENTS.*?(?=\n## )/s',
+        $replacement,
+        $systemPrompt,
+        1,
+        $count
+    );
+    if ($count === 0) {
+        return $systemPrompt;
+    }
+
+    // Several OTHER sections (the construction-work guardrail, the response
+    // template, the quality checklist) still mandate ending with a specific
+    // tm-* widget by name — they weren't written with this fallback in mind
+    // and the section above was their only source for the actual JSON syntax.
+    // Left alone, the model would likely try to comply anyway and emit
+    // malformed widget JSON, which tm-widgets.js can't parse and silently
+    // drops — worse than a clean prose question. An override appended at the
+    // very end (where instructions get the most weight) beats trying to hunt
+    // down and edit every individual mandate.
+    return $stripped . "\n\n---\n\n## FALLBACK PROVIDER OVERRIDE\n\n" .
+        "Any instruction above that requires ending your response with a `tm-*` widget " .
+        "(tm-task, tm-check, tm-chips, tm-steps, or any other tag) does NOT apply on this " .
+        "provider — you were not given their JSON syntax. Ask your engagement question " .
+        "directly in plain prose instead, exactly once, and never emit a fenced tm-* block.";
+}
+
 function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'openai/gpt-oss-120b') {
+    $systemPrompt = stripWidgetSectionForGroq($systemPrompt);
     $apiUrl = "https://api.groq.com/openai/v1/chat/completions";
 
     // Token limits per model (input tokens, leave headroom for the 2048-token response
