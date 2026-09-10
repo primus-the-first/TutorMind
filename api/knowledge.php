@@ -252,10 +252,18 @@ class KnowledgeService {
             return null;
         }
         
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=" . $this->geminiApiKey;
-        
+        // text-embedding-004 was retired by Google (confirmed via a live
+        // ListModels call — it's gone entirely, not just erroring). Current
+        // stable replacement is gemini-embedding-2 (non-preview), which also
+        // doubles the input token limit (8192 vs 2048). Its output vector
+        // dimensionality differs from the old model's, but cosineSimilarity()
+        // already guards on count() mismatch and returns 0, so pre-existing
+        // stored embeddings just stop matching rather than erroring — no
+        // migration needed, they'll get replaced as content is re-crawled.
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key=" . $this->geminiApiKey;
+
         $payload = json_encode([
-            'model' => 'models/text-embedding-004',
+            'model' => 'models/gemini-embedding-2',
             'content' => [
                 'parts' => [['text' => $text]]
             ]
