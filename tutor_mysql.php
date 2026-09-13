@@ -415,6 +415,7 @@ try {
                 </div>
                 <nav class="user-menu-nav">
                     <a href="dashboard.php" target="_blank"><i class="fas fa-chart-line"></i> Dashboard</a>
+                    <a href="group_study.php"><i class="fas fa-users"></i> Group Study</a>
                     <a href="#"><i class="fas fa-star"></i> Upgrade plan</a>
                     <a href="#" id="open-personalization-btn"><i class="fas fa-user-edit"></i> Personalization</a>
                     <a href="#" id="open-settings-btn"><i class="fas fa-cog"></i> Settings</a>
@@ -809,6 +810,10 @@ try {
         <nav class="profile-sheet-nav">
             <a href="dashboard.php" class="profile-sheet-item">
                 <i class="fas fa-chart-line"></i><span>Dashboard</span>
+                <i class="fas fa-chevron-right profile-sheet-chevron"></i>
+            </a>
+            <a href="group_study.php" class="profile-sheet-item">
+                <i class="fas fa-users"></i><span>Group Study</span>
                 <i class="fas fa-chevron-right profile-sheet-chevron"></i>
             </a>
             <div class="profile-sheet-item profile-sheet-toggle-row">
