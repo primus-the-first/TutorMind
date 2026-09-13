@@ -82,6 +82,7 @@ $migrations = [
     '012_add_last_reminder_sent_at.php' => ['type' => 'column', 'table' => 'users', 'name' => 'last_reminder_sent_at'],
     '013_add_push_subscriptions.php' => ['type' => 'table', 'table' => 'push_subscriptions'],
     '014_add_widget_library.sql' => ['type' => 'table', 'table' => 'widget_library'],
+    '015_add_group_study.php' => ['type' => 'multi_table', 'tables' => ['group_sessions', 'group_session_participants', 'group_session_turns', 'group_session_messages']],
     'add_message_edit.php' => ['type' => 'column', 'table' => 'messages', 'name' => 'is_edited'],
     'add_profile_column.php' => ['type' => 'column', 'table' => 'users', 'name' => 'profile_data'],
     'add_session_context.php' => ['type' => 'column', 'table' => 'conversations', 'name' => 'session_goal'],
