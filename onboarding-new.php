@@ -104,7 +104,6 @@ if ($user_id) {
         <div class="wizard-progress">
             <div class="wizard-progress-text">
                 <h2>Let's Get Started, <?= htmlspecialchars($displayName) ?>! 👋</h2>
-                <span id="wizard-progress-text">1 / 9</span>
             </div>
             <div class="wizard-progress-bar-container">
                 <div id="wizard-progress-bar" style="width: 11%;"></div>
@@ -549,6 +548,17 @@ if ($user_id) {
                                 <p>Guide me with questions.</p>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Section D: Interests -->
+                    <div class="preference-section">
+                        <h4>🎯 What do you already know or enjoy?</h4>
+                        <p class="helper-text">Hobbies, games, sports, your job — anything. We'll use these to make new ideas click faster. (Optional)</p>
+                        <div class="uni-subject-input-group">
+                            <input type="text" id="interests-entry" placeholder="e.g., basketball, cooking, Minecraft">
+                            <button type="button" id="add-interest-btn" class="btn-icon-only"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div id="interests-list" class="uni-tags-container"></div>
                     </div>
                 </div>
 

@@ -596,3 +596,210 @@ Contact state is a stronger and more direct signal. If a student hasn't made a B
 `handleGenerate()` in `api/quiz.php` returns `not_ready: true` when two or more of the three contacts are missing (`contactState` from `context_data`). `assets/js/tutor_mysql.js` intercepts this flag and displays an encouraging nudge toast instead of opening the quiz modal.
 
 ---
+
+> **Gap note:** the logbook wasn't kept up between this entry and August 11 — the sections below (June 7 – August 4) were reconstructed after the fact from git history rather than written contemporaneously, so they're lighter on the "why" than the surrounding entries. Reconstructed on 2026-08-11.
+
+## Progress Log - June 7, 2026
+
+### 1. Document Extraction Overhaul: MarkItDown + InnoDB Lock Timeout Fix
+**Objective:** Replace the PHP-native document parsers (`smalot/pdfparser`, PhpWord, PhpPresentation) with MarkItDown, a Python CLI tool, for faster extraction and to stop large PPTX uploads from spiking PHP's memory limit.
+
+**Changes:**
+- New thin CLI wrapper (`markitdown_extract.py`) shells out to MarkItDown; OCR fallback retained for scanned/image-based PDFs where MarkItDown returns nothing.
+- PPTX upload limit raised 10 MB → 50 MB — the old ceiling was PhpPresentation's memory constraint, which no longer applies once extraction moved to a separate Python process.
+- YouTube URL detection added to the chat flow: transcripts fetched via MarkItDown and injected as context ahead of the user's question (this pipeline was replaced twice more the same day — see §4 below).
+- **DB reliability**: added `pdo_retry()` (3 attempts, 150/300ms backoff) for MySQL 1205/1213 lock-timeout errors, applied to the conversation `UPDATE` in `server_mysql.php` and `session_context.php`; set `innodb_lock_wait_timeout = 30` per session so genuine deadlocks fail fast instead of hanging on the MySQL default.
+
+**Files changed:** `api/services/document_service.php`, `includes/server_mysql.php`, `api/session_context.php`, new `markitdown_extract.py`
+
+### 2. AI Image Fetching + Landing Page Parallax/Three.js Overhaul
+**Objective:** Let the AI embed fetched images in responses, and give the marketing landing page a Three.js particle background with parallax.
+
+**Changes:**
+- `[FETCH_IMAGE:...]` markers: protected in `response_formatter.php` so Parsedown doesn't mangle them as link references before `resolveImageMarkers()` runs; usage instructions added to the AI system prompt (`tutor_service.php`).
+- `.ai-fetched-image` figure styles added (light + dark mode) — `ui-overhaul.css`.
+- Landing page: Three.js canvas container, hero reveal animations, `data-depth` parallax attributes on hero elements; `landing.js` rewritten with shared mouse-state tracking, lerp smoothing, and a theme-aware particle color scheme.
+- Fixed a `chat_area_bundle/server_mysql.php` bug where `prepareFileParts()`'s return value wasn't iterated as an array, breaking multi-part (image-slide) responses.
+
+**Files changed:** `api/services/response_formatter.php`, `api/services/tutor_service.php`, `ui-overhaul.css`, `landing.css`, `landing.js`, `index.html`, `chat_area_bundle/server_mysql.php`
+
+### 3. Same-Day Production Hotfixes
+Two fast-follow fixes after the above landed on production:
+- **`pdo_retry()` fatal on PHP 7.x**: the `: mixed` return type hint is PHP 8.0+ only; production runs PHP 7.x, so every `server_mysql.php` endpoint 500'd. Removed the hint.
+- **Missing `image_service.php`**: present locally but never committed, so every `require_once` for it fatal'd on production. Added to the repo.
+
+### 4. YouTube Transcript Extraction: Four Iterations in One Day
+**Problem:** MarkItDown's generic URL scraper (from §1) returned YouTube nav-link boilerplate instead of the actual transcript. Fixing this took several attempts against the constraints of shared hosting (Namecheap/cPanel, `exec()` often disabled or Python missing from PATH):
+
+1. **Pure-PHP fetcher** (no exec/Python at all): `fetchYoutubeTranscript()` parses `ytInitialPlayerResponse` out of the YouTube page HTML via regex, then fetches the caption track over cURL. `server_mysql.php` tries this first, falling back to MarkItDown/Python only on localhost.
+2. **Brace-counting JSON parser**: the initial regex over the full `ytInitialPlayerResponse` JSON blob was fragile against YouTube's page structure changing. Replaced with a brace-counting extractor that finds the opening `{` and walks to its matching close.
+3. **cPanel Python path**: added `/opt/alt/python311/bin/python3` (where CloudLinux/Namecheap installs Python) to the front of the MarkItDown interpreter candidate list, so the exec() fallback could actually find an interpreter on production.
+4. **Switched to `youtube-transcript-api`**: replaced MarkItDown's scraper entirely with this library, which hits YouTube's `timedtext` API directly and bypasses bot detection; also set the `HOME` env var in the PHP `exec()` call so `pip --user`-installed packages resolve on Python's path.
+
+**Files changed:** `includes/server_mysql.php`, `api/services/document_service.php`
+
+---
+
+## Progress Log - June 9–11, 2026
+
+### 1. PDF Parsing Fix — June 9
+**Problem:** PDF uploads were failing to extract usable text for the AI.
+**Fix (`api/services/document_service.php`):** Added `extractPdfWithParser()` using `smalot/pdfparser` (pure PHP, no exec) as the **first** attempt for PDFs, falling back to MarkItDown, then OCR, in that order — inverting the previous MarkItDown-first order. Pure-PHP-first avoids depending on a working Python exec() path for the common case.
+
+### 2. Image Upload 400 (mime-type) Fix — June 11
+**Problem:** Uploading a raw image (not a document) returned an API 400 error.
+**Root cause:** `prepareFileParts()` returned a single associative array (`['inline_data' => [...]]`) for images instead of an array-of-parts (`[['inline_data' => [...]]]`). Every caller iterates the return value as a *list* of parts (established by the multi-part fix in §2 of June 7) — the bare associative shape broke that contract specifically for plain image uploads, producing a malformed `parts` array that Gemini rejected.
+**Fix:** Wrapped the return value in an array in both `api/services/document_service.php` and the (then still-synced) `chat_area_bundle/server_mysql.php` copy.
+
+---
+
+## Progress Log - July 6, 2026
+
+### 1. Onboarding: Interests Collection Wired Into the Tutor Prompt
+**Objective:** Start collecting a `interests` field during onboarding and feed it into the system prompt, laying the groundwork for interests-driven personalization (used heavily by the Interactive Widgets work later this month).
+
+**Files changed:**
+- **New**: `migrations/011_add_interests.php` — adds the `interests` column
+- **Modified**: `api/user_onboarding.php` (+76 lines) — collects and persists interests
+- **Modified**: `assets/js/onboarding-bundle.js` (+35 lines) — new onboarding step UI
+- **Modified**: `includes/server_mysql.php`, `api/services/tutor_service.php` — interests read into the prompt-building context
+
+---
+
+## Progress Log - July 22, 2026
+
+### 1. Interactive Widgets Phase 1 (Brilliant-style tappable widgets)
+**Objective:** Replace plain-text Socratic questions with tappable in-chat widgets, and add a Three-Contact progress indicator to the chat header.
+
+**What shipped:** The AI can embed `tm-check` / `tm-chips` / `tm-hints` / `tm-steps` / `tm-task` / `tm-order` / `tm-cloze` fenced blocks in responses, rendered as interactive components instead of prose. A Three-Contact progress chip was added to the chat header. Interests and mental-model context (from the July 6 work) were wired into widget content generation. Prompt adherence took real iteration — few-shot examples beat described rules for getting the model to consistently choose widgets over prose, avoid supplying its own analogy before the learner's, never name the widget machinery to the student, and avoid bleeding example wording into unrelated topics.
+
+**Files changed:** `assets/js/tm-widgets.js` (new), `assets/css/tm-widgets.css` (new), `assets/js/tutor_mysql.js`, `api/services/tutor_service.php`, `tutor_mysql.php`
+
+*(See `docs/CLAUDE.md` memory notes / prior session context for the detailed prompt-iteration failure modes found during this build — not fully re-derivable from the commit diff alone.)*
+
+### 2. Onboarding Update-Mode: Backfill Interests for Existing Users
+**Problem:** Users who completed onboarding before the `interests` field existed (July 6 work) had no way to supply it — the tutor's interests-driven personalization couldn't reach them.
+**Fix:** `onboarding.php` now detects "completed onboarding, but `interests` still NULL" and routes those users into an update-mode: just the interests-collection step, progress preloaded, a single "Save & Finish" action instead of the full wizard.
+
+---
+
+## Progress Log - July 27, 2026
+
+### 1. Onboarding Bug-Fix Trio
+Three issues found and fixed together on the preferences/welcome screens:
+
+- **Silently-dead Continue button**: two independent robustness gaps could each explain "tap Continue, nothing happens, no error." (a) `showScreen()`/`updateProgressBar()` called `gsap.fromTo()`/`gsap.to()` without checking GSAP had actually loaded, unlike sibling calls in the same file — a slow/blocked CDN script throws there and silently aborts the rest of the screen transition. (b) The Continue button's "disabled" state was purely cosmetic (no `pointer-events` block), while the validation error message was never toggled by JS at all — so an incomplete attempt gave no real signal either way. **Fix:** guarded the GSAP calls with a non-animated fallback, and moved the actual validity check into the click handler so an incomplete attempt now surfaces the error message.
+- **Unstyled hero-icons row**: `.hero-icons`/`.hero-icon` had zero CSS anywhere in the codebase, so the four emoji fell back to default block-level stacking — one full-width line per icon. Barely visible on wide viewports, but a wall of empty space on mobile. Fixed with a compact flex row.
+- **Broken step-counter**: `wizard-progress-text`'s flex row had no width constraint on the `h2` title, so on narrow viewports the "N / 9" counter got squeezed and wrapped internally. Removed rather than fixed — it was redundant with the progress bar directly below it.
+
+**Files changed:** onboarding JS/CSS (screen transition logic, hero-icons styling, progress-text markup)
+
+### 2. CI/CD Pipeline: Lint + Smoke Checks, SSH Auto-Deploy on Push to `dev`
+**Objective:** Catch the exact bug class from the Continue-button incident above (and similar) before they reach production, and automate deploys.
+
+**What it does:** Triggers on push to `dev` (confirmed with the user as the actual production branch — `main` is stale/unused for deploys). Checks job runs `php -l` on every PHP file, `node --check` on every JS file, then a custom DOM-id cross-check (`scripts/ci-check-dom-ids.js`) that catches a JS file referencing a `getElementById()` id that doesn't exist yet in its paired PHP page — the exact failure mode plain syntax linting can't see, since both files are individually valid. Deploy job (gated on checks passing) SSHes in and does a hard reset to `origin/dev` rather than a plain pull, so the live tree can't be left in a partial/desynced state the way a manual pull could.
+
+**Requires manual one-time setup outside the repo** (not achievable from this environment): GitHub Actions secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_PATH`, `DEPLOY_PORT`, and a deploy-specific SSH key added to the server's `authorized_keys`.
+
+**Files changed:** new GitHub Actions workflow, `scripts/ci-check-dom-ids.js` (new)
+
+---
+
+## Progress Log - August 2–4, 2026
+
+### 1. Scope Guardrail Restored + Analogy Text Capture — August 2
+**Problem:** The SCOPE BOUNDARIES prompt section (decline non-educational requests) existed only in the old pre-refactor `chat_area_bundle` copy and never made it into the live prompt builder after the codebase was split into `api/services/*.php`.
+**Fix (`tutor_service.php`):** Restored verbatim, plus an addendum for ambiguous topics (relationships, health, money, career) that have both an academic angle and a personal-advice angle — the model should engage the former and redirect away from the latter regardless of how the request is framed. Verified live: both a personal-relationship request and an unrelated harmful request are now correctly declined.
+**Also (`comprehension_service.php`):** `detectContactState()` now captures the learner's analogy text verbatim (`analogy_text`) instead of just a boolean, broadens the analogy-detection regex, and keeps the *most recent* analogy rather than only the first. Backs the ACTIVE MENTAL MODEL prompt section.
+
+### 2. AI Provider Fallback Widened — August 4
+**Problem:** Gemini failures only cascaded to Groq/DeepSeek on rate-limit-style errors (429/500/503) — an invalid or expired `GEMINI_API_KEY` (400) surfaced as a hard failure instead of falling back.
+**Fix (`api/services/ai_service.php`):** Widened the fallback trigger to cover auth/invalid-key errors too. Also folded in prior in-progress edits: interests-based personalization context, and review-mode pacing guidance for `test_prep` sessions.
+
+### 3. Construction-Ownership Guardrail — August 4
+**Objective:** Based on Justin Sung/HUDLE cognitive-science principles — the AI must not auto-generate mind maps, study guides, summaries, or relationship comparisons *on the student's behalf*. Manual construction is where encoding happens; handing over a finished artifact skips that step. The guardrail declines and redirects to the student building it first, offering to check their logic once they have a draft.
+
+**Two real gaps closed via live testing:**
+- The trigger only matched artifact nouns ("mind map", "study guide"), missing the identical request phrased conversationally ("how do X and Y relate," "compare X and Y") — broadened to cover the underlying *act* of organizing relationships, not just a named deliverable.
+- The redirect sometimes rendered as bare prose with no follow-up ask, because the rule and its own worked example sat ~30KB apart in the prompt, letting the rhetorically-similar SCOPE BOUNDARIES decline pattern (prose-only, full stop) win out instead. Fixed by placing a compact `tm-task` template directly next to the rule and explicitly distinguishing it from a SCOPE BOUNDARIES decline: this is a handoff into engagement, not a hard stop. *(Same lesson as the widget-adherence work in July: co-locate a rule with its worked example, or a nearby rhetorically-similar rule wins.)*
+
+**Also added:** an explicit "when direct answers ARE appropriate" carve-out (facts, confirming attempts, grading, review, time-pressure) so the guardrail doesn't over-apply; a `tm-steps` bound to one case when a mental model is active, followed by a required `tm-task` handoff; a `test_prep`-specific addendum (smaller, faster-paced construction asks, since test prep is review, not first-pass learning).
+
+**Files changed:** `api/services/tutor_service.php`; new `tm_guardrail_test.php` dev harness simulating both scenarios through the real `formatResponse()` + `tm-widgets.js` pipeline.
+
+---
+
+## Progress Log - August 11, 2026
+
+### 1. tm-check Widget: Auto-Continue, Silent Echo, Persistence Across Reload
+**Problem:** Tapping the correct answer on a `tm-check` widget left the lesson stalled — the AI never continued until the student typed something. Once fixed to auto-continue, the confirmation ping showed up as a redundant duplicate chat bubble (the widget already displays the verdict). Once *that* was fixed, reloading the conversation reset every solved widget back to a fresh, tappable state and re-showed the duplicate bubble anyway, since history replay doesn't know a widget was ever silently answered.
+
+**Fixes:**
+- **`assets/js/tm-widgets.js`**: `buildCheck()` now always calls `reply()` on a correct tap (was previously opt-in via an undocumented `followup` flag the model never used) with `{ silent: true }`, so the confirmation posts through the pipeline without a visible bubble.
+- **`assets/js/tutor_mysql.js`**: `onReply(text, opts)` now takes an `opts.silent` flag; the submit handler skips `addMessage('user', ...)` when set. New `extractSolvedCheckQuestion()` regex recognizes the silent echo text (`For the check "…", I chose "…" — the correct answer.`) so both `loadConversation()` (AJAX) and history replay can (a) hide the echo bubble and (b) pre-mark the matching widget as solved via a new `data.__solved` flag in `buildCheck()`.
+- **`tutor_mysql.php`** (SSR): mirrors the same echo-detection in PHP, skips rendering the echo message, and injects `window.__ssrSolvedChecks` for `hydrateMessages()` to consume on initial page load.
+
+**Result:** Correct answers now silently continue the lesson with no duplicate bubble, and re-visiting a conversation shows every previously-solved check already locked in its correct state instead of resetting.
+
+### 2. Three-Contact Protocol: Analogy/Build/Predict Regex Was Too Narrow
+**Problem:** `detectContactState()` in `api/services/comprehension_service.php` kept marking contacts as "missing" even after the student clearly made them, causing the AI to loop back and re-ask an already-satisfied task (observed live: a student answered a "recommend an algorithm for two scenarios" prompt, and the very next AI turn re-asked essentially the same question).
+
+**Root cause:** The original patterns only matched canned phrasing — `it's like`, `reminds me of` for analogy; `i tried`, `i built` for build; `i think it would`, `that means` for predict. Real answers routinely skip those exact phrases (e.g. *"The closest would be how traffic wardens control traffic…"* for analogy; *"I'd use round robin… I'd recommend least connection…"* for build; *"…the algorithm will now reroute requests…"* for predict).
+
+**Fix:** Added ~10 broader patterns per contact (`closest … would be/is`, `analogous to`, `it's/that's basically`, `i'd use/recommend/choose`, `would/could/might cause/lead to/result in`, etc.), verified against the actual failing transcripts. One candidate pattern (`compared to`) was tested and dropped after it false-positived on plain technical comparisons unrelated to analogy-making.
+
+**Known limitation (not fixed, discussed but out of scope):** This is fundamentally a lexical-matching ceiling — the regex can't infer intent, only recognize phrasing. A more robust fix would have the AI tag which contact a widget is fulfilling (`"contact": "build"` in the widget JSON) and detect satisfaction structurally (assistant turn tagged X → next student reply → X satisfied) rather than re-deriving intent from freeform text, unioned with the regex as a fallback. Scoped as a larger follow-up, not attempted this session.
+
+### 3. Toast/Error UX Overhaul
+**Files changed:** `assets/js/tutor_mysql.js`
+
+- **Queue instead of clobber**: `showCopyToast()` used a single shared `#copy-toast` element — concurrent calls silently overwrote each other before the first was ever read (e.g. multiple milestone-completion toasts firing in one response only ever showed the last one). Now queued; each message gets its own full display window.
+- **Fixed 6 call sites missing a `type` argument** (defaulted to neutral `info` instead of the correct success/error/warning styling): rate-limit warning during edit-resubmit, voice-not-supported error, max-files warning, feedback thank-you/error (×2).
+- **Silent failure paths got toasts**: `deleteConversation()` and `loadConversation()` previously failed with only a `console.error` — now show a generic error toast.
+- **Non-429 HTTP statuses were being swallowed**: both chat-send fetches (`main submit` and `handleEditSubmit`) did `if (!response.ok) throw new Error('HTTP error! status: ' + status)` *before* reading the response body — discarding the server's actual `{success:false, error:'…'}` message (401 session-expired, 413 file-too-large, etc.) in favor of a generic "couldn't connect" bubble. Only 429 was ever special-cased. Removed the early throw so the existing `result.error` branch runs for every status, not just 200s.
+
+### 4. Server-Side Error Sanitization + Debug Logging Hardening
+**Problem:** Audited every endpoint that echoes `'error' => $e->getMessage()` (or similar) straight into a client JSON response — raw PHP/PDO exception text was reaching the browser across ~9 endpoints.
+
+**Fixed (generic client message + `error_log()` server-side, per file):**
+- `includes/server_mysql.php` — fatal-error shutdown handler (`_debug` field with file:line + raw message, unconditional, sent for *any* fatal error on *any* endpoint), `get_conversation`'s unconditional `debug` field, the main chat handler's top-level catch (shown as the AI's reply bubble), file-upload error text embedded into conversation content, and `rename_conversation` — which had **no try/catch at all**.
+- `auth_mysql.php` — Google login leaked `$e->getMessage()` into **both** the JSON response and the `login?error=` redirect URL (higher-sensitivity since OAuth client errors can be more revealing than DB errors).
+- `api/image.php`, `api/analytics.php` (no server log existed either), `api/session_context.php`, `api/user_settings.php` (×2), `api/user_onboarding.php` (×3).
+- `assets/js/tutor_mysql.js` — `handleEditSubmit()`'s catch was displaying a raw JS `error.message` in a chat bubble; now generic.
+
+**Audited, left alone:** `api/quiz.php`, `api/tts.php`, `api/clear_history.php`, `api/delete_account.php`, and register/login/change-password in `auth_mysql.php` — all already used safe pre-written strings. `settings.js`'s six `error.message` displays are safe *because* they only ever receive the now-sanitized server strings above (not independently hardened — inherits safety from the server-side fix). `migrations/*.php` left untouched (CLI-run admin scripts, not user-facing).
+
+**Debug log exposure (found during the audit, more severe than the above):** `DEBUG_MODE` was hardcoded `true` in `includes/server_mysql.php`, writing `$_FILES` arrays and raw student message text to `includes/debug_log.txt` on every file-upload error. That file existed — **104KB / 3322 lines, going back months** — at a guessable, previously-unprotected URL (`.htaccess` had no `.log`/`.txt` deny rule). Set `DEBUG_MODE` to `false`, deleted the accumulated file, and added `<FilesMatch "\.(log|txt)$"> Require all denied </FilesMatch>` to `.htaccess` as a backstop.
+
+### 5. Scroll-to-Bottom Button / Input Dimming / 404 & 403 CSS 404
+**Files changed:** `assets/css/ui-overhaul.css`, `404.html`, `403.html`
+
+- **Scroll-to-bottom button invisible**: `.scroll-to-bottom-btn` (`bottom: 20px; z-index: 50`) rendered *underneath* the fixed input bar, which sits at `z-index: 100` (desktop) / `3000` (mobile) over the same screen region. Moved to `bottom: 140px; z-index: 3001`.
+- **Input field had no visual "busy" state**: it was already correctly `disabled` during every request (typed or widget-triggered), just with no styling. Added `.main-text-input:disabled { opacity: 0.5; cursor: not-allowed; }`, matching the existing submit-button disabled treatment.
+- **404.html / 403.html rendered completely unstyled**: both requested their stylesheet from site-root `/landing.css`, but it lives at `assets/css/landing.css` — the CSS itself 404'd. Fixed both paths.
+
+### 6. Chat Redesign: Flat, ChatGPT-Style Bubbles + Input Bar
+**Objective:** Simplify the chat UI, which had grown visually heavy (bordered/sticker-shadow message cards, a cluttered multi-row input bar with a Tools dropdown and a Bloom's-taxonomy level picker) into something closer to ChatGPT's flat, minimal layout — reviewed first as a standalone Artifact mockup (light/dark + desktop/mobile toggle) before touching the live app.
+
+**Files changed:** `tutor_mysql.php`, `assets/css/ui-overhaul.css`, `assets/js/tutor_mysql.js`
+
+**Message bubbles:**
+- Dropped the 2px border + sticker box-shadow card look. AI turns are now plain text on the page (no background/border), user turns are a simple filled `var(--primary)` pill. Per-message avatars hidden (`.message-avatar { display: none; }`) — cheaper than touching the three separate render paths (live typewriter, history load, SSR) that all emit avatar markup.
+- Had to override a pre-existing `!important` "neo-brutalist" layer (`~5480`, `~5829`) that was still forcing a thick black/amber border and hard offset shadow onto the send button (`#ai-submit-btn`) and the voice-mode button regardless of the new flat styling, in both light and dark mode — same specificity/`!important`, later in source, to win the cascade.
+
+**Input bar:** Collapsed the separate Tools menu (goal picker: homework help / test prep / explore / practice) and the desktop dropdown + mobile drawer Bloom's-level picker into a single **combined "+" panel** — "Add photos & files" up top, Quick Start goals below a divider. Learning Level was dropped from the panel entirely; it already has a home in Settings → Appearance (`#settings-learning-level`, synced to the same hidden `<select id="learningLevel">` used for form submission), so a second per-message picker was redundant — the AI already treats the stored level as "a starting point, adapt from the actual message" per the system prompt, not a hard directive.
+- The bar is now a borderless flowing pill: `+` (files/quick-start) → text → mic + voice-mode, which fade to a send button the moment there's text (`.input-pill-row.has-text`). A `syncPillHasText()` helper is called at every place `questionInput.value` is set programmatically (mic dictation, quick-start insertion, suggestion pills, clearing after send) since none of those fire a native `input` event.
+- Mobile: the panel becomes a full-width bottom sheet with a backdrop (matching the app's existing `.level-drawer` pattern) instead of a small anchored popover, with quick-start compressed into a 2×2 grid.
+- Reused the exact same `promptTemplates` + `sessionContextManager.create(goal)` logic from the old Tools menu for the new quick-start buttons — only the trigger/menu chrome around it changed.
+
+**Bugs found and fixed during implementation:**
+- Double padding: `.combined-input-bar` still carried its own old outer padding (up to `8px 12px` on small phones) *underneath* the new `.input-pill-row`'s padding, making the bar look oversized on mobile. Zeroed the outer container down to `padding: 3px` — the pill row is now the only real padding source.
+- `.trailing-actions` (wraps the mic/voice-mode cluster + send button) had no `display: flex` of its own, so its children fell back to inline baseline alignment instead of lining up with each other.
+
+**Known, deliberately unresolved finding:** while chasing the `!important` submit-button conflict, found that `.main-chat-wrapper` also has an unconditional `!important` rule (`~5466`) forcing a cream (`#FFFEF9`) background with a dotted pattern in **light mode only** — a second, separate "neo-brutalist" design layer coexisting with the purple-gradient/glass system the rest of this redesign (and the `:root` tokens) assumes. Dark mode has its own consistent override so it isn't affected. Not fixed — out of scope for a chat-bubble/input-bar redesign, and unclear whether it's an intentional current design or abandoned dead code from an earlier design pass. Worth a dedicated look if light-mode visuals ever come up again.
+
+### 7. Dead "Personalization" Menu Link
+**Problem:** The "Personalization" item in the user account dropdown (`tutor_mysql.php`) was a bare `href="#"` with no `id` and no JS handler at all — unlike its siblings "Settings" and "Send Feedback," which have `id`s wired to real click handlers. Clicking it did nothing meaningful.
+**Fix:** Gave it `id="open-personalization-btn"`; new handler in `tutor_mysql.js` opens the Settings modal and immediately calls `switchTab('appearance')` — Font Size, Text Legibility, and Density live there, which is what "Personalization" actually refers to in this app (confirmed with the user before landing on this vs. an initial wrong guess that it meant the onboarding/profile flow).
+
+---

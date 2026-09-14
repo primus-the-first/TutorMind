@@ -41,6 +41,7 @@
         transcript: document.getElementById('gsTranscript'),
         messageInput: document.getElementById('gsMessageInput'),
         sendBtn: document.getElementById('gsSendBtn'),
+        micBtn: document.getElementById('gsMicBtn'),
         composer: document.getElementById('gsComposer'),
         composerHint: document.getElementById('gsComposerHint'),
         exitBtns: document.querySelectorAll('[data-gs-exit]'),
@@ -104,12 +105,202 @@
         });
     });
 
+    // ---- TTS / Voice Controller ----
+    var currentTTSAudio = null;
+    var currentSpeakingBtn = null;
+
+    function stopTTS() {
+        if (currentTTSAudio) {
+            currentTTSAudio.pause();
+            currentTTSAudio = null;
+        }
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+        if (currentSpeakingBtn) {
+            currentSpeakingBtn.dataset.speaking = 'false';
+            currentSpeakingBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+            currentSpeakingBtn.title = 'Read aloud';
+            currentSpeakingBtn = null;
+        }
+    }
+
+    function base64ToBlob(base64, mimeType) {
+        var byteChars = atob(base64);
+        var byteNumbers = new Array(byteChars.length);
+        for (var i = 0; i < byteChars.length; i++) {
+            byteNumbers[i] = byteChars.charCodeAt(i);
+        }
+        var byteArray = new Uint8Array(byteNumbers);
+        return new Blob([byteArray], { type: mimeType });
+    }
+
+    function speakText(text, btn) {
+        if (!text || !text.trim()) return;
+
+        // If clicking on the button that is already playing, toggle stop
+        if (btn && btn.dataset.speaking === 'true') {
+            stopTTS();
+            return;
+        }
+
+        stopTTS();
+
+        if (btn) {
+            btn.dataset.speaking = 'true';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.title = 'Loading voice...';
+            currentSpeakingBtn = btn;
+        }
+
+        fetch('api/tts.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (btn !== currentSpeakingBtn) return;
+
+            if (data.success && data.audio) {
+                var audioBlob = base64ToBlob(data.audio, data.contentType || 'audio/mpeg');
+                var audioUrl = URL.createObjectURL(audioBlob);
+                currentTTSAudio = new Audio(audioUrl);
+
+                currentTTSAudio.onplay = function () {
+                    if (btn === currentSpeakingBtn) {
+                        btn.innerHTML = '<i class="fas fa-stop"></i>';
+                        btn.title = 'Stop reading';
+                    }
+                };
+                currentTTSAudio.onended = function () {
+                    stopTTS();
+                };
+                currentTTSAudio.onerror = function () {
+                    fallbackBrowserSpeak(text, btn);
+                };
+                currentTTSAudio.play().catch(function () {
+                    fallbackBrowserSpeak(text, btn);
+                });
+            } else {
+                fallbackBrowserSpeak(data.text || text, btn);
+            }
+        })
+        .catch(function (err) {
+            console.error('Group Study TTS error:', err);
+            fallbackBrowserSpeak(text, btn);
+        });
+    }
+
+    function fallbackBrowserSpeak(text, btn) {
+        if (!window.speechSynthesis) {
+            stopTTS();
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+        var utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+
+        var voices = window.speechSynthesis.getVoices();
+        var preferredVoice = voices.find(function (v) {
+            return v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha');
+        });
+        if (preferredVoice) utterance.voice = preferredVoice;
+
+        utterance.onstart = function () {
+            if (btn === currentSpeakingBtn) {
+                btn.innerHTML = '<i class="fas fa-stop"></i>';
+                btn.title = 'Stop reading';
+            }
+        };
+        utterance.onend = function () {
+            stopTTS();
+        };
+        utterance.onerror = function () {
+            stopTTS();
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // ---- Voice Input (Speech-to-Text) Controller ----
+    var recognition = null;
+    var isListening = false;
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        var baseTranscript = '';
+
+        recognition.onstart = function () {
+            isListening = true;
+            if (els.micBtn) {
+                els.micBtn.dataset.listening = 'true';
+                els.micBtn.title = 'Listening... Click to stop';
+            }
+            baseTranscript = els.messageInput.value ? els.messageInput.value.trim() + ' ' : '';
+        };
+
+        recognition.onresult = function (event) {
+            var interim = '';
+            for (var i = event.resultIndex; i < event.results.length; i++) {
+                interim += event.results[i][0].transcript;
+            }
+            els.messageInput.value = baseTranscript + interim;
+            els.messageInput.scrollTop = els.messageInput.scrollHeight;
+        };
+
+        recognition.onend = function () {
+            isListening = false;
+            if (els.micBtn) {
+                els.micBtn.dataset.listening = 'false';
+                els.micBtn.title = 'Voice typing (Speak your thoughts)';
+            }
+        };
+
+        recognition.onerror = function (event) {
+            console.warn('Speech recognition error:', event.error);
+            isListening = false;
+            if (els.micBtn) {
+                els.micBtn.dataset.listening = 'false';
+                els.micBtn.title = 'Voice typing (Speak your thoughts)';
+            }
+        };
+    }
+
+    if (els.micBtn) {
+        els.micBtn.addEventListener('click', function () {
+            if (!recognition) {
+                alert('Voice input is not supported in this browser. Please try Chrome or Edge.');
+                return;
+            }
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('Speech recognition start error:', e);
+                }
+            }
+        });
+    }
+
     // ---- Exit room ----
     // Deliberately non-destructive: only stops polling and clears local
     // state. Your participant row stays on the server, so rejoining with
     // the same code later picks the session back up with full history —
     // same behavior already confirmed for a plain page refresh.
     function exitRoom() {
+        stopTTS();
+        if (isListening && recognition) {
+            try { recognition.stop(); } catch (e) {}
+        }
         if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
         state.sessionId = null;
         state.lastMessageId = 0;
@@ -129,6 +320,9 @@
     // ---- Teaching / messaging ----
 
     function sendMessage() {
+        if (isListening && recognition) {
+            try { recognition.stop(); } catch (e) {}
+        }
         var text = els.messageInput.value.trim();
         if (!text || !state.sessionId) return;
         els.messageInput.value = '';
@@ -219,7 +413,32 @@
         body.className = 'gs-msg-body';
         var sender = document.createElement('div');
         sender.className = 'gs-msg-sender';
-        sender.textContent = msg.sender;
+
+        var senderName = document.createElement('span');
+        senderName.textContent = msg.sender;
+        sender.appendChild(senderName);
+
+        // For AI messages, attach a "Read aloud" speaker button
+        if (msg.is_ai) {
+            var speakBtn = document.createElement('button');
+            speakBtn.type = 'button';
+            speakBtn.className = 'gs-msg-speak-btn';
+            speakBtn.title = 'Read aloud';
+            speakBtn.setAttribute('aria-label', 'Read message aloud');
+            speakBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+
+            // Clean prose for speaking (exclude code/chips blocks)
+            var textToSpeak = msg.content.replace(/```[\s\S]*?```/g, '').trim();
+            speakBtn.addEventListener('click', (function (text, button) {
+                return function (e) {
+                    e.stopPropagation();
+                    speakText(text, button);
+                };
+            })(textToSpeak, speakBtn));
+
+            sender.appendChild(speakBtn);
+        }
+
         var content = document.createElement('div');
         content.className = 'gs-msg-content';
 

@@ -2205,6 +2205,8 @@ EOT;
         if (!empty($user_profile['interests'])) {
             $interestsList = json_decode($user_profile['interests'], true);
             if (is_array($interestsList) && !empty($interestsList)) {
+                // Reindex to ensure numeric keys even if stored as a JSON object
+                $interestsList = array_values($interestsList);
                 $interestsStr = implode(', ', $interestsList);
                 $personalization_context .= "- **Known interests/experience: {$interestsStr}**\n";
                 $personalization_context .= "  → If the learner struggles to produce their own analogy, you may bridge a new concept to one of these — but always ask for their own connection first. Frame any interest-based analogy as a starting point (\"Here's one way to see it, using {$interestsList[0]} — but does anything else come to mind for you?\"), never as the final word.\n";
@@ -2610,13 +2612,20 @@ PROMPT;
     try {
         $responseData = callGeminiAPI($payload, $activeApiKey);
     } catch (Exception $geminiError) {
-        $isFallbackEligible = strpos($geminiError->getMessage(), 'rate limit') !== false ||
-                           strpos($geminiError->getMessage(), '429') !== false ||
-                           strpos($geminiError->getMessage(), '400') !== false ||
-                           strpos($geminiError->getMessage(), '401') !== false ||
-                           strpos($geminiError->getMessage(), '403') !== false ||
-                           strpos($geminiError->getMessage(), '500') !== false ||
-                           strpos($geminiError->getMessage(), '503') !== false;
+        // Use the exception code as the HTTP status when set; fall back to message
+        // substring scan only as a last resort.
+        $geminiStatus = (int) $geminiError->getCode();
+        // Allow fallback for transient server-side errors only.
+        // Exclude 400/401/403 (bad request / auth) — those are permanent failures
+        // that a different provider cannot recover from.
+        $transientStatuses = [429, 500, 503];
+        $isFallbackEligible = in_array($geminiStatus, $transientStatuses, true)
+            || ($geminiStatus === 0 && (
+                strpos($geminiError->getMessage(), 'rate limit') !== false ||
+                strpos($geminiError->getMessage(), '429') !== false ||
+                strpos($geminiError->getMessage(), '500') !== false ||
+                strpos($geminiError->getMessage(), '503') !== false
+            ));
 
         if (!$isFallbackEligible) {
             throw $geminiError;

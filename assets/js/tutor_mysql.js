@@ -1585,7 +1585,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 // Build form data like the main form
                 const formData = new FormData();
-                formData.append('question', userMessage);
+                // Base64-encode to match server_mysql.php's base64_decode($_POST['question'], true) —
+                // same WAF-safe encoding used by the main text form (see the btoa(...) call below).
+                formData.append('question', btoa(Array.from(new TextEncoder().encode(userMessage), b => String.fromCharCode(b)).join('')));
                 formData.append('learningLevel', document.getElementById('learningLevel')?.value || 'Understand');
                 
                 const conversationId = document.getElementById('conversation_id')?.value;

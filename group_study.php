@@ -21,6 +21,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&family=Funnel+Display:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= filemtime('assets/css/ui-overhaul.css') ?>">
     <link rel="stylesheet" href="assets/css/tm-widgets.css?v=<?= filemtime('assets/css/tm-widgets.css') ?>">
@@ -94,7 +95,12 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
 
                 <div class="gs-composer" id="gsComposer">
                     <textarea id="gsMessageInput" class="gs-message-input" placeholder="Explain it in your own words, add to what's been said, or challenge it..." rows="2"></textarea>
-                    <button type="button" id="gsSendBtn" class="gs-btn gs-btn-primary">Send</button>
+                    <div class="gs-composer-actions">
+                        <button type="button" id="gsMicBtn" class="gs-mic-btn" title="Voice typing (Speak your thoughts)" aria-label="Voice input">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button type="button" id="gsSendBtn" class="gs-btn gs-btn-primary">Send</button>
+                    </div>
                 </div>
                 <p class="gs-composer-hint" id="gsComposerHint" hidden>This session has ended.</p>
             </section>

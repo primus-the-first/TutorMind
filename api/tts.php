@@ -49,7 +49,7 @@ if ($method === 'POST') {
     if ($provider === 'auto') {
         // Try ElevenLabs first if configured
         if ($elevenLabsApiKey) {
-            $result = tryElevenLabs($text, $elevenLabsApiKey, $input['voice_id'] ?? null);
+            $result = tryElevenLabs($text, $elevenLabsApiKey, $input['voice_id'] ?? null, $input['model_id'] ?? null);
             if ($result['success'] && !isset($result['fallback'])) {
                 echo json_encode($result);
                 exit;
@@ -80,7 +80,7 @@ if ($method === 'POST') {
                 echo json_encode(['success' => false, 'error' => 'ElevenLabs API key not configured']);
                 exit;
             }
-            echo json_encode(tryElevenLabs($text, $elevenLabsApiKey, $input['voice_id'] ?? null));
+            echo json_encode(tryElevenLabs($text, $elevenLabsApiKey, $input['voice_id'] ?? null, $input['model_id'] ?? null));
             break;
 
         case 'infsh':
@@ -105,16 +105,17 @@ if ($method === 'POST') {
 /**
  * Try ElevenLabs TTS
  */
-function tryElevenLabs($text, $apiKey, $voiceId = null) {
+function tryElevenLabs($text, $apiKey, $voiceId = null, $modelId = null) {
     try {
-        // Voice ID for "Rachel" - a natural female voice
-        $voiceId = $voiceId ?? '21m00Tcm4TlvDq8ikWAM';
+        // Default Voice: "Alice - Clear, Engaging Educator" (premade voice compatible with all tiers)
+        $voiceId = $voiceId ?? 'Xb7hH8MSUJpSbSDYk0k2';
+        $modelId = !empty($modelId) ? $modelId : 'eleven_flash_v2_5';
 
         $url = "https://api.elevenlabs.io/v1/text-to-speech/{$voiceId}";
 
         $payload = json_encode([
             'text' => $text,
-            'model_id' => 'eleven_monolingual_v1',
+            'model_id' => $modelId,
             'voice_settings' => [
                 'stability' => 0.5,
                 'similarity_boost' => 0.75
