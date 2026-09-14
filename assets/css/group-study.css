@@ -199,6 +199,26 @@ body {
 .gs-session-teacher { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
 .gs-session-teacher strong { color: var(--primary); }
 
+.gs-session-meta-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.gs-exit-btn {
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.gs-exit-btn:hover { border-color: var(--tm-bad, #ef4444); color: var(--tm-bad, #ef4444); }
+.gs-waiting-card .gs-exit-btn { margin-top: 0.4rem; }
+
 .gs-participants { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .gs-participant-chip {
   font-size: 0.78rem;

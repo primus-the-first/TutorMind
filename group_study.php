@@ -73,6 +73,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                     <p class="gs-waiting-label">Share this code with your study group</p>
                     <div class="gs-join-code" id="gsWaitingCode">------</div>
                     <p class="gs-waiting-hint">Waiting for at least one more person to join before you can start teaching "<span id="gsWaitingTopic"></span>"...</p>
+                    <button type="button" class="gs-exit-btn" data-gs-exit>Exit room</button>
                 </div>
             </section>
 
@@ -83,7 +84,10 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                         <h2 id="gsSessionTopic"></h2>
                         <p class="gs-session-teacher">Teaching now: <strong id="gsCurrentTeacher"></strong></p>
                     </div>
-                    <div class="gs-participants" id="gsParticipants"></div>
+                    <div class="gs-session-meta-right">
+                        <div class="gs-participants" id="gsParticipants"></div>
+                        <button type="button" class="gs-exit-btn" data-gs-exit>Exit room</button>
+                    </div>
                 </div>
 
                 <div class="gs-transcript" id="gsTranscript"></div>

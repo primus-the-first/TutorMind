@@ -43,6 +43,7 @@
         sendBtn: document.getElementById('gsSendBtn'),
         composer: document.getElementById('gsComposer'),
         composerHint: document.getElementById('gsComposerHint'),
+        exitBtns: document.querySelectorAll('[data-gs-exit]'),
     };
 
     function showPanel(name) {
@@ -101,6 +102,28 @@
             }
             startPolling();
         });
+    });
+
+    // ---- Exit room ----
+    // Deliberately non-destructive: only stops polling and clears local
+    // state. Your participant row stays on the server, so rejoining with
+    // the same code later picks the session back up with full history —
+    // same behavior already confirmed for a plain page refresh.
+    function exitRoom() {
+        if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+        state.sessionId = null;
+        state.lastMessageId = 0;
+        els.transcript.innerHTML = '';
+        els.messageInput.value = '';
+        els.composer.hidden = false;
+        els.composerHint.hidden = true;
+        els.topicInput.value = '';
+        els.joinCodeInput.value = '';
+        setError('');
+        showPanel('landing');
+    }
+    els.exitBtns.forEach(function (btn) {
+        btn.addEventListener('click', exitRoom);
     });
 
     // ---- Teaching / messaging ----
