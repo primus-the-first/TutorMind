@@ -73,11 +73,12 @@ class TutorMindChat {
             btn.addEventListener('click', (e) => this.copyCode(e.target));
         });
 
-        // New chat button
-        const newChatBtn = document.querySelector('.new-chat-btn');
-        if (newChatBtn) {
-            newChatBtn.addEventListener('click', () => this.startNewChat());
-        }
+        // Note: new-chat button is handled by tutor_mysql.js (a proper SPA-style
+        // reset via history.pushState) — this file used to also bind it via
+        // startNewChat(), which did a full `window.location.href` navigation.
+        // Both fired on every click, so the AJAX reset ran and was then stomped
+        // by a real page reload. Removed here; see the same pattern already
+        // noted above for the send button.
     }
 
     setupMobileHandling() {
@@ -755,18 +756,6 @@ class TutorMindChat {
         }
     }
 
-    async startNewChat() {
-        const ok = await TmDialog.confirm({
-            title: 'Start a new conversation?',
-            message: 'Your current chat will be saved and you can return to it from the sidebar.',
-            confirmLabel: 'Start New Chat',
-            cancelLabel: 'Stay Here'
-        });
-        if (ok) {
-            window.location.href = 'tutor_mysql.php';
-            console.log('🆕 Starting new chat');
-        }
-    }
 }
 
 // Expose isMobile globally for other scripts (e.g. tutor_mysql.js)
