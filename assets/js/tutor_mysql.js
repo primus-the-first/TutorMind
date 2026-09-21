@@ -763,6 +763,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const aiResult = await aiResponse.json();
 
+            if (aiResult.progress) {
+                outlineEstablished = true;
+            }
+
             if (aiResult.success) {
                 const messageContent = `
                     ${aiResult.answer}
@@ -1671,14 +1675,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const audioBlob = VoiceManager.base64ToBlob(data.audio, data.contentType);
                     const audioUrl = URL.createObjectURL(audioBlob);
                     const audio = new Audio(audioUrl);
-                    
+
                     await new Promise((resolve) => {
                         audio.onended = resolve;
                         audio.onerror = resolve;
-                        audio.play();
+                        // play() can reject (e.g. mobile autoplay policy) without firing
+                        // onerror, which would hang this promise forever — resolve on
+                        // that rejection too and fall through to the browser voice.
+                        audio.play().catch(resolve);
                     });
                 } else {
-                    // Browser TTS fallback
+                    // Browser TTS fallback — log why ElevenLabs wasn't used so a
+                    // production-only failure (e.g. cURL/TLS issue on shared hosting)
+                    // is diagnosable from the browser console instead of server logs.
+                    console.warn('Voice Mode: ElevenLabs unavailable, using browser TTS.', data.message, data.debug);
                     await this.browserSpeak(text);
                 }
             } catch (error) {
@@ -2259,6 +2269,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Function to show/hide the typing indicator ---
+    let typingStageTimer = null;
+
+    // Whether outline/milestone generation (generateLearningOutline() in tutor_service.php)
+    // has already happened for this conversation, so the typing-indicator stage text only
+    // claims "building your lesson outline" while that's actually likely true. Seeded from
+    // conversation_id: tutor_mysql.php:556 only pre-fills it server-side when resuming an
+    // existing conversation, which necessarily already has an outline. Flipped for good the
+    // first time a response actually carries progress/milestone data (see the two spots
+    // below that set it to true) — after that every reply in this page session is a
+    // follow-up, never another outline build.
+    let outlineEstablished = !!conversationIdInput.value;
+
     function showTypingIndicator(show) {
         let indicator = document.getElementById('typing-indicator');
         if (show) {
@@ -2271,15 +2293,45 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="message-content">
                         <div class="tm-typing-loader" role="status" aria-live="polite" aria-label="TutorMind is thinking">
                             ${typeof TmLoader !== 'undefined' ? TmLoader.inlineHTML() : ''}
+                            <span class="tm-typing-stage"></span>
                         </div>
                     </div>
                 `;
                 chatMessages.appendChild(indicatorWrapper);
                 smartScrollToBottom();
+
+                // A reply that's still going after a few seconds on the very first exchange
+                // of a conversation is almost always the one synchronous path that calls out
+                // to Gemini for a full lesson outline — surface that once the plain spinner
+                // alone would start to feel stuck. Once an outline already exists, a slow
+                // reply is just a slow reply: say so honestly rather than reusing outline
+                // language that would no longer be true. Stays silent for fast replies either way.
+                const stageEl = indicatorWrapper.querySelector('.tm-typing-stage');
+                const stages = outlineEstablished
+                    ? ['Still thinking it through…', 'Considering your answer…']
+                    : ['Still working on it…', 'Putting together your lesson outline…', 'Structuring the milestones…', 'Almost there…'];
+                const cadence = (typeof TmLoader !== 'undefined' && TmLoader.FULL_CYCLE_MS) || 2200;
+                let stageIndex = -1;
+                typingStageTimer = window.setInterval(() => {
+                    stageIndex++;
+                    if (stageIndex >= stages.length) {
+                        window.clearInterval(typingStageTimer);
+                        typingStageTimer = null;
+                        return;
+                    }
+                    stageEl.textContent = stages[stageIndex];
+                    stageEl.classList.remove('tm-typing-stage-in');
+                    void stageEl.offsetWidth; // restart the fade-in animation
+                    stageEl.classList.add('tm-typing-stage-in');
+                }, cadence);
             }
         } else {
             if (indicator) {
                 indicator.remove();
+            }
+            if (typingStageTimer) {
+                window.clearInterval(typingStageTimer);
+                typingStageTimer = null;
             }
         }
     }
@@ -2605,6 +2657,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                             highlightActiveConversation(result.conversation_id);
                         }
                     }
+                }
+
+                // A progress block only ever comes back once an outline/milestones exist
+                // server-side — proof (not a guess) that the next typing indicator should
+                // say "considering your answer", not "building your lesson outline".
+                if (result.progress) {
+                    outlineEstablished = true;
                 }
 
                 // Update session context with server-side progress data (hybrid progress with milestones).
