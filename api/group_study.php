@@ -18,6 +18,8 @@
  *                   migration 015's header for why: this hosting can't
  *                   sustain persistent connections, and nothing else in the
  *                   app polls today either, so this is new ground)
+ *   typing        — a participant is actively typing; poll picks this up
+ *                   a few seconds late (see migration 016's header)
  *
  * Kept fully separate from the 1:1 chat pipeline in server_mysql.php on
  * purpose — reuses callGeminiAPI() from ai_service.php (same AI call, same
@@ -74,6 +76,7 @@ try {
         case 'teach':        handleTeach($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY, $DEEPSEEK_KEY); break;
         case 'advance_turn': handleAdvanceTurn($pdo, $user_id, $body); break;
         case 'poll':         handlePoll($pdo, $user_id, $body); break;
+        case 'typing':       handleTyping($pdo, $user_id, $body); break;
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Unknown action']);
@@ -299,6 +302,12 @@ function handleTeach($pdo, $user_id, $data, $geminiKey, $groqKey, $deepseekKey) 
         return;
     }
 
+    // Clear the sender's own typing state now — otherwise everyone else
+    // would keep seeing "X is typing..." for up to 6s after X's message
+    // already landed.
+    $pdo->prepare("UPDATE group_session_participants SET typing_at = NULL WHERE session_id = ? AND user_id = ?")
+        ->execute([$sessionId, $user_id]);
+
     // Find (or, defensively, create) the currently-open turn for this session.
     $stmt = $pdo->prepare("SELECT id FROM group_session_turns WHERE session_id = ? AND status != 'completed' ORDER BY id DESC LIMIT 1");
     $stmt->execute([$sessionId]);
@@ -433,6 +442,23 @@ function handleAdvanceTurn($pdo, $user_id, $data) {
     ]);
 }
 
+/** Fire-and-forget: a participant is actively typing. No session-membership
+ *  check beyond the UPDATE itself — a no-op for a non-participant leaks
+ *  nothing and errors nowhere. */
+function handleTyping($pdo, $user_id, $data) {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    if ($sessionId <= 0) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'session_id is required.']);
+        return;
+    }
+
+    $pdo->prepare("UPDATE group_session_participants SET typing_at = NOW() WHERE session_id = ? AND user_id = ?")
+        ->execute([$sessionId, $user_id]);
+
+    echo json_encode(['success' => true]);
+}
+
 function handlePoll($pdo, $user_id, $data) {
     $sessionId = (int) ($data['session_id'] ?? $_GET['session_id'] ?? 0);
     $sinceId   = (int) ($data['since_id'] ?? $_GET['since_id'] ?? 0);
@@ -465,13 +491,23 @@ function handlePoll($pdo, $user_id, $data) {
     foreach ($stmt->fetchAll() as $row) {
         $messages[] = [
             'id'      => (int) $row['id'],
-            'sender'  => $row['sender_type'] === 'ai' ? 'AI Facilitator' : ($participants[(int) $row['student_user_id']]['display_name'] ?? 'A student'),
+            'sender'  => $row['sender_type'] === 'ai' ? 'Q' : ($participants[(int) $row['student_user_id']]['display_name'] ?? 'A student'),
             'is_ai'   => $row['sender_type'] === 'ai',
             'content' => $row['content'],
         ];
     }
 
     $currentTeacherId = $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null;
+
+    // 6s window = double the 3s poll interval: survives one missed tick
+    // without flickering, still clears within ~2 polls of someone stopping.
+    $stmt = $pdo->prepare("SELECT user_id FROM group_session_participants WHERE session_id = ? AND user_id != ? AND typing_at > (NOW() - INTERVAL 6 SECOND)");
+    $stmt->execute([$sessionId, $user_id]);
+    $typingNames = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $uid = (int) $row['user_id'];
+        if (isset($participants[$uid])) $typingNames[] = $participants[$uid]['display_name'];
+    }
 
     echo json_encode([
         'success' => true,
@@ -480,6 +516,7 @@ function handlePoll($pdo, $user_id, $data) {
         'current_teacher_user_id' => $currentTeacherId,
         'current_teacher_name'    => $currentTeacherId !== null ? ($participants[$currentTeacherId]['display_name'] ?? null) : null,
         'participants' => array_values($participants),
+        'typing' => $typingNames,
         'messages' => $messages,
     ]);
 }

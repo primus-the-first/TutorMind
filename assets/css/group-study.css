@@ -86,6 +86,16 @@ body {
 .gs-panel { display: flex; flex-direction: column; gap: 1.25rem; }
 
 /* ---------- Landing ---------- */
+.gs-hero { display: flex; flex-direction: column; gap: 0.1rem; }
+.gs-hero-hey { margin: 0; font-size: 0.95rem; color: var(--text-secondary); }
+.gs-hero-name {
+  margin: 0;
+  font-family: "Funnel Display", "Outfit", sans-serif;
+  font-weight: 700;
+  font-size: 2.4rem;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
 .gs-tagline {
   font-size: 1rem;
   color: var(--text-secondary);
@@ -103,13 +113,25 @@ body {
 .gs-card {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 1.25rem;
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
+.gs-tile {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.3rem;
+  margin-bottom: 0.2rem;
+}
+.gs-tile-teal { background: var(--accent-teal); }
+.gs-tile-pink { background: var(--accent-pink); }
 .gs-card h2 {
   font-family: "Funnel Display", "Outfit", sans-serif;
   font-size: 1.05rem;
@@ -164,24 +186,90 @@ body {
 /* ---------- Waiting room ---------- */
 .gs-waiting-card {
   background: var(--bg-card);
-  border: 1.5px dashed var(--border);
-  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
   padding: 2rem 1.5rem;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
+  box-shadow: var(--shadow-sm);
 }
-.gs-waiting-label { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+
+.gs-avatar-stack { display: flex; margin-bottom: 0.4rem; }
+.gs-avatar-stack .gs-msg-avatar {
+  width: 34px;
+  height: 34px;
+  font-size: 0.72rem;
+  margin-left: -10px;
+  box-shadow: 0 0 0 2px var(--bg-card);
+}
+.gs-avatar-stack .gs-msg-avatar:first-child { margin-left: 0; }
+
+.gs-waiting-headline {
+  margin: 0;
+  font-family: "Funnel Display", "Outfit", sans-serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+.gs-waiting-label { margin: 0 0 0.4rem; font-size: 0.85rem; color: var(--text-secondary); }
+
+.gs-code-row { display: flex; align-items: center; gap: 0.6rem; }
 .gs-join-code {
   font-family: "Roboto Mono", Consolas, monospace;
-  font-size: 2.2rem;
+  font-size: 2.6rem;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   color: var(--primary);
 }
-.gs-waiting-hint { margin: 0; font-size: 0.85rem; color: var(--text-secondary); max-width: 40ch; }
+.gs-copy-code-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--cta);
+  background: var(--cta);
+  color: #1f2937;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex: none;
+  transition: all 0.15s ease;
+}
+.gs-copy-code-btn:hover { background: var(--cta-hover); border-color: var(--cta-hover); }
+.gs-copy-code-btn[data-copied="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.gs-waiting-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  max-width: 40ch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.gs-waiting-dots { display: inline-flex; gap: 3px; flex: none; }
+.gs-waiting-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0.35;
+  animation: gs-dot-pulse 1.2s infinite ease-in-out;
+}
+.gs-waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
+.gs-waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes gs-dot-pulse {
+  0%, 80%, 100% { opacity: 0.35; transform: scale(0.85); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.gs-waiting-card .gs-exit-btn { margin-top: 0.6rem; }
 
 /* ---------- Active session ---------- */
 .gs-session-meta {
@@ -196,8 +284,19 @@ body {
   font-size: 1.15rem;
   margin: 0 0 0.2rem;
 }
-.gs-session-teacher { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
-.gs-session-teacher strong { color: var(--primary); }
+.gs-teaching-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-main);
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+}
+.gs-teaching-badge strong { color: var(--primary); font-weight: 700; }
 
 .gs-session-meta-right {
   display: flex;
@@ -217,7 +316,6 @@ body {
   cursor: pointer;
 }
 .gs-exit-btn:hover { border-color: var(--tm-bad, #ef4444); color: var(--tm-bad, #ef4444); }
-.gs-waiting-card .gs-exit-btn { margin-top: 0.4rem; }
 
 .gs-participants { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .gs-participant-chip {
@@ -252,9 +350,9 @@ body {
 }
 .gs-msg-avatar {
   flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
   font-size: 0.8rem;
@@ -267,6 +365,13 @@ body {
   background: rgba(124, 58, 237, 0.12);
   border-color: var(--primary);
 }
+/* Tonal variants of --primary, assigned per participant (not per message
+   type) so you can track who's talking at a glance without introducing
+   hues outside the brand accent family. */
+.gs-msg-avatar.gs-avatar-tone-0 { background: var(--primary); border-color: var(--primary); color: #fff; }
+.gs-msg-avatar.gs-avatar-tone-1 { background: var(--primary-dark); border-color: var(--primary-dark); color: #fff; }
+.gs-msg-avatar.gs-avatar-tone-2 { background: color-mix(in srgb, var(--primary) 55%, var(--primary-dark) 45%); border-color: var(--primary-dark); color: #fff; }
+.gs-msg-avatar.gs-avatar-tone-3 { background: var(--primary-light); border-color: var(--primary-light); color: var(--primary-dark); }
 .gs-msg.gs-msg-ai .gs-msg-avatar-icon {
   width: 18px;
   height: 13px;
@@ -326,14 +431,41 @@ body {
   color: var(--text-primary);
   background: var(--bg-card);
   border: 1.5px solid var(--border);
-  border-radius: 10px;
+  border-radius: 4px 16px 16px 16px;
   padding: 0.65rem 0.85rem;
 }
 .gs-msg.gs-msg-ai .gs-msg-content { border-color: var(--primary); }
 .gs-msg-content .tm-widget { margin: 0.5rem 0 0; }
 .gs-msg.gs-msg-self { margin-left: auto; flex-direction: row-reverse; }
-.gs-msg.gs-msg-self .gs-msg-content { background: var(--primary); color: #fff; border-color: var(--primary); }
+.gs-msg.gs-msg-self .gs-msg-content {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  border-radius: 16px 4px 16px 16px;
+}
 .gs-msg.gs-msg-self .gs-msg-sender { text-align: right; }
+
+.gs-typing {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+.gs-typing-dots { display: inline-flex; gap: 3px; flex: none; }
+.gs-typing-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  opacity: 0.35;
+  animation: gs-dot-pulse 1.2s infinite ease-in-out;
+}
+.gs-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.gs-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 .gs-composer {
   display: flex;

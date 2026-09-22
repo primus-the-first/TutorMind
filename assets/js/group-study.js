@@ -35,10 +35,14 @@
         joinBtn: document.getElementById('gsJoinBtn'),
         waitingCode: document.getElementById('gsWaitingCode'),
         waitingTopic: document.getElementById('gsWaitingTopic'),
+        waitingAvatarStack: document.getElementById('gsWaitingAvatarStack'),
+        copyCodeBtn: document.getElementById('gsCopyCodeBtn'),
         sessionTopic: document.getElementById('gsSessionTopic'),
         currentTeacher: document.getElementById('gsCurrentTeacher'),
         participants: document.getElementById('gsParticipants'),
         transcript: document.getElementById('gsTranscript'),
+        typingIndicator: document.getElementById('gsTypingIndicator'),
+        typingText: document.getElementById('gsTypingText'),
         messageInput: document.getElementById('gsMessageInput'),
         sendBtn: document.getElementById('gsSendBtn'),
         micBtn: document.getElementById('gsMicBtn'),
@@ -104,6 +108,34 @@
             startPolling();
         });
     });
+
+    // ---- Copy join code ----
+    if (els.copyCodeBtn) {
+        els.copyCodeBtn.addEventListener('click', function () {
+            var code = els.waitingCode.textContent.trim();
+            if (!code || code === '------') return;
+            var done = function () {
+                els.copyCodeBtn.dataset.copied = 'true';
+                els.copyCodeBtn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                setTimeout(function () {
+                    els.copyCodeBtn.dataset.copied = 'false';
+                    els.copyCodeBtn.innerHTML = '<i class="fas fa-copy"></i> Copy code';
+                }, 1500);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(code).then(done).catch(function () {});
+            } else {
+                var tmp = document.createElement('textarea');
+                tmp.value = code;
+                tmp.style.position = 'fixed';
+                tmp.style.opacity = '0';
+                document.body.appendChild(tmp);
+                tmp.select();
+                try { document.execCommand('copy'); done(); } catch (e) {}
+                document.body.removeChild(tmp);
+            }
+        });
+    }
 
     // ---- TTS / Voice Controller ----
     var currentTTSAudio = null;
@@ -308,6 +340,8 @@
         els.messageInput.value = '';
         els.composer.hidden = false;
         els.composerHint.hidden = true;
+        els.typingIndicator.hidden = true;
+        lastTypingPingAt = 0;
         els.topicInput.value = '';
         els.joinCodeInput.value = '';
         setError('');
@@ -343,6 +377,30 @@
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     });
 
+    // Throttled typing ping — at most once every 2.5s while the user keeps
+    // typing, enough to keep the server's 6s "is typing" window topped up
+    // without pinging on every keystroke. No explicit "stopped typing"
+    // signal; the field just goes stale and the indicator clears itself,
+    // same eventual-consistency shape as the rest of this feature.
+    var lastTypingPingAt = 0;
+    els.messageInput.addEventListener('input', function () {
+        if (!state.sessionId) return;
+        var now = Date.now();
+        if (now - lastTypingPingAt < 2500) return;
+        lastTypingPingAt = now;
+        post('typing', { session_id: state.sessionId });
+    });
+
+    function renderTyping(names) {
+        if (!names || !names.length) { els.typingIndicator.hidden = true; return; }
+        var text;
+        if (names.length === 1) text = names[0] + ' is typing...';
+        else if (names.length === 2) text = names[0] + ' and ' + names[1] + ' are typing...';
+        else text = names.length + ' people are typing...';
+        els.typingText.textContent = text;
+        els.typingIndicator.hidden = false;
+    }
+
     // ---- Polling ----
 
     function startPolling() {
@@ -360,6 +418,7 @@
                 showPanel('session');
             }
             renderSessionMeta(res);
+            renderTyping(res.typing);
 
             res.messages.forEach(function (msg) {
                 appendMessage(msg);
@@ -369,22 +428,48 @@
             if (res.status === 'completed') {
                 els.composer.hidden = true;
                 els.composerHint.hidden = false;
+                els.typingIndicator.hidden = true;
                 clearInterval(state.pollTimer);
                 state.pollTimer = null;
             }
         });
     }
 
+    function renderParticipantChips(container, participants, teacherUserId) {
+        if (!container) return;
+        container.innerHTML = '';
+        (participants || []).forEach(function (p) {
+            var chip = document.createElement('span');
+            chip.className = 'gs-participant-chip' + (p.user_id === teacherUserId ? ' gs-is-teacher' : '');
+            chip.textContent = p.display_name;
+            container.appendChild(chip);
+        });
+    }
+
+    function renderAvatarStack(container, participants) {
+        if (!container) return;
+        container.innerHTML = '';
+        (participants || []).forEach(function (p) {
+            var avatar = document.createElement('div');
+            avatar.className = 'gs-msg-avatar ' + avatarToneClass(p.display_name);
+            avatar.title = p.display_name;
+            avatar.textContent = p.display_name.charAt(0).toUpperCase();
+            container.appendChild(avatar);
+        });
+    }
+
     function renderSessionMeta(res) {
         els.sessionTopic.textContent = res.topic;
         els.currentTeacher.textContent = res.current_teacher_name || '—';
-        els.participants.innerHTML = '';
-        (res.participants || []).forEach(function (p) {
-            var chip = document.createElement('span');
-            chip.className = 'gs-participant-chip' + (p.user_id === res.current_teacher_user_id ? ' gs-is-teacher' : '');
-            chip.textContent = p.display_name;
-            els.participants.appendChild(chip);
-        });
+        renderParticipantChips(els.participants, res.participants, res.current_teacher_user_id);
+        renderAvatarStack(els.waitingAvatarStack, res.participants);
+    }
+
+    var AVATAR_TONE_COUNT = 4;
+    function avatarToneClass(name) {
+        var hash = 0;
+        for (var i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+        return 'gs-avatar-tone-' + (hash % AVATAR_TONE_COUNT);
     }
 
     function appendMessage(msg) {
@@ -406,6 +491,7 @@
             icon.setAttribute('aria-hidden', 'true');
             avatar.appendChild(icon);
         } else {
+            avatar.classList.add(avatarToneClass(msg.sender));
             avatar.textContent = msg.sender.charAt(0).toUpperCase();
         }
 

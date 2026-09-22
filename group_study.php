@@ -47,10 +47,15 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         <main class="gs-main">
             <!-- Landing: create or join -->
             <section id="gsLanding" class="gs-panel">
+                <div class="gs-hero">
+                    <p class="gs-hero-hey">Hey <span aria-hidden="true">👋</span></p>
+                    <p class="gs-hero-name"><?= htmlspecialchars($displayName) ?></p>
+                </div>
                 <p class="gs-tagline">One of you teaches, the group works through it together — the AI only steps in to point at gaps, never to hand you the answer.</p>
 
                 <div class="gs-landing-grid">
                     <div class="gs-card">
+                        <div class="gs-tile gs-tile-teal" aria-hidden="true"><i class="fas fa-chalkboard-user"></i></div>
                         <h2>Start a session</h2>
                         <p>Pick a topic. You'll teach it first — everyone else joins with a code.</p>
                         <label for="gsTopicInput" class="gs-label">Topic</label>
@@ -58,6 +63,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                         <button type="button" id="gsCreateBtn" class="gs-btn gs-btn-primary">Create session</button>
                     </div>
                     <div class="gs-card">
+                        <div class="gs-tile gs-tile-pink" aria-hidden="true"><i class="fas fa-right-to-bracket"></i></div>
                         <h2>Join a session</h2>
                         <p>Enter the 6-character code someone shared with you.</p>
                         <label for="gsJoinCodeInput" class="gs-label">Join code</label>
@@ -71,9 +77,19 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             <!-- Waiting room: created but not enough participants yet -->
             <section id="gsWaiting" class="gs-panel" hidden>
                 <div class="gs-waiting-card">
-                    <p class="gs-waiting-label">Share this code with your study group</p>
-                    <div class="gs-join-code" id="gsWaitingCode">------</div>
-                    <p class="gs-waiting-hint">Waiting for at least one more person to join before you can start teaching "<span id="gsWaitingTopic"></span>"...</p>
+                    <div class="gs-avatar-stack" id="gsWaitingAvatarStack"></div>
+                    <h2 class="gs-waiting-headline">Share this code</h2>
+                    <p class="gs-waiting-label">Get your study group into the room</p>
+                    <div class="gs-code-row">
+                        <div class="gs-join-code" id="gsWaitingCode">------</div>
+                        <button type="button" class="gs-copy-code-btn" id="gsCopyCodeBtn">
+                            <i class="fas fa-copy"></i> Copy code
+                        </button>
+                    </div>
+                    <p class="gs-waiting-hint">
+                        <span class="gs-waiting-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                        Waiting for at least one more person to join before you can start teaching "<span id="gsWaitingTopic"></span>"...
+                    </p>
                     <button type="button" class="gs-exit-btn" data-gs-exit>Exit room</button>
                 </div>
             </section>
@@ -83,7 +99,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                 <div class="gs-session-meta">
                     <div>
                         <h2 id="gsSessionTopic"></h2>
-                        <p class="gs-session-teacher">Teaching now: <strong id="gsCurrentTeacher"></strong></p>
+                        <span class="gs-teaching-badge">Teaching now: <strong id="gsCurrentTeacher"></strong></span>
                     </div>
                     <div class="gs-session-meta-right">
                         <div class="gs-participants" id="gsParticipants"></div>
@@ -92,6 +108,11 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                 </div>
 
                 <div class="gs-transcript" id="gsTranscript"></div>
+
+                <p class="gs-typing" id="gsTypingIndicator" hidden>
+                    <span class="gs-typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                    <span id="gsTypingText"></span>
+                </p>
 
                 <div class="gs-composer" id="gsComposer">
                     <textarea id="gsMessageInput" class="gs-message-input" placeholder="Explain it in your own words, add to what's been said, or challenge it..." rows="2"></textarea>
