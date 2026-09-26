@@ -54,21 +54,31 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                 <p class="gs-tagline">One of you teaches, the group works through it together — the AI only steps in to point at gaps, never to hand you the answer.</p>
 
                 <div class="gs-landing-grid">
-                    <div class="gs-card">
-                        <div class="gs-tile gs-tile-teal" aria-hidden="true"><i class="fas fa-chalkboard-user"></i></div>
-                        <h2>Start a session</h2>
-                        <p>Pick a topic. You'll teach it first — everyone else joins with a code.</p>
-                        <label for="gsTopicInput" class="gs-label">Topic</label>
-                        <input type="text" id="gsTopicInput" class="gs-input" placeholder="e.g. Photosynthesis, Binary search, The French Revolution" maxlength="255">
-                        <button type="button" id="gsCreateBtn" class="gs-btn gs-btn-primary">Create session</button>
+                    <div class="gs-card" id="gsCreateCard">
+                        <button type="button" class="gs-card-head" id="gsCreateHead" aria-expanded="false">
+                            <div class="gs-tile gs-tile-teal" aria-hidden="true"><i class="fas fa-chalkboard-user"></i></div>
+                            <h2>Start a session</h2>
+                            <p>Pick a topic. You'll teach it first — everyone else joins with a code.</p>
+                            <i class="fas fa-chevron-down gs-card-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div class="gs-card-form">
+                            <label for="gsTopicInput" class="gs-label">Topic</label>
+                            <input type="text" id="gsTopicInput" class="gs-input" placeholder="e.g. Photosynthesis, Binary search, The French Revolution" maxlength="255">
+                            <button type="button" id="gsCreateBtn" class="gs-btn gs-btn-primary">Create session</button>
+                        </div>
                     </div>
-                    <div class="gs-card">
-                        <div class="gs-tile gs-tile-pink" aria-hidden="true"><i class="fas fa-right-to-bracket"></i></div>
-                        <h2>Join a session</h2>
-                        <p>Enter the 6-character code someone shared with you.</p>
-                        <label for="gsJoinCodeInput" class="gs-label">Join code</label>
-                        <input type="text" id="gsJoinCodeInput" class="gs-input gs-input-code" placeholder="AB2XQ9" maxlength="6" autocapitalize="characters">
-                        <button type="button" id="gsJoinBtn" class="gs-btn">Join session</button>
+                    <div class="gs-card" id="gsJoinCard">
+                        <button type="button" class="gs-card-head" id="gsJoinHead" aria-expanded="false">
+                            <div class="gs-tile gs-tile-pink" aria-hidden="true"><i class="fas fa-right-to-bracket"></i></div>
+                            <h2>Join a session</h2>
+                            <p>Enter the 6-character code someone shared with you.</p>
+                            <i class="fas fa-chevron-down gs-card-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div class="gs-card-form">
+                            <label for="gsJoinCodeInput" class="gs-label">Join code</label>
+                            <input type="text" id="gsJoinCodeInput" class="gs-input gs-input-code" placeholder="AB2XQ9" maxlength="6" autocapitalize="characters">
+                            <button type="button" id="gsJoinBtn" class="gs-btn">Join session</button>
+                        </div>
                     </div>
                 </div>
                 <p id="gsLandingError" class="gs-error" hidden></p>

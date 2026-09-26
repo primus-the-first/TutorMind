@@ -29,8 +29,12 @@
         waiting: document.getElementById('gsWaiting'),
         session: document.getElementById('gsSession'),
         landingError: document.getElementById('gsLandingError'),
+        createCard: document.getElementById('gsCreateCard'),
+        createHead: document.getElementById('gsCreateHead'),
         topicInput: document.getElementById('gsTopicInput'),
         createBtn: document.getElementById('gsCreateBtn'),
+        joinCard: document.getElementById('gsJoinCard'),
+        joinHead: document.getElementById('gsJoinHead'),
         joinCodeInput: document.getElementById('gsJoinCodeInput'),
         joinBtn: document.getElementById('gsJoinBtn'),
         waitingCode: document.getElementById('gsWaitingCode'),
@@ -69,6 +73,32 @@
         els.landingError.textContent = msg || '';
         els.landingError.hidden = !msg;
     }
+
+    // ---- Landing card expand/collapse ----
+    // Tiles start collapsed (just the icon + heading), matching the
+    // jampolls-style pure-nav-tile pattern — clicking one reveals its form
+    // and closes the other (Create/Join are mutually exclusive, only one
+    // makes sense open at a time).
+    function expandCard(which) {
+        var openCard = which === 'create' ? els.createCard : els.joinCard;
+        var openHead = which === 'create' ? els.createHead : els.joinHead;
+        var closeCard = which === 'create' ? els.joinCard : els.createCard;
+        var closeHead = which === 'create' ? els.joinHead : els.createHead;
+        openCard.classList.add('gs-expanded');
+        openHead.setAttribute('aria-expanded', 'true');
+        closeCard.classList.remove('gs-expanded');
+        closeHead.setAttribute('aria-expanded', 'false');
+        var focusTarget = which === 'create' ? els.topicInput : els.joinCodeInput;
+        setTimeout(function () { focusTarget.focus(); }, 200);
+    }
+    function collapseCards() {
+        els.createCard.classList.remove('gs-expanded');
+        els.createHead.setAttribute('aria-expanded', 'false');
+        els.joinCard.classList.remove('gs-expanded');
+        els.joinHead.setAttribute('aria-expanded', 'false');
+    }
+    els.createHead.addEventListener('click', function () { expandCard('create'); });
+    els.joinHead.addEventListener('click', function () { expandCard('join'); });
 
     // ---- Create / Join ----
 
@@ -344,6 +374,7 @@
         lastTypingPingAt = 0;
         els.topicInput.value = '';
         els.joinCodeInput.value = '';
+        collapseCards();
         setError('');
         showPanel('landing');
     }
