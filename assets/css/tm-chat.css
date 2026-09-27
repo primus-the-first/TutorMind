@@ -115,8 +115,11 @@ body.dark-mode .history-tray-content .history-item {
 }
 body .history-item:hover,
 body.dark-mode .history-item:hover { background: var(--ds-tint); transform: none; box-shadow: none; }
+/* Active chat: the link itself is the highlighted card, sitting on a solid
+   brand-purple offset edge (the user preferred this to a flat tint). The
+   rename/delete buttons stay outside the card. */
 body .history-item:has(> a.active),
-body.dark-mode .history-item:has(> a.active) { background: var(--ds-tint); border: 0; box-shadow: none; }
+body.dark-mode .history-item:has(> a.active) { background: transparent; border: 0; box-shadow: none; }
 body .history-item > a,
 body.dark-mode .history-item > a {
   padding: 9px 12px;
@@ -127,7 +130,17 @@ body.dark-mode .history-item > a {
   font: 500 0.925rem/1.3 var(--ds-font-body);
 }
 body .history-item > a.active,
-body.dark-mode .history-item > a.active { color: var(--ds-accent-ink); font-weight: 600; background: none; box-shadow: none; }
+body.dark-mode .history-item > a.active {
+  margin-right: 6px;
+  border-radius: var(--ds-r-sm);
+  background: var(--ds-tint);
+  color: var(--ds-accent-ink);
+  font-weight: 600;
+  box-shadow: 4px 4px 0 var(--primary);
+}
+body.dark-mode .history-item > a.active { box-shadow: 4px 4px 0 var(--primary-light); }
+/* the card needs room for its edge */
+body .history-item:has(> a.active) { margin-bottom: 6px; }
 /* `> button`, not .edit-btn/.delete-btn: the list is re-rendered by
    tutor_mysql.js with class-less buttons after the server-rendered one */
 body .history-item > button {
