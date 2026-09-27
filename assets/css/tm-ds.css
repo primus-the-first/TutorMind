@@ -1255,6 +1255,8 @@ body.dark-mode .ds-viewfinder > i { border-color: var(--primary-light); }
   transition: transform 0.6s var(--ds-ease);
 }
 .is-tilting .ds-constellation__plane { transition: transform 0.12s linear; }
+/* the rotateZ swings the grid's corners outward — keep them inside the panel on phones */
+@media (max-width: 600px) { .ds-constellation__plane { inset: 12% 14%; gap: 10px; } }
 .ds-constellation__tile {
   display: flex;
   flex-direction: column;
