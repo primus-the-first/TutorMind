@@ -250,6 +250,12 @@
     });
     host.addEventListener('pointerleave', function () { pointer.tx = 0; pointer.ty = 0; });
 
+    var themeFns = [];
+    new MutationObserver(function () {
+      var dark = document.body.classList.contains('dark-mode');
+      themeFns.forEach(function (fn) { fn(dark); });
+    }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
     var stage = {
       THREE: THREE, C: C, scene: scene, camera: camera, group: group, pointer: pointer,
       reduced: reduceMotion,
@@ -269,6 +275,12 @@
         return reduceMotion ? target : cur + (target - cur) * (1 - Math.exp(-dt * speed));
       },
       renderOnce: function (frame, t) { frame(t, 0); renderer.render(scene, camera); },
+      // fn(isDark) now and on every theme toggle, for materials that sit on
+      // the (theme-following) stage colour rather than a brand colour
+      onTheme: function (fn) {
+        themeFns.push(fn);
+        fn(document.body.classList.contains('dark-mode'));
+      },
       run: function (frame) {
         // opts.maxFps throttles idle scenes (auth pages) so software-rendered
         // WebGL on GPU-less machines doesn't starve the page's own JS
@@ -519,7 +531,7 @@
 
     // Voussoirs along the logo curve, coloured dark→light like the logo's
     // gradient; the centre one is the amber keystone (the logo's dot).
-    var blocks = [];
+    var blocks = [], ghostMats = [], edgeAlpha = 0.32;
     for (var i = 0; i < N; i++) {
       var u = (i + 0.5) / N, pt = path.getPointAt(u), tan = path.getTangentAt(u);
       var isKey = i === KEY;
@@ -531,9 +543,16 @@
       // blueprint ghost of where the stone will go
       var ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: C.light, transparent: true, opacity: 0.06, depthWrite: false }));
       var edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: C.light, transparent: true, opacity: 0.32 }));
+      ghostMats.push(ghost.material, edges.material);
       [ghost, edges].forEach(function (g) { g.position.copy(pt); g.rotation.z = ang; arch.add(g); });
       blocks.push({ mesh: mesh, rest: pt, ang: ang, s: 0, v: 0, target: 0, side: i < KEY ? -1 : 1, isKey: isKey, ghost: [ghost, edges] });
     }
+
+    // Blueprint lines: light purple reads on the dark stage, brand purple on the lavender one
+    s.onTheme(function (dark) {
+      edgeAlpha = dark ? 0.32 : 0.45;
+      ghostMats.forEach(function (m) { m.color.copy(dark ? C.light : C.primary); });
+    });
 
     var ball = s.mesh(new THREE.SphereGeometry(1.5, 32, 20), s.mat(C.light, { roughness: 0.3 }), arch);
     ball.scale.setScalar(0.001);
@@ -566,7 +585,7 @@
         b.mesh.rotation.z = b.ang + k * b.side * 0.7;
         b.mesh.material.opacity = clamp01(b.s * 1.6);
         b.mesh.visible = b.mesh.material.opacity > 0.01;
-        b.ghost[1].material.opacity = 0.32 * (1 - clamp01(b.s));
+        b.ghost[1].material.opacity = edgeAlpha * (1 - clamp01(b.s));
         if (b.isKey) {
           b.mesh.material.emissiveIntensity = mode === 'grant' ? 0.8
             : mode === 'attempt' && !s.reduced ? 0.35 + Math.sin(t * 8) * 0.25 : 0.15 * b.s;
