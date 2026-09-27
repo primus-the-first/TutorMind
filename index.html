@@ -1,424 +1,361 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="TutorMind - Your Personal AI Tutor available 24/7. Get instant help, step-by-step explanations, and personalized learning.">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    
-    <title>TutorMind - Your Personal AI Tutor</title>
+    <title>TutorMind — Stuck? Ask TutorMind.</title>
+    <meta name="description" content="TutorMind is your AI tutor for homework, revision and exams. Ask anything — type it, snap it, upload it or say it — and work it out step by step.">
     <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
     <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
-    
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Funnel+Display:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-    
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- MathJax for LaTeX equations -->
-    <script>
-        MathJax = {
-            tex: {
-                inlineMath: [['\\(', '\\)']],
-                displayMath: [['$$', '$$']]
-            },
-            options: {
-                skipHtmlTags: ['script', 'noscript', 'style', 'textarea']
-            }
-        };
-    </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    
-    <!-- Styles -->
-    <link rel="stylesheet" href="assets/css/landing.css">
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/tm-ds.css">
 </head>
-<body class="light-mode">
-    
-    <!-- =============================================
-         NAVIGATION
-         ============================================= -->
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="index" class="navbar-logo">
-                <img src="assets/logo-bridge.svg" alt="TutorMind Logo" style="height: 32px; width: auto; margin-right: 8px;">
-                TutorMind
-            </a>
-            
-            <div class="navbar-nav">
-                <a href="features" class="nav-link">Features</a>
-                <a href="#how-it-works" class="nav-link">How it works</a>
-                <a href="login" class="nav-link">Login</a>
-                <a href="register" class="nav-btn">Get Started</a>
-                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
-                    <i class="fas fa-moon"></i>
-                </button>
-                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
-                    <i class="fas fa-bars"></i>
-                </button>
+<body class="ds-page">
+    <script>
+        (function () {
+            var q = new URLSearchParams(location.search).get('theme');
+            var saved = null;
+            try { saved = localStorage.getItem('tutormind-theme'); } catch (e) {}
+            if ((q || saved) === 'dark') document.body.classList.add('dark-mode');
+        })();
+    </script>
+
+    <!-- ================= Navigation ================= -->
+    <header class="ds-nav">
+        <nav class="ds-nav__bar" aria-label="Main">
+            <a href="index" class="ds-logo"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+            <div class="ds-nav__links">
+                <a class="ds-nav__link" href="#features">Features</a>
+                <a class="ds-nav__link" href="#how-it-works">How it works</a>
+                <a class="ds-nav__link" href="#subjects">Subjects</a>
+                <a class="ds-nav__link" href="login">Log in</a>
+            </div>
+            <button class="ds-icon-btn" type="button" data-ds-theme aria-label="Dark mode">
+                <svg class="ds-i"><use href="#i-moon"/></svg>
+            </button>
+            <a href="register" class="ds-btn ds-btn--cta ds-btn--sm ds-nav__cta">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a>
+            <button class="ds-icon-btn ds-nav__menu-btn" type="button" data-ds-menu-btn aria-controls="ds-menu" aria-expanded="false" aria-label="Open menu">
+                <svg class="ds-i"><use href="#i-menu"/></svg>
+            </button>
+        </nav>
+        <div class="ds-menu" id="ds-menu" hidden>
+            <a class="ds-menu__link" href="#features">Features <svg class="ds-i"><use href="#i-arrow"/></svg></a>
+            <a class="ds-menu__link" href="#how-it-works">How it works <svg class="ds-i"><use href="#i-arrow"/></svg></a>
+            <a class="ds-menu__link" href="#subjects">Subjects <svg class="ds-i"><use href="#i-arrow"/></svg></a>
+            <div class="ds-menu__actions">
+                <a href="register" class="ds-btn ds-btn--cta ds-btn--block">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a>
+                <a href="login" class="ds-btn ds-btn--tertiary ds-btn--block">Log in</a>
             </div>
         </div>
-    </nav>
+    </header>
 
-    <!-- Mobile Menu Overlay -->
-    <div class="mobile-menu-overlay" id="mobile-menu-overlay">
-        <div class="mobile-menu">
-            <div class="mobile-menu-header">
-                <span class="navbar-logo" style="display: flex; align-items: center;">
-                    <img src="assets/logo-bridge.svg" alt="TutorMind Logo" style="height: 28px; width: auto; margin-right: 8px;">
-                    TutorMind
-                </span>
-                <button class="mobile-menu-close" id="mobile-menu-close" aria-label="Close menu">
-                    <i class="fas fa-times"></i>
-                </button>
+    <main>
+        <!-- ================= Hero ================= -->
+        <section class="ds-hero">
+            <div class="ds-wrap ds-hero__grid">
+                <div class="ds-hero__copy">
+                    <span class="ds-kicker">AI-powered learning</span>
+                    <h1 class="ds-h1">Stuck?<br>Ask <span class="ds-accent">TutorMind.</span></h1>
+                    <p class="ds-lede">Your AI tutor for homework, revision and exams. It walks you through the problem until it clicks, instead of just handing you the answer.</p>
+                    <form class="ds-ask" action="register" method="get" data-ds-ask>
+                        <button type="button" class="ds-ask__tool" aria-label="Ask with your voice"><svg class="ds-i"><use href="#i-mic"/></svg></button>
+                        <label class="ds-visually-hidden" for="hero-q">Your question</label>
+                        <input class="ds-ask__input" id="hero-q" name="q" type="text" placeholder="Ask TutorMind anything..." autocomplete="off">
+                        <button type="button" class="ds-ask__tool" aria-label="Attach a photo or file"><svg class="ds-i"><use href="#i-plus"/></svg></button>
+                        <button type="submit" class="ds-ask__send" aria-label="Ask"><svg class="ds-i"><use href="#i-send"/></svg></button>
+                    </form>
+                    <div class="ds-chip-row" aria-label="Try asking">
+                        <button type="button" class="ds-chip" aria-pressed="false" data-fill="Help me solve 3x − 7 = 11">Solve an equation</button>
+                        <button type="button" class="ds-chip" aria-pressed="false" data-fill="Explain photosynthesis simply">Explain science</button>
+                        <button type="button" class="ds-chip" aria-pressed="false" data-fill="Help me revise for my biology test">Help me revise</button>
+                    </div>
+                </div>
+
+                <div class="ds-hero__visual" data-ds-bridge>
+                    <div class="ds-hero__fallback"><img src="assets/logo-bridge.svg" alt=""></div>
+                    <div class="ds-float ds-float--a"><span class="ds-float__tag">You asked</span><b>Why is x² + 5x + 6 = (x + 2)(x + 3)?</b></div>
+                    <div class="ds-float ds-float--b"><span class="ds-float__tag">Step 2 of 3</span><b>Find two numbers that add to 5…</b></div>
+                </div>
             </div>
-            <nav class="mobile-menu-nav">
-                <a href="features" class="mobile-nav-link">Features</a>
-                <a href="#how-it-works" class="mobile-nav-link">How it works</a>
-                <a href="login" class="mobile-nav-link">Login</a>
-                <a href="register" class="mobile-nav-link primary">Get Your AI Tutor</a>
+        </section>
+
+        <!-- ================= Tagline band ================= -->
+        <section class="ds-band" aria-label="What TutorMind helps with">
+            <div class="ds-wrap ds-band__inner">
+                <p class="ds-band__title">Homework. Revision. Exams.<br><span class="ds-accent">TutorMind’s got you.</span></p>
+                <div class="ds-chip-row">
+                    <span class="ds-chip ds-chip--static">Maths</span>
+                    <span class="ds-chip ds-chip--static">Science</span>
+                    <span class="ds-chip ds-chip--static">English</span>
+                    <span class="ds-chip ds-chip--static">+ more</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Ways to ask ================= -->
+        <section class="ds-section" id="features">
+            <div class="ds-wrap">
+                <div class="ds-section__head ds-reveal">
+                    <h2 class="ds-h2">Questions don’t always<br>come typed out.</h2>
+                    <p class="ds-lede">TutorMind works the way you study.</p>
+                </div>
+                <div class="ds-modes">
+                    <article class="ds-mode ds-mode--type ds-reveal">
+                        <div>
+                            <div class="ds-mode__icon"><svg class="ds-i"><use href="#i-keyboard"/></svg></div>
+                            <h3 class="ds-mode__title" style="margin-top:14px">Type it.</h3>
+                            <p style="margin-top:10px">Ask a normal question, paste a problem, or explain what you’re stuck on in your own words.</p>
+                        </div>
+                        <div class="ds-keys" aria-hidden="true">
+                            <span class="ds-key" style="--i:0">W</span>
+                            <span class="ds-key" style="--i:1">h</span>
+                            <span class="ds-key" style="--i:2">y</span>
+                            <span class="ds-key ds-key--accent" style="--i:3">?</span>
+                        </div>
+                    </article>
+                    <article class="ds-mode ds-mode--snap ds-reveal" data-tilt="6">
+                        <div class="ds-mode__side">
+                            <div>
+                                <div class="ds-mode__icon"><svg class="ds-i"><use href="#i-camera"/></svg></div>
+                                <h3 class="ds-mode__title" style="margin-top:14px">Snap it.</h3>
+                                <p style="margin-top:8px">Take a photo of the question.</p>
+                            </div>
+                            <div class="ds-viewfinder ds-depth" aria-hidden="true"><i></i><i></i><i></i><i></i>3x − 7 = 11<span class="ds-viewfinder__scan"></span></div>
+                        </div>
+                    </article>
+                    <article class="ds-mode ds-mode--upload ds-reveal" data-tilt="6">
+                        <div class="ds-mode__side">
+                            <div>
+                                <div class="ds-mode__icon"><svg class="ds-i"><use href="#i-upload"/></svg></div>
+                                <h3 class="ds-mode__title" style="margin-top:14px">Upload it.</h3>
+                                <p style="margin-top:8px">Notes, worksheets, PDFs.</p>
+                            </div>
+                            <div class="ds-papers ds-depth" aria-hidden="true"><i></i><i></i><i>notes.pdf</i></div>
+                        </div>
+                    </article>
+                    <article class="ds-mode ds-mode--say ds-reveal">
+                        <div class="ds-mode__icon"><svg class="ds-i"><use href="#i-mic"/></svg></div>
+                        <div>
+                            <h3 class="ds-mode__title">Say it.</h3>
+                            <p style="margin-top:8px">Talk a concept through out loud with your AI tutor, like you would with a real one.</p>
+                        </div>
+                        <div class="ds-voice">
+                            <div class="ds-wavebars" data-count="16" aria-hidden="true"></div>
+                            <a class="ds-mic" href="register" aria-label="Try the voice tutor"><svg class="ds-i"><use href="#i-mic"/></svg></a>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Journey ================= -->
+        <section class="ds-stage ds-on-stage" id="how-it-works">
+            <div class="ds-wrap">
+                <div class="ds-section__head ds-reveal">
+                    <h2 class="ds-h2">From “huh?” to <span class="ds-accent">“ohhh.”</span></h2>
+                    <p class="ds-lede">Not just an answer. A way through the problem.</p>
+                </div>
+                <div class="ds-steps">
+                    <div class="ds-step">
+                        <div class="ds-step__copy">
+                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true"><path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30"/><circle class="ds-step__dot" cx="20" cy="8" r="3.5"/></svg>1 · Ask</span>
+                            <h3 class="ds-step__title">Start with whatever’s confusing you.</h3>
+                            <p>Half a question is fine. “I don’t get this” is fine. TutorMind asks what you need to know first.</p>
+                        </div>
+                        <div class="ds-mock" aria-hidden="true">
+                            <div class="ds-mock__screen">
+                                <div class="ds-bubble ds-bubble--me">Why does ice float if it’s literally solid water??</div>
+                                <div class="ds-mock__meta"><img src="assets/logo-bridge.svg" alt="">TutorMind is thinking…</div>
+                                <div class="ds-bubble ds-bubble--tutor">Good question. Quick check first: what do you think happens to water molecules when it freezes? Do they get closer or further apart?</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ds-step">
+                        <div class="ds-step__copy">
+                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true"><path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30"/><circle class="ds-step__dot" cx="20" cy="8" r="3.5"/></svg>2 · Understand</span>
+                            <h3 class="ds-step__title">It breaks it down, one step at a time.</h3>
+                            <p>Each step builds on the one before, and TutorMind checks you’re with it before moving on.</p>
+                        </div>
+                        <div class="ds-mock" aria-hidden="true">
+                            <div class="ds-mock__screen">
+                                <ol class="ds-mock__steps">
+                                    <li class="is-done"><span>1</span><span>Freezing locks molecules into a hexagonal lattice.</span></li>
+                                    <li class="is-now"><span>2</span><span>The lattice holds them <b>further apart</b> than in liquid water.</span></li>
+                                    <li><span>3</span><span>Same mass, more volume → lower density.</span></li>
+                                </ol>
+                                <div class="ds-ask" style="margin-top:6px">
+                                    <span class="ds-ask__input" style="color:var(--ds-stage-ink-2)">So it’s less dense because…</span>
+                                    <span class="ds-ask__send"><svg class="ds-i"><use href="#i-send"/></svg></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ds-step">
+                        <div class="ds-step__copy">
+                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true"><path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30"/><circle class="ds-step__dot" cx="20" cy="8" r="3.5"/></svg>3 · Practice</span>
+                            <h3 class="ds-step__title">Test yourself until it actually sticks.</h3>
+                            <p>Quick checks and practice questions, shaped around exactly what you just got stuck on.</p>
+                        </div>
+                        <div class="ds-mock" aria-hidden="true">
+                            <div class="ds-mock__screen">
+                                <div class="ds-progress"><span>Question 3 of 5</span><span class="ds-progress__track"><span class="ds-progress__fill" style="display:block"></span></span></div>
+                                <p class="ds-quiz__q">Which is denser at 0 °C?</p>
+                                <div class="ds-quiz__opt is-correct">Liquid water <svg class="ds-i"><use href="#i-check"/></svg></div>
+                                <div class="ds-quiz__opt">Ice</div>
+                                <div class="ds-quiz__opt">They’re the same</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Subjects ================= -->
+        <section class="ds-stage ds-on-stage" id="subjects">
+            <div class="ds-wrap">
+                <div class="ds-section__head ds-section__head--row ds-reveal">
+                    <div style="display:grid;gap:14px">
+                        <h2 class="ds-h2">Learn almost anything.</h2>
+                        <p class="ds-lede">Pick a subject, or just ask. TutorMind figures out the rest.</p>
+                    </div>
+                    <a class="ds-link" href="register">Explore all subjects <svg class="ds-i"><use href="#i-arrow"/></svg></a>
+                </div>
+                <div class="ds-subjects">
+                    <a class="ds-card ds-subject" href="register" data-tilt="7">
+                        <div class="ds-art"><div class="ds-obj ds-cube"><span>x²</span><span>π</span><span>√</span><span>∑</span><span>∫</span><span>÷</span></div></div>
+                        <h3 class="ds-card__title">Mathematics</h3>
+                        <p class="ds-subject__topics">Algebra · Calculus · Geometry</p>
+                    </a>
+                    <a class="ds-card ds-subject" href="register" data-tilt="7">
+                        <div class="ds-art"><div class="ds-obj ds-wave"></div></div>
+                        <h3 class="ds-card__title">Physics</h3>
+                        <p class="ds-subject__topics">Mechanics · Waves · Electricity</p>
+                    </a>
+                    <a class="ds-card ds-subject" href="register" data-tilt="7">
+                        <div class="ds-art"><div class="ds-obj ds-atom"><span class="ds-atom__core"></span><span class="ds-atom__orbit"><i></i></span><span class="ds-atom__orbit"><i></i></span><span class="ds-atom__orbit"><i></i></span></div></div>
+                        <h3 class="ds-card__title">Chemistry</h3>
+                        <p class="ds-subject__topics">Organic · Atoms · Reactions</p>
+                    </a>
+                    <a class="ds-card ds-subject" href="register" data-tilt="7">
+                        <div class="ds-art"><div class="ds-obj ds-helix"></div></div>
+                        <h3 class="ds-card__title">Biology</h3>
+                        <p class="ds-subject__topics">Cells · Genetics · Ecology</p>
+                    </a>
+                    <a class="ds-card ds-subject" href="register" data-tilt="7">
+                        <div class="ds-art"><div class="ds-obj ds-stack"><i></i><i></i><i>&lt;/&gt;</i></div></div>
+                        <h3 class="ds-card__title">Computer Science</h3>
+                        <p class="ds-subject__topics">Programming · Logic · Data</p>
+                    </a>
+                    <a class="ds-card ds-subject" href="register" data-tilt="7">
+                        <div class="ds-art"><div class="ds-obj ds-book"><span class="ds-book__cover"></span><span class="ds-book__half ds-book__half--l"></span><span class="ds-book__half ds-book__half--r"></span><span class="ds-book__page"></span></div></div>
+                        <h3 class="ds-card__title">English</h3>
+                        <p class="ds-subject__topics">Writing · Grammar · Literature</p>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Everything you need ================= -->
+        <section class="ds-section">
+            <div class="ds-wrap">
+                <div class="ds-section__head ds-reveal">
+                    <span class="ds-kicker">Features</span>
+                    <h2 class="ds-h2">Everything you need<br>to study better.</h2>
+                </div>
+                <div class="ds-features">
+                    <article class="ds-card ds-card--featured ds-reveal" data-tilt="6"><span class="ds-card__kind">01</span><div class="ds-depth-sm"><h3 class="ds-card__title">Ask anything</h3><p class="ds-card__body">Any subject, any level, in your own words.</p></div></article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">02</span><div class="ds-depth-sm"><h3 class="ds-card__title">Step-by-step</h3><p class="ds-card__body">Guided walkthroughs, not answer dumps.</p></div></article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">03</span><div class="ds-depth-sm"><h3 class="ds-card__title">Voice tutor</h3><p class="ds-card__body">Talk it through, hands-free.</p></div></article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">04</span><div class="ds-depth-sm"><h3 class="ds-card__title">Upload notes</h3><p class="ds-card__body">Turn your own notes into lessons and quizzes.</p></div></article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">05</span><div class="ds-depth-sm"><h3 class="ds-card__title">Practice mode</h3><p class="ds-card__body">Quick checks that adapt as you improve.</p></div></article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">06</span><div class="ds-depth-sm"><h3 class="ds-card__title">Saved study</h3><p class="ds-card__body">Pick up exactly where you left off.</p></div></article>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= Personalized ================= -->
+        <section class="ds-section" style="padding-top:0">
+            <div class="ds-wrap ds-split">
+                <div class="ds-card ds-profile ds-reveal" data-tilt="5" aria-label="Example learning profile">
+                    <div class="ds-profile__row">
+                        <span class="ds-profile__label">How you like things explained</span>
+                        <div class="ds-chip-row">
+                            <span class="ds-chip ds-chip--static is-on">Examples first</span>
+                            <span class="ds-chip ds-chip--static">Visual</span>
+                            <span class="ds-chip ds-chip--static is-on">Step-by-step</span>
+                            <span class="ds-chip ds-chip--static">Big picture</span>
+                        </div>
+                    </div>
+                    <div class="ds-profile__row">
+                        <label class="ds-profile__label" for="pace">Pace</label>
+                        <input class="ds-range" id="pace" type="range" min="0" max="100" value="40">
+                        <div class="ds-profile__scale"><span>Take it slow</span><span>Keep it moving</span></div>
+                    </div>
+                </div>
+                <div class="ds-section__head ds-reveal" style="margin:0">
+                    <span class="ds-kicker">Personalized learning</span>
+                    <h2 class="ds-h2">TutorMind adapts to how you learn.</h2>
+                    <p class="ds-lede">It remembers what trips you up, how you like things explained, and how fast you want to go, then adjusts every session.</p>
+                    <div><a href="register" class="ds-btn ds-btn--secondary">Build your profile <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= FAQ ================= -->
+        <section class="ds-section" style="padding-top:0" id="faq">
+            <div class="ds-wrap ds-split" style="align-items:start">
+                <div class="ds-section__head ds-reveal">
+                    <h2 class="ds-h2">Questions?</h2>
+                    <p class="ds-lede">The quick answers.</p>
+                </div>
+                <div class="ds-faq ds-reveal">
+                    <details class="ds-faq__item">
+                        <summary>Is TutorMind free?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
+                        <p>Yes, you can get started for free.</p>
+                    </details>
+                    <details class="ds-faq__item">
+                        <summary>Can I upload homework?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
+                        <p>Yes. Snap a photo or upload a PDF or document, and TutorMind will work through it with you.</p>
+                    </details>
+                    <details class="ds-faq__item">
+                        <summary>Will it just give me the answers?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
+                        <p>No, on purpose. TutorMind guides you to work it out yourself, because that’s what makes it stick on exam day.</p>
+                    </details>
+                    <details class="ds-faq__item">
+                        <summary>Can I talk to it instead of typing?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
+                        <p>Yes. The voice tutor lets you ask questions and talk ideas through out loud.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= CTA ================= -->
+        <section class="ds-wrap">
+            <div class="ds-cta ds-reveal">
+                <h2 class="ds-h2">Ready to learn differently?</h2>
+                <p class="ds-lede">Learning starts with one question.</p>
+                <a href="register" class="ds-btn ds-btn--cta">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="ds-footer">
+        <div class="ds-wrap ds-footer__inner">
+            <a href="index" class="ds-logo"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+            <nav class="ds-footer__links" aria-label="Footer">
+                <a href="features">Features</a>
+                <a href="#how-it-works">How it works</a>
+                <a href="login">Log in</a>
+                <a href="register">Sign up</a>
             </nav>
         </div>
-    </div>
+    </footer>
 
-    <!-- =============================================
-         HERO SECTION
-         ============================================= -->
-    <section class="hero-section">
-        <!-- Three.js canvas background -->
-        <div id="canvas-container"></div>
-
-        <!-- Floating LaTeX Equation Markers -->
-        <div class="floating-equations">
-            <div class="equation-marker" data-depth="0.006" style="top: 20%; left: 10%; animation-delay: -1.2s;">
-                \(a^2 + b^2 = c^2\)
-            </div>
-            <div class="equation-marker" data-depth="0.004" style="top: 35%; left: 5%; animation-delay: -3.5s;">
-                \(E = mc^2\)
-            </div>
-            <div class="equation-marker" data-depth="0.008" style="top: 65%; left: 15%; animation-delay: -0.8s;">
-                \(\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}\)
-            </div>
-            <div class="equation-marker" data-depth="0.005" style="top: 80%; left: 40%; animation-delay: -4.2s;">
-                \(e^{i\pi} + 1 = 0\)
-            </div>
-            <div class="equation-marker" data-depth="0.007" style="top: 50%; left: 3%; animation-delay: -2.1s;">
-                \(\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}\)
-            </div>
-            <div class="equation-marker" data-depth="0.009" style="top: 15%; right: 8%; animation-delay: -4.8s;">
-                notes
-            </div>
-            <div class="equation-marker" data-depth="0.003" style="top: 45%; right: 5%; animation-delay: -3.1s;">
-                study
-            </div>
-            <div class="equation-marker" data-depth="0.006" style="top: 75%; right: 12%; animation-delay: -1.5s;">
-                learn
-            </div>
-            <div class="equation-marker" data-depth="0.005" style="top: 25%; right: 15%; animation-delay: -5.8s;">
-                idea
-            </div>
-        </div>
-        
-        <div class="hero-container">
-            <div class="hero-grid">
-                <!-- Left Side - Content -->
-                <div class="hero-content" data-depth="0.008">
-                    <h1 class="hero-title">
-                        Your Personal <br>
-                        <span class="hero-highlight">AI Tutor</span>, <br>
-                        Available 24/7.
-                    </h1>
-                    <p class="hero-subtitle">
-                        Get instant help, step-by-step explanations, and 
-                        practice tailored to your learning style.
-                    </p>
-                    
-                    <div class="hero-actions">
-                        <a href="register" class="cta-primary">
-                            Get Your AI Tutor
-                            <i class="fas fa-arrow-right"></i>
-                        </a>
-                        <a href="#features" class="cta-secondary">
-                            See how it works
-                            <i class="fas fa-chevron-down"></i>
-                        </a>
-                    </div>
-                </div>
-                
-                <!-- Right Side - Illustration -->
-                <div class="hero-illustration" data-depth="0.012">
-                    <div class="illustration-container">
-                        <!-- Student Image -->
-                        <div class="student-image-wrapper" data-depth="0.018">
-                            <img 
-                                src="assets/student_studying.png" 
-                                alt="Student learning with TutorMind" 
-                                class="student-image"
-                                width="500"
-                                height="400"
-                                fetchpriority="high"
-                            >
-                        </div>
-                        
-                        <!-- Floating Chat Bubble -->
-                        <div class="chat-bubble" data-depth="0.038">
-                            <div class="chat-bubble-header">
-                                <span class="chat-bubble-name">TutorMind</span>
-                            </div>
-                            <p class="chat-bubble-text">How can I help you today? 📚</p>
-                        </div>
-                        
-                        <!-- Floating Math Bubble -->
-                        <div class="math-bubble" data-depth="0.028">
-                            <span class="math-bubble-content">x² + 5x = 12</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-</div>
-    </section>
-
-    <!-- =============================================
-         FEATURES SECTION
-         ============================================= -->
-    <section class="features-section" id="features">
-        <div class="features-container">
-            <div class="features-grid">
-                <!-- Feature 1 -->
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 60px; height: 60px;">
-                            <rect x="20" y="5" width="40" height="70" rx="8" fill="#2D2438" stroke="#7C3AED" stroke-width="2"/>
-                            <rect x="25" y="12" width="30" height="50" rx="3" fill="#F5F3FF"/>
-                            <circle cx="40" cy="37" r="12" fill="#7C3AED" opacity="0.2"/>
-                            <circle cx="40" cy="37" r="8" stroke="#7C3AED" stroke-width="2" fill="none"/>
-                            <circle cx="40" cy="37" r="3" fill="#7C3AED"/>
-                            <rect x="28" y="52" width="24" height="6" rx="2" fill="#F59E0B" opacity="0.3"/>
-                            <text x="40" y="57" text-anchor="middle" font-size="5" fill="#2D2438">x² = 4</text>
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Ask Your Question</h3>
-                    <p class="feature-desc">Snap a photo or type it in – we understand both!</p>
-                    <a href="register" class="feature-link">
-                        Try it <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-                
-                <!-- Feature 2 -->
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 60px; height: 60px;">
-                            <!-- Step 1 -->
-                            <rect x="5" y="10" width="30" height="18" rx="4" fill="white" stroke="#7C3AED" stroke-width="1.5"/>
-                            <circle cx="15" cy="19" r="5" fill="#7C3AED"/>
-                            <text x="15" y="22" text-anchor="middle" font-size="7" fill="white" font-weight="bold">1</text>
-                            <rect x="24" y="16" width="8" height="3" rx="1" fill="#E5E7EB"/>
-                            <!-- Arrow -->
-                            <path d="M38 19 L45 19" stroke="#F59E0B" stroke-width="2"/>
-                            <path d="M43 16 L47 19 L43 22" fill="#F59E0B"/>
-                            <!-- Step 2 -->
-                            <rect x="50" y="10" width="25" height="18" rx="4" fill="white" stroke="#7C3AED" stroke-width="1.5"/>
-                            <circle cx="58" cy="19" r="5" fill="#7C3AED"/>
-                            <text x="58" y="22" text-anchor="middle" font-size="7" fill="white" font-weight="bold">2</text>
-                            <!-- Arrow down -->
-                            <path d="M62 32 L62 38" stroke="#F59E0B" stroke-width="2"/>
-                            <path d="M59 36 L62 40 L65 36" fill="#F59E0B"/>
-                            <!-- Step 3 -->
-                            <rect x="50" y="44" width="25" height="18" rx="4" fill="white" stroke="#7C3AED" stroke-width="1.5"/>
-                            <circle cx="58" cy="53" r="5" fill="#7C3AED"/>
-                            <text x="58" y="56" text-anchor="middle" font-size="7" fill="white" font-weight="bold">3</text>
-                            <!-- Arrow left -->
-                            <path d="M47 53 L40 53" stroke="#F59E0B" stroke-width="2"/>
-                            <path d="M42 50 L38 53 L42 56" fill="#F59E0B"/>
-                            <!-- Solution -->
-                            <rect x="5" y="44" width="30" height="18" rx="4" fill="#F59E0B"/>
-                            <text x="20" y="55" text-anchor="middle" font-size="6" fill="#2D2438" font-weight="bold">✓ DONE</text>
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Step-by-Step</h3>
-                    <p class="feature-desc">Clear explanations that actually make sense.</p>
-                    <a href="register" class="feature-link">
-                        Learn more <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-                
-                <!-- Feature 3 -->
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 60px; height: 60px;">
-                            <!-- Brain outline -->
-                            <ellipse cx="40" cy="40" rx="28" ry="25" fill="#7C3AED" opacity="0.1"/>
-                            <ellipse cx="40" cy="40" rx="22" ry="20" fill="#7C3AED" opacity="0.15"/>
-                            <!-- Brain pattern -->
-                            <path d="M28 35 Q35 25 40 30 Q45 25 52 35" stroke="#7C3AED" stroke-width="2" fill="none" stroke-linecap="round"/>
-                            <path d="M25 42 Q32 36 40 40 Q48 36 55 42" stroke="#7C3AED" stroke-width="2" fill="none" stroke-linecap="round"/>
-                            <path d="M28 50 Q35 56 40 52 Q45 56 52 50" stroke="#7C3AED" stroke-width="2" fill="none" stroke-linecap="round"/>
-                            <!-- Neural nodes -->
-                            <circle cx="18" cy="28" r="4" fill="#F59E0B"/>
-                            <line x1="22" y1="30" x2="30" y2="35" stroke="#F59E0B" stroke-width="1.5"/>
-                            <circle cx="62" cy="28" r="4" fill="#F59E0B"/>
-                            <line x1="58" y1="30" x2="50" y2="35" stroke="#F59E0B" stroke-width="1.5"/>
-                            <circle cx="15" cy="50" r="3" fill="#7C3AED"/>
-                            <line x1="18" y1="48" x2="26" y2="45" stroke="#7C3AED" stroke-width="1.5"/>
-                            <circle cx="65" cy="50" r="3" fill="#7C3AED"/>
-                            <line x1="62" y1="48" x2="54" y2="45" stroke="#7C3AED" stroke-width="1.5"/>
-                            <!-- Center glow -->
-                            <circle cx="40" cy="40" r="8" fill="#7C3AED" opacity="0.3"/>
-                            <circle cx="40" cy="40" r="4" fill="#F59E0B"/>
-                            <!-- 24/7 badge -->
-                            <rect x="52" y="60" width="22" height="12" rx="6" fill="#2D2438"/>
-                            <text x="63" y="69" text-anchor="middle" font-size="7" fill="white" font-weight="bold">24/7</text>
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">AI Tutoring</h3>
-                    <p class="feature-desc">Personalized learning that adapts to you.</p>
-                    <a href="register" class="feature-link">
-                        Explore <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-                
-                <!-- Feature 4 -->
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 60px; height: 60px;">
-                            <!-- Bookshelf -->
-                            <rect x="10" y="12" width="60" height="56" rx="4" fill="white" stroke="#2D2438" stroke-width="2"/>
-                            <!-- Shelf lines -->
-                            <line x1="10" y1="35" x2="70" y2="35" stroke="#2D2438" stroke-width="1.5"/>
-                            <line x1="10" y1="55" x2="70" y2="55" stroke="#2D2438" stroke-width="1.5"/>
-                            <!-- Top shelf books -->
-                            <rect x="15" y="16" width="8" height="16" rx="1" fill="#7C3AED"/>
-                            <rect x="25" y="18" width="7" height="14" rx="1" fill="#F59E0B"/>
-                            <rect x="34" y="17" width="9" height="15" rx="1" fill="#A78BFA"/>
-                            <rect x="45" y="19" width="6" height="13" rx="1" fill="#2D2438"/>
-                            <rect x="53" y="16" width="8" height="16" rx="1" fill="#7C3AED" opacity="0.7"/>
-                            <!-- Middle shelf books -->
-                            <rect x="15" y="38" width="10" height="14" rx="1" fill="#F59E0B"/>
-                            <rect x="27" y="40" width="7" height="12" rx="1" fill="#7C3AED"/>
-                            <rect x="36" y="39" width="8" height="13" rx="1" fill="#2D2438"/>
-                            <rect x="46" y="41" width="6" height="11" rx="1" fill="#A78BFA"/>
-                            <rect x="54" y="38" width="9" height="14" rx="1" fill="#7C3AED"/>
-                            <!-- Bottom shelf - folders -->
-                            <rect x="15" y="58" width="14" height="8" rx="2" fill="#FEF3C7" stroke="#F59E0B" stroke-width="0.5"/>
-                            <rect x="32" y="58" width="14" height="8" rx="2" fill="#E0E7FF" stroke="#7C3AED" stroke-width="0.5"/>
-                            <rect x="49" y="58" width="14" height="8" rx="2" fill="#FEF3C7" stroke="#F59E0B" stroke-width="0.5"/>
-                            <!-- Bookmark -->
-                            <path d="M72 8 L72 22 L76 18 L80 22 L80 8 Z" fill="#F59E0B" stroke="#2D2438" stroke-width="1"/>
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Save & Practice</h3>
-                    <p class="feature-desc">Build your personal study library.</p>
-                    <a href="register" class="feature-link">
-                        Start now <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- =============================================
-         BOTTOM BAR
-         ============================================= -->
-    <div class="bottom-bar">
-        <div class="testimonial">
-            <span class="quote-mark">"</span>
-            <span>"TutorMind saved my grades in calculus! Highly recommend."</span>
-        </div>
-        
-        <div class="social-links">
-            <a href="#" class="social-link" aria-label="Twitter">
-                <i class="fab fa-twitter"></i>
-            </a>
-            <a href="#" class="social-link" aria-label="Facebook">
-                <i class="fab fa-facebook-f"></i>
-            </a>
-            <a href="#" class="social-link" aria-label="Instagram">
-                <i class="fab fa-instagram"></i>
-            </a>
-            <a href="#" class="social-link" aria-label="Email">
-                <i class="fas fa-envelope"></i>
-            </a>
-        </div>
-        
-        <a href="register" class="cta-primary small">
-            Get Started
-        </a>
-    </div>
-
-    <!-- Three.js for 3D particle animation -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-    <!-- Scripts (Inline for demo simplicty or just reuse text from index) -->
-    <script src="assets/js/landing.js"></script> 
-    <!-- Reuse JS since it handles themes/mobile menu which are consistent structure -->
-    <script>
-        // Inline JS for mobile menu if landing.js isn't generic enough, but it likely is.
-        // Actually I'll just include the script form index.html inline to be safe.
-        document.addEventListener('DOMContentLoaded', function() {
-            // Theme Toggle
-            const themeToggle = document.getElementById('theme-toggle');
-            const body = document.body;
-            const icon = themeToggle.querySelector('i');
-            
-            // Load saved theme
-            const savedTheme = localStorage.getItem('tutormind-theme');
-            if (savedTheme === 'dark') {
-                body.classList.remove('light-mode');
-                body.classList.add('dark-mode');
-                icon.classList.remove('fa-moon');
-                icon.classList.add('fa-sun');
-            }
-            
-            themeToggle.addEventListener('click', function() {
-                body.classList.toggle('dark-mode');
-                body.classList.toggle('light-mode');
-
-                if (body.classList.contains('dark-mode')) {
-                    icon.classList.remove('fa-moon');
-                    icon.classList.add('fa-sun');
-                    localStorage.setItem('tutormind-theme', 'dark');
-                } else {
-                    icon.classList.remove('fa-sun');
-                    icon.classList.add('fa-moon');
-                    localStorage.setItem('tutormind-theme', 'light');
-                }
-
-                if (window._updateThreeJsTheme) window._updateThreeJsTheme();
-            });
-
-             // Mobile Menu
-            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-            const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
-            const mobileMenuClose = document.getElementById('mobile-menu-close');
-            const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
-            
-            function openMobileMenu() {
-                mobileMenuOverlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            }
-            
-            function closeMobileMenu() {
-                mobileMenuOverlay.classList.remove('active');
-                document.body.style.overflow = '';
-            }
-            
-            if(mobileMenuBtn) mobileMenuBtn.addEventListener('click', openMobileMenu);
-            if(mobileMenuClose) mobileMenuClose.addEventListener('click', closeMobileMenu);
-            
-            mobileMenuOverlay.addEventListener('click', function(e) {
-                if (e.target === mobileMenuOverlay) {
-                    closeMobileMenu();
-                }
-            });
-            
-            mobileNavLinks.forEach(link => {
-                link.addEventListener('click', function() {
-                    closeMobileMenu();
-                });
-            });
-        });
-    </script>
+    <script src="assets/js/tm-ds.js"></script>
 </body>
 </html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>TutorMind Design System</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/tm-ds.css">
+    <style>
+        /* Sheet-only layout (not part of the system) */
+        .sheet-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 32px 0 8px; }
+        .sheet-head__title { display: grid; gap: 6px; }
+        .sheet-head__actions { display: flex; gap: 8px; align-items: center; }
+        .sheet { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); padding: 24px 0 64px; }
+        .panel { grid-column: span 12; display: grid; align-content: start; gap: 14px; padding: 18px; border: 1px solid var(--ds-line); border-radius: var(--ds-r-xl); background: var(--ds-surface); }
+        @media (min-width: 900px) {
+            .panel--4 { grid-column: span 4; }
+            .panel--6 { grid-column: span 6; }
+            .panel--8 { grid-column: span 8; }
+        }
+        .panel__title { margin: 0; font: 700 1.05rem var(--ds-font-display); letter-spacing: -0.01em; }
+        .panel__note { margin: -8px 0 0; font-size: 0.9rem; color: var(--ds-ink-2); }
+        .specimen { display: grid; gap: 14px; align-content: start; padding: 20px; border-radius: var(--ds-r-lg); background: var(--ds-canvas); }
+        .specimen--stage { background: var(--ds-stage); color: var(--ds-stage-ink); }
+        body.dark-mode .specimen--stage { background: var(--ds-canvas); }
+        .specimen--row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+        .swatches { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+        .swatch { display: grid; gap: 6px; font-size: 0.85rem; }
+        .swatch__chip { height: 64px; border-radius: var(--ds-r-md); border: 1px solid var(--ds-line); }
+        .swatch code { font: 500 0.78rem ui-monospace, 'Roboto Mono', monospace; color: var(--ds-ink-2); }
+        .radii { display: flex; flex-wrap: wrap; gap: 12px; }
+        .radius { width: 76px; height: 76px; display: grid; place-items: center; background: var(--ds-tint); border: 2px solid var(--primary); font-size: 0.8rem; font-weight: 600; color: var(--ds-accent-ink); }
+        .type-row { display: grid; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--ds-line); }
+        .type-row:last-child { border-bottom: 0; padding-bottom: 0; }
+        .type-row code { font: 500 0.78rem ui-monospace, 'Roboto Mono', monospace; color: var(--ds-ink-2); }
+        .cards-4 { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+        .arts { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+        .arts figure { margin: 0; display: grid; gap: 8px; }
+        .arts figcaption { font-size: 0.85rem; color: var(--ds-stage-ink-2); }
+        .rule-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ds-ink-2); font-size: 0.95rem; }
+        .rule-list b { color: var(--ds-ink); }
+    </style>
+</head>
+<body class="ds-page">
+    <script>
+        (function () {
+            var q = new URLSearchParams(location.search).get('theme');
+            var saved = null;
+            try { saved = localStorage.getItem('tutormind-theme'); } catch (e) {}
+            if ((q || saved) === 'dark') document.body.classList.add('dark-mode');
+        })();
+    </script>
+
+    <div class="ds-wrap">
+        <header class="sheet-head">
+            <div class="sheet-head__title">
+                <a href="index" class="ds-logo"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+                <h1 class="ds-h2">Design system</h1>
+                <p class="ds-muted" style="margin:0">Preview, Sept 2026. Brand tokens, smaller radii, and a depth layer on top.</p>
+            </div>
+            <div class="sheet-head__actions">
+                <button class="ds-icon-btn" type="button" data-ds-theme aria-label="Dark mode"><svg class="ds-i"><use href="#i-moon"/></svg></button>
+                <a class="ds-btn ds-btn--primary ds-btn--sm" href="index">See it on the landing <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a>
+            </div>
+        </header>
+
+        <main class="sheet">
+            <!-- Colour -->
+            <section class="panel panel--8">
+                <h2 class="panel__title">Colour</h2>
+                <p class="panel__note">Same tokens as ui-overhaul.css. One accent system: purple for structure, amber for the single main action, green only for “correct”.</p>
+                <div class="swatches">
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--primary)"></div>Primary<code>--primary #7C3AED</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--primary-light)"></div>Primary light<code>--primary-light</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--primary-dark)"></div>Primary dark<code>--primary-dark</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--cta)"></div>CTA<code>--cta #F59E0B</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--cta-hover)"></div>CTA hover<code>--cta-hover</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--tm-good)"></div>Correct only<code>--tm-good</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--ds-canvas)"></div>Canvas<code>--ds-canvas</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--ds-surface)"></div>Surface<code>--ds-surface</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--ds-tint)"></div>Tint<code>--ds-tint</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--ds-ink)"></div>Ink<code>--ds-ink</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--ds-stage)"></div>Stage<code>--ds-stage</code></div>
+                    <div class="swatch"><div class="swatch__chip" style="background:var(--ds-stage-surface)"></div>Stage surface<code>--ds-stage-surface</code></div>
+                </div>
+            </section>
+
+            <!-- Shape & depth -->
+            <section class="panel panel--4">
+                <h2 class="panel__title">Shape &amp; depth</h2>
+                <p class="panel__note">Modest radii instead of pills. Depth comes from a solid edge, not gradients.</p>
+                <div class="radii">
+                    <div class="radius" style="border-radius:var(--ds-r-sm)">8 · sm</div>
+                    <div class="radius" style="border-radius:var(--ds-r-md)">10 · md</div>
+                    <div class="radius" style="border-radius:var(--ds-r-lg)">14 · lg</div>
+                    <div class="radius" style="border-radius:var(--ds-r-xl)">20 · xl</div>
+                </div>
+                <ul class="rule-list">
+                    <li><b>Edge</b>: a 4px bottom edge that presses flat</li>
+                    <li><b>Tilt</b>: cards follow the pointer in 3D</li>
+                    <li><b>Objects</b>: CSS/WebGL 3D, used sparingly</li>
+                </ul>
+            </section>
+
+            <!-- Type -->
+            <section class="panel panel--6">
+                <h2 class="panel__title">Type</h2>
+                <div class="type-row"><span class="ds-h1" style="font-size:3.25rem">Stuck?</span><code>Display · Funnel Display 700 · h1</code></div>
+                <div class="type-row"><span class="ds-h2" style="font-size:2rem">Learn almost anything.</span><code>Display · Funnel Display 700 · h2</code></div>
+                <div class="type-row"><span class="ds-h3">Step-by-step</span><code>Display · Funnel Display 700 · h3 / card title</code></div>
+                <div class="type-row"><span class="ds-kicker">Personalized learning</span><code>Kicker · sentence case + bridge mark (no uppercase eyebrows)</code></div>
+                <div class="type-row"><span>Ask a normal question, paste a problem, or explain what you’re stuck on.</span><code>Body · Outfit 400</code></div>
+            </section>
+
+            <!-- Buttons -->
+            <section class="panel panel--6">
+                <h2 class="panel__title">Buttons</h2>
+                <p class="panel__note">Press them. Amber CTA is for the one main action on a screen.</p>
+                <div class="specimen specimen--row">
+                    <button class="ds-btn ds-btn--primary" type="button">Primary <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    <button class="ds-btn ds-btn--secondary" type="button">Secondary <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    <button class="ds-btn ds-btn--tertiary" type="button">Tertiary <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    <button class="ds-btn ds-btn--cta" type="button">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    <button class="ds-btn ds-btn--primary ds-btn--sm" type="button">Small</button>
+                    <button class="ds-btn ds-btn--primary" type="button" disabled>Disabled</button>
+                </div>
+                <div class="specimen specimen--stage specimen--row ds-on-stage">
+                    <button class="ds-btn ds-btn--primary" type="button">Primary <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    <button class="ds-btn ds-btn--secondary" type="button">Secondary <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    <button class="ds-btn ds-btn--tertiary" type="button">Tertiary <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                </div>
+            </section>
+
+            <!-- Chips -->
+            <section class="panel panel--4">
+                <h2 class="panel__title">Chips / tags</h2>
+                <p class="panel__note">Click to select.</p>
+                <div class="specimen">
+                    <div class="ds-chip-row">
+                        <button class="ds-chip" type="button" aria-pressed="false" onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') !== 'true')">Solve an equation</button>
+                        <button class="ds-chip" type="button" aria-pressed="true" onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') !== 'true')">Explain science</button>
+                        <button class="ds-chip" type="button" aria-pressed="false" onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed') !== 'true')">Help me revise</button>
+                    </div>
+                </div>
+                <div class="specimen specimen--stage ds-on-stage">
+                    <div class="ds-chip-row">
+                        <span class="ds-chip ds-chip--static">Maths</span>
+                        <span class="ds-chip ds-chip--static">Science</span>
+                        <span class="ds-chip ds-chip--static is-on">English</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Question input -->
+            <section class="panel panel--8">
+                <h2 class="panel__title">Question input</h2>
+                <p class="panel__note">Hero on the landing page, and a candidate for the chat composer. Sits on its own edge and lifts on focus.</p>
+                <div class="specimen">
+                    <form class="ds-ask" action="#" data-ds-ask onsubmit="event.preventDefault()">
+                        <button type="button" class="ds-ask__tool" aria-label="Ask with your voice"><svg class="ds-i"><use href="#i-mic"/></svg></button>
+                        <label class="ds-visually-hidden" for="sheet-q">Your question</label>
+                        <input class="ds-ask__input" id="sheet-q" type="text" placeholder="Ask TutorMind anything...">
+                        <button type="button" class="ds-ask__tool" aria-label="Attach a photo or file"><svg class="ds-i"><use href="#i-plus"/></svg></button>
+                        <button type="submit" class="ds-ask__send" aria-label="Ask"><svg class="ds-i"><use href="#i-send"/></svg></button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Navigation -->
+            <section class="panel panel--6">
+                <h2 class="panel__title">Navigation</h2>
+                <div class="specimen" style="padding:14px">
+                    <nav class="ds-nav__bar" aria-label="Example" style="max-width:none;margin:0">
+                        <a href="index" class="ds-logo"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+                        <button class="ds-icon-btn" type="button" data-ds-menu-btn aria-controls="sheet-menu" aria-expanded="false" aria-label="Open menu" style="display:inline-grid"><svg class="ds-i"><use href="#i-menu"/></svg></button>
+                    </nav>
+                    <div class="ds-menu" id="sheet-menu" hidden style="max-width:none;margin:0">
+                        <a class="ds-menu__link" href="#">Features <svg class="ds-i"><use href="#i-arrow"/></svg></a>
+                        <a class="ds-menu__link" href="#">How it works <svg class="ds-i"><use href="#i-arrow"/></svg></a>
+                        <div class="ds-menu__actions">
+                            <a href="#" class="ds-btn ds-btn--cta ds-btn--block">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a>
+                            <a href="#" class="ds-btn ds-btn--tertiary ds-btn--block">Log in</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FAQ -->
+            <section class="panel panel--6">
+                <h2 class="panel__title">FAQ item</h2>
+                <div class="specimen">
+                    <div class="ds-faq">
+                        <details class="ds-faq__item" open>
+                            <summary>Is TutorMind free?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
+                            <p>Yes, you can get started for free.</p>
+                        </details>
+                        <details class="ds-faq__item">
+                            <summary>Can I upload homework?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
+                            <p>Yes. Snap a photo or upload a PDF and work through it together.</p>
+                        </details>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Card family -->
+            <section class="panel">
+                <h2 class="panel__title">Card family</h2>
+                <p class="panel__note">Kind label top, title bottom. Move your pointer over them. The title layer floats above the card.</p>
+                <div class="specimen">
+                    <div class="cards-4">
+                        <article class="ds-card" data-tilt="8"><span class="ds-card__kind">Feature</span><h3 class="ds-card__title ds-depth">Voice tutor</h3></article>
+                        <article class="ds-card" data-tilt="8"><span class="ds-card__kind">Subject</span><h3 class="ds-card__title ds-depth">Mathematics</h3></article>
+                        <article class="ds-card ds-card--featured" data-tilt="8"><span class="ds-card__kind">Mode</span><h3 class="ds-card__title ds-depth">Exam mode</h3></article>
+                        <article class="ds-card" data-tilt="8"><span class="ds-card__kind">Testimonial</span><div class="ds-depth"><p class="ds-card__quote">“It made me explain it back. Annoying. Also why I passed.”</p><p class="ds-card__body">Student, Year 11 (placeholder)</p></div></article>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3D objects -->
+            <section class="panel panel--8">
+                <h2 class="panel__title">3D subject objects</h2>
+                <p class="panel__note">Pure CSS 3D, one colour family plus the amber dot. They only animate while on screen.</p>
+                <div class="specimen specimen--stage">
+                    <div class="arts">
+                        <figure><div class="ds-art"><div class="ds-obj ds-cube"><span>x²</span><span>π</span><span>√</span><span>∑</span><span>∫</span><span>÷</span></div></div><figcaption>Mathematics · cube</figcaption></figure>
+                        <figure><div class="ds-art"><div class="ds-obj ds-wave"></div></div><figcaption>Physics · wave field</figcaption></figure>
+                        <figure><div class="ds-art"><div class="ds-obj ds-atom"><span class="ds-atom__core"></span><span class="ds-atom__orbit"><i></i></span><span class="ds-atom__orbit"><i></i></span><span class="ds-atom__orbit"><i></i></span></div></div><figcaption>Chemistry · atom</figcaption></figure>
+                        <figure><div class="ds-art"><div class="ds-obj ds-helix"></div></div><figcaption>Biology · helix</figcaption></figure>
+                        <figure><div class="ds-art"><div class="ds-obj ds-stack"><i></i><i></i><i>&lt;/&gt;</i></div></div><figcaption>Computer science · layers</figcaption></figure>
+                        <figure><div class="ds-art"><div class="ds-obj ds-book"><span class="ds-book__cover"></span><span class="ds-book__half ds-book__half--l"></span><span class="ds-book__half ds-book__half--r"></span><span class="ds-book__page"></span></div></div><figcaption>English · book</figcaption></figure>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Keycaps -->
+            <section class="panel panel--4">
+                <h2 class="panel__title">Keycaps</h2>
+                <p class="panel__note">The same edge language as a playful illustration.</p>
+                <div class="specimen" style="place-items:center;padding:36px 20px">
+                    <div class="ds-keys" aria-hidden="true">
+                        <span class="ds-key" style="--i:0">W</span>
+                        <span class="ds-key" style="--i:1">h</span>
+                        <span class="ds-key" style="--i:2">y</span>
+                        <span class="ds-key ds-key--accent" style="--i:3">?</span>
+                    </div>
+                </div>
+                <ul class="rule-list">
+                    <li><b>Still banned</b>: gradients as decoration, per-card rainbow hues, emoji icons, uppercase eyebrows.</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <script src="assets/js/tm-ds.js"></script>
+</body>
+</html>
