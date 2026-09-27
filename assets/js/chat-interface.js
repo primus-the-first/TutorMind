@@ -400,6 +400,25 @@ class TutorMindChat {
 
         if (!historyBtn && !profileBtn) return; // Not on mobile page
 
+        // --- New chat: same in-place reset as desktop's #newChatBtn, no page reload ---
+        // The link's href="chat" stays as the fallback: tutor_mysql.js only wires
+        // #newChatBtn once settings have loaded (window.loadConversation is set by
+        // that same init), so a tap before then still works — as a reload.
+        const newBtn = document.getElementById('bottomNavNew');
+        if (newBtn) {
+            newBtn.addEventListener('click', (e) => {
+                const desktopNewChat = document.getElementById('newChatBtn');
+                if (!desktopNewChat || typeof window.loadConversation !== 'function') return;
+                e.preventDefault();
+                tray?.classList.remove('open');
+                profileSheet?.classList.remove('open');
+                if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('active'); }
+                this._clearBottomNavActive();
+                desktopNewChat.click();
+                window.scrollTo(0, 0);
+            });
+        }
+
         // --- History button ---
         if (historyBtn && tray) {
             historyBtn.addEventListener('click', () => {
