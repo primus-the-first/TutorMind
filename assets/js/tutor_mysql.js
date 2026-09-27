@@ -3304,15 +3304,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Personalization shortcut: opens Settings straight to Appearance
-    // (font size, legibility, density) rather than duplicating a separate screen ---
+    // --- Personalization shortcut: opens Settings on the Personalization tab
+    // (learning profile + how the tutor teaches) ---
     const openPersonalizationBtn = document.getElementById('open-personalization-btn');
     if (openPersonalizationBtn) {
         openPersonalizationBtn.addEventListener('click', (e) => {
             e.preventDefault();
             if (window.settingsManager) {
                 window.settingsManager.open();
-                window.settingsManager.switchTab('appearance');
+                window.settingsManager.switchTab('personalization');
             }
         });
     }

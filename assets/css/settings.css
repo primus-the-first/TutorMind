@@ -396,6 +396,58 @@ input:checked + .slider:before {
     border-color: var(--primary-color);
 }
 
+/* Personalization: hints, interest chips (tm-tokens values; chat loads tm-tokens.css) */
+.form-group .field-hint {
+    margin: -2px 0 8px;
+    font-size: 13px;
+}
+.interest-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 0;
+    list-style: none;
+}
+.interest-list:empty { display: none; }
+.interest-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 6px 12px;
+    border: 1px solid var(--ds-line, var(--border-color));
+    border-radius: var(--ds-r-sm, 8px);
+    background: var(--ds-tint, var(--input-bg-color));
+    font-size: 14px;
+}
+.interest-chip button {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0.7;
+}
+.interest-chip button:hover { opacity: 1; color: var(--ds-accent-ink, var(--primary-color)); }
+.legibility-reset {
+    padding: 2px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--ds-accent-ink, var(--primary-color));
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.legibility-reset:hover { background: var(--ds-tint, var(--input-bg-color)); }
+
 /* Destructive Actions */
 .danger-zone {
     margin-top: 40px;

@@ -564,7 +564,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_POST) && empty($_FILES) && 
 }
 
 $question = base64_decode($_POST['question'] ?? '', true) ?: '';
-$learningLevel = $_POST['learningLevel'] ?? 'Understanding';
+$learningLevel = $_POST['learningLevel'] ?? 'Understand';
 
 // Validate inputs early
 if (empty(trim($question)) && empty($_FILES['attachment'])) {
@@ -573,10 +573,12 @@ if (empty(trim($question)) && empty($_FILES['attachment'])) {
     exit;
 }
 
-// Enforce strict Bloom taxonomy levels
-$validLevels = ['Foundation', 'Understanding', 'Analysis', 'Synthesis'];
+// Enforce strict Bloom taxonomy levels — the same six the chat sends and
+// users.learning_level stores (this list used to be a stale 4-level set, so
+// every request silently fell back to the default)
+$validLevels = ['Remember', 'Understand', 'Apply', 'Analyze', 'Evaluate', 'Create'];
 if (!in_array($learningLevel, $validLevels, true)) {
-    $learningLevel = 'Understanding'; // Safe default fallback
+    $learningLevel = 'Understand'; // Safe default fallback
 }
 
 // Session context from frontend SessionContextManager
@@ -782,7 +784,7 @@ try {
     }
 
     // Fetch user personalization data for AI context
-    $stmt = $pdo->prepare("SELECT country, primary_language, education_level, field_of_study, knowledge_level, interests FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT country, primary_language, education_level, field_of_study, knowledge_level, interests, response_style FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $user_profile = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -863,6 +865,12 @@ EOT;
                 $personalization_context .= "  → Once the learner has produced a mental model of their own, extend THEIR model rather than substituting one built from these interests.\n";
             }
         }
+    }
+
+    // Response depth (Settings → Personalization). 'concise' is the column default,
+    // so it keeps the tutor's normal pacing; only an explicit 'detailed' adds guidance.
+    if (($user_profile['response_style'] ?? '') === 'detailed') {
+        $personalization_context .= "\n**Response depth: in depth.** This learner asked for fuller explanations. Explain the reasoning completely rather than in minimal steps, and include one fully worked example before handing them a task. Keep the check-ins and the three-contact protocol — depth changes how much you explain per turn, not whether you involve them. Don't mention this preference.\n";
     }
 
     // Session goal-based teaching instructions

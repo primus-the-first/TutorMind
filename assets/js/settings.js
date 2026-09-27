@@ -8,6 +8,7 @@ class SettingsManager {
         this.dirty = false; // Unsaved edits to the Account text fields (the only fields that need "Save")
         this.isPopulating = false; // Flag to prevent input events during form population
         this.loaded = false; // initialSettings holds a server copy, so open() can render instantly
+        this.interests = []; // Personalization chips, mirrored from initialSettings.interests
 
         // Everything except the Account text fields saves as soon as it changes.
         // Changes are merged and sent together, so two quick edits to different
@@ -57,6 +58,7 @@ class SettingsManager {
                     <div class="settings-body">
                         <nav class="settings-tabs" aria-label="Settings categories">
                             <button class="tab-btn active" data-tab="account" role="tab" aria-selected="true"><i class="fas fa-user-circle"></i> Account</button>
+                            <button class="tab-btn" data-tab="personalization" role="tab" aria-selected="false"><i class="fas fa-user-edit"></i> Personalization</button>
                             <button class="tab-btn" data-tab="security" role="tab" aria-selected="false"><i class="fas fa-shield-alt"></i> Security</button>
                             <button class="tab-btn" data-tab="notifications" role="tab" aria-selected="false"><i class="fas fa-bell"></i> Notifications</button>
                             <button class="tab-btn" data-tab="appearance" role="tab" aria-selected="false"><i class="fas fa-palette"></i> Appearance</button>
@@ -115,27 +117,73 @@ class SettingsManager {
                         <input type="text" id="settings-created-at" class="form-control" disabled>
                     </div>
                 </form>
+            </div>
+
+            <!-- PERSONALIZATION PANEL — everything here feeds the tutor's prompt
+                 (learning_level per message; the rest via server_mysql.php's
+                 personalization context). Saves as soon as a field changes. -->
+            <div id="tab-personalization" class="tab-panel">
+                <h3>How TutorMind teaches you</h3>
+                <p>TutorMind uses this quietly to pitch explanations and pick examples. It won't read your profile back to you.</p>
                 <div class="form-group">
-                    <h3>Learning Preferences</h3>
-                    <p>Customize the AI's teaching style to match your needs.</p>
-                    <div class="form-group">
-                        <label for="settings-learning-level">Default Learning Level</label>
-                        <select id="settings-learning-level" class="form-select" data-setting="learning_level">
-                            <option value="Remember">Remember</option>
-                            <option value="Understand">Understand</option>
-                            <option value="Apply">Apply</option>
-                            <option value="Analyze">Analyze</option>
-                            <option value="Evaluate">Evaluate</option>
-                            <option value="Create">Create</option>
-                        </select>
+                    <label for="settings-learning-level">What you're aiming for</label>
+                    <select id="settings-learning-level" class="form-select" data-setting="learning_level">
+                        <option value="Remember">Remember the key facts</option>
+                        <option value="Understand">Understand how it works</option>
+                        <option value="Apply">Use it to solve problems</option>
+                        <option value="Analyze">Break problems down</option>
+                        <option value="Evaluate">Judge and compare ideas</option>
+                        <option value="Create">Make something new with it</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Explanations</label>
+                    <div class="option-group" data-setting="response_style">
+                        <button type="button" class="option-btn" data-value="concise">Focused</button>
+                        <button type="button" class="option-btn" data-value="detailed">In depth</button>
                     </div>
-                    <div class="form-group">
-                        <label for="settings-response-style">Preferred Response Style</label>
-                        <select id="settings-response-style" class="form-select" data-setting="response_style">
-                            <option value="concise">Concise</option>
-                            <option value="detailed">Detailed</option>
-                        </select>
+                    <p class="field-hint">In depth gives fuller explanations with a worked example before your turn.</p>
+                </div>
+
+                <h3>About you</h3>
+                <div class="form-group">
+                    <label for="settings-education-level">Education</label>
+                    <select id="settings-education-level" class="form-select" data-setting="education_level">
+                        <option value="">Not set</option>
+                        <option value="Primary">Primary school</option>
+                        <option value="Secondary">Secondary / high school</option>
+                        <option value="University">University or college</option>
+                        <option value="Graduate">Graduate</option>
+                        <option value="Professional">Working professional</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="settings-field-of-study">Subject or field</label>
+                    <input type="text" id="settings-field-of-study" class="form-control" data-setting="field_of_study" maxlength="255" placeholder="e.g., Computer Science, Biology">
+                </div>
+                <div class="form-group">
+                    <label>How much you already know</label>
+                    <div class="option-group" data-setting="knowledge_level">
+                        <button type="button" class="option-btn" data-value="beginner">Beginner</button>
+                        <button type="button" class="option-btn" data-value="intermediate">Intermediate</button>
+                        <button type="button" class="option-btn" data-value="advanced">Advanced</button>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label for="settings-interest-entry">Interests</label>
+                    <p class="field-hint">Examples get built around these, like football, music or cooking.</p>
+                    <ul class="interest-list" id="settings-interests" data-setting="interests" aria-label="Your interests"></ul>
+                    <input type="text" id="settings-interest-entry" class="form-control" maxlength="60" placeholder="Add an interest and press Enter">
+                </div>
+                <div class="form-group">
+                    <label for="settings-country">Country</label>
+                    <input type="text" id="settings-country" class="form-control" data-setting="country" maxlength="100" placeholder="e.g., Ghana" autocomplete="country-name">
+                    <p class="field-hint">Used for local currency, units and spelling in examples.</p>
+                </div>
+                <div class="form-group">
+                    <label for="settings-primary-language">Main language</label>
+                    <input type="text" id="settings-primary-language" class="form-control" data-setting="primary_language" maxlength="50" placeholder="English">
                 </div>
             </div>
 
@@ -216,37 +264,29 @@ class SettingsManager {
                     </div>
                     <label class="switch"><input type="checkbox" id="settings-dark-mode" data-setting="dark_mode"><span class="slider"></span></label>
                 </div>
-                <div class="form-group" style="margin-top: 20px;">
-                    <label>Font Size</label>
-                    <div class="option-group" data-setting="font_size">
-                        <button class="option-btn" data-value="small">Small</button>
-                        <button class="option-btn active" data-value="medium">Medium</button>
-                        <button class="option-btn" data-value="large">Large</button>
-                    </div>
-                </div>
                 <div class="form-group">
                     <label>Chat Density</label>
                     <div class="option-group" data-setting="chat_density">
-                        <button class="option-btn" data-value="compact">Compact</button>
-                        <button class="option-btn active" data-value="comfortable">Comfortable</button>
+                        <button type="button" class="option-btn" data-value="compact">Compact</button>
+                        <button type="button" class="option-btn active" data-value="comfortable">Comfortable</button>
                     </div>
                 </div>
-                
-                <h3 style="margin-top: 24px;">Accessibility</h3>
-                <p>Improve readability for visual comfort.</p>
+
+                <!-- One text-size control. The old Font Size buttons (root font-size)
+                     did the same job less well, so they're gone and no longer applied. -->
                 <div class="form-group legibility-slider-group">
                     <label for="settings-legibility">
-                        <i class="fas fa-eye"></i> Text Legibility
+                        Text Size
                         <span class="legibility-value" id="legibility-value">100%</span>
+                        <button type="button" class="legibility-reset" id="legibility-reset" hidden>Reset</button>
                     </label>
-                    <input type="range" id="settings-legibility" class="legibility-slider" 
+                    <input type="range" id="settings-legibility" class="legibility-slider"
                            min="90" max="150" value="100" step="5" data-setting="legibility">
                     <div class="legibility-hint">
                         <span>Smaller</span>
-                        <span>Default</span>
                         <span>Larger</span>
                     </div>
-                    <p class="legibility-description">Adjusts font size and line spacing together for easier reading.</p>
+                    <p class="legibility-description">Scales chat text and line spacing together for easier reading.</p>
                 </div>
             </div>
 
@@ -315,7 +355,25 @@ class SettingsManager {
             this.setDirty(this.accountChanges() !== null);
         });
 
-        // Dropdowns (learning level, response style) save as soon as they change
+        // Personalization text fields save when you leave them (or press Enter)
+        this.modal.querySelectorAll('#tab-personalization input[data-setting]').forEach(input => {
+            input.addEventListener('change', () => {
+                if (this.isPopulating) return;
+                this.debouncedSave({ [input.dataset.setting]: input.value.trim() });
+            });
+        });
+        const interestEntry = this.modal.querySelector('#settings-interest-entry');
+        interestEntry.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const value = interestEntry.value.trim();
+            const exists = this.interests.some(i => i.toLowerCase() === value.toLowerCase());
+            if (value && !exists && this.interests.length < 20) this.saveInterests([...this.interests, value]);
+            else if (this.interests.length >= 20) this.showToast('You can add up to 20 interests.', 'info');
+            interestEntry.value = '';
+        });
+
+        // Dropdowns (learning level, education) save as soon as they change
         this.modal.querySelectorAll('select[data-setting]').forEach(select => {
             select.addEventListener('change', () => {
                 if (this.isPopulating) return;
@@ -385,6 +443,11 @@ class SettingsManager {
                 const value = parseInt(e.target.value, 10);
                 this.debouncedSave({ legibility: value });
                 localStorage.setItem('legibility', value);
+            });
+            this.modal.querySelector('#legibility-reset').addEventListener('click', () => {
+                this.applyLegibility(100);
+                this.debouncedSave({ legibility: 100 });
+                localStorage.setItem('legibility', 100);
             });
         }
 
@@ -567,11 +630,6 @@ class SettingsManager {
             mainLearningLevel.value = settings.learning_level;
         }
 
-        // Apply Font Size
-        if (settings.font_size) {
-            document.documentElement.style.fontSize = settings.font_size === 'small' ? '14px' : (settings.font_size === 'large' ? '18px' : '16px');
-        }
-
         // Apply Chat Density
         if (settings.chat_density) {
             document.body.classList.toggle('compact-mode', settings.chat_density === 'compact');
@@ -616,6 +674,8 @@ class SettingsManager {
         if (slider) {
             slider.value = value;
         }
+        const reset = document.getElementById('legibility-reset');
+        if (reset) reset.hidden = Number(value) === 100;
     }
 
     /**
@@ -626,19 +686,12 @@ class SettingsManager {
         // Set flag to prevent input events from marking form as dirty
         this.isPopulating = true;
         
-        // Text inputs, selects, and checkboxes
+        // Text inputs, selects, checkboxes, option groups, interest chips
         this.modal.querySelectorAll('[data-setting]').forEach(el => {
             const key = el.dataset.setting;
-            if (settings.hasOwnProperty(key)) {
-                if (el.matches('input[type="checkbox"]')) {
-                    el.checked = !!settings[key];
-                } else if (el.classList.contains('option-group')) {
-                    this.updateOptionButtons(el, settings[key]);
-                } else {
-                    el.value = settings[key] ?? ''; // NULL columns (e.g. last_name) must not render as "null"
-                }
-            }
+            if (settings.hasOwnProperty(key)) this.setControl(el, settings[key]);
         });
+        this.applyLegibility(settings.legibility ?? 100);
 
 
         // Read-only fields
@@ -689,14 +742,46 @@ class SettingsManager {
             // Put every control in the failed batch back to its last saved value
             Object.keys(settings).forEach(key => {
                 const el = this.modal.querySelector(`[data-setting="${key}"]`);
-                const saved = this.initialSettings[key];
-                if (!el || saved === undefined) return;
-                if (el.type === 'checkbox') el.checked = !!saved;
-                else if (el.classList.contains('option-group')) this.updateOptionButtons(el, saved);
-                else el.value = saved ?? '';
+                if (el && key in this.initialSettings) this.setControl(el, this.initialSettings[key]);
             });
             this.applyGlobalSettings(this.initialSettings);
         }
+    }
+
+    /**
+     * Shows a saved value in its control, whatever kind of control it is.
+     */
+    setControl(el, value) {
+        if (el.matches('input[type="checkbox"]')) el.checked = !!value;
+        else if (el.classList.contains('option-group')) this.updateOptionButtons(el, value);
+        else if (el.classList.contains('interest-list')) this.renderInterests(Array.isArray(value) ? value : []);
+        else el.value = value ?? ''; // NULL columns (e.g. last_name) must not render as "null"
+    }
+
+    /**
+     * Interests are edited as chips; any add/remove saves the whole list.
+     */
+    renderInterests(list) {
+        this.interests = list.slice();
+        const ul = this.modal.querySelector('#settings-interests');
+        ul.innerHTML = '';
+        this.interests.forEach(interest => {
+            const li = document.createElement('li');
+            li.className = 'interest-chip';
+            li.textContent = interest;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.setAttribute('aria-label', `Remove ${interest}`);
+            remove.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+            remove.addEventListener('click', () => this.saveInterests(this.interests.filter(i => i !== interest)));
+            li.appendChild(remove);
+            ul.appendChild(li);
+        });
+    }
+
+    saveInterests(list) {
+        this.renderInterests(list);
+        this.debouncedSave({ interests: this.interests });
     }
 
     /**
