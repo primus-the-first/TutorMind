@@ -1,4 +1,5 @@
 <?php
+// Login page — 2026-09 design system (tm-ds.css/js): padlock scene + form.
 // Set Security Headers - Using unsafe-none for localhost popup compatibility
 header("Cross-Origin-Opener-Policy: unsafe-none");
 // CSP: Allow Google Sign-In resources
@@ -13,103 +14,104 @@ $csp .= "frame-ancestors 'self';";
 header("Content-Security-Policy: " . $csp);
 
 header("Cache-Control: no-cache, no-store, must-revalidate");
-
-// Robust Google Login URI Generation
-$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-$host = $_SERVER['HTTP_HOST'];
-$scriptDir = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
-$scriptDir = str_replace('\\', '/', $scriptDir); // Ensure forward slashes for Windows
-$google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - TutorMind</title>
+    <title>Log in — TutorMind</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
     <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
-    
-    <!-- Fonts & Icons -->
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Funnel+Display:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Main Creative Styles -->
-    <link rel="stylesheet" href="assets/css/landing.css?v=3">
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/tm-ds.css?v=<?= filemtime('assets/css/tm-ds.css') ?>">
     <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
 </head>
-<body>
-    <!-- Unified Theme Script -->
+<body class="ds-page">
+    <!-- Unified Theme Script (same fallbacks as login.php) -->
     <script>
-        (function() {
-            let isDark = false;
-            const theme = localStorage.getItem('tutormind-theme');
-            if (theme) {
-                isDark = theme === 'dark';
-            } else {
-                isDark = localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
-            }
+        (function () {
+            var isDark = false, theme = null;
+            try {
+                theme = new URLSearchParams(location.search).get('theme') || localStorage.getItem('tutormind-theme');
+                isDark = theme ? theme === 'dark'
+                    : (localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark');
+            } catch (e) {}
             if (isDark) document.body.classList.add('dark-mode');
         })();
     </script>
-    
-    <div class="auth-wrapper">
-        <!-- Left Side: Form -->
-        <div class="auth-form-side">
-            <div class="auth-header">
-                <a href="index" class="auth-brand">
-                    <img src="assets/logo-bridge.svg?v=2" alt="TutorMind" style="height: 32px; width: auto; margin-right: 12px;">
-                    TutorMind
-                </a>
-                <h1 class="auth-title">Welcome back!</h1>
-                <p class="auth-subtitle">Time to learn something new today.</p>
+
+    <div class="ds-auth">
+        <!-- Left: brand stage (desktop) -->
+        <!-- Scene: a padlock whose shackle is the bridge arch. Typing a password
+             brings the key; a successful login turns it and the shackle swings open. -->
+        <aside class="ds-auth__stage" aria-hidden="true">
+            <a href="index" class="ds-logo" tabindex="-1"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+            <div class="ds-auth__intro">
+                <p class="ds-auth__headline">Learning starts<br>with one <span class="ds-accent">question.</span></p>
+                <p class="ds-lede">Your chats, notes and progress are locked in and waiting.</p>
+            </div>
+            <div class="ds-auth__visual" data-ds-scene="lock">
+                <div class="ds-hero__fallback"><img src="assets/logo-bridge.svg" alt=""></div>
+                <span class="ds-auth__status" id="scene-status">Locked</span>
+            </div>
+        </aside>
+
+        <!-- Right: form -->
+        <main class="ds-auth__main">
+            <div class="ds-auth__top">
+                <a href="index" class="ds-logo ds-auth__mobile-logo"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+                <button class="ds-icon-btn" type="button" data-ds-theme aria-label="Dark mode"><svg class="ds-i"><use href="#i-moon"/></svg></button>
             </div>
 
-            <form id="loginForm" class="auth-form" action="auth_mysql" method="POST">
-                <input type="hidden" name="action" value="login">
-                <input type="hidden" name="csrf_token" id="csrf_token" value="">
-                <input type="hidden" name="local_theme" id="local_theme" value="light">
+            <div class="ds-auth__card">
+                <header>
+                    <h1 class="ds-h2">Welcome back!</h1>
+                    <p class="ds-muted" style="margin:0">Sign in to continue learning.</p>
+                </header>
 
-                <div class="form-group">
-                    <label for="email" class="form-label">Email or Username</label>
-                    <input type="text" id="email" name="email" class="form-input" placeholder="Enter your email" autocomplete="username" required>
-                    <div class="error-message" id="email-error"></div>
+                <div class="ds-alert" id="auth-error" role="alert" hidden>
+                    <svg class="ds-i"><use href="#i-alert"/></svg><span></span>
                 </div>
 
-                <div class="form-group">
-                    <label for="password" class="form-label">Password</label>
-                    <div style="position: relative;">
-                        <!-- Adjusted padding-right to accommodate eye icon -->
-                        <input type="password" id="password" name="password" class="form-input" style="padding-right: 40px;" placeholder="Enter password" autocomplete="current-password" required>
-                        <button type="button" id="togglePassword" aria-label="Toggle password visibility" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-secondary);">
-                            <i class="far fa-eye" aria-hidden="true"></i>
-                        </button>
+                <form id="loginForm" action="auth_mysql" method="POST" style="display:grid;gap:18px" novalidate>
+                    <input type="hidden" name="action" value="login">
+                    <input type="hidden" name="csrf_token" id="csrf_token" value="">
+                    <input type="hidden" name="local_theme" id="local_theme" value="light">
+
+                    <div class="ds-field">
+                        <label for="email" class="ds-label">Email or username</label>
+                        <input type="text" id="email" name="email" class="ds-input" placeholder="you@example.com" autocomplete="username" required>
                     </div>
-                    <div class="error-message" id="password-error"></div>
-                </div>
 
-                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="remember" name="remember" style="accent-color: var(--primary-ink); width: 16px; height: 16px;">
-                        <label for="remember" style="font-size: 0.9rem; cursor: pointer;">Remember me</label>
+                    <div class="ds-field">
+                        <label for="password" class="ds-label">Password</label>
+                        <div class="ds-input-wrap">
+                            <input type="password" id="password" name="password" class="ds-input" placeholder="Your password" autocomplete="current-password" required>
+                            <button type="button" id="togglePassword" class="ds-ask__tool" aria-label="Show password" aria-pressed="false">
+                                <svg class="ds-i"><use href="#i-eye"/></svg>
+                            </button>
+                        </div>
                     </div>
-                    <a href="#" style="color: var(--accent-purple); font-weight: 600; text-decoration: none; font-size: 0.9rem;">Forgot password?</a>
-                </div>
 
-                <button type="submit" class="btn-auth">Log In</button>
+                    <div class="ds-row">
+                        <label class="ds-check"><input type="checkbox" id="remember" name="remember"> Remember me</label>
+                        <a href="#" class="ds-textlink">Forgot password?</a>
+                    </div>
 
-                <div class="auth-divider">
-                    <span>Or login with</span>
-                </div>
+                    <button type="submit" class="ds-btn ds-btn--primary ds-btn--block" id="loginBtn">Log in <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                </form>
 
-                <!-- Google Sign In Button - Redirect Mode for HTTPS -->
-                <div style="display: flex; justify-content: center;">
+                <div class="ds-divider">or</div>
+
+                <div class="ds-auth__google">
                     <div id="g_id_onload"
                         data-client_id="1083917773706-gc0f400l24eavps3ckcnj04581gj3plk.apps.googleusercontent.com"
                         data-context="signin"
@@ -117,84 +119,68 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                         data-callback="handleCredentialResponse"
                         data-auto_prompt="false">
                     </div>
-                    
-                    <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline"
-                        data-text="sign_in_with" data-shape="rectangular" data-logo_alignment="left">
+                    <div class="g_id_signin" id="g_id_button" data-type="standard" data-size="large" data-theme="outline"
+                        data-text="signin_with" data-shape="rectangular" data-logo_alignment="left" data-width="320">
                     </div>
+                    <script>
+                        if (document.body.classList.contains('dark-mode')) document.getElementById('g_id_button').setAttribute('data-theme', 'filled_black');
+                    </script>
                 </div>
 
-                <p style="text-align: center; margin-top: 1.5rem; color: var(--text-secondary);">
-                    Don't have an account? <a href="register" style="color: var(--primary-ink); font-weight: 700; text-decoration: none;">Register here</a>
-                </p>
-            </form>
-        </div>
-
-        <!-- Right Side: Creative Visual -->
-        <div class="auth-visual-side">
-            <div class="auth-polaroid">
-                <div class="auth-tape"></div>
-                <!-- Updated Image -->
-                <img src="assets/login_illustration.png" alt="Late Night Study" class="auth-visual-img" width="518" height="345">
-                <div class="chat-bubble" style="top: -20px; left: -20px; transform: rotate(-5deg);">
-                    <span class="chat-bubble-name">TutorMind</span>
-                    <br>Late night study session? 🌙
-                </div>
+                <p class="ds-auth__alt">New to TutorMind? <a href="register">Create an account</a></p>
             </div>
-            
-            <!-- Floating Elements -->
-            <div class="equation-marker" style="top: 20%; right: 10%; opacity: 0.1;">
-                \( P \implies Q \)
-            </div>
-            <div class="equation-marker" style="bottom: 15%; left: 10%; opacity: 0.1;">
-                \( \forall x \in \mathbb{R} \)
-            </div>
-        </div>
+        </main>
     </div>
 
-    <!-- MathJax -->
     <script>
-        MathJax = {
-            tex: { inlineMath: [['\\(', '\\)']] }
-        };
-    </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        var authError = document.getElementById('auth-error');
+        function showError(msg) {
+            authError.querySelector('span').textContent = msg;
+            authError.hidden = false;
+        }
 
-    <!-- Theme Script (Reuse Logic) -->
-    <!-- Theme Script (Inline logic applied at body start) -->
-    <!-- Login Logic -->
-    <script>
+        // Drive the padlock scene (no-op without WebGL)
+        var sceneStatus = document.getElementById('scene-status');
+        function lockScene(method, arg, status, state) {
+            var host = document.querySelector('[data-ds-scene="lock"]');
+            if (host && host.tmScene) host.tmScene[method](arg);
+            if (status) { sceneStatus.textContent = status; sceneStatus.setAttribute('data-state', state || ''); }
+        }
+        // Give the unlock a beat on screen before the fullscreen loader covers it
+        var UNLOCK_MS = 900;
+
         document.addEventListener('DOMContentLoaded', function () {
-            const loginForm = document.getElementById('loginForm');
-            const togglePassword = document.getElementById('togglePassword');
-            const passwordInput = document.getElementById('password');
+            var loginForm = document.getElementById('loginForm');
+            var btn = document.getElementById('loginBtn');
+            var btnHTML = btn.innerHTML;
+            var togglePassword = document.getElementById('togglePassword');
+            var passwordInput = document.getElementById('password');
 
-            // Password Toggle
-            togglePassword.addEventListener('click', function () {
-                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                passwordInput.setAttribute('type', type);
-                this.querySelector('i').classList.toggle('fa-eye');
-                this.querySelector('i').classList.toggle('fa-eye-slash');
+            // The key drifts toward the keyhole as the password gets typed
+            passwordInput.addEventListener('input', function () {
+                lockScene('setProgress', passwordInput.value.length / 8, passwordInput.value ? 'Key ready' : 'Locked', '');
             });
 
-            // Check for URL errors (e.g. from Google Redirect)
-            const urlParams = new URLSearchParams(window.location.search);
-            const errorMsg = urlParams.get('error');
+            // Password toggle
+            togglePassword.addEventListener('click', function () {
+                var show = passwordInput.type === 'password';
+                passwordInput.type = show ? 'text' : 'password';
+                togglePassword.setAttribute('aria-pressed', String(show));
+                togglePassword.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                togglePassword.querySelector('use').setAttribute('href', show ? '#i-eye-off' : '#i-eye');
+            });
+
+            // URL errors (e.g. from Google redirect)
+            var urlParams = new URLSearchParams(window.location.search);
+            var errorMsg = urlParams.get('error');
             if (errorMsg) {
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'error-banner';
-                // Basic styling for the error banner
-                errorDiv.style.cssText = 'background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; border: 1px solid #fecaca; display: flex; align-items: center; gap: 0.5rem;';
-                errorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>' + decodeURIComponent(errorMsg).replace(/</g, "&lt;").replace(/>/g, "&gt;") + '</span>';
-                
-                loginForm.insertBefore(errorDiv, loginForm.firstChild);
-                
-                // Clean URL
+                showError(decodeURIComponent(errorMsg));
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
 
             // Sync local theme to form
-            let isDarkLocal = false;
-            const themeLocal = localStorage.getItem('tutormind-theme');
+            var isDarkLocal = false;
+            var themeLocal = localStorage.getItem('tutormind-theme');
             if (themeLocal) {
                 isDarkLocal = themeLocal === 'dark';
             } else {
@@ -202,92 +188,102 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
             }
             document.getElementById('local_theme').value = isDarkLocal ? 'dark' : 'light';
 
-            // Form Submit Logic (Kept mostly same but updated selectors/visuals)
+            function resetBtn() { btn.disabled = false; btn.innerHTML = btnHTML; }
+
             loginForm.addEventListener('submit', async function (event) {
                 event.preventDefault();
-                
-                const btn = loginForm.querySelector('.btn-auth');
+                authError.hidden = true;
+
+                // Inline validation instead of the browser's bubbles
+                var missing = false;
+                ['email', 'password'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    var empty = !el.value.trim();
+                    el.setAttribute('aria-invalid', String(empty));
+                    if (empty) missing = true;
+                });
+                if (missing) { showError('Enter your email or username and password.'); return; }
+
                 btn.disabled = true;
-                btn.textContent = 'Logging in...';
+                btn.innerHTML = (window.TmLoader && TmLoader.inlineHTML ? TmLoader.inlineHTML() + ' ' : '') + 'Logging in…';
+                lockScene('attempt', null, 'Checking your key…', '');
 
                 try {
-                    // Fetch CSRF (Assume csrf.php exists as per original)
-                    const tokenResponse = await fetch('includes/csrf.php?action=get_token');
-                    const tokenData = await tokenResponse.json();
+                    var tokenResponse = await fetch('includes/csrf.php?action=get_token');
+                    var tokenData = await tokenResponse.json();
                     document.getElementById('csrf_token').value = tokenData.token;
 
-                    const formData = new FormData(loginForm);
-                    const response = await fetch(loginForm.getAttribute('action'), {
+                    var response = await fetch(loginForm.getAttribute('action'), {
                         method: 'POST',
-                        body: formData
+                        body: new FormData(loginForm)
                     });
+                    var responseText = await response.text();
 
-                    const responseText = await response.text();
-                    // Parse result
                     try {
-                         const result = JSON.parse(responseText);
-                         if (result.success && result.redirect) {
-                             TmLoader.showFullscreen('Signing you in…');
-                             if (result.db_theme) {
-                                 localStorage.setItem('tutormind-theme', result.db_theme);
-                                 if (result.db_theme === 'dark') {
-                                     localStorage.setItem('darkMode', 'enabled');
-                                     localStorage.setItem('theme', 'dark');
-                                 } else {
-                                     localStorage.removeItem('darkMode');
-                                     localStorage.setItem('theme', 'light');
-                                 }
-                             }
-                             // Let the loader play one full cycle before handing off, so it
-                             // never gets cut short by a fast network/page load.
-                             setTimeout(() => { window.location.href = result.redirect; }, TmLoader.FULL_CYCLE_MS || 2200);
-                         } else {
-                             alert(result.error || 'Login failed');
-                             btn.disabled = false;
-                            btn.textContent = 'Log In';
-                         }
-                    } catch(e) {
-                        console.error("Invalid JSON", responseText);
-                        alert("Server Error");
-                        btn.disabled = false;
-                        btn.textContent = 'Log In';
+                        var result = JSON.parse(responseText);
+                        if (result.success && result.redirect) {
+                            lockScene('grant', null, 'Unlocked. Welcome back!', 'ok');
+                            if (result.db_theme) {
+                                localStorage.setItem('tutormind-theme', result.db_theme);
+                                if (result.db_theme === 'dark') {
+                                    localStorage.setItem('darkMode', 'enabled');
+                                    localStorage.setItem('theme', 'dark');
+                                } else {
+                                    localStorage.removeItem('darkMode');
+                                    localStorage.setItem('theme', 'light');
+                                }
+                            }
+                            // Let the unlock land, then the loader plays one full cycle before handing off
+                            setTimeout(function () {
+                                TmLoader.showFullscreen('Signing you in…');
+                                setTimeout(function () { window.location.href = result.redirect; }, TmLoader.FULL_CYCLE_MS || 2200);
+                            }, UNLOCK_MS);
+                        } else {
+                            showError(result.error || 'Login failed. Check your details and try again.');
+                            lockScene('deny', null, 'That key didn’t fit. Try again.', 'bad');
+                            resetBtn();
+                        }
+                    } catch (e) {
+                        console.error('Invalid JSON', responseText);
+                        showError('Something went wrong on our side. Please try again.');
+                        lockScene('deny', null, 'Still locked', 'bad');
+                        resetBtn();
                     }
-
                 } catch (error) {
                     console.error('Login error:', error);
-                    alert('Connection error');
-                    btn.disabled = false;
-                    btn.textContent = 'Log In';
+                    showError('Couldn’t reach TutorMind. Check your connection and try again.');
+                    lockScene('deny', null, 'Still locked', 'bad');
+                    resetBtn();
                 }
             });
         });
 
         function handleCredentialResponse(response) {
-            // Google Login Logic
-            const formData = new FormData();
+            var formData = new FormData();
             formData.append('action', 'google_login');
             formData.append('credential', response.credential);
 
-            fetch('auth_mysql', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.redirect) {
-                    TmLoader.showFullscreen('Signing you in…');
-                    // Let the loader play one full cycle before handing off, so it
-                    // never gets cut short by a fast network/page load.
-                    setTimeout(() => { window.location.href = data.redirect; }, TmLoader.FULL_CYCLE_MS || 2200);
-                } else {
-                    alert(data.error || 'Google login failed.');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Connection error');
-            });
+            fetch('auth_mysql', { method: 'POST', body: formData })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (data.success && data.redirect) {
+                        lockScene('grant', null, 'Unlocked. Welcome back!', 'ok');
+                        setTimeout(function () {
+                            TmLoader.showFullscreen('Signing you in…');
+                            setTimeout(function () { window.location.href = data.redirect; }, TmLoader.FULL_CYCLE_MS || 2200);
+                        }, UNLOCK_MS);
+                    } else {
+                        showError(data.error || 'Google sign-in failed.');
+                        lockScene('deny', null, 'Still locked', 'bad');
+                    }
+                })
+                .catch(function (err) {
+                    console.error(err);
+                    showError('Couldn’t reach TutorMind. Check your connection and try again.');
+                });
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <script src="assets/js/tm-ds.js?v=<?= filemtime('assets/js/tm-ds.js') ?>"></script>
 </body>
 </html>
