@@ -61,7 +61,6 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
             </div>
             <div class="ds-auth__visual" data-ds-scene="lock">
                 <div class="ds-hero__fallback"><img src="assets/logo-bridge.svg" alt=""></div>
-                <span class="ds-auth__status" id="scene-status">Locked</span>
             </div>
         </aside>
 
@@ -141,11 +140,9 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
         }
 
         // Drive the padlock scene (no-op without WebGL)
-        var sceneStatus = document.getElementById('scene-status');
-        function lockScene(method, arg, status, state) {
+        function lockScene(method, arg) {
             var host = document.querySelector('[data-ds-scene="lock"]');
             if (host && host.tmScene) host.tmScene[method](arg);
-            if (status) { sceneStatus.textContent = status; sceneStatus.setAttribute('data-state', state || ''); }
         }
         // Give the unlock a beat on screen before the fullscreen loader covers it
         var UNLOCK_MS = 900;
@@ -159,7 +156,7 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 
             // The key drifts toward the keyhole as the password gets typed
             passwordInput.addEventListener('input', function () {
-                lockScene('setProgress', passwordInput.value.length / 8, passwordInput.value ? 'Key ready' : 'Locked', '');
+                lockScene('setProgress', passwordInput.value.length / 8);
             });
 
             // Password toggle
@@ -207,7 +204,7 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 
                 btn.disabled = true;
                 btn.innerHTML = (window.TmLoader && TmLoader.inlineHTML ? TmLoader.inlineHTML() + ' ' : '') + 'Logging in…';
-                lockScene('attempt', null, 'Checking your key…', '');
+                lockScene('attempt');
 
                 try {
                     var tokenResponse = await fetch('includes/csrf.php?action=get_token');
@@ -223,7 +220,7 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
                     try {
                         var result = JSON.parse(responseText);
                         if (result.success && result.redirect) {
-                            lockScene('grant', null, 'Unlocked. Welcome back!', 'ok');
+                            lockScene('grant');
                             if (result.db_theme) {
                                 localStorage.setItem('tutormind-theme', result.db_theme);
                                 if (result.db_theme === 'dark') {
@@ -241,19 +238,19 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
                             }, UNLOCK_MS);
                         } else {
                             showError(result.error || 'Login failed. Check your details and try again.');
-                            lockScene('deny', null, 'That key didn’t fit. Try again.', 'bad');
+                            lockScene('deny');
                             resetBtn();
                         }
                     } catch (e) {
                         console.error('Invalid JSON', responseText);
                         showError('Something went wrong on our side. Please try again.');
-                        lockScene('deny', null, 'Still locked', 'bad');
+                        lockScene('deny');
                         resetBtn();
                     }
                 } catch (error) {
                     console.error('Login error:', error);
                     showError('Couldn’t reach TutorMind. Check your connection and try again.');
-                    lockScene('deny', null, 'Still locked', 'bad');
+                    lockScene('deny');
                     resetBtn();
                 }
             });
@@ -268,14 +265,14 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
                 .then(function (res) { return res.json(); })
                 .then(function (data) {
                     if (data.success && data.redirect) {
-                        lockScene('grant', null, 'Unlocked. Welcome back!', 'ok');
+                        lockScene('grant');
                         setTimeout(function () {
                             TmLoader.showFullscreen('Signing you in…');
                             setTimeout(function () { window.location.href = data.redirect; }, TmLoader.FULL_CYCLE_MS || 2200);
                         }, UNLOCK_MS);
                     } else {
                         showError(data.error || 'Google sign-in failed.');
-                        lockScene('deny', null, 'Still locked', 'bad');
+                        lockScene('deny');
                     }
                 })
                 .catch(function (err) {

@@ -65,7 +65,6 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
             </div>
             <div class="ds-auth__visual" data-ds-scene="keystone">
                 <div class="ds-hero__fallback"><img src="assets/logo-bridge.svg" alt=""></div>
-                <span class="ds-auth__status" id="scene-status">Every bridge starts with one stone</span>
             </div>
         </aside>
 
@@ -166,11 +165,9 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
         }
 
         // Drive the keystone scene (no-op without WebGL)
-        var sceneStatus = document.getElementById('scene-status');
-        function archScene(method, arg, status, state) {
+        function archScene(method, arg) {
             var host = document.querySelector('[data-ds-scene="keystone"]');
             if (host && host.tmScene) host.tmScene[method](arg);
-            if (status) { sceneStatus.textContent = status; sceneStatus.setAttribute('data-state', state || ''); }
         }
         // Time for the learner to roll across the finished bridge before redirecting
         var CROSS_MS = 1900;
@@ -242,12 +239,11 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                 return ok;
             }
 
-            var STATUS = ['Every bridge starts with one stone', 'Laying stones · 1 of 5', 'Laying stones · 2 of 5', 'Laying stones · 3 of 5', 'Laying stones · 4 of 5', 'Keystone in. Ready to cross!'];
             function checkFormValidity() {
                 var valid = 0;
                 for (var key in validators) if (validators[key].validate()) valid++;
                 createAccountBtn.disabled = valid < 5;
-                archScene('setProgress', valid / 5, STATUS[valid], valid === 5 ? 'ok' : '');
+                archScene('setProgress', valid / 5);
             }
 
             function checkPasswordStrength() {
@@ -287,7 +283,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                 for (var key in validators) if (!checkFieldValidity(key, true)) isValid = false;
                 if (!isValid) {
                     showError('Please fix the highlighted fields first.');
-                    archScene('deny', null, 'A few stones are missing', 'bad');
+                    archScene('deny');
                     return;
                 }
 
@@ -316,14 +312,14 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
 
                 createAccountBtn.disabled = true;
                 createAccountBtn.textContent = 'Creating your account…';
-                archScene('attempt', null, 'Setting the keystone…', '');
+                archScene('attempt');
 
                 try {
                     var response = await fetch('auth_mysql', { method: 'POST', body: formData });
                     var data = await response.json();
                     if (data.success && data.redirect) {
                         createAccountBtn.textContent = 'Account created';
-                        archScene('grant', null, 'Bridge built. Welcome to TutorMind!', 'ok');
+                        archScene('grant');
                         setTimeout(function () { window.location.href = data.redirect; }, CROSS_MS);
                     } else {
                         throw new Error(data.error || 'Registration failed');
@@ -331,7 +327,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                 } catch (error) {
                     console.error('Registration error:', error);
                     showError(error.message || 'Something went wrong. Please try again.');
-                    archScene('deny', null, 'The bridge wobbled. Check the form.', 'bad');
+                    archScene('deny');
                     createAccountBtn.disabled = false;
                     createAccountBtn.innerHTML = btnHTML;
                 }

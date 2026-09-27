@@ -120,6 +120,7 @@
 
 .ds-btn--primary { background: var(--primary); color: #fff; --edge-color: var(--primary-dark); }
 .ds-btn--primary:hover { background: var(--primary-dark); }
+.ds-page a.ds-btn--primary { color: #fff; } /* out-rank `.ds-page a { color: inherit }` on link buttons */
 body.dark-mode .ds-btn--primary { --edge-color: #3b1580; }
 
 .ds-btn--secondary { background: var(--ds-surface); color: var(--ds-accent-ink); border-color: var(--primary); --edge-color: var(--primary); }
@@ -1064,7 +1065,8 @@ body.dark-mode .ds-viewfinder > i { border-color: var(--primary-light); }
    Auth — stage panel + form (login / register)
    Phone: logo row → scene banner → form.  Desktop: stage | form.
    The scene ([data-ds-scene]) acts out the form: padlock on login,
-   keystone arch on register; .ds-auth__status narrates it.
+   keystone arch on register. It has no box of its own: the object
+   sits straight on the page (phone) or the stage panel (desktop).
    ============================================================= */
 .ds-auth { min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 16px 16px 48px; }
 .ds-auth__main { display: contents; }
@@ -1074,14 +1076,7 @@ body.dark-mode .ds-viewfinder > i { border-color: var(--primary-light); }
 .ds-auth__stage > .ds-logo, .ds-auth__intro { display: none; }
 .ds-auth__card { order: 3; width: 100%; max-width: 420px; display: grid; gap: 22px; }
 .ds-auth__card > header { display: grid; gap: 8px; }
-.ds-auth__visual {
-  position: relative;
-  height: 220px;
-  border: 1px solid var(--ds-stage-line);
-  border-radius: var(--ds-r-lg);
-  background: var(--ds-stage);
-  overflow: hidden;
-}
+.ds-auth__visual { position: relative; height: 220px; }
 @media (min-width: 960px) {
   .ds-auth { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; gap: 0; padding: 0; }
   .ds-auth__main { display: grid; align-content: center; justify-items: center; padding: 20px 16px 48px; }
@@ -1103,41 +1098,12 @@ body.dark-mode .ds-viewfinder > i { border-color: var(--primary-light); }
   }
   .ds-auth__stage > .ds-logo { display: inline-flex; color: var(--ds-stage-ink); }
   .ds-auth__intro { display: grid; gap: 14px; }
-  .ds-auth__visual { flex: 1; height: auto; min-height: 260px; background: var(--ds-stage-surface); }
+  .ds-auth__visual { flex: 1; height: auto; min-height: 260px; }
 }
 @media (min-width: 960px) { .ds-auth__stage { border: 1px solid var(--ds-stage-line); } }
 .ds-auth__headline { margin: 0; font: 700 clamp(2.2rem, 3.6vw, 3.2rem)/1 var(--ds-font-display); letter-spacing: -0.03em; }
 .ds-auth__headline .ds-accent { color: var(--ds-stage-accent); }
 .ds-auth__stage .ds-lede { color: var(--ds-stage-ink-2); }
-
-.ds-auth__status {
-  position: absolute;
-  left: 14px;
-  bottom: 14px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: calc(100% - 28px);
-  padding: 8px 12px;
-  border: 1px solid var(--ds-stage-line);
-  border-radius: var(--ds-r-md);
-  background: var(--ds-stage-raised);
-  color: var(--ds-stage-ink);
-  font: 600 0.9rem var(--ds-font-display);
-  pointer-events: none;
-}
-.ds-auth__status::before {
-  content: '';
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--cta);
-  transition: background-color 0.2s;
-}
-.ds-auth__status[data-state="ok"]::before { background: var(--tm-good); }
-.ds-auth__status[data-state="bad"]::before { background: var(--tm-bad); }
 
 .ds-auth__alt { margin: 0; text-align: center; color: var(--ds-ink-2); }
 .ds-auth__alt a { font-weight: 600; color: var(--ds-accent-ink); text-decoration: none; }
@@ -1240,3 +1206,18 @@ body.dark-mode .ds-viewfinder > i { border-color: var(--primary-light); }
 .ds-mock .ds-papers > i { background: var(--ds-stage-raised); border-color: var(--ds-stage-line); }
 .ds-mock .ds-papers > i:nth-child(3) { color: var(--ds-stage-accent); }
 .ds-mock .ds-papers > i:nth-child(3)::before { background: repeating-linear-gradient(to bottom, var(--ds-stage-line) 0 3px, transparent 3px 9px); }
+
+/* =============================================================
+   Error pages (404.html / 403.html)
+   The landing hero, with the scene acting out the error: the
+   keystone arch stops one stone short (404), the padlock stays
+   locked (403).
+   ============================================================= */
+.ds-error { min-height: calc(100vh - 88px); display: grid; align-items: center; }
+.ds-error + .ds-footer { margin-top: 0; }
+.ds-error__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.ds-error__actions [hidden] { display: none; }
+/* The scene is the illustration, not a widget: no panel, it sits on the
+   canvas and the ground shadow anchors it. */
+.ds-error__visual { cursor: pointer; border: 0; border-radius: 0; background: none; overflow: visible; }
+@media (max-width: 480px) { .ds-error__actions .ds-btn { flex: 1 1 100%; } }
