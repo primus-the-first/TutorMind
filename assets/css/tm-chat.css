@@ -1,0 +1,369 @@
+/* =============================================================
+   TutorMind chat — design-system layer (tm-chat.css)
+   Loaded LAST on tutor_mysql.php, after tm-ds.css supplies the tokens.
+   Restyles the chat on the same system as the public pages: brand
+   tokens, Funnel Display headings, 8–20px radii, the pressable "edge".
+
+   Migration rule: when this file takes over an area, the legacy rules
+   it supersedes in ui-overhaul.css / mobile.css get deleted (final
+   phase), so the chat ends up lighter, not double-styled.
+   ============================================================= */
+
+/* ---------- 1. Legacy tokens → design-system palette (both themes) ----------
+   ui-overhaul.css components read these; pointing them at the --ds-*
+   tokens re-themes everything not yet restyled below. Declared on
+   body.dark-mode too so it out-ranks ui-overhaul's own dark block. */
+body,
+body.dark-mode {
+  --bg-main: var(--ds-canvas);
+  --bg-card: var(--ds-surface);
+  --text-primary: var(--ds-ink);
+  --text-secondary: var(--ds-ink-2);
+  --border: var(--ds-line);
+  --shadow-sm: var(--ds-lift);
+  --shadow-md: var(--ds-lift-hi);
+  --chat-fade-color: var(--ds-canvas);
+  background: var(--ds-canvas);
+  color: var(--ds-ink);
+}
+
+body .main-chat-wrapper,
+body.dark-mode .main-chat-wrapper { background-color: var(--ds-canvas); }
+
+/* ---------- 2. Sidebar ---------- */
+body .sidebar,
+body.dark-mode .sidebar {
+  background: var(--ds-surface);
+  border-right: 1px solid var(--ds-line);
+  box-shadow: none;
+}
+
+body .sidebar .menu-toggle {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--ds-r-sm);
+  background: transparent;
+  color: var(--ds-ink-2);
+  transition: background-color 0.15s, color 0.15s;
+}
+body .sidebar .menu-toggle:hover { background: var(--ds-tint); color: var(--ds-ink); }
+
+/* Wordmark: solid ink, not gradient text */
+body .sidebar .app-logo-text,
+body.dark-mode .sidebar .app-logo-text {
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  filter: none;
+}
+
+/* New chat = the one main action → amber CTA on its edge */
+body #newChatBtn.new-chat-btn,
+body.dark-mode #newChatBtn.new-chat-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: var(--ds-r-md);
+  background: var(--cta);
+  color: var(--ds-ink-on-cta);
+  font: 600 0.95rem/1 var(--ds-font-body);
+  box-shadow: 0 var(--ds-edge) 0 var(--cta-hover);
+  transform: none;
+  transition: transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease), background-color 0.15s;
+}
+body #newChatBtn.new-chat-btn:hover { background: var(--cta-hover); box-shadow: 0 var(--ds-edge) 0 #b45309; transform: translateY(-1px); }
+body #newChatBtn.new-chat-btn:active { transform: translateY(var(--ds-edge)); box-shadow: 0 0 0 var(--cta-hover); }
+body #newChatBtn.new-chat-btn svg { width: 18px; height: 18px; }
+
+/* Section label: sentence case in the display face, not a spaced-caps eyebrow */
+body .sidebar-section-title,
+body.dark-mode .sidebar-section-title {
+  margin: 18px 0 6px;
+  padding: 0 18px;
+  font-family: var(--ds-font-display);
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ds-ink-2);
+}
+
+/* Conversation list */
+body .chat-history .history-item,
+body.dark-mode .chat-history .history-item,
+body .history-tray-content .history-item,
+body.dark-mode .history-tray-content .history-item {
+  margin: 1px 10px;
+  padding: 0 4px 0 0;
+  border: 0;
+  border-radius: var(--ds-r-sm);
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  transition: background-color 0.15s;
+}
+body .history-item:hover,
+body.dark-mode .history-item:hover { background: var(--ds-tint); transform: none; box-shadow: none; }
+body .history-item:has(> a.active),
+body.dark-mode .history-item:has(> a.active) { background: var(--ds-tint); border: 0; box-shadow: none; }
+body .history-item > a,
+body.dark-mode .history-item > a {
+  padding: 9px 12px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ds-ink);
+  font: 500 0.925rem/1.3 var(--ds-font-body);
+}
+body .history-item > a.active,
+body.dark-mode .history-item > a.active { color: var(--ds-accent-ink); font-weight: 600; background: none; box-shadow: none; }
+body .history-item .edit-btn,
+body .history-item .delete-btn {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-r-sm);
+  color: var(--ds-ink-2);
+  font-size: 0.8rem;
+}
+body .history-item .edit-btn:hover,
+body .history-item .delete-btn:hover { background: var(--ds-surface); color: var(--ds-ink); }
+
+/* Account button at the bottom of the sidebar */
+body .user-profile,
+body.dark-mode .user-profile { border-top: 1px solid var(--ds-line); background: transparent; }
+body .user-info-button,
+body.dark-mode .user-info-button {
+  border: 0;
+  border-radius: var(--ds-r-md);
+  background: transparent;
+  box-shadow: none;
+  color: var(--ds-ink);
+  transition: background-color 0.15s;
+}
+body .user-info-button:hover,
+body.dark-mode .user-info-button:hover { background: var(--ds-tint); }
+body .user-avatar,
+body.dark-mode .user-avatar,
+body .profile-sheet-avatar,
+body.dark-mode .profile-sheet-avatar {
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  border: 0;
+  box-shadow: none;
+}
+body .user-details h4 { color: var(--ds-ink); font-weight: 600; }
+body .user-details p { color: var(--ds-ink-2); }
+
+/* Account menu popover */
+body .user-menu,
+body.dark-mode .user-menu {
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-lift-hi);
+}
+body .user-menu-nav a,
+body.dark-mode .user-menu-nav a {
+  border-radius: var(--ds-r-sm);
+  color: var(--ds-ink);
+}
+body .user-menu-nav a:hover,
+body.dark-mode .user-menu-nav a:hover { background: var(--ds-tint); color: var(--ds-ink); }
+
+/* ---------- 3. Header ---------- */
+body .main-chat-header,
+body.dark-mode .main-chat-header {
+  background: transparent;
+  border-bottom: 0;
+  box-shadow: none;
+}
+body .conversation-title,
+body.dark-mode .conversation-title {
+  font-family: var(--ds-font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  color: var(--ds-ink);
+}
+
+/* Timer + theme toggle: neutral chips on the standard edge */
+body .pomodoro-trigger-btn,
+body.dark-mode .pomodoro-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 600 0.9rem/1 var(--ds-font-body);
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 3px 0 var(--ds-line);
+  transform: none;
+  transition: transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease), border-color 0.15s;
+}
+body .pomodoro-trigger-btn:hover { border-color: var(--primary-light); }
+body .pomodoro-trigger-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ds-line); }
+body .pomodoro-trigger-btn i { color: var(--ds-accent-ink); }
+
+body #dark-mode-toggle.icon-btn,
+body.dark-mode #dark-mode-toggle.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--ds-r-sm);
+  background: var(--ds-tint);
+  color: var(--ds-ink);
+  box-shadow: none;
+}
+body #dark-mode-toggle.icon-btn:hover { color: var(--ds-accent-ink); }
+body #dark-mode-toggle svg { width: 19px; height: 19px; }
+body #dark-mode-toggle .tm-icon-sun,
+body.dark-mode #dark-mode-toggle .tm-icon-moon { display: none; }
+body.dark-mode #dark-mode-toggle .tm-icon-sun { display: block; }
+
+/* ---------- 4. Message box (the ask bar) ---------- */
+body .combined-input-bar,
+body.dark-mode .combined-input-bar {
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  box-shadow: 0 var(--ds-edge) 0 var(--ds-line), var(--ds-lift);
+  transition: border-color 0.15s, box-shadow 0.2s;
+}
+body .combined-input-bar:focus-within,
+body.dark-mode .combined-input-bar:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 var(--ds-edge) 0 var(--primary-light), var(--ds-lift-hi);
+}
+body .input-pill-row,
+body.dark-mode .input-pill-row { background: transparent; border: 0; box-shadow: none; }
+body .main-text-input,
+body.dark-mode .main-text-input {
+  color: var(--ds-ink);
+  font: 400 1.02rem/1.5 var(--ds-font-body);
+  background: transparent;
+}
+body .main-text-input::placeholder { color: var(--ds-ink-2); }
+
+/* NB: no `display` on these or the send button — tutor_mysql.js shows/hides
+   voice vs send by toggling display, and a display here would override it */
+body .input-pill-row .attach-trigger,
+body .input-pill-row .voice-mode-trigger-btn,
+body.dark-mode .input-pill-row .attach-trigger,
+body.dark-mode .input-pill-row .voice-mode-trigger-btn {
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--ds-r-sm);
+  background: transparent;
+  color: var(--ds-ink-2);
+  box-shadow: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+body .input-pill-row .attach-trigger:hover,
+body .input-pill-row .voice-mode-trigger-btn:hover { background: var(--ds-tint); color: var(--ds-accent-ink); }
+
+body #ai-submit-btn.submit-circle-btn,
+body.dark-mode #ai-submit-btn.submit-circle-btn {
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--ds-r-md);
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--primary-dark);
+  transition: transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease), background-color 0.15s;
+}
+body #ai-submit-btn.submit-circle-btn:hover { background: var(--primary-dark); }
+body #ai-submit-btn.submit-circle-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--primary-dark); }
+
+/* "+" panel */
+body .attach-panel,
+body.dark-mode .attach-panel {
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-lift-hi);
+}
+body .attach-panel .panel-row,
+body.dark-mode .attach-panel .panel-row { border-radius: var(--ds-r-sm); color: var(--ds-ink); }
+body .attach-panel .panel-row:hover,
+body.dark-mode .attach-panel .panel-row:hover { background: var(--ds-tint); }
+body .attach-panel .panel-section-label,
+body.dark-mode .attach-panel .panel-section-label {
+  font-family: var(--ds-font-display);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ds-ink-2);
+}
+
+/* ---------- 5. Mobile bottom nav (audit: 2.56:1 contrast, colour-only active state) ---------- */
+body .mobile-bottom-nav,
+body.dark-mode .mobile-bottom-nav {
+  background: var(--ds-surface);
+  border-top: 1px solid var(--ds-line);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+body .bottom-nav-item,
+body.dark-mode .bottom-nav-item {
+  position: relative;
+  color: var(--ds-ink-2);          /* #6b7280 on white = 4.8:1; #9ca3af on #1F1A2E = 6.4:1 */
+  font-family: var(--ds-font-body);
+  font-weight: 500;
+}
+body .bottom-nav-item.active,
+body.dark-mode .bottom-nav-item.active { color: var(--ds-accent-ink); font-weight: 600; }
+/* active state that doesn't rely on colour alone */
+body .bottom-nav-item.active::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  width: 18px;
+  height: 3px;
+  margin-left: -9px;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+/* Mobile sheets share the popover surface */
+body .mobile-profile-sheet,
+body.dark-mode .mobile-profile-sheet,
+body .mobile-history-tray,
+body.dark-mode .mobile-history-tray {
+  background: var(--ds-surface);
+  border-color: var(--ds-line);
+  color: var(--ds-ink);
+}
+body .history-tray-header h3,
+body .profile-sheet-info h3 { font-family: var(--ds-font-display); color: var(--ds-ink); }
+body .profile-sheet-item,
+body.dark-mode .profile-sheet-item { color: var(--ds-ink); border-color: var(--ds-line); }

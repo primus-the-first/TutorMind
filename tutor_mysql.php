@@ -291,7 +291,7 @@ try {
     <!-- Fonts and Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&family=Funnel+Display:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Source+Sans+Pro:wght@400;600;700&family=Funnel+Display:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- MathJax Configuration -->
@@ -317,6 +317,8 @@ try {
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <!-- Custom Styles -->
+    <!-- Design-system tokens/components (shared with the public pages) -->
+    <link rel="stylesheet" href="assets/css/tm-ds.css?v=<?= filemtime('assets/css/tm-ds.css') ?>">
     <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= filemtime('assets/css/ui-overhaul.css') ?>">
     <link rel="stylesheet" href="assets/css/tm-widgets.css?v=<?= filemtime('assets/css/tm-widgets.css') ?>">
     <link rel="stylesheet" href="assets/css/mobile.css?v=<?= filemtime('assets/css/mobile.css') ?>">
@@ -324,6 +326,8 @@ try {
     <link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>"></noscript>
     <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
+    <!-- Chat on the design system — must stay the LAST stylesheet -->
+    <link rel="stylesheet" href="assets/css/tm-chat.css?v=<?= filemtime('assets/css/tm-chat.css') ?>">
     <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?> <?= $user_dark_mode ? 'dark-mode' : '' ?>">
@@ -368,11 +372,11 @@ try {
         
         <div class="sidebar-header">
             <button id="newChatBtn" class="new-chat-btn">
-                <i class="fas fa-pen"></i> <span>New chat</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> <span>New chat</span>
             </button>
         </div>
 
-        <h3 class="sidebar-section-title">Recent Conversations</h3>
+        <h3 class="sidebar-section-title">Recent chats</h3>
         
         <nav id="chat-history-container" class="chat-history">
             <?php if (empty($history)): ?>
@@ -518,7 +522,9 @@ try {
                         </div>
                     </div>
                 </div>
-                <button class="icon-btn" id="dark-mode-toggle" title="Toggle Dark Mode" aria-label="Toggle dark mode">
+                <button class="icon-btn" id="dark-mode-toggle" title="Switch light/dark mode" aria-label="Switch light or dark mode">
+                    <svg class="tm-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+                    <svg class="tm-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
                 </button>
             </div>
         </header>
@@ -752,7 +758,7 @@ try {
     <!-- History Tray (Mobile Only) -->
     <div id="mobile-history-tray" class="mobile-history-tray mobile-only">
         <div class="history-tray-header">
-            <h3>Recent Conversations</h3>
+            <h3>Recent chats</h3>
             <button id="closeHistoryTray"><i class="fas fa-times"></i></button>
         </div>
         <div class="history-tray-content">

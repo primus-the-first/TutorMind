@@ -5406,126 +5406,19 @@ body.dark-mode .welcome-section p {
     color: #9CA3AF !important;
 }
 
-/* --- Dark Mode Overrides for Main Layout Components --- */
-body.dark-mode .submit-circle-btn,
-body.dark-mode #ai-submit-btn {
-    background: var(--primary-light) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
-    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4) !important;
-    color: #1a1625 !important;
-}
-
-body.dark-mode .submit-circle-btn:hover,
-body.dark-mode #ai-submit-btn:hover {
-    background: #c4b5fd !important;
-    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* --- Dark Mode: Sidebar Components --- */
-body.dark-mode #sidebar.sidebar,
-body.dark-mode aside#sidebar.sidebar {
-    background: linear-gradient(160deg,
-        rgba(26, 22, 37, 0.98) 0%,
-        rgba(34, 26, 48, 0.98) 50%,
-        rgba(42, 32, 64, 0.98) 100%) !important;
-    border-right-color: rgba(157, 107, 245, 0.3) !important;
-}
-
+/* --- Dark Mode: Sidebar Components ---
+   (sidebar surface, New chat, history items, send/voice buttons now live in
+   tm-chat.css — their old !important overrides were removed) */
 body.dark-mode .sidebar-header,
 body.dark-mode .sidebar-top-row {
     background: transparent !important;
-}
-
-body.dark-mode #newChatBtn.new-chat-btn,
-body.dark-mode button.new-chat-btn,
-body.dark-mode .new-chat-btn {
-    background: rgba(157, 107, 245, 0.2) !important;
-    border-color: rgba(157, 107, 245, 0.5) !important;
-    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4) !important;
-    color: #e0e7ff !important;
-}
-
-body.dark-mode #newChatBtn:hover,
-body.dark-mode button.new-chat-btn:hover,
-body.dark-mode .new-chat-btn:hover {
-    background: rgba(157, 107, 245, 0.35) !important;
-    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5) !important;
 }
 
 body.dark-mode .chat-history {
     background: transparent !important;
 }
 
-body.dark-mode .history-item a {
-    background: rgba(30, 30, 30, 0.6) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
-    color: rgba(224, 231, 255, 0.8) !important;
-    box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.3) !important;
-}
 
-body.dark-mode .history-item a:hover {
-    border-color: rgba(157, 107, 245, 0.5) !important;
-    background: rgba(157, 107, 245, 0.15) !important;
-    color: #e0e7ff !important;
-}
-
-body.dark-mode .history-item a.active {
-    border-color: var(--primary-light) !important;
-    background: rgba(157, 107, 245, 0.25) !important;
-}
-
-/* --- Dark Mode: Input Area Components --- */
-body.dark-mode .input-row {
-    background: rgba(30, 30, 30, 0.9) !important;
-    border-color: rgba(157, 107, 245, 0.3) !important;
-    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.4) !important;
-}
-
-body.dark-mode .input-row:focus-within {
-    border-color: var(--primary-light) !important;
-    box-shadow: 6px 6px 0px rgba(157, 107, 245, 0.4) !important;
-}
-
-body.dark-mode .input-controls-group button,
-body.dark-mode .input-controls-group .control-dropdown {
-    background: rgba(45, 45, 45, 0.8) !important;
-    border-color: rgba(255, 255, 255, 0.15) !important;
-    color: rgba(255, 255, 255, 0.8) !important;
-}
-
-body.dark-mode .input-controls-group button:hover,
-body.dark-mode .input-controls-group .control-dropdown:hover {
-    background: rgba(157, 107, 245, 0.2) !important;
-    border-color: var(--primary-light) !important;
-    color: var(--primary-light) !important;
-}
-
-body.dark-mode .voice-mode-trigger-btn {
-    background: rgba(157, 107, 245, 0.15) !important;
-    border-color: rgba(157, 107, 245, 0.4) !important;
-    color: var(--primary-light) !important;
-}
-
-body.dark-mode .voice-mode-trigger-btn:hover {
-    background: rgba(157, 107, 245, 0.25) !important;
-    border-color: var(--primary-light) !important;
-}
-
-body.dark-mode .submit-btn {
-    background: var(--primary-light) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
-    color: #1a1625 !important;
-    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4) !important;
-}
-
-body.dark-mode .submit-btn:hover {
-    background: #c4b5fd !important;
-    box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5) !important;
-}
-
-body.dark-mode #file-upload-preview-container {
-    border-color: rgba(255, 255, 255, 0.2) !important;
-}
 
 /* ==========================================================================
    GEMINI/CHATGPT-STYLE CENTERED INPUT WITH SLIDE ANIMATION
