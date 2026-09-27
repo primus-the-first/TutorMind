@@ -4,9 +4,9 @@
  *   - Monoline icon sprite (<svg class="ds-i"><use href="#i-mic"/></svg>)
  *   - Theme toggle (body.dark-mode + 'tutormind-theme', same as index.html)
  *   - Mobile menu, ask-bar chips, scroll reveal
- *   - 3D: pointer tilt on [data-tilt], CSS subject objects, and a WebGL
- *     bridge arch hero ([data-ds-bridge], needs three.js) that "draws in"
- *     like the Bridge Draw loader in tm-loader.css.
+ *   - 3D: pointer tilt on [data-tilt], CSS subject objects, and WebGL
+ *     scenes (need three.js): the landing bridge that "draws in" like the
+ *     Bridge Draw loader, the login padlock and the register keystone arch.
  */
 (function () {
   'use strict';
@@ -163,21 +163,31 @@
     document.querySelectorAll('.ds-art, [data-ds-live]').forEach(function (el) { live.observe(el); });
   }
 
-  /* ---------- WebGL bridge arch hero ---------- */
-  function initBridge(host) {
-    var THREE = window.THREE;
-    if (!THREE) return;
+  /* =========================================================
+     WebGL scenes (three.js)
+       [data-ds-bridge]            landing hero — Bridge Draw in 3D
+       [data-ds-scene="lock"]      login — the arch is a padlock shackle;
+                                   typing brings the key, success unlocks it
+       [data-ds-scene="keystone"]  register — each valid field lays a pair
+                                   of stones; the amber keystone goes in last
+     Interactive scenes expose host.tmScene = { setProgress(0..1),
+     attempt(), deny(), grant() } for the page's form code.
+     ========================================================= */
 
+  // Shared renderer / camera / lights / resize / pointer / pause-offscreen
+  function createStage(host, opts) {
+    var THREE = window.THREE;
+    if (!THREE) return null;
     var renderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch (e) {
-      return; // no WebGL: the static logo fallback stays visible
+      return null; // no WebGL: the static fallback stays visible
     }
     host.classList.add('has-webgl');
     host.appendChild(renderer.domElement);
     renderer.domElement.setAttribute('aria-hidden', 'true');
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxDpr || 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -193,68 +203,27 @@
 
     var scene = new THREE.Scene();
     var camera = new THREE.PerspectiveCamera(34, 1, 0.1, 500);
-    camera.position.set(0, 16, 78);
-    camera.lookAt(0, 9, 0);
+    var look = new THREE.Vector3().fromArray(opts.lookAt);
+    var camBase = new THREE.Vector3().fromArray(opts.camera);
+    camera.position.copy(camBase);
+    camera.lookAt(look);
 
     scene.add(new THREE.HemisphereLight(0xffffff, C.dark, 1.3));
     var sun = new THREE.DirectionalLight(0xffffff, 2.4);
-    sun.position.set(18, 42, 30);
+    sun.position.set(18, 46, 30);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
-    sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
+    sun.shadow.camera.left = -34; sun.shadow.camera.right = 34;
+    sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -34;
     sun.shadow.radius = 6;
     scene.add(sun);
 
     var group = new THREE.Group();
     scene.add(group);
 
-    // Same curve as assets/logo-bridge.svg: M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30
-    // (x - 20, 30 - y) so the arch stands on y = 0.
-    var V = function (x, y) { return new THREE.Vector3(x, y, 0); };
-    var path = new THREE.CurvePath();
-    path.add(new THREE.CubicBezierCurve3(V(-14, 0), V(-14, 10), V(-6, 18), V(0, 18)));
-    path.add(new THREE.CubicBezierCurve3(V(0, 18), V(6, 18), V(14, 10), V(14, 0)));
-    var RADIAL = 32;
-    var archGeo = new THREE.TubeGeometry(path, 160, 1.9, RADIAL, false);
-    var arch = new THREE.Mesh(archGeo, new THREE.MeshStandardMaterial({ color: C.primary, roughness: 0.32, metalness: 0.08 }));
-    arch.castShadow = true;
-    group.add(arch);
-    var totalIdx = archGeo.index.count;
-    var ringIdx = RADIAL * 6;
-
-    function ball(r, color, x, y, emissive) {
-      var m = new THREE.Mesh(
-        new THREE.SphereGeometry(r, 40, 24),
-        new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, emissive: emissive || 0x000000, emissiveIntensity: emissive ? 0.35 : 0 })
-      );
-      m.position.set(x, y, 0);
-      m.castShadow = true;
-      group.add(m);
-      return m;
-    }
-    var baseL = ball(2.6, C.dark, -14, 0);
-    var baseR = ball(2.6, C.light, 14, 0);
-    var top = ball(3.1, C.cta, 0, 23.5, C.cta);
-
-    // Floating study "blocks" around the arch
-    var floaters = [
-      { geo: new THREE.BoxGeometry(3.2, 3.2, 3.2), color: C.light, pos: [-17, 22, -6] },
-      { geo: new THREE.OctahedronGeometry(2.3), color: C.primary, pos: [17, 14, -8] },
-      { geo: new THREE.TorusGeometry(2, 0.7, 16, 40), color: C.light, pos: [16, 4, 8] },
-      { geo: new THREE.IcosahedronGeometry(1.8), color: C.dark, pos: [-18, 9, 7] }
-    ].map(function (f, i) {
-      var m = new THREE.Mesh(f.geo, new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.4 }));
-      m.position.set(f.pos[0], f.pos[1], f.pos[2]);
-      m.castShadow = true;
-      m.userData = { y: f.pos[1], phase: i * 1.7 };
-      group.add(m);
-      return m;
-    });
-
-    var ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), new THREE.ShadowMaterial({ opacity: 0.14 }));
+    var ground = new THREE.Mesh(new THREE.PlaneGeometry(260, 260), new THREE.ShadowMaterial({ opacity: 0.16 }));
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -2.7;
+    ground.position.y = opts.groundY;
     ground.receiveShadow = true;
     scene.add(ground);
 
@@ -263,8 +232,10 @@
       if (!w || !h) return;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      // keep the whole arch in frame on narrow boxes
-      camera.position.z = w / h < 0.9 ? 78 / (w / h) * 0.9 : 78;
+      // pull back on narrow boxes so the whole model stays in frame
+      var k = camera.aspect < 0.9 ? 0.9 / camera.aspect : 1;
+      camera.position.copy(camBase).sub(look).multiplyScalar(k).add(look);
+      camera.lookAt(look);
       camera.updateProjectionMatrix();
     }
     resize();
@@ -279,17 +250,111 @@
     });
     host.addEventListener('pointerleave', function () { pointer.tx = 0; pointer.ty = 0; });
 
-    function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
-    function easeOutBack(t) { var c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
+    var stage = {
+      THREE: THREE, C: C, scene: scene, camera: camera, group: group, pointer: pointer,
+      reduced: reduceMotion,
+      mat: function (color, extra) {
+        var o = { color: color, roughness: 0.35, metalness: 0.08 };
+        for (var k in extra) o[k] = extra[k];
+        return new THREE.MeshStandardMaterial(o);
+      },
+      mesh: function (geo, material, parent) {
+        var m = new THREE.Mesh(geo, material);
+        m.castShadow = true;
+        (parent || group).add(m);
+        return m;
+      },
+      // exponential approach; snaps under reduced motion
+      approach: function (cur, target, dt, speed) {
+        return reduceMotion ? target : cur + (target - cur) * (1 - Math.exp(-dt * speed));
+      },
+      renderOnce: function (frame, t) { frame(t, 0); renderer.render(scene, camera); },
+      run: function (frame) {
+        // opts.maxFps throttles idle scenes (auth pages) so software-rendered
+        // WebGL on GPU-less machines doesn't starve the page's own JS
+        var running = false, last = null, t = 0, inView = true, gap = opts.maxFps ? 1000 / opts.maxFps - 2 : 0;
+        function loop(now) {
+          if (!running) return;
+          if (gap && last !== null && now - last < gap) { requestAnimationFrame(loop); return; }
+          var dt = last === null ? 0 : Math.min((now - last) / 1000, 0.05);
+          last = now;
+          t += dt;
+          pointer.x += (pointer.tx - pointer.x) * 0.06;
+          pointer.y += (pointer.ty - pointer.y) * 0.06;
+          frame(t, dt);
+          renderer.render(scene, camera);
+          requestAnimationFrame(loop);
+        }
+        function play() { if (!running && inView && !document.hidden) { running = true; last = null; requestAnimationFrame(loop); } }
+        function pause() { running = false; }
+        if ('IntersectionObserver' in window) {
+          new IntersectionObserver(function (entries) {
+            inView = entries[0].isIntersecting;
+            inView ? play() : pause();
+          }).observe(host);
+        } else {
+          play();
+        }
+        document.addEventListener('visibilitychange', function () { document.hidden ? pause() : play(); });
+      }
+    };
+    return stage;
+  }
+
+  // The logo's arch: M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30,
+  // re-centred as x ∈ [-14, 14], y ∈ [0, 18]. map(x, y) lets a scene rescale it.
+  function logoArch(THREE, map) {
+    map = map || function (x, y) { return new THREE.Vector3(x, y, 0); };
+    var path = new THREE.CurvePath();
+    path.add(new THREE.CubicBezierCurve3(map(-14, 0), map(-14, 10), map(-6, 18), map(0, 18)));
+    path.add(new THREE.CubicBezierCurve3(map(0, 18), map(6, 18), map(14, 10), map(14, 0)));
+    return path;
+  }
+
+  function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function easeOutBack(t) { var c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
+  function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+  /* ---------- Landing hero: the bridge draws itself in ---------- */
+  function initBridge(host) {
+    var s = createStage(host, { camera: [0, 16, 78], lookAt: [0, 9, 0], groundY: -2.7 });
+    if (!s) return;
+    var THREE = s.THREE, C = s.C;
+
+    var RADIAL = 32;
+    var archGeo = new THREE.TubeGeometry(logoArch(THREE), 160, 1.9, RADIAL, false);
+    s.mesh(archGeo, s.mat(C.primary, { roughness: 0.32 }));
+    var totalIdx = archGeo.index.count, ringIdx = RADIAL * 6;
+
+    function ball(r, color, x, y, glow) {
+      var m = s.mesh(new THREE.SphereGeometry(r, 40, 24), s.mat(color, { roughness: 0.3, emissive: glow ? color : 0x000000, emissiveIntensity: glow ? 0.35 : 0 }));
+      m.position.set(x, y, 0);
+      return m;
+    }
+    ball(2.6, C.dark, -14, 0);
+    var baseR = ball(2.6, C.light, 14, 0);
+    var top = ball(3.1, C.cta, 0, 23.5, true);
+
+    // Floating study "blocks" around the arch
+    var floaters = [
+      { geo: new THREE.BoxGeometry(3.2, 3.2, 3.2), color: C.light, pos: [-17, 22, -6] },
+      { geo: new THREE.OctahedronGeometry(2.3), color: C.primary, pos: [17, 14, -8] },
+      { geo: new THREE.TorusGeometry(2, 0.7, 16, 40), color: C.light, pos: [16, 4, 8] },
+      { geo: new THREE.IcosahedronGeometry(1.8), color: C.dark, pos: [-18, 9, 7] }
+    ].map(function (f, i) {
+      var m = s.mesh(f.geo, s.mat(f.color, { roughness: 0.4 }));
+      m.position.fromArray(f.pos);
+      m.userData = { y: f.pos[1], phase: i * 1.7 };
+      return m;
+    });
 
     var DRAW = 1.6, POP = 0.5;
     function frame(t) {
       // Bridge Draw: stroke the arch on, left base first, then pop the top dot
       var d = Math.min(t / DRAW, 1);
-      var idx = Math.floor((totalIdx * easeInOut(d)) / ringIdx) * ringIdx;
-      archGeo.setDrawRange(0, idx);
+      archGeo.setDrawRange(0, Math.floor((totalIdx * easeInOut(d)) / ringIdx) * ringIdx);
       baseR.scale.setScalar(d >= 0.98 ? 1 : 0.001);
-      var p = Math.min(Math.max((t - DRAW) / POP, 0), 1);
+      var p = clamp01((t - DRAW) / POP);
       top.scale.setScalar(Math.max(easeOutBack(p), 0.001));
       top.position.y = 23.5 + Math.sin(t * 2) * 0.5 * p;
 
@@ -300,37 +365,230 @@
         m.scale.setScalar(Math.max(Math.min((t - 0.4 - m.userData.phase * 0.12) / 0.6, 1), 0.001));
       });
 
-      pointer.x += (pointer.tx - pointer.x) * 0.06;
-      pointer.y += (pointer.ty - pointer.y) * 0.06;
-      group.rotation.y = Math.sin(t * 0.35) * 0.3 + pointer.x * 0.45;
-      group.rotation.x = pointer.y * 0.12;
-      renderer.render(scene, camera);
+      s.group.rotation.y = Math.sin(t * 0.35) * 0.3 + s.pointer.x * 0.45;
+      s.group.rotation.x = s.pointer.y * 0.12;
     }
 
-    if (reduceMotion) {
-      frame(DRAW + POP + 1); // one static, fully drawn frame
-      return;
+    if (s.reduced) { s.renderOnce(frame, DRAW + POP + 1); return; }
+    s.run(frame);
+  }
+
+  /* ---------- Login: padlock whose shackle is the bridge arch ---------- */
+  function initLock(host) {
+    var s = createStage(host, { camera: [32, 26, 74], lookAt: [0, 14, 0], groundY: -4, maxDpr: 1.5, maxFps: 30 });
+    if (!s) return;
+    var THREE = s.THREE, C = s.C, V = function (x, y, z) { return new THREE.Vector3(x, y, z || 0); };
+    var lock = new THREE.Group();
+    s.group.add(lock);
+
+    // Body: a rounded slab with a keyhole cut all the way through
+    var W = 26, H = 18, R = 4, D = 7, BOTTOM = -4, TOP = BOTTOM + H, BEVEL = 1;
+    var body = new THREE.Shape();
+    body.moveTo(-W / 2 + R, BOTTOM);
+    body.lineTo(W / 2 - R, BOTTOM);
+    body.quadraticCurveTo(W / 2, BOTTOM, W / 2, BOTTOM + R);
+    body.lineTo(W / 2, TOP - R);
+    body.quadraticCurveTo(W / 2, TOP, W / 2 - R, TOP);
+    body.lineTo(-W / 2 + R, TOP);
+    body.quadraticCurveTo(-W / 2, TOP, -W / 2, TOP - R);
+    body.lineTo(-W / 2, BOTTOM + R);
+    body.quadraticCurveTo(-W / 2, BOTTOM, -W / 2 + R, BOTTOM);
+    var KY = BOTTOM + 11, KR = 2.3, SLOT = 1.2, dy = Math.sqrt(KR * KR - SLOT * SLOT);
+    var keyhole = new THREE.Path();
+    keyhole.moveTo(-SLOT, KY - 6);
+    keyhole.lineTo(-SLOT, KY - dy);
+    keyhole.absarc(0, KY, KR, Math.atan2(-dy, -SLOT), Math.atan2(-dy, SLOT), true);
+    keyhole.lineTo(SLOT, KY - 6);
+    keyhole.lineTo(-SLOT, KY - 6);
+    body.holes.push(keyhole);
+    var bodyGeo = new THREE.ExtrudeGeometry(body, { depth: D, bevelEnabled: true, bevelThickness: BEVEL, bevelSize: 0.8, bevelSegments: 3, curveSegments: 14 });
+    bodyGeo.translate(0, 0, -D / 2);
+    var bodyMesh = s.mesh(bodyGeo, s.mat(C.primary, { roughness: 0.3 }), lock);
+    bodyMesh.receiveShadow = true;
+    var FRONT = D / 2 + BEVEL;
+
+    // Amber light inside the keyhole (the logo's amber dot, relocated)
+    var glowMat = s.mat(C.cta, { emissive: C.cta, emissiveIntensity: 0.9 });
+    var glow = new THREE.Mesh(new THREE.BoxGeometry(5.6, 9.5, 0.6), glowMat);
+    glow.position.set(0, KY - 2, 0);
+    lock.add(glow);
+
+    // Shackle = the logo arch, narrowed to the body, with legs seated in it.
+    // It hangs off a pivot on the left leg so it can lift and swing open.
+    var LEG = 8, SEAT = 3.5, RISE = 2.5, y0 = TOP - SEAT, y1 = TOP + RISE;
+    var shacklePath = new THREE.CurvePath();
+    shacklePath.add(new THREE.LineCurve3(V(-LEG, y0), V(-LEG, y1)));
+    logoArch(THREE, function (x, y) { return V(x * LEG / 14, y1 + y * 0.8); }).curves.forEach(function (c) { shacklePath.add(c); });
+    shacklePath.add(new THREE.LineCurve3(V(LEG, y1), V(LEG, y0)));
+    var pivot = new THREE.Group();
+    pivot.position.set(-LEG, 0, 0);
+    lock.add(pivot);
+    var shackle = s.mesh(new THREE.TubeGeometry(shacklePath, 140, 1.8, 18, false), s.mat(C.light, { roughness: 0.28, metalness: 0.35 }), pivot);
+    shackle.position.set(LEG, 0, 0);
+
+    // Key (amber = the one action). Built along +z with its tip at z = 0,
+    // blade teeth hanging down (-y) to match the keyhole slot.
+    var key = new THREE.Group();
+    lock.add(key);
+    var keyMat = s.mat(C.cta, { roughness: 0.32, metalness: 0.3 });
+    var bow = s.mesh(new THREE.TorusGeometry(2.4, 0.85, 12, 28), keyMat, key);
+    bow.rotation.y = Math.PI / 2;
+    bow.position.z = 11.9;
+    var shaft = s.mesh(new THREE.CylinderGeometry(0.6, 0.6, 9.5, 12), keyMat, key);
+    shaft.rotation.x = Math.PI / 2;
+    shaft.position.z = 4.75;
+    [[1.2, 1.4], [3.0, 1.0], [4.7, 1.6]].forEach(function (tooth) {
+      var m = s.mesh(new THREE.BoxGeometry(0.5, tooth[1], 1.1), keyMat, key);
+      m.position.set(0, -0.5 - tooth[1] / 2, tooth[0]);
+    });
+
+    var KEY_Y = KY - 1.5;
+    var IDLE = { x: 13, y: 6, z: 12, ry: 0.95 };
+    var READY = { x: 0, y: KEY_Y, z: FRONT + 3.5, ry: 0 };
+    var IN_Z = FRONT - 5.5;
+
+    var cur = { p: 0, i: 0, turn: 0, open: 0 }, tgt = { p: 0, i: 0, turn: 0, open: 0 };
+    var mode = 'ready', lastProgress = 0, shakeAt = -10, now = 0;
+
+    host.tmScene = {
+      setProgress: function (v) { lastProgress = clamp01(v); if (mode === 'ready') tgt.p = lastProgress; },
+      attempt: function () { mode = 'attempt'; tgt.p = 1; },
+      deny: function () { mode = 'deny'; shakeAt = now; },
+      grant: function () { mode = 'grant'; tgt.p = 1; }
+    };
+
+    function frame(t, dt) {
+      now = t;
+      if (mode === 'attempt') {            // insert, then a hesitant quarter-turn while the server checks
+        tgt.i = 1;
+        tgt.turn = cur.i > 0.9 ? 0.3 : 0;
+      } else if (mode === 'grant') {       // insert → full turn → shackle lifts and swings open
+        tgt.i = 1;
+        tgt.turn = cur.i > 0.9 ? 1 : 0;
+        tgt.open = cur.turn > 0.92 ? 1 : 0;
+      } else if (mode === 'deny') {        // turn back, pull out, head-shake
+        tgt.turn = 0;
+        tgt.open = 0;
+        tgt.i = cur.turn < 0.08 ? 0 : 1;
+        if (cur.i < 0.05 && t - shakeAt > 0.7) { mode = 'ready'; tgt.p = lastProgress; }
+      }
+      cur.p = s.approach(cur.p, tgt.p, dt, 5);
+      cur.i = s.approach(cur.i, tgt.i, dt, 7);
+      cur.turn = s.approach(cur.turn, tgt.turn, dt, 6);
+      cur.open = s.approach(cur.open, tgt.open, dt, 4.5);
+
+      var e = easeInOut(cur.p), bob = s.reduced ? 0 : Math.sin(t * 1.6) * 0.7 * (1 - e);
+      key.position.set(
+        IDLE.x + (READY.x - IDLE.x) * e,
+        IDLE.y + (READY.y - IDLE.y) * e + bob,
+        IDLE.z + (READY.z - IDLE.z) * e + (IN_Z - READY.z) * cur.i
+      );
+      key.rotation.set(0, IDLE.ry * (1 - e), -cur.turn * Math.PI / 2 + (s.reduced ? 0 : Math.sin(t * 1.1) * 0.25 * (1 - e)));
+
+      pivot.position.y = clamp01(cur.open / 0.45) * 4.5;
+      pivot.rotation.y = -clamp01((cur.open - 0.45) / 0.55) * 1.9;
+      glowMat.emissiveIntensity = 0.9 + cur.open * 0.9 + (mode === 'attempt' && !s.reduced ? Math.sin(t * 8) * 0.25 : 0);
+
+      var since = t - shakeAt;
+      lock.rotation.z = since < 0.7 && !s.reduced ? Math.sin(since * 38) * 0.07 * (1 - since / 0.7) : 0;
+      lock.position.y = s.reduced ? 0 : Math.sin(t * 1.2) * 0.4;
+      s.group.rotation.y = s.pointer.x * 0.35 + (s.reduced ? 0 : Math.sin(t * 0.3) * 0.12);
+      s.group.rotation.x = s.pointer.y * 0.08;
+    }
+    s.run(frame);
+  }
+
+  /* ---------- Register: build the arch, keystone last ---------- */
+  function initKeystone(host) {
+    var s = createStage(host, { camera: [14, 20, 76], lookAt: [0, 8, 0], groundY: -6, maxDpr: 1.5, maxFps: 30 });
+    if (!s) return;
+    var THREE = s.THREE, C = s.C;
+    var arch = new THREE.Group();
+    s.group.add(arch);
+
+    var path = logoArch(THREE);
+    var N = 9, KEY = 4, THICK = 4.4, DEPTH = 6;
+    var seg = path.getLength() / N;
+
+    // Abutments — the ground you build out from
+    [[-14, C.dark], [14, C.light]].forEach(function (a) {
+      var m = s.mesh(new THREE.BoxGeometry(7, 6, DEPTH + 1.5), s.mat(a[1], { roughness: 0.55 }), arch);
+      m.position.set(a[0], -3, 0);
+      m.receiveShadow = true;
+    });
+
+    // Voussoirs along the logo curve, coloured dark→light like the logo's
+    // gradient; the centre one is the amber keystone (the logo's dot).
+    var blocks = [];
+    for (var i = 0; i < N; i++) {
+      var u = (i + 0.5) / N, pt = path.getPointAt(u), tan = path.getTangentAt(u);
+      var isKey = i === KEY;
+      var geo = new THREE.BoxGeometry(seg * 0.93, isKey ? THICK + 1.4 : THICK, isKey ? DEPTH + 0.8 : DEPTH);
+      var color = isKey ? C.cta : C.dark.clone().lerp(C.light, i / (N - 1));
+      var material = s.mat(color, { roughness: 0.5, transparent: true, opacity: 0, emissive: isKey ? C.cta : 0x000000, emissiveIntensity: 0 });
+      var mesh = s.mesh(geo, material, arch);
+      var ang = Math.atan2(tan.y, tan.x);
+      // blueprint ghost of where the stone will go
+      var ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: C.light, transparent: true, opacity: 0.06, depthWrite: false }));
+      var edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: C.light, transparent: true, opacity: 0.32 }));
+      [ghost, edges].forEach(function (g) { g.position.copy(pt); g.rotation.z = ang; arch.add(g); });
+      blocks.push({ mesh: mesh, rest: pt, ang: ang, s: 0, v: 0, target: 0, side: i < KEY ? -1 : 1, isKey: isKey, ghost: [ghost, edges] });
     }
 
-    var running = false, start = null, elapsed = 0, inView = true;
-    function loop(now) {
-      if (!running) return;
-      if (start === null) start = now - elapsed * 1000;
-      elapsed = (now - start) / 1000;
-      frame(elapsed);
-      requestAnimationFrame(loop);
+    var ball = s.mesh(new THREE.SphereGeometry(1.5, 32, 20), s.mat(C.light, { roughness: 0.3 }), arch);
+    ball.scale.setScalar(0.001);
+
+    var mode = 'build', shakeAt = -10, rollAt = -10, now = 0;
+    function place(v) {
+      // 5 checks: the first four lay pairs from both ends inward, the last drops the keystone
+      var done = Math.round(clamp01(v) * 5);
+      blocks.forEach(function (b, idx) {
+        b.target = b.isKey ? (done >= 5 ? 1 : 0) : (Math.min(idx, N - 1 - idx) < Math.min(done, 4) ? 1 : 0);
+      });
     }
-    function play() { if (!running && inView && !document.hidden) { running = true; start = null; requestAnimationFrame(loop); } }
-    function pause() { running = false; }
-    if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (entries) {
-        inView = entries[0].isIntersecting;
-        inView ? play() : pause();
-      }).observe(host);
-    } else {
-      play();
+    host.tmScene = {
+      setProgress: function (v) { if (mode !== 'grant') place(v); },
+      attempt: function () { mode = 'attempt'; },
+      deny: function () { mode = 'build'; shakeAt = now; },
+      grant: function () { place(1); mode = 'grant'; rollAt = now + 0.35; }
+    };
+
+    function frame(t, dt) {
+      now = t;
+      blocks.forEach(function (b) {
+        if (s.reduced) { b.s = b.target; }
+        else {                                  // springy drop with a little thud
+          b.v += (140 * (b.target - b.s) - 15 * b.v) * dt;
+          b.s += b.v * dt;
+        }
+        var k = 1 - b.s;
+        b.mesh.position.set(b.rest.x + k * b.side * 5, b.rest.y + k * 18, b.rest.z);
+        b.mesh.rotation.z = b.ang + k * b.side * 0.7;
+        b.mesh.material.opacity = clamp01(b.s * 1.6);
+        b.mesh.visible = b.mesh.material.opacity > 0.01;
+        b.ghost[1].material.opacity = 0.32 * (1 - clamp01(b.s));
+        if (b.isKey) {
+          b.mesh.material.emissiveIntensity = mode === 'grant' ? 0.8
+            : mode === 'attempt' && !s.reduced ? 0.35 + Math.sin(t * 8) * 0.25 : 0.15 * b.s;
+        }
+      });
+
+      // Success: a learner rolls across the finished bridge
+      var r = clamp01((t - rollAt) / 1.5);
+      if (mode === 'grant' && t >= rollAt) {
+        var u = s.reduced ? 1 : easeInOut(r), p = path.getPointAt(u), tn = path.getTangentAt(u);
+        var off = THICK / 2 + 1.7;
+        ball.position.set(p.x - tn.y * off, p.y + tn.x * off, 0);
+        ball.rotation.z = -u * path.getLength() / 1.5;
+        ball.scale.setScalar(1);
+      }
+
+      var since = t - shakeAt;
+      arch.rotation.z = since < 0.7 && !s.reduced ? Math.sin(since * 34) * 0.035 * (1 - since / 0.7) : 0;
+      s.group.rotation.y = s.pointer.x * 0.35 + (s.reduced ? 0 : Math.sin(t * 0.3) * 0.14);
+      s.group.rotation.x = s.pointer.y * 0.08;
     }
-    document.addEventListener('visibilitychange', function () { document.hidden ? pause() : play(); });
+    s.run(frame);
   }
 
   /* ---------- Boot ---------- */
@@ -344,6 +602,8 @@
     initTilt();
     initScroll();
     document.querySelectorAll('[data-ds-bridge]').forEach(initBridge);
+    document.querySelectorAll('[data-ds-scene="lock"]').forEach(initLock);
+    document.querySelectorAll('[data-ds-scene="keystone"]').forEach(initKeystone);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

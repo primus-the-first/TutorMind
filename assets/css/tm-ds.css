@@ -1119,21 +1119,43 @@ body.dark-mode .ds-stage { border: 1px solid var(--ds-stage-line); }
 .ds-alert[hidden] { display: none; }
 .ds-alert .ds-i { color: var(--tm-bad); margin-top: 2px; }
 
-/* Any WebGL bridge host (hero, auth) */
-[data-ds-bridge] canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
-[data-ds-bridge].has-webgl .ds-hero__fallback { display: none; }
+/* Any WebGL scene host (landing bridge, login lock, register keystone) */
+[data-ds-bridge] canvas, [data-ds-scene] canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+[data-ds-bridge].has-webgl .ds-hero__fallback, [data-ds-scene].has-webgl .ds-hero__fallback { display: none; }
 
 /* =============================================================
    Auth — stage panel + form (login / register)
+   Phone: logo row → scene banner → form.  Desktop: stage | form.
+   The scene ([data-ds-scene]) acts out the form: padlock on login,
+   keystone arch on register; .ds-auth__status narrates it.
    ============================================================= */
-.ds-auth { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); }
-.ds-auth__stage { display: none; }
+.ds-auth { min-height: 100vh; display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 16px 16px 48px; }
+.ds-auth__main { display: contents; }
+.ds-auth__top { order: 1; width: 100%; max-width: 420px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ds-auth__top .ds-logo { margin-right: 0; }
+.ds-auth__stage { order: 2; width: 100%; max-width: 420px; color: var(--ds-stage-ink); }
+.ds-auth__stage > .ds-logo, .ds-auth__intro { display: none; }
+.ds-auth__card { order: 3; width: 100%; max-width: 420px; display: grid; gap: 22px; }
+.ds-auth__card > header { display: grid; gap: 8px; }
+.ds-auth__visual {
+  position: relative;
+  height: 220px;
+  border: 1px solid var(--ds-stage-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-stage);
+  overflow: hidden;
+}
 @media (min-width: 960px) {
-  .ds-auth { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ds-auth { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; gap: 0; padding: 0; }
+  .ds-auth__main { display: grid; align-content: center; justify-items: center; padding: 20px 16px 48px; }
+  .ds-auth__top { justify-content: flex-end; margin-bottom: 36px; }
+  .ds-auth__mobile-logo { display: none !important; }
   .ds-auth__stage {
+    order: 0;
     position: sticky;
     top: 12px;
     height: calc(100vh - 24px);
+    max-width: none;
     display: flex;
     flex-direction: column;
     gap: 28px;
@@ -1141,36 +1163,62 @@ body.dark-mode .ds-stage { border: 1px solid var(--ds-stage-line); }
     padding: 32px;
     border-radius: var(--ds-r-xl);
     background: var(--ds-stage);
-    color: var(--ds-stage-ink);
   }
-  .ds-auth__stage .ds-logo { color: var(--ds-stage-ink); }
-  .ds-auth__mobile-logo { display: none !important; }
+  .ds-auth__stage > .ds-logo { display: inline-flex; color: var(--ds-stage-ink); }
+  .ds-auth__intro { display: grid; gap: 14px; }
+  .ds-auth__visual { flex: 1; height: auto; min-height: 260px; background: var(--ds-stage-surface); }
 }
 body.dark-mode .ds-auth__stage { border: 1px solid var(--ds-stage-line); }
 .ds-auth__headline { margin: 0; font: 700 clamp(2.2rem, 3.6vw, 3.2rem)/1 var(--ds-font-display); letter-spacing: -0.03em; }
+.ds-auth__headline .ds-accent { color: var(--primary-light); }
 .ds-auth__stage .ds-lede { color: var(--ds-stage-ink-2); }
-.ds-auth__visual {
-  position: relative;
-  flex: 1;
-  min-height: 260px;
+
+.ds-auth__status {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 28px);
+  padding: 8px 12px;
   border: 1px solid var(--ds-stage-line);
-  border-radius: var(--ds-r-lg);
-  background: var(--ds-stage-surface);
-  overflow: hidden;
+  border-radius: var(--ds-r-md);
+  background: var(--ds-stage-raised);
+  color: var(--ds-stage-ink);
+  font: 600 0.9rem var(--ds-font-display);
+  pointer-events: none;
 }
-.ds-auth__visual .ds-float { background: var(--ds-stage-raised); border-color: var(--ds-stage-line); color: var(--ds-stage-ink); }
-.ds-auth__visual .ds-float__tag { color: var(--ds-stage-ink-2); }
-.ds-auth__main { display: grid; align-content: center; justify-items: center; padding: 20px 16px 48px; }
-.ds-auth__top { width: 100%; max-width: 420px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 36px; }
-.ds-auth__top .ds-logo { margin-right: 0; }
-@media (min-width: 960px) { .ds-auth__top { justify-content: flex-end; } }
-.ds-auth__card { width: 100%; max-width: 420px; display: grid; gap: 22px; }
-.ds-auth__card > header { display: grid; gap: 8px; }
+.ds-auth__status::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cta);
+  transition: background-color 0.2s;
+}
+.ds-auth__status[data-state="ok"]::before { background: var(--tm-good); }
+.ds-auth__status[data-state="bad"]::before { background: var(--tm-bad); }
+
 .ds-auth__alt { margin: 0; text-align: center; color: var(--ds-ink-2); }
 .ds-auth__alt a { font-weight: 600; color: var(--ds-accent-ink); text-decoration: none; }
 .ds-auth__google { display: flex; justify-content: center; min-height: 44px; }
 .ds-textlink { font-weight: 600; font-size: 0.925rem; color: var(--ds-accent-ink); text-decoration: none; }
 .ds-textlink:hover { text-decoration: underline; }
+
+.ds-field__error { margin: 0; color: var(--tm-bad); font-size: 0.875rem; }
+.ds-field__error:empty { display: none; }
+.ds-field__hint { margin: 0; color: var(--ds-ink-2); font-size: 0.875rem; }
+
+.ds-strength { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--ds-ink-2); }
+.ds-strength__track { flex: 1; height: 6px; border-radius: 6px; background: var(--ds-tint); overflow: hidden; }
+.ds-strength__fill { display: block; width: 0; height: 100%; border-radius: 6px; background: var(--tm-bad); transition: width 0.3s var(--ds-ease), background-color 0.3s; }
+.ds-strength[data-level="1"] .ds-strength__fill { width: 33%; }
+.ds-strength[data-level="2"] .ds-strength__fill { width: 66%; background: var(--cta); }
+.ds-strength[data-level="3"] .ds-strength__fill { width: 100%; background: var(--tm-good); }
+.ds-strength__label { min-width: 52px; text-align: right; }
 
 /* =============================================================
    Features page
