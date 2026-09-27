@@ -840,51 +840,10 @@ body.dark-mode {
 }
 
 /* Horizontal Suggestion Pills Row */
-.suggestion-pills-row {
-  display: none;
-  /* Hidden by default (active chat) */
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-  max-width: 100%;
-  margin-top: 1.5rem;
-  width: 100%;
-}
+
 
 /* Show pills when chat is empty */
-body.chat-empty .suggestion-pills-row {
-  display: flex;
-}
 
-.suggestion-pill {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 10px 18px;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-  font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.suggestion-pill:hover {
-  background: rgba(255, 255, 255, 0.85);
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(123, 63, 242, 0.2);
-  transform: translateY(-2px);
-}
-
-.suggestion-pill:active {
-  transform: translateY(0);
-}
 
 .pill-icon {
   font-size: 1.1rem;
@@ -1297,9 +1256,7 @@ body.dark-mode .math-block {
     padding-top: 2rem;
   }
 
-  body.chat-empty .gradient-orb {
-    margin-bottom: 1.5rem;
-  }
+  
 }
 
 
@@ -1927,9 +1884,9 @@ body:not(.chat-empty) .setup-link-row {
   }
 
   /* Ensure minimum touch targets for all interactive elements */
-  button:not(.suggestion-pill):not(.action-pill-btn),
-  .icon-btn,
-  [role="button"] {
+  button:not(.suggestion-pill):not(.action-pill-btn), /* keep both :not()s — they set this rule's specificity */
+.icon-btn,
+[role="button"] {
     min-height: 44px;
     min-width: 44px;
   }
@@ -2184,46 +2141,14 @@ body:not(.chat-empty) .setup-link-row {
     display: none !important;
   }
 
-  .suggestion-pills-row {
-    display: none !important;
-    /* Hidden by default even on mobile */
-    grid-template-columns: 1fr 1fr;
-    /* 2 columns */
-    gap: 8px;
-    max-width: 100%;
-    padding: 0 0.5rem;
-    margin-bottom: 12px;
-    overflow-x: visible;
-    /* No scrolling needed for grid */
-    justify-content: stretch;
-  }
+  
 
   /* Only show as grid when chat is empty */
-  body.chat-empty .suggestion-pills-row {
-    display: grid !important;
-  }
+  
 
-  .suggestion-pills-row::-webkit-scrollbar {
-    display: none;
-  }
+  
 
-  .suggestion-pill {
-    width: 100% !important;
-    /* Fill grid cell */
-    font-size: 0.8rem;
-    /* Smaller font */
-    padding: 6px 10px;
-    /* Smaller padding */
-    justify-content: center !important;
-    /* Center content */
-    align-items: center;
-    gap: 5px !important;
-    /* Reduce gap */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex !important;
-  }
+  
 
   .chat-content {
     padding: 1rem;
@@ -2464,29 +2389,9 @@ body:not(.chat-empty) .setup-link-row {
     align-items: center;
   }
 
-  .mobile-level-selector {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
+  
 
-  .level-trigger-btn {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: rgba(124, 58, 237, 0.1);
-    border: 1px solid rgba(124, 58, 237, 0.2);
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    padding: 0;
-    z-index: 5;
-    outline: none;
-  }
+  
 
   /* Active Level Indicator Dot */
   .active-level-indicator {
@@ -2504,91 +2409,24 @@ body:not(.chat-empty) .setup-link-row {
 
   /* Level Drawer - Align to left to prevent edge overflow */
   /* ── Level Drawer — brutalist to match profile dropdown ── */
-  .level-drawer {
-    position: absolute;
-    left: -10px;
-    bottom: calc(100% + 10px);
-    transform: translateY(8px) scale(0.96);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    background: #FFFFFF;
-    border: 3px solid #1F2937;
-    padding: 12px;
-    border-radius: 10px;
-    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.22);
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.2s ease;
-    z-index: 1000;
-    min-width: 250px;
-    transform-origin: bottom left;
-  }
+  
 
   /* No triangle tip */
-  .level-drawer::after { display: none; }
+  
 
-  .mobile-level-selector.expanded .level-drawer {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
-  }
+  
 
-  .level-name-display {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--level-color, var(--primary));
-    background: rgba(124, 58, 237, 0.05);
-    padding: 4px 12px;
-    border-radius: 12px;
-    margin-bottom: 2px;
-    transition: all 0.3s ease;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
+  
 
-  .level-options-container {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    width: 100%;
-  }
+  
 
-  .level-option {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    border: 1px solid rgba(0,0,0,0.05);
-    background: #f8fafc;
-    color: #64748b;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 1rem;
-    padding: 0;
-  }
+  
 
-  .level-option:active {
-    transform: scale(0.9);
-  }
+  
 
-  .level-option.active {
-    background: var(--level-color);
-    color: white !important;
-    box-shadow: 0 4px 12px var(--level-glow);
-    border-color: transparent;
-    transform: scale(1.1);
-  }
+  
 
-  .mobile-level-selector.expanded .level-trigger-btn {
-    background: white;
-    box-shadow: 0 0 20px var(--level-glow, rgba(124, 58, 237, 0.3));
-    border-color: var(--level-color, var(--primary));
-    transform: scale(1.1);
-  }
+  
 
   /* Per-level coloring */
   [data-value="Remember"] { --level-color: #64748b; --level-glow: rgba(100, 116, 139, 0.4); }
@@ -2599,25 +2437,13 @@ body:not(.chat-empty) .setup-link-row {
   [data-value="Create"] { --level-color: #ec4899; --level-glow: rgba(236, 72, 153, 0.4); }
   
   /* Dark mode */
-  body.dark-mode .level-drawer {
-    background: #1e1e2e;
-    border-color: #3a3a5c;
-    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5);
-  }
   
-  body.dark-mode .level-option {
-    background: rgba(255, 255, 255, 0.05);
-    color: #94a3b8;
-    border-color: rgba(255, 255, 255, 0.05);
-  }
   
-  body.dark-mode .level-name-display {
-    background: rgba(255, 255, 255, 0.05);
-  }
   
-  body.dark-mode .level-trigger-btn {
-    background: rgba(255, 255, 255, 0.05);
-  }
+  
+  
+  
+  
   
   /* Icon-only voice mode button */
   .voice-mode-trigger-btn {
@@ -2804,11 +2630,7 @@ body:not(.chat-empty) .setup-link-row {
   }
 
   /* Ensure suggestion pills are above the menu when it's visible */
-  .suggestion-pills-row {
-    position: relative;
-    z-index: 50;
-    /* Above chat content */
-  }
+  
 
   .combined-input-bar {
     margin: 0 16px;
@@ -2851,10 +2673,7 @@ body:not(.chat-empty) .setup-link-row {
       padding: 8px 12px;
     }
 
-    .suggestion-pills-row {
-      padding: 0 10px;
-      /* Match input bar margin */
-    }
+    
 
     .chat-content {
       padding: 0.75rem;
@@ -2911,56 +2730,17 @@ body:not(.chat-empty) .setup-link-row {
   /* body { background: ... } removed */
 
   /* Hide pills by default on mobile (active chat) */
-  .suggestion-pills-row {
-    display: none;
-  }
+  
 
   /* Only show pills grid when chat is empty */
-  body.chat-empty .suggestion-pills-row {
-    margin-bottom: 20px;
-    padding: 0 24px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    /* 2 columns */
-    gap: 12px;
-    justify-content: center;
-    overflow-x: visible;
-    white-space: normal;
-  }
+  
 
-  .suggestion-pill {
-    /* Stronger Glass effect for Light Mode */
-    background: rgba(255, 255, 255, 0.4);
-    /* More transparent */
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    /* White border */
-    color: var(--text-primary);
-    backdrop-filter: blur(20px);
-    /* Stronger blur */
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 16px;
-    padding: 5px;
-    text-align: left;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 0.9rem;
-    width: 100%;
-    height: 100%;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    /* Soft shadow */
-    /*margin-right: 0px;*/
-  }
+  
 
   /* Glass effect for Dark Mode */
-  body.dark-mode .suggestion-pill {
-    background: rgba(30, 30, 46, 0.70);
-    border-color: rgba(255, 255, 255, 0.1);
-  }
+  
 
-  .suggestion-pill .pill-icon {
-    font-size: 1.2rem;
-  }
+  
 
   /* Attachment Previews (Inside Input Bar) */
   /* Attachment Previews (Inside Input Bar) */
@@ -3002,7 +2782,6 @@ body:not(.chat-empty) .setup-link-row {
     background-color: rgba(123, 63, 242, 0.5);
     border-radius: 4px;
   }
-
 
 
   .attachment-card {
@@ -3621,19 +3400,7 @@ body.dark-mode #attachment-preview-area .attachment-display {
 }
 
 /* Suggestion Pills - Dark Mode */
-body.dark-mode .suggestion-pill {
-  background: rgba(157, 107, 245, 0.1);
-  border-color: rgba(157, 107, 245, 0.25);
-  color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
 
-body.dark-mode .suggestion-pill:hover {
-  background: rgba(157, 107, 245, 0.2);
-  border-color: rgba(157, 107, 245, 0.4);
-  color: white;
-  box-shadow: 0 4px 12px rgba(157, 107, 245, 0.3);
-}
 
 body.dark-mode .history-item a {
   color: rgba(224, 231, 255, 0.7);
@@ -3733,35 +3500,7 @@ body.dark-mode .toggle-switch .slider {
 }
 
 /* Glowing Orb */
-.quick-start-orb {
-  width: 5rem;
-  height: 5rem;
-  background: linear-gradient(135deg, var(--primary) 0%, #ec4899 100%);
-  border-radius: 50%;
-  margin: 0 auto 2rem;
-  filter: blur(20px);
-  opacity: 0.8;
-}
 
-@media (prefers-reduced-motion: no-preference) {
-  .quick-start-orb {
-    animation: quick-start-pulse 4s ease-in-out infinite;
-  }
-}
-
-@keyframes quick-start-pulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-
-  50% {
-    transform: scale(1.15);
-    opacity: 1;
-  }
-}
 
 /* Title */
 .quick-start-title {
@@ -3786,66 +3525,7 @@ body.dark-mode .toggle-switch .slider {
 }
 
 /* Continue Learning Card */
-.continue-card {
-  background-color: rgba(31, 41, 55, 0.8);
-  border: 1px solid rgba(55, 65, 81, 0.8);
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
 
-.continue-card:hover {
-  border-color: var(--primary);
-  background-color: rgba(31, 41, 55, 0.95);
-}
-
-.continue-card-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  background-color: #2563eb;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.continue-card-icon i {
-  color: white;
-  font-size: 1rem;
-}
-
-.continue-card-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.continue-card-label {
-  font-weight: 600;
-  color: white;
-  font-size: 0.9rem;
-}
-
-.continue-card-topic {
-  font-size: 0.8rem;
-  color: #9ca3af;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.continue-card-arrow {
-  color: #9ca3af;
-  font-size: 0.9rem;
-}
 
 /* Upcoming Test Alert */
 .test-alert {
@@ -3983,11 +3663,7 @@ body.dark-mode .toggle-switch .slider {
     font-size: 2rem;
   }
 
-  .quick-start-orb {
-    width: 4rem;
-    height: 4rem;
-    margin-bottom: 1.5rem;
-  }
+  
 
   .quick-start-subtitle {
     font-size: 1rem;
@@ -4027,11 +3703,6 @@ body:not(.dark-mode) .quick-start-overlay {
 }
 
 /* Hide old suggestion pills when Quick Start overlay is visible */
-.quick-start-overlay:not(.hidden)~.main-chat-wrapper .suggestion-pills-row,
-body:has(.quick-start-overlay:not(.hidden)) .suggestion-pills-row {
-  display: none !important;
-}
-
 
 
 /* 720p Laptop Optimization (Max Height: 800px) */
@@ -4071,11 +3742,7 @@ body:has(.quick-start-overlay:not(.hidden)) .suggestion-pills-row {
     margin-bottom: 1.5rem;
   }
 
-  .gradient-orb {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 1rem;
-  }
+  
 
   /* Chat Messages Compact */
   .message {
@@ -5508,7 +5175,6 @@ button.quick-action-card:hover {
 }
 
 /* --- Component 4: Continue Learning & Test Alert Cards --- */
-.continue-card,
 #continue-learning-card {
     display: flex !important;
     align-items: center !important;
@@ -5523,7 +5189,6 @@ button.quick-action-card:hover {
     transition: all 0.2s ease !important;
 }
 
-.continue-card:hover,
 #continue-learning-card:hover {
     transform: translate(-3px, -3px) !important;
     box-shadow: 8px 8px 0px #6D28D9 !important;

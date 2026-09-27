@@ -407,9 +407,7 @@
     #mobile-history-tray {
         z-index: 400;
     }
-    .level-drawer {
-        z-index: 500;
-    }
+    
     #recall-modal,
     #voice-mode-overlay {
         z-index: 5000;
