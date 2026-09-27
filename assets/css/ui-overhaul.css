@@ -2919,25 +2919,21 @@ body.dark-mode .tools-menu-desc  { color: #9090a8; }
 
 /* Type variants */
 .copy-toast.toast-success {
-  border-left-color: #059669 !important;
   background: #1F2937;
 }
 .copy-toast.toast-success::before { content: '\2714'; color: #34D399; font-size: 0.9rem; }
 
 .copy-toast.toast-error {
-  border-left-color: #DC2626 !important;
   background: #1F2937;
 }
 .copy-toast.toast-error::before { content: '\2715'; color: #F87171; font-size: 0.9rem; }
 
 .copy-toast.toast-warning {
-  border-left-color: #D97706 !important;
   background: #1F2937;
 }
 .copy-toast.toast-warning::before { content: '\26A0'; color: #FBBF24; font-size: 0.9rem; }
 
 .copy-toast.toast-info {
-  border-left-color: #6D28D9 !important;
   background: #1F2937;
 }
 .copy-toast.toast-info::before { content: '\2139'; color: #A78BFA; font-size: 1rem; }

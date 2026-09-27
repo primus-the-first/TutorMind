@@ -492,3 +492,285 @@ body .attach-panel .panel-row .tm-goal-icon { width: 16px; height: 16px; }
   }
   body.chat-empty .tm-quickstarts::-webkit-scrollbar { display: none; }
 }
+
+/* ---------- 7. Conversation ---------- */
+/* Student bubble: brand purple on the edge, tail corner kept */
+body .message.user .message-content,
+body.dark-mode .message.user .message-content {
+  padding: 10px 15px;
+  border: 0;
+  border-radius: var(--ds-r-lg) var(--ds-r-lg) 4px var(--ds-r-lg);
+  background: var(--primary);
+  color: #fff;
+  font-weight: 500;
+  box-shadow: 0 3px 0 var(--primary-dark);
+}
+body.dark-mode .message.user .message-content { box-shadow: 0 3px 0 #3b1580; }
+body .message.user .message-content a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Tutor replies: body text keeps the Settings legibility scale */
+body .message.ai .message-content,
+body.dark-mode .message.ai .message-content {
+  color: var(--ds-ink);
+  font-size: calc(1rem * var(--legibility-scale, 1));
+  line-height: var(--legibility-line-height, 1.65);
+}
+body .message.ai .message-content h1,
+body .message.ai .message-content h2,
+body .message.ai .message-content h3,
+body .message.ai .message-content h4 {
+  margin: 1.1em 0 0.4em;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
+}
+body .message.ai .message-content h1 { font-size: 1.5em; }
+body .message.ai .message-content h2 { font-size: 1.3em; }
+body .message.ai .message-content h3 { font-size: 1.12em; }
+body .message.ai .message-content > :first-child { margin-top: 0; }
+body .message.ai .message-content strong { color: var(--ds-ink); font-weight: 700; }
+body .message.ai .message-content a { color: var(--ds-accent-ink); text-decoration: underline; text-underline-offset: 2px; }
+body .message.ai .message-content ul,
+body .message.ai .message-content ol { padding-left: 1.4em; }
+body .message.ai .message-content li { margin: 0.25em 0; }
+body .message.ai .message-content li::marker { color: var(--ds-accent-ink); font-weight: 600; }
+body .message.ai .message-content :not(pre) > code {
+  padding: 0.12em 0.4em;
+  border-radius: 6px;
+  background: var(--ds-tint);
+  color: var(--ds-accent-ink);
+  font-size: 0.88em;
+}
+body .message.ai .message-content blockquote {
+  margin: 0.8em 0;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: var(--ds-r-md);
+  background: var(--ds-tint);
+  color: var(--ds-ink);
+  font-style: normal;
+}
+body .message.ai .message-content table {
+  width: auto;
+  margin: 0.8em 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  overflow: hidden;
+}
+body .message.ai .message-content th,
+body .message.ai .message-content td { padding: 8px 12px; border: 0; border-bottom: 1px solid var(--ds-line); text-align: left; }
+body .message.ai .message-content tr:last-child td { border-bottom: 0; }
+body .message.ai .message-content th { background: var(--ds-tint); font-family: var(--ds-font-display); font-weight: 600; }
+
+/* Reply actions: quiet icon buttons, no divider (no `display` — see §4 note) */
+body .message-footer,
+body.dark-mode .message-footer { margin-top: 10px; padding-top: 0; border-top: 0; gap: 2px; }
+body .message-footer button,
+body.dark-mode .message-footer button,
+body .message.user .edit-msg-btn,
+body.dark-mode .message.user .edit-msg-btn {
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--ds-r-sm);
+  background: transparent;
+  color: var(--ds-ink-2);
+  box-shadow: none;
+  transition: background-color 0.15s, color 0.15s, opacity 0.15s;
+}
+body .message-footer button:hover,
+body .message.user .edit-msg-btn:hover { background: var(--ds-tint); color: var(--ds-ink); }
+body .message-footer .feedback-btn.selected { background: var(--ds-tint); color: var(--ds-accent-ink); }
+body .message-footer .feedback-btns.rated .feedback-btn:not(.selected) { opacity: 0.35; }
+
+/* Typing indicator: the bridge Orbit Dot + staged status text */
+body .tm-typing-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ds-accent-ink);
+}
+body .tm-typing-stage { color: var(--ds-ink-2); font: 600 0.95rem var(--ds-font-display); }
+
+/* Copy / info toast */
+body .copy-toast,
+body.dark-mode .copy-toast {
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 600 0.9rem var(--ds-font-body);
+  box-shadow: var(--ds-lift-hi);
+}
+
+/* Code blocks follow the theme (they were always github-dark). The wrapper
+   (.code-block) carries the frame; the <pre> inside stays flat. Light-mode
+   syntax colours are GitHub's light palette — the one place outside the brand
+   tokens, since highlighting needs a full hue set. Dark keeps github-dark. */
+body .code-block,
+body.dark-mode .code-block {
+  margin: 0.8em 0;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  overflow: hidden;
+  box-shadow: none;
+}
+body.dark-mode .code-block { background: var(--ds-stage); }
+body .code-block .code-header,
+body.dark-mode .code-block .code-header {
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--ds-line);
+  background: transparent;
+}
+body .code-block .code-language {
+  font: 500 0.8rem ui-monospace, 'Roboto Mono', monospace;
+  letter-spacing: 0;
+  text-transform: lowercase;   /* JS upper-cases the language name */
+  color: var(--ds-ink-2);
+}
+body .code-block .copy-code-btn,
+body.dark-mode .code-block .copy-code-btn {
+  padding: 5px 9px;
+  border: 0;
+  border-radius: var(--ds-r-sm);
+  background: transparent;
+  color: var(--ds-ink-2);
+  font: 600 0.8rem var(--ds-font-body);
+}
+body .code-block .copy-code-btn:hover { background: var(--ds-tint); color: var(--ds-ink); }
+body .code-block .copy-code-btn.copied { color: var(--tm-good); }
+body .code-block pre,
+body.dark-mode .code-block pre,
+body .code-block pre code,
+body .code-block .hljs {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body:not(.dark-mode) .code-block pre,
+body:not(.dark-mode) .code-block .hljs { color: var(--ds-ink); }
+body:not(.dark-mode) .code-block .hljs-keyword,
+body:not(.dark-mode) .code-block .hljs-selector-tag,
+body:not(.dark-mode) .code-block .hljs-doctag,
+body:not(.dark-mode) .code-block .hljs-template-tag { color: #cf222e; }
+body:not(.dark-mode) .code-block .hljs-string,
+body:not(.dark-mode) .code-block .hljs-regexp { color: #0a3069; }
+body:not(.dark-mode) .code-block .hljs-number,
+body:not(.dark-mode) .code-block .hljs-literal,
+body:not(.dark-mode) .code-block .hljs-attr,
+body:not(.dark-mode) .code-block .hljs-attribute,
+body:not(.dark-mode) .code-block .hljs-variable,
+body:not(.dark-mode) .code-block .hljs-selector-attr,
+body:not(.dark-mode) .code-block .hljs-meta { color: #0550ae; }
+body:not(.dark-mode) .code-block .hljs-comment,
+body:not(.dark-mode) .code-block .hljs-quote { color: #6e7781; font-style: italic; }
+body:not(.dark-mode) .code-block .hljs-title,
+body:not(.dark-mode) .code-block .hljs-section,
+body:not(.dark-mode) .code-block .hljs-function { color: #8250df; }
+body:not(.dark-mode) .code-block .hljs-built_in,
+body:not(.dark-mode) .code-block .hljs-type,
+body:not(.dark-mode) .code-block .hljs-symbol,
+body:not(.dark-mode) .code-block .hljs-selector-class { color: #953800; }
+
+/* Scroll-to-bottom: a standard icon button on the edge, not a round purple FAB.
+   (No `display` — tutor_mysql.js shows/hides it via style.display.) */
+body .scroll-to-bottom-btn,
+body.dark-mode .scroll-to-bottom-btn {
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  box-shadow: 0 3px 0 var(--ds-line), var(--ds-lift);
+}
+body .scroll-to-bottom-btn:hover { color: var(--ds-accent-ink); border-color: var(--primary-light); }
+
+/* Toasts: neutral card, the type shows as a coloured icon (was a dark box
+   with a coloured left stripe; its type rules out-ranked the text colour) */
+body .copy-toast,
+body.dark-mode .copy-toast,
+body .copy-toast.toast-success,
+body .copy-toast.toast-error,
+body .copy-toast.toast-warning,
+body .copy-toast.toast-info {
+  /* no `display` — tutor_mysql.js shows it with style.display = 'block' */
+  padding: 10px 14px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 600 0.9rem var(--ds-font-body);
+  box-shadow: var(--ds-lift-hi);
+}
+body .copy-toast::before { margin-right: 8px; }
+body .copy-toast.toast-success::before { color: var(--tm-good); }
+body .copy-toast.toast-error::before { color: var(--tm-bad); }
+body .copy-toast.toast-warning::before { color: var(--cta-hover); }
+body .copy-toast.toast-info::before { color: var(--ds-accent-ink); }
+
+/* Editing a sent message: the bubble becomes a neutral card with a readable
+   field. (The old field used an undefined --bg-primary → near-black in both
+   themes with dark text, and --accent, which is orange in ui-overhaul.css.) */
+body .message.user .message-content:has(.message-edit-area),
+body.dark-mode .message.user .message-content:has(.message-edit-area) {
+  width: min(560px, 100%);
+  padding: 12px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  box-shadow: var(--ds-lift-hi);
+}
+body .edit-textarea,
+body.dark-mode .edit-textarea {
+  padding: 10px 12px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-canvas);
+  color: var(--ds-ink);
+  font: 400 1rem/1.5 var(--ds-font-body);
+  box-shadow: none;
+}
+body .edit-textarea:focus { border-color: var(--primary); box-shadow: 0 3px 0 var(--primary-light); }
+body .edit-actions { margin-top: 10px; gap: 8px; }
+body .edit-cancel-btn,
+body.dark-mode .edit-cancel-btn {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--ds-r-md);
+  background: var(--ds-tint);
+  color: var(--ds-ink);
+  font: 600 0.875rem var(--ds-font-body);
+}
+body .edit-cancel-btn:hover { color: var(--ds-accent-ink); background: var(--ds-tint); }
+body .edit-save-btn,
+body.dark-mode .edit-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--ds-r-md);
+  background: var(--primary);
+  color: #fff;
+  font: 600 0.875rem var(--ds-font-body);
+  box-shadow: 0 3px 0 var(--primary-dark);
+  transform: none;
+}
+body .edit-save-btn:hover { background: var(--primary-dark); transform: none; box-shadow: 0 3px 0 var(--primary-dark); }
+body .edit-save-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--primary-dark); }
+/* Desktop: float the toast above the docked message box instead of over it
+   (phones already position it above the box + nav in mobile.css) */
+@media (min-width: 769px) {
+  body .copy-toast { bottom: 118px; }
+}
