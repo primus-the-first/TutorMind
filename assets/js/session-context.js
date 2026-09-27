@@ -21,6 +21,29 @@ class SessionContextManager {
      * @param {object} initialContext - Optional initial context data
      * @returns {Promise<object>} The created session
      */
+    /**
+     * Remember a goal locally WITHOUT creating a conversation yet. The server
+     * creates the conversation (and stores the goal) when the first message is
+     * sent, so a quick start that's tapped but never used doesn't leave an
+     * empty "Homework Help" chat in the history.
+     * @param {string} goal - 'homework_help' | 'test_prep' | 'explore' | 'practice'
+     * @param {object} initialContext - Optional initial context data
+     * @returns {object} The pending (id-less) session
+     */
+    startPending(goal, initialContext = {}) {
+        this.currentSession = {
+            id: null,
+            goal: goal,
+            context: initialContext,
+            progress: 0,
+            completed: false,
+            messageCount: 0,
+            startTime: new Date().toISOString()
+        };
+        this.saveToStorage();
+        return this.currentSession;
+    }
+
     async create(goal, initialContext = {}) {
         try {
             const response = await fetch('api/session_context.php?action=create_session', {

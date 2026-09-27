@@ -3485,13 +3485,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             item.addEventListener('click', () => {
                 const goal = item.dataset.goal;
 
-                // Set the session goal using SessionContextManager
+                // Set the session goal using SessionContextManager. With no chat
+                // open (home screen), only remember the goal — the first message
+                // creates the conversation, so an unused quick start doesn't leave
+                // an empty chat behind. Mid-conversation, keep starting a session.
                 if (window.sessionContextManager) {
-                    window.sessionContextManager.create(goal).then(session => {
-                        if (session.id) {
-                            conversationIdInput.value = session.id;
-                        }
-                    });
+                    if (!conversationIdInput.value) {
+                        window.sessionContextManager.startPending(goal);
+                    } else {
+                        window.sessionContextManager.create(goal).then(session => {
+                            if (session.id) {
+                                conversationIdInput.value = session.id;
+                            }
+                        });
+                    }
                 }
 
                 // Insert prompt template into input

@@ -723,8 +723,12 @@ try {
 
     // If no conversation ID, create a new one in the database
     if (!$conversation_id) {
-        $stmt = $pdo->prepare("INSERT INTO conversations (user_id, title) VALUES (?, ?)");
-        $stmt->execute([$_SESSION['user_id'], 'New Chat on ' . date('Y-m-d')]);
+        // Store the quick-start goal on creation: the home-screen quick starts no
+        // longer create a conversation up front, so the goal arrives with the
+        // first message. Whitelisted — it's client-supplied.
+        $new_convo_goal = in_array($session_goal, ['homework_help', 'test_prep', 'explore', 'practice'], true) ? $session_goal : null;
+        $stmt = $pdo->prepare("INSERT INTO conversations (user_id, title, session_goal) VALUES (?, ?, ?)");
+        $stmt->execute([$_SESSION['user_id'], 'New Chat on ' . date('Y-m-d'), $new_convo_goal]);
         $conversation_id = $pdo->lastInsertId();
     } else {
         // Verify the user owns the conversation they are trying to post to.
