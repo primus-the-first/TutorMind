@@ -128,8 +128,9 @@ body.dark-mode .history-item > a {
 }
 body .history-item > a.active,
 body.dark-mode .history-item > a.active { color: var(--ds-accent-ink); font-weight: 600; background: none; box-shadow: none; }
-body .history-item .edit-btn,
-body .history-item .delete-btn {
+/* `> button`, not .edit-btn/.delete-btn: the list is re-rendered by
+   tutor_mysql.js with class-less buttons after the server-rendered one */
+body .history-item > button {
   width: 30px;
   height: 30px;
   margin: 0;
@@ -139,8 +140,7 @@ body .history-item .delete-btn {
   color: var(--ds-ink-2);
   font-size: 0.8rem;
 }
-body .history-item .edit-btn:hover,
-body .history-item .delete-btn:hover { background: var(--ds-surface); color: var(--ds-ink); }
+body .history-item > button:hover { background: var(--ds-surface); color: var(--ds-ink); }
 
 /* Account button at the bottom of the sidebar */
 body .user-profile,
@@ -820,3 +820,20 @@ body .code-block pre code {
 @media (max-width: 480px) {
   body .combined-input-bar { margin: 0 8px; padding: 6px 10px; }
 }
+
+/* Button chrome resets for components whose old rules were trimmed to
+   layout-only in the final pass — without these the browser's default
+   grey button face shows through. */
+body .bottom-nav-item,
+body .history-item > button,
+body .attach-panel .panel-row,
+body .user-info-button {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: 0;
+}
+body .bottom-nav-item { font-size: 0.6rem; }
+/* Voice button: no hover zoom (the old rule scaled it to 1.05) */
+body .input-pill-row .voice-mode-trigger-btn:hover,
+body.dark-mode .input-pill-row .voice-mode-trigger-btn:hover { transform: none; box-shadow: none; }

@@ -35,6 +35,7 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/tm-tokens.css?v=<?= filemtime('assets/css/tm-tokens.css') ?>">
     <link rel="stylesheet" href="assets/css/tm-ds.css?v=<?= filemtime('assets/css/tm-ds.css') ?>">
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>

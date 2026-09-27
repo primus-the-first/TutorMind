@@ -330,8 +330,8 @@ function tm_goal_icon($paths) {
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <!-- Custom Styles -->
-    <!-- Design-system tokens/components (shared with the public pages) -->
-    <link rel="stylesheet" href="assets/css/tm-ds.css?v=<?= filemtime('assets/css/tm-ds.css') ?>">
+    <!-- Design-system tokens only (the chat uses none of tm-ds.css's components) -->
+    <link rel="stylesheet" href="assets/css/tm-tokens.css?v=<?= filemtime('assets/css/tm-tokens.css') ?>">
     <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= filemtime('assets/css/ui-overhaul.css') ?>">
     <link rel="stylesheet" href="assets/css/tm-widgets.css?v=<?= filemtime('assets/css/tm-widgets.css') ?>">
     <link rel="stylesheet" href="assets/css/mobile.css?v=<?= filemtime('assets/css/mobile.css') ?>">

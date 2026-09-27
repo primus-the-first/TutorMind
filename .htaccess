@@ -154,11 +154,11 @@ RewriteRule ^.*$ 404.html [L,NC]
         Header set Cache-Control "max-age=31536000, public"
     </FilesMatch>
 
-    # Design-system files: the static pages (index.html, features-ds.html,
-    # design-system.html) can't stamp ?v=filemtime like the PHP pages do, so
+    # Design-system files (tm-ds.*, tm-tokens.css): the static pages (index.html,
+    # features.html, design-system.html) can't stamp ?v=filemtime like the PHP pages do, so
     # a year-long cache would pin browsers to a stale copy. Revalidate on
     # every load instead — unchanged files cost a tiny 304.
-    <FilesMatch "^tm-ds\.(css|js)$">
+    <FilesMatch "^tm-(ds|tokens)\.(css|js)$">
         Header set Cache-Control "no-cache"
         Header unset Expires
     </FilesMatch>
