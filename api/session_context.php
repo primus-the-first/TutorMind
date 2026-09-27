@@ -24,6 +24,9 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $action = $_REQUEST['action'] ?? '';
+// Read-only use of the session: release its lock so this request doesn't
+// block the user's other requests while it runs
+session_write_close();
 
 try {
     $pdo = getDbConnection();

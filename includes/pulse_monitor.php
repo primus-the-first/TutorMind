@@ -2,8 +2,10 @@
 
 /**
  * Pulse Monitor — sends request events to the Pulse backend.
- * Uses register_shutdown_function so it fires AFTER the response
- * is sent, capturing the real status code and duration.
+ * Uses register_shutdown_function to capture the real status code and
+ * duration. Shutdown functions still run BEFORE the response is finished
+ * (mod_php, LiteSpeed) and while the session lock is held, so the send
+ * first hands the client its response — see pulse_register().
  */
 
 define('PULSE_INGEST_URL', 'https://pulse-server-ceb5.onrender.com/ingest');
@@ -45,7 +47,7 @@ function pulse_register(): void {
             $statusCode   = 500;
         }
 
-        pulse_send_event([
+        $event = [
             'traceId'      => $traceId,
             'spanId'       => $spanId,
             'service'      => PULSE_SERVICE,
@@ -54,7 +56,19 @@ function pulse_register(): void {
             'statusCode'   => $statusCode,
             'duration'     => $duration,
             'errorMessage' => $errorMessage,
-        ]);
+        ];
+
+        // Queued from inside shutdown, so it runs after every other shutdown
+        // handler (e.g. server_mysql.php's fatal-error JSON) has written output.
+        register_shutdown_function(function () use ($event) {
+            // The HTTPS round trip to Pulse took ~1s. Done inline it delayed every
+            // response by that much, with the session lock still held, so each of a
+            // user's requests queued behind the previous one's telemetry.
+            if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+            if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();       // PHP-FPM
+            elseif (function_exists('litespeed_finish_request')) litespeed_finish_request(); // LiteSpeed (production)
+            pulse_send_event($event);
+        });
     });
 }
 

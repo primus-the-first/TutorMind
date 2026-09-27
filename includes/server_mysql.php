@@ -96,6 +96,13 @@ if ($action === 'logout') {
     exit;
 }
 
+// Nothing below writes to $_SESSION, so release the session lock now ($_SESSION
+// stays readable). PHP runs one request per session at a time, and this file
+// holds requests for seconds (AI calls: chat replies, generate_suggestions) —
+// every other request from the same user (settings saves, history, password
+// change) used to queue behind them.
+session_write_close();
+
 if ($action) {
     switch ($action) { // This switch now handles GET and some POST actions
         case 'history':
