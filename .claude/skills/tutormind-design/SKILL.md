@@ -14,7 +14,12 @@ Grounding rule: **reuse what TutorMind already has before inventing anything.** 
 - **Color tokens** — defined once in `assets/css/ui-overhaul.css` `:root` (and reflected in `body.dark-mode`): `--primary` (#7C3AED), `--primary-light`, `--primary-dark` (#5B21B6), `--cta` (#F59E0B), `--cta-hover` (#D97706), `--bg-main`, `--bg-card`, `--text-primary`, `--text-secondary`, `--border`, `--shadow-sm`, `--shadow-md`. Every hover/active/pressed state should resolve to one of these tokens (e.g. hover → `--primary-dark`, not a computed tint). If a state needs a color this system doesn't have, that's a sign to check with the user before adding a new one — don't invent hex values or reach for `color-mix()` gradients to fake a token that isn't there.
 - **Motion signature** — `assets/css/tm-loader.css`'s "Bridge Draw" animation strokes the arch on with `stroke-dasharray`/`stroke-dashoffset`. That draw-in technique is TutorMind's actual signature motion; prefer it over generic scale/fade pop-ins when a moment deserves real emphasis (a correct answer, a completed loader).
 
-## The design system (2026-09) — `assets/css/tm-ds.css` + `assets/js/tm-ds.js`
+## The design system (2026-09) — `tm-tokens.css`, `tm-ds.css` + `tm-ds.js`, `tm-chat.css`
+
+- **`assets/css/tm-tokens.css`** is the single source of tokens (both themes). Every page loads it first.
+- **Public pages** add `tm-ds.css` (components) + `tm-ds.js`. **The chat** (`tutor_mysql.php`) adds `tm-chat.css` instead — loaded LAST — and uses no `ds-` components, only tokens.
+- **Chat rule: delete, don't out-rank.** When restyling a chat component in `tm-chat.css`, remove the legacy rules it supersedes in `ui-overhaul.css` / `mobile.css` (or strip their visual declarations and keep layout) instead of stacking `!important`. Move any layout they carried into tm-chat.css first, then verify with before/after pixel diffs plus open states (hover, menus, sheets) — static screenshots miss those.
+- Never set `display` on chat elements the JS toggles by `display` (voice/send buttons, scroll-to-bottom, toast). `tutor_mysql.js` re-renders the history list with class-less buttons — target `.history-item > button`, not SSR class names.
 
 The public pages (`index.html`, `features.html`, `login.php`, `register.php`) run on a component system built from the rules on this page. Live reference sheet: `design-system.html`. For new marketing/auth UI, **use the `ds-` components before writing new CSS**; for in-app UI, borrow its tokens and depth rules.
 
