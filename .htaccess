@@ -153,6 +153,21 @@ RewriteRule ^.*$ 404.html [L,NC]
     <FilesMatch "\.(ico|pdf|flv|jpg|jpeg|png|gif|webp|js|css|swf|x-html|css|xml|js|woff|woff2|ttf|svg|eot)$">
         Header set Cache-Control "max-age=31536000, public"
     </FilesMatch>
+
+    # Design-system files: the static pages (index.html, features-ds.html,
+    # design-system.html) can't stamp ?v=filemtime like the PHP pages do, so
+    # a year-long cache would pin browsers to a stale copy. Revalidate on
+    # every load instead — unchanged files cost a tiny 304.
+    <FilesMatch "^tm-ds\.(css|js)$">
+        Header set Cache-Control "no-cache"
+        Header unset Expires
+    </FilesMatch>
+
+    # Static .html pages sent no Cache-Control, so browsers guessed a
+    # freshness window and could show an outdated page after a deploy.
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
 </IfModule>
 
 <IfModule mod_deflate.c>
