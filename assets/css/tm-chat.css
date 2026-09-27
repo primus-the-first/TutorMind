@@ -367,3 +367,128 @@ body .history-tray-header h3,
 body .profile-sheet-info h3 { font-family: var(--ds-font-display); color: var(--ds-ink); }
 body .profile-sheet-item,
 body.dark-mode .profile-sheet-item { color: var(--ds-ink); border-color: var(--ds-line); }
+
+/* ---------- 6. Welcome screen ---------- */
+body .quick-start-content { gap: 16px; }
+body .quick-start-title,
+body.dark-mode .quick-start-title {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 3.4vw, 2.75rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--ds-ink);
+  -webkit-text-fill-color: currentColor;
+  white-space: normal;       /* was nowrap: long greetings ran off narrow screens */
+  text-wrap: balance;
+  text-align: center;
+}
+
+/* Continue card — one design for every width (was phone-only, bare link on desktop) */
+body .resume-card {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  padding: 14px 16px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  text-decoration: none;
+  box-shadow: 0 3px 0 var(--ds-line), var(--ds-lift);
+  transition: transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease), border-color 0.15s;
+}
+body .resume-card:hover { border-color: var(--primary-light); transform: translateY(-1px); }
+body .resume-card:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ds-line); }
+body .resume-card .rc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+body .resume-card .rc-label { font: 600 0.875rem var(--ds-font-display); color: var(--ds-accent-ink); }
+body .resume-card .rc-pct { font-size: 0.85rem; color: var(--ds-ink-2); font-variant-numeric: tabular-nums; }
+body .resume-card .rc-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  font: 700 1.15rem/1.2 var(--ds-font-display);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
+}
+body .resume-card .rc-go { width: 20px; height: 20px; flex: none; color: var(--ds-accent-ink); transition: transform 0.2s var(--ds-ease); }
+body .resume-card:hover .rc-go { transform: translateX(3px); }
+body .resume-card .rc-bar { height: 6px; border-radius: 6px; background: var(--ds-tint); overflow: hidden; }
+body .resume-card .rc-bar i { display: block; height: 100%; border-radius: 6px; background: var(--primary); }
+
+/* "Finish your learning profile" — lives in the welcome content now */
+body .setup-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--ds-r-sm);
+  color: var(--ds-ink-2);
+  font: 600 0.9rem var(--ds-font-body);
+  text-decoration: none;
+  transition: color 0.15s, background-color 0.15s;
+}
+body .setup-link svg { width: 16px; height: 16px; transition: transform 0.2s var(--ds-ease); }
+body .setup-link:hover { color: var(--ds-accent-ink); background: var(--ds-tint); }
+body .setup-link:hover svg { transform: translateX(2px); }
+
+/* Quick starts: under the centred message box on desktop, above it on phones.
+   Absolutely positioned against the fixed .input-bar-area so they never
+   shift the box itself. */
+body .tm-quickstarts { display: none; }
+body.chat-empty .tm-quickstarts {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+}
+body .tm-quickstart,
+body.dark-mode .tm-quickstart {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 0;
+  padding: 9px 14px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 500 0.925rem/1 var(--ds-font-body);
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--ds-line);
+  transition: transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease), border-color 0.15s, color 0.15s;
+}
+body .tm-quickstart:hover { border-color: var(--primary-light); color: var(--ds-accent-ink); }
+body .tm-quickstart:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ds-line); }
+body .tm-goal-icon { width: 18px; height: 18px; flex: none; color: var(--ds-accent-ink); }
+body .attach-panel .panel-row .tm-goal-icon { width: 16px; height: 16px; }
+
+@media (max-width: 768px) {
+  body .quick-start-title,
+  body.dark-mode .quick-start-title { font-size: 1.75rem; text-align: left; }
+  body .resume-card { max-width: none; }
+  body .setup-link { align-self: flex-start; margin-left: -10px; }
+  /* phones: a single swipeable row just above the message box, in thumb reach */
+  body.chat-empty .tm-quickstarts {
+    top: auto;
+    bottom: 100%;
+    margin: 0 0 10px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.chat-empty .tm-quickstarts::-webkit-scrollbar { display: none; }
+}

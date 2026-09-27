@@ -486,18 +486,6 @@
         overflow-wrap: normal;
     }
 
-    /* --- Section: Setup link row ---
-       The input bar is now pinned above the bottom nav (not centered at 50%),
-       so anchor this the same way — just above the input bar — instead of the
-       stale "below the centered bar" math. */
-    body.chat-empty .setup-link-row {
-        position: fixed !important;
-        top: auto !important;
-        bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-input-bar-height) + env(safe-area-inset-bottom, 0px) + 6px) !important;
-        left: 0 !important;
-        right: 0 !important;
-        transform: none !important;
-    }
 
     /* --- Section: Message actions (always visible on mobile) --- */
     .message-actions {
@@ -556,62 +544,7 @@
         white-space: normal;
     }
 
-    /* "Continue last session" resume card.
-       Named .resume-card (not .continue-card) — ui-overhaul.css already has an
-       unrelated, apparently-unused .continue-card component (different markup:
-       .continue-card-icon/-content/-label/-topic/-arrow) that this collided
-       with, inheriting its flex layout + thick border + hard drop-shadow. */
-    .resume-card {
-        display: block;
-        text-decoration: none;
-        background: var(--bg-card, #fff);
-        border: 1px solid rgba(124, 58, 237, 0.14);
-        border-radius: 16px;
-        padding: 12px 14px;
-    }
-    .resume-card .rc-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 8px;
-    }
-    .resume-card .rc-label {
-        font-size: 0.66rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        font-weight: 700;
-        color: var(--primary, #7C3AED);
-    }
-    .resume-card .rc-pct {
-        font-size: 0.7rem;
-        color: var(--text-secondary, #6b7280);
-        font-variant-numeric: tabular-nums;
-    }
-    .resume-card .rc-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--text-primary, #1F2937);
-        margin: 3px 0 8px;
-    }
-    .resume-card .rc-bar {
-        height: 4px;
-        border-radius: 99px;
-        background: rgba(124, 58, 237, 0.12);
-        overflow: hidden;
-    }
-    .resume-card .rc-bar i {
-        display: block;
-        height: 100%;
-        background: linear-gradient(90deg, var(--primary, #7C3AED), #A78BFA);
-        border-radius: 99px;
-    }
-    body.dark-mode .resume-card {
-        background: var(--bg-card, #1e1e2e);
-        border-color: rgba(167, 139, 250, 0.2);
-    }
-    body.dark-mode .resume-card .rc-title {
-        color: var(--text-primary, #f3f4f6);
-    }
+    /* Continue card (.resume-card) styles now live in tm-chat.css for all widths. */
 
     /* --- Section: Copy toast position --- */
     .copy-toast {

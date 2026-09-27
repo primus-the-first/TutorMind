@@ -273,6 +273,19 @@ try {
     error_log("SSR History Error: " . $e->getMessage());
 }
 ?>
+<?php
+// Quick-start goals: one list for the home-screen row and the "+" panel.
+// Keys match data-goal / the prompt templates in tutor_mysql.js.
+$tm_goals = [
+    'homework_help' => ['Homework help',   '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7h6"/>'],
+    'test_prep'     => ['Test prep',       '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>'],
+    'explore'       => ['Explore a topic', '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>'],
+    'practice'      => ['Practice',        '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'],
+];
+function tm_goal_icon($paths) {
+    return '<svg class="tm-goal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $paths . '</svg>';
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -544,8 +557,18 @@ try {
                             <span class="rc-label">Continue</span>
                             <span class="rc-pct"><?= $ssr_continue_card['progress'] ?>%</span>
                         </div>
-                        <div class="rc-title"><?= htmlspecialchars($ssr_continue_card['label']) ?></div>
-                        <div class="rc-bar"><i style="width:<?= $ssr_continue_card['progress'] ?>%"></i></div>
+                        <div class="rc-title">
+                            <span><?= htmlspecialchars($ssr_continue_card['label']) ?></span>
+                            <svg class="rc-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        </div>
+                        <div class="rc-bar" role="progressbar" aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $ssr_continue_card['progress'] ?>"><i style="width:<?= $ssr_continue_card['progress'] ?>%"></i></div>
+                    </a>
+                    <?php endif; ?>
+
+                    <?php if ($setup_needed): ?>
+                    <a href="onboarding" class="setup-link">
+                        Finish your learning profile
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                     </a>
                     <?php endif; ?>
                 </div>
@@ -587,18 +610,11 @@ try {
                         <div class="panel-divider"></div>
                         <div class="panel-section-label">Quick start</div>
                         <div class="goal-grid">
-                            <button type="button" class="panel-row goal-row" data-goal="homework_help" role="menuitem">
-                                <span class="emoji">📚</span> Homework Help
+                            <?php foreach ($tm_goals as $goal => [$goalLabel, $goalIcon]): ?>
+                            <button type="button" class="panel-row goal-row" data-goal="<?= $goal ?>" role="menuitem">
+                                <?= tm_goal_icon($goalIcon) ?> <?= $goalLabel ?>
                             </button>
-                            <button type="button" class="panel-row goal-row" data-goal="test_prep" role="menuitem">
-                                <span class="emoji">🎯</span> Test Prep
-                            </button>
-                            <button type="button" class="panel-row goal-row" data-goal="explore" role="menuitem">
-                                <span class="emoji">💡</span> Explore Topic
-                            </button>
-                            <button type="button" class="panel-row goal-row" data-goal="practice" role="menuitem">
-                                <span class="emoji">✏️</span> Practice
-                            </button>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 
@@ -630,16 +646,24 @@ try {
                     </div>
                 </div>
 
+                <!-- Home-screen quick starts: one tap instead of "+" then a goal.
+                     Shown only while the chat is empty (see tm-chat.css). -->
+                <div class="tm-quickstarts" role="group" aria-label="Quick start">
+                    <?php foreach ($tm_goals as $goal => [$goalLabel, $goalIcon]): ?>
+                    <button type="button" class="tm-quickstart" data-quick-goal="<?= $goal ?>"><?= tm_goal_icon($goalIcon) ?><?= $goalLabel ?></button>
+                    <?php endforeach; ?>
+                </div>
         </footer>
+        <script>
+            // Reuse the "+" panel's goal handler (tutor_mysql.js) instead of a second copy of it
+            document.querySelectorAll('[data-quick-goal]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var row = document.querySelector('.attach-panel .goal-row[data-goal="' + btn.getAttribute('data-quick-goal') + '"]');
+                    if (row) row.click();
+                });
+            });
+        </script>
         
-        <!-- Complete setup link for personalized experience (Moved after input area for mobile flexibility) -->
-        <?php if ($setup_needed): ?>
-        <div class="setup-link-row">
-            <a href="onboarding" class="setup-link">
-                <i class="fas fa-magic"></i> Complete setup for a personalized experience
-            </a>
-        </div>
-        <?php endif; ?>
     </div>
 
     <!-- Voice Mode Overlay -->
