@@ -143,15 +143,7 @@
         bottom: calc(var(--mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px)) !important;
         transform: none !important;
     }
-    .combined-input-bar {
-        margin: 0 12px;
-        background: rgba(255, 255, 255, 0.78);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-radius: 28px;
-        padding: 8px 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10);
-    }
+    
     /* Hide pill labels; keep icons */
     .action-pill-btn span,
     .voice-mode-trigger-btn span {
@@ -460,10 +452,7 @@
     body.dark-mode .profile-sheet-close:active {
         background: rgba(255, 255, 255, 0.08);
     }
-    body.dark-mode .combined-input-bar {
-        background: rgba(30, 30, 46, 0.85);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    }
+    
 
     /* --- Section: Message bubbles --- */
     .message {
@@ -697,10 +686,7 @@
 
     /* --- Section 11: Small phone adjustments (480px) --- */
     @media (max-width: 480px) {
-        .combined-input-bar {
-            margin: 0 8px;
-            padding: 6px 10px;
-        }
+        
         .chat-content {
             padding: 0.75rem;
         }

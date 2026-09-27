@@ -774,3 +774,49 @@ body .edit-save-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(-
 @media (min-width: 769px) {
   body .copy-toast { bottom: 118px; }
 }
+
+/* ---------- 8. Layout taken over from the legacy sheets ----------
+   These components' old rules (ui-overhaul.css / mobile.css) were deleted in
+   the final pass; the layout they carried lives here now. */
+body #newChatBtn.new-chat-btn { white-space: nowrap; }
+body .pomodoro-trigger-btn { white-space: nowrap; font-family: var(--ds-font-display); }
+
+/* Collapsed desktop sidebar: New chat becomes a 40px icon button */
+body .sidebar.collapsed #newChatBtn.new-chat-btn { width: 40px; height: 40px; margin: 0 auto; padding: 0; }
+body .sidebar.collapsed #newChatBtn.new-chat-btn span,
+body .sidebar.collapsed .sidebar-section-title { display: none; }
+
+/* Message box: stacked preview + input row; anchors the "+" panel */
+body .combined-input-bar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  padding: 3px;            /* .input-pill-row carries the rest of the spacing */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Reply actions row */
+body .message-footer { display: flex; align-items: center; }
+body .message-footer button { display: flex; padding: 0; font-size: 0.9rem; }
+
+/* Code blocks */
+body .code-block .code-header { display: flex; justify-content: space-between; align-items: center; }
+body .code-block .copy-code-btn { display: flex; align-items: center; gap: 5px; }
+body .code-block pre { padding: 14px 18px; overflow-x: auto; }
+body .code-block pre code {
+  display: block;
+  padding: 0;
+  font-family: ui-monospace, 'Roboto Mono', Consolas, monospace;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+@media (max-width: 768px) {
+  body .combined-input-bar { margin: 0 12px; padding: 8px 10px; }
+}
+@media (max-width: 480px) {
+  body .combined-input-bar { margin: 0 8px; padding: 6px 10px; }
+}
