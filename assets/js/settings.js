@@ -5,11 +5,23 @@ class SettingsManager {
         this.modal = null;
         this.currentTab = 'account';
         this.initialSettings = {};
-        this.dirty = false; // To track unsaved changes
+        this.dirty = false; // Unsaved edits to the Account text fields (the only fields that need "Save")
         this.isPopulating = false; // Flag to prevent input events during form population
+        this.loaded = false; // initialSettings holds a server copy, so open() can render instantly
 
-        // Debounce save function for toggle switches
-        this.debouncedSave = this.debounce(this.saveToggle.bind(this), 500);
+        // Everything except the Account text fields saves as soon as it changes.
+        // Changes are merged and sent together, so two quick edits to different
+        // settings can't drop the first (a plain debounce kept only the last call).
+        this.pendingSave = {};
+        this.flushSave = this.debounce(() => {
+            const payload = this.pendingSave;
+            this.pendingSave = {};
+            this.saveToggle(payload);
+        }, 500);
+        this.debouncedSave = (settings) => {
+            Object.assign(this.pendingSave, settings);
+            this.flushSave();
+        };
 
         // Bind methods
         this.open = this.open.bind(this);
@@ -57,23 +69,12 @@ class SettingsManager {
                     </div>
                     
                     <footer class="settings-footer">
-                        <button class="btn-cancel" data-action="close">Cancel</button>
-                        <button class="btn-save" id="settings-save-btn">
+                        <button type="button" class="btn-cancel" data-action="close">Close</button>
+                        <button type="button" class="btn-save" id="settings-save-btn" disabled>
                             <span class="btn-text">Save Changes</span>
                             <span class="spinner"></span>
                         </button>
                     </footer>
-                </div>
-            </div>
-            <div id="settings-confirm-dialog" class="confirm-dialog hidden">
-                <div class="confirm-dialog-box">
-                    <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
-                    <h3 id="confirm-title">Are you sure?</h3>
-                    <p id="confirm-message">This action cannot be undone.</p>
-                    <div class="confirm-dialog-actions">
-                        <button class="btn-settings btn-cancel" id="confirm-cancel-btn">Cancel</button>
-                        <button class="btn-settings btn-danger" id="confirm-proceed-btn">Proceed</button>
-                    </div>
                 </div>
             </div>
         `;
@@ -91,10 +92,14 @@ class SettingsManager {
             <!-- ACCOUNT PANEL -->
             <div id="tab-account" class="tab-panel active">
                 <h3>Profile Information</h3>
-                <form id="account-form">
+                <form id="account-form" novalidate>
                     <div class="form-group">
-                        <label for="settings-full-name">Full Name</label>
-                        <input type="text" id="settings-full-name" class="form-control" data-setting="full_name" placeholder="e.g., Jane Doe">
+                        <label for="settings-first-name">First Name</label>
+                        <input type="text" id="settings-first-name" class="form-control" data-setting="first_name" placeholder="e.g., Jane" autocomplete="given-name">
+                    </div>
+                    <div class="form-group">
+                        <label for="settings-last-name">Last Name</label>
+                        <input type="text" id="settings-last-name" class="form-control" data-setting="last_name" placeholder="e.g., Doe" autocomplete="family-name">
                     </div>
                     <div class="form-group">
                         <label for="settings-username">Username</label>
@@ -138,11 +143,11 @@ class SettingsManager {
             <div id="tab-security" class="tab-panel">
                 <h3>Change Password</h3>
                 <p>For your security, we recommend using a long, unique password.</p>
-                <form id="password-form">
+                <form id="password-form" novalidate>
                     <div class="form-group">
                         <label for="settings-current-password">Current Password</label>
                         <div class="input-group">
-                            <input type="password" id="settings-current-password" class="form-control">
+                            <input type="password" id="settings-current-password" class="form-control" autocomplete="current-password">
                             <div class="input-group-append">
                                 <button class="btn-icon password-toggle" type="button" aria-label="Toggle password visibility"><i class="fas fa-eye"></i></button>
                             </div>
@@ -151,7 +156,7 @@ class SettingsManager {
                     <div class="form-group">
                         <label for="settings-new-password">New Password</label>
                         <div class="input-group">
-                            <input type="password" id="settings-new-password" class="form-control">
+                            <input type="password" id="settings-new-password" class="form-control" autocomplete="new-password">
                              <div class="input-group-append">
                                 <button class="btn-icon password-toggle" type="button" aria-label="Toggle password visibility"><i class="fas fa-eye"></i></button>
                             </div>
@@ -167,48 +172,29 @@ class SettingsManager {
                     <div class="form-group">
                         <label for="settings-confirm-password">Confirm New Password</label>
                         <div class="input-group">
-                            <input type="password" id="settings-confirm-password" class="form-control">
+                            <input type="password" id="settings-confirm-password" class="form-control" autocomplete="new-password">
                              <div class="input-group-append">
                                 <button class="btn-icon password-toggle" type="button" aria-label="Toggle password visibility"><i class="fas fa-eye"></i></button>
                             </div>
                         </div>
                         <p class="form-error-message" id="confirm-password-error">Passwords do not match.</p>
                     </div>
-                    <button class="btn-save" id="change-password-btn">Update Password</button>
+                    <button type="submit" class="btn-save" id="change-password-btn">Update Password</button>
                 </form>
             </div>
 
             <!-- NOTIFICATIONS PANEL -->
             <div id="tab-notifications" class="tab-panel">
-                <h3>Email Notifications</h3>
-                <p>Choose which emails you want to receive from TutorMind.</p>
-                <div class="toggle-group">
-                    <div class="toggle-label">
-                        <h4>Email Notifications</h4>
-                        <p>Receive important updates about your account.</p>
-                    </div>
-                    <label class="switch"><input type="checkbox" data-setting="email_notifications"><span class="slider"></span></label>
-                </div>
+                <h3>Reminders</h3>
+                <p>Choose how TutorMind nudges you to keep learning.</p>
+                <!-- notifications_enabled is what scripts/send_study_reminders.php reads;
+                     the old study_reminders / email / weekly-summary columns had no sender. -->
                 <div class="toggle-group">
                     <div class="toggle-label">
                         <h4>Study Reminders</h4>
-                        <p>Get occasional reminders to keep up with your learning.</p>
+                        <p>Get reminded to study on the schedule you picked during setup.</p>
                     </div>
-                    <label class="switch"><input type="checkbox" data-setting="study_reminders"><span class="slider"></span></label>
-                </div>
-                <div class="toggle-group">
-                    <div class="toggle-label">
-                        <h4>New Feature Announcements</h4>
-                        <p>Be the first to know about new tools and features.</p>
-                    </div>
-                    <label class="switch"><input type="checkbox" data-setting="feature_announcements"><span class="slider"></span></label>
-                </div>
-                <div class="toggle-group">
-                    <div class="toggle-label">
-                        <h4>Weekly Summary</h4>
-                        <p>Receive a weekly digest of your learning activity.</p>
-                    </div>
-                    <label class="switch"><input type="checkbox" data-setting="weekly_summary"><span class="slider"></span></label>
+                    <label class="switch"><input type="checkbox" data-setting="notifications_enabled"><span class="slider"></span></label>
                 </div>
                 <div class="toggle-group">
                     <div class="toggle-label">
@@ -281,13 +267,7 @@ class SettingsManager {
                         <div class="action-item-label">
                             <p>Permanently delete all your conversation history.</p>
                         </div>
-                        <button class="btn-danger" id="clear-history-btn">Clear All History</button>
-                    </div>
-                    <div class="action-item">
-                        <div class="action-item-label">
-                            <p>Download an archive of your data.</p>
-                        </div>
-                        <button class="btn-cancel" id="download-data-btn">Request Data Archive</button>
+                        <button type="button" class="btn-danger" id="clear-history-btn">Clear All History</button>
                     </div>
                 </div>
 
@@ -297,7 +277,7 @@ class SettingsManager {
                         <div class="action-item-label">
                            <p>Permanently delete your account and all associated data.</p>
                         </div>
-                        <button class="btn-danger" id="delete-account-btn">Delete My Account</button>
+                        <button type="button" class="btn-danger" id="delete-account-btn">Delete My Account</button>
                     </div>
                 </div>
             </div>
@@ -324,21 +304,23 @@ class SettingsManager {
             }
         });
 
-        // Save button for text inputs
+        // Account text fields: the only edits that wait for "Save" (Enter or Ctrl+S also save)
         this.modal.querySelector('#settings-save-btn').addEventListener('click', this.saveTextInputs);
+        this.modal.querySelector('#account-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveTextInputs();
+        });
+        this.modal.querySelector('#account-form').addEventListener('input', (e) => {
+            if (this.isPopulating || !e.target.matches('input[data-setting]')) return;
+            this.setDirty(this.accountChanges() !== null);
+        });
 
-        // Input change tracking
-        this.modal.querySelector('.settings-content').addEventListener('input', (e) => {
-            // Don't set dirty if we're programmatically populating the form
-            if (this.isPopulating) return;
-            
-            const target = e.target;
-            if (target.classList.contains('form-control') || target.classList.contains('form-select')) {
-                if (target.closest('#tab-account') || target.closest('#tab-appearance')) {
-                    this.dirty = true;
-                    this.modal.querySelector('#settings-save-btn').classList.remove('loading');
-                }
-            }
+        // Dropdowns (learning level, response style) save as soon as they change
+        this.modal.querySelectorAll('select[data-setting]').forEach(select => {
+            select.addEventListener('change', () => {
+                if (this.isPopulating) return;
+                this.debouncedSave({ [select.dataset.setting]: select.value });
+            });
         });
 
         // Toggle switch auto-saving
@@ -347,17 +329,14 @@ class SettingsManager {
                 const setting = e.target.dataset.setting;
                 if (!setting) return; // Not a users-column toggle (e.g. the push-notifications toggle below)
                 const value = e.target.checked;
-                console.log('Toggle changed:', setting, '=', value); // Debug logging
                 this.debouncedSave({ [setting]: value });
 
                 // Special case for dark mode to apply immediately
                 if (setting === 'dark_mode') {
-                    console.log('Dark mode toggle - applying immediately'); // Debug logging
                     document.body.classList.toggle('dark-mode', value);
                     // Sync with the main toggle in the user menu
                     const mainToggle = document.getElementById('darkModeToggle');
                     if (mainToggle) mainToggle.checked = value;
-                    // Sync with localStorage
                     localStorage.setItem('tutormind-theme', value ? 'dark' : 'light');
                 }
             });
@@ -384,34 +363,26 @@ class SettingsManager {
             });
         }
 
-        // Appearance option buttons (font size, density)
+        // Appearance option buttons (font size, density): apply and save right away
         this.modal.querySelectorAll('.option-group').forEach(group => {
             group.addEventListener('click', e => {
-                if (e.target.classList.contains('option-btn')) {
-                    const setting = group.dataset.setting;
-                    const value = e.target.dataset.value;
-                    this.updateOptionButtons(group, value);
-                    this.dirty = true;
-                    this.modal.querySelector('#settings-save-btn').classList.remove('loading');
-                }
+                const btn = e.target.closest('.option-btn');
+                if (!btn) return;
+                const change = { [group.dataset.setting]: btn.dataset.value };
+                this.updateOptionButtons(group, btn.dataset.value);
+                this.applyGlobalSettings(change);
+                this.debouncedSave(change);
             });
         });
-        
-        // Legibility slider (real-time preview + save)
+
+        // Legibility slider: live preview while dragging, saved on release
         const legibilitySlider = this.modal.querySelector('#settings-legibility');
         if (legibilitySlider) {
             legibilitySlider.addEventListener('input', (e) => {
-                const value = e.target.value;
-                // Update display value
-                this.modal.querySelector('#legibility-value').textContent = value + '%';
-                // Apply immediately for live preview
-                this.applyLegibility(value);
-                this.dirty = true;
+                this.applyLegibility(e.target.value);
             });
-            
-            // Save on change (when user releases slider)
             legibilitySlider.addEventListener('change', (e) => {
-                const value = parseInt(e.target.value);
+                const value = parseInt(e.target.value, 10);
                 this.debouncedSave({ legibility: value });
                 localStorage.setItem('legibility', value);
             });
@@ -449,42 +420,54 @@ class SettingsManager {
         const newPasswordInput = securityTab.querySelector('#settings-new-password');
         newPasswordInput.addEventListener('input', () => this.updatePasswordStrength(newPasswordInput.value));
 
-        // Change password button
-        securityTab.querySelector('#change-password-btn').addEventListener('click', this.changePassword.bind(this));
+        // Change password (a real submit, so Enter works; the page must not reload)
+        securityTab.querySelector('#password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.changePassword();
+        });
     }
-    
+
     /**
      * Attaches event listeners specific to the Privacy tab.
      */
     attachPrivacyListeners() {
-        // Delete account button
-        this.modal.querySelector('#delete-account-btn').addEventListener('click', () => {
-            this.showConfirmDialog({
-                title: 'Delete Account?',
-                message: 'This is permanent. All your data, including chat history, will be erased. Please enter your password to confirm.',
-                action: this.deleteAccount.bind(this),
-                needsPassword: true
+        this.modal.querySelector('#delete-account-btn').addEventListener('click', async () => {
+            const password = await TmDialog.prompt({
+                title: 'Delete your account?',
+                message: 'This permanently erases your account and all of your chats. Enter your password to confirm.',
+                inputType: 'password',
+                inputLabel: 'Password',
+                destructive: true,
+                confirmLabel: 'Delete account'
             });
+            if (password) this.deleteAccount(password);
         });
 
-        // Clear history button
-        this.modal.querySelector('#clear-history-btn').addEventListener('click', () => {
-            this.showConfirmDialog({
-                title: 'Clear All Chat History?',
-                message: 'This will permanently delete all your conversations. This action cannot be undone.',
-                action: this.clearChatHistory.bind(this)
+        this.modal.querySelector('#clear-history-btn').addEventListener('click', async () => {
+            const ok = await TmDialog.confirm({
+                title: 'Clear all chat history?',
+                message: 'This permanently deletes all of your conversations. It can’t be undone.',
+                destructive: true,
+                confirmLabel: 'Clear history'
             });
+            if (ok) this.clearChatHistory();
         });
     }
 
     /**
-     * Opens the settings modal.
+     * Opens the settings modal. Renders from the copy loaded at page start
+     * (no loader), then refreshes it quietly in the background.
      */
     open() {
         document.addEventListener('keydown', this.handleKeyDown);
         this.modal.classList.remove('hidden'); // This removes display: none !important;
         this.modal.querySelector('.tab-btn').focus();
-        this.loadSettings();
+        if (this.loaded) {
+            this.populateForm(this.initialSettings);
+            this.loadSettings({ quiet: true });
+        } else {
+            this.loadSettings();
+        }
     }
 
     /**
@@ -511,15 +494,13 @@ class SettingsManager {
      * @param {KeyboardEvent} e The keyboard event.
      */
     handleKeyDown(e) {
-        const confirmDialog = document.getElementById('settings-confirm-dialog');
-        if (e.key === 'Escape' && (!confirmDialog || confirmDialog.classList.contains('hidden'))) {
+        // A TmDialog on top handles its own Escape
+        if (e.key === 'Escape' && !document.querySelector('.tm-dialog-overlay')) {
             this.close();
         }
         if (e.ctrlKey && e.key === 's') {
             e.preventDefault();
-            if (!this.modal.querySelector('#settings-save-btn').disabled) {
-                this.saveTextInputs();
-            }
+            if (this.dirty) this.saveTextInputs();
         }
     }
 
@@ -542,38 +523,36 @@ class SettingsManager {
             panel.classList.toggle('active', panel.id === `tab-${tabName}`);
         });
 
-        // Show/hide the main save button based on the tab
-        const saveBtn = this.modal.querySelector('#settings-save-btn');
-        if (tabName === 'account' || tabName === 'appearance' || tabName === 'notifications') {
-            saveBtn.style.display = 'inline-block';
-        } else {
-            saveBtn.style.display = 'none';
-        }
+        // Only the Account tab has fields that wait for "Save"; everything else saves instantly
+        this.modal.querySelector('#settings-save-btn').hidden = tabName !== 'account';
     }
 
     /**
      * Fetches the current user settings from the API and populates the form.
+     * quiet: refresh in the background (no loader); only re-render if the
+     * server copy changed and the user isn't mid-edit.
      */
-    async loadSettings() {
-        this.showLoadingState(true);
+    async loadSettings({ quiet = false } = {}) {
+        if (!quiet) this.showLoadingState(true);
         try {
             const response = await fetch('api/user_settings.php');
             if (!response.ok) throw new Error('Failed to load settings.');
 
             const data = await response.json();
-            if (data.success) {
-                console.log('Settings loaded:', data.settings); // Debug logging
-                this.initialSettings = data.settings;
+            if (!data.success) throw new Error(data.error || 'Unknown error loading settings.');
+
+            const changed = JSON.stringify(data.settings) !== JSON.stringify(this.initialSettings);
+            this.initialSettings = data.settings;
+            this.loaded = true;
+            if (!quiet || (changed && !this.dirty)) {
                 this.populateForm(data.settings);
                 this.applyGlobalSettings(data.settings);
-            } else {
-                throw new Error(data.error || 'Unknown error loading settings.');
             }
         } catch (error) {
-            console.error('Settings load error:', error); // Debug logging
-            this.showToast('Error: ' + error.message, 'error');
+            console.error('Settings load error:', error);
+            if (!quiet) this.showToast('Error: ' + error.message, 'error');
         } finally {
-            this.showLoadingState(false);
+            if (!quiet) this.showLoadingState(false);
         }
     }
 
@@ -582,8 +561,6 @@ class SettingsManager {
      * @param {object} settings The settings object.
      */
     applyGlobalSettings(settings) {
-        console.log('Applying global settings:', settings); // Debug logging
-        
         // Apply Learning Level to the main chat input
         const mainLearningLevel = document.getElementById('learningLevel');
         if (mainLearningLevel && settings.learning_level) {
@@ -603,14 +580,11 @@ class SettingsManager {
         // Apply Dark Mode and sync with localStorage
         if (settings.dark_mode !== undefined) {
              const isDark = !!settings.dark_mode;
-             const wasDark = document.body.classList.contains('dark-mode');
-             console.log('Dark mode - Current:', wasDark, 'Setting to:', isDark, 'Raw value:', settings.dark_mode);
              document.body.classList.toggle('dark-mode', isDark);
              const mainToggle = document.getElementById('darkModeToggle');
              if (mainToggle) mainToggle.checked = isDark;
              // Update localStorage to match database setting
              localStorage.setItem('tutormind-theme', isDark ? 'dark' : 'light');
-             console.log('Dark mode applied. Body has dark-mode class:', document.body.classList.contains('dark-mode'));
         }
         
         // Apply Legibility setting
@@ -661,7 +635,7 @@ class SettingsManager {
                 } else if (el.classList.contains('option-group')) {
                     this.updateOptionButtons(el, settings[key]);
                 } else {
-                    el.value = settings[key];
+                    el.value = settings[key] ?? ''; // NULL columns (e.g. last_name) must not render as "null"
                 }
             }
         });
@@ -675,9 +649,6 @@ class SettingsManager {
             });
         }
         
-        // Sync dark mode toggle with main UI toggle
-        const mainToggle = document.getElementById('darkModeToggle');
-
         // Push toggle state lives in the browser, not in the settings API response
         const pushToggle = this.modal.querySelector('#settings-push-toggle');
         if (pushToggle && 'serviceWorker' in navigator) {
@@ -701,7 +672,6 @@ class SettingsManager {
      * @param {object} settings An object containing the setting key and value.
      */
     async saveToggle(settings) {
-        console.log('saveToggle called with:', settings); // Debug logging
         try {
             const response = await fetch('api/user_settings.php', {
                 method: 'POST',
@@ -709,71 +679,61 @@ class SettingsManager {
                 body: JSON.stringify(settings)
             });
             const result = await response.json();
-            console.log('saveToggle API response:', result); // Debug logging
-            if (result.success) {
-                this.showToast('Setting saved!', 'success');
-                this.applyGlobalSettings(settings);
-                // Update initialSettings to keep in sync
-                Object.assign(this.initialSettings, settings);
-            } else {
-                throw new Error(result.error);
-            }
+            if (!result.success) throw new Error(result.error || 'Failed to save.');
+            this.showToast('Setting saved!', 'success');
+            this.applyGlobalSettings(settings);
+            Object.assign(this.initialSettings, settings);
         } catch (error) {
-            console.error('saveToggle error:', error); // Debug logging
+            console.error('saveToggle error:', error);
             this.showToast('Error: ' + error.message, 'error');
-            // Revert the toggle if save fails
-            const key = Object.keys(settings)[0];
-            const toggle = this.modal.querySelector(`[data-setting="${key}"]`);
-            if(toggle) toggle.checked = !toggle.checked;
+            // Put every control in the failed batch back to its last saved value
+            Object.keys(settings).forEach(key => {
+                const el = this.modal.querySelector(`[data-setting="${key}"]`);
+                const saved = this.initialSettings[key];
+                if (!el || saved === undefined) return;
+                if (el.type === 'checkbox') el.checked = !!saved;
+                else if (el.classList.contains('option-group')) this.updateOptionButtons(el, saved);
+                else el.value = saved ?? '';
+            });
+            this.applyGlobalSettings(this.initialSettings);
         }
     }
 
     /**
-     * Saves settings from text inputs and select dropdowns.
+     * The Account text fields that differ from the saved copy, or null if none do.
+     */
+    accountChanges() {
+        const payload = {};
+        this.modal.querySelectorAll('#account-form input[data-setting]').forEach(el => {
+            const key = el.dataset.setting;
+            const value = el.value.trim();
+            if (value !== (this.initialSettings[key] ?? '')) payload[key] = value;
+        });
+        return Object.keys(payload).length ? payload : null;
+    }
+
+    setDirty(dirty) {
+        this.dirty = dirty;
+        this.modal.querySelector('#settings-save-btn').disabled = !dirty;
+    }
+
+    /**
+     * Saves the Account text fields (name, username, email).
      */
     async saveTextInputs() {
+        const payload = this.accountChanges();
+        if (!payload) { this.setDirty(false); return; }
+
+        const emailInput = this.modal.querySelector('#settings-email');
+        const emailError = this.modal.querySelector('#email-error');
+        const emailOk = !('email' in payload) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email);
+        emailInput.classList.toggle('is-invalid', !emailOk);
+        emailError.style.display = emailOk ? 'none' : 'block';
+        if (!emailOk) { emailInput.focus(); return; }
+
         const saveBtn = this.modal.querySelector('#settings-save-btn');
         saveBtn.classList.add('loading');
-
-        const payload = {};
-        let changed = false;
-        
-        // Get values from text inputs and selects
-        this.modal.querySelectorAll('#tab-account [data-setting], #tab-appearance select[data-setting]').forEach(el => {
-            const key = el.dataset.setting;
-            const currentValue = el.type === 'checkbox' ? el.checked : el.value;
-            if (this.initialSettings[key] !== undefined && currentValue !== this.initialSettings[key]) {
-                payload[key] = currentValue;
-                changed = true;
-            }
-        });
-
-        // Get values from option button groups
-        this.modal.querySelectorAll('#tab-appearance .option-group').forEach(group => {
-            const key = group.dataset.setting;
-            const currentValue = group.querySelector('.option-btn.active').dataset.value;
-            if (currentValue !== this.initialSettings[key]) {
-                payload[key] = currentValue;
-                changed = true;
-            }
-        });
-        
-        // Get legibility slider value
-        const legibilitySlider = this.modal.querySelector('#settings-legibility');
-        if (legibilitySlider) {
-            const legibilityValue = parseInt(legibilitySlider.value);
-            if (legibilityValue !== this.initialSettings.legibility) {
-                payload.legibility = legibilityValue;
-                changed = true;
-            }
-        }
-
-        if (!changed) {
-            this.showToast('No changes to save.', 'info');
-            saveBtn.classList.remove('loading');
-            return;
-        }
-
+        saveBtn.disabled = true;
         try {
             const response = await fetch('api/user_settings.php', {
                 method: 'POST',
@@ -781,47 +741,35 @@ class SettingsManager {
                 body: JSON.stringify(payload)
             });
             const result = await response.json();
-            if (result.success) {
-                this.showToast('Settings saved successfully!', 'success');
-                this.updateMainUI(payload);
-                
-                // Update initialSettings with saved values to prevent dirty flag
-                Object.assign(this.initialSettings, payload);
-                
-                // Apply the saved settings globally
-                this.applyGlobalSettings(payload);
-                
-                // Mark as clean
-                this.dirty = false;
-            } else {
-                throw new Error(result.error || 'Failed to save.');
-            }
+            if (!result.success) throw new Error(result.error || 'Failed to save.');
+            Object.assign(this.initialSettings, payload);
+            this.updateMainUI(payload);
+            this.showToast('Settings saved successfully!', 'success');
+            this.setDirty(false);
         } catch (error) {
             this.showToast('Error: ' + error.message, 'error');
+            saveBtn.disabled = false; // keep the edits so they can be fixed and retried
         } finally {
-            this.resetFormState();
+            saveBtn.classList.remove('loading');
         }
     }
-    
+
     /**
      * Updates the main UI (sidebar) with new user details after a save.
      * @param {object} updatedSettings An object with the changed settings.
      */
     updateMainUI(updatedSettings) {
-        const { full_name, email, username } = updatedSettings;
+        const { first_name, email, username } = updatedSettings;
 
-        // Determine the display name, falling back to username if full_name is empty
-        const displayName = full_name || this.initialSettings.username;
-        const newInitial = displayName ? displayName.charAt(0).toUpperCase() : '?';
-
-        if (full_name !== undefined || username !== undefined) {
-            // Update all name displays
+        if (first_name !== undefined || username !== undefined) {
+            // Same rule as tutor_mysql.php's $displayName: first name, else username
+            const displayName = this.initialSettings.first_name || this.initialSettings.username || 'User';
             document.querySelectorAll('.user-details h4').forEach(el => {
                 el.textContent = displayName;
             });
-            // Update all avatar initials
+            // Letter avatars only; a Google photo avatar stays as it is
             document.querySelectorAll('.user-avatar').forEach(el => {
-                el.textContent = newInitial;
+                if (!el.querySelector('img')) el.textContent = displayName.charAt(0).toUpperCase();
             });
         }
 
@@ -874,20 +822,22 @@ class SettingsManager {
         if (!isValid) return;
 
         const changeBtn = this.modal.querySelector('#change-password-btn');
-        changeBtn.classList.add('loading');
-        changeBtn.querySelector('.btn-text').textContent = 'Updating...';
+        changeBtn.disabled = true;
+        changeBtn.textContent = 'Updating…';
 
         try {
             // Fetch CSRF token before submitting
             const tokenResponse = await fetch('includes/csrf.php?action=get_token');
             const tokenData = await tokenResponse.json();
 
+            // auth_mysql.php reads the action from the POST body, not the query string
             const formData = new FormData();
+            formData.append('action', 'change_password');
             formData.append('current_password', currentPassword);
             formData.append('new_password', newPassword);
             formData.append('csrf_token', tokenData.token);
 
-            const response = await fetch('auth_mysql.php?action=change_password', {
+            const response = await fetch('auth_mysql.php', {
                 method: 'POST',
                 body: formData
             });
@@ -903,8 +853,8 @@ class SettingsManager {
         } catch (error) {
             this.showToast('Error: ' + error.message, 'error');
         } finally {
-            changeBtn.classList.remove('loading');
-            changeBtn.querySelector('.btn-text').textContent = 'Update Password';
+            changeBtn.disabled = false;
+            changeBtn.textContent = 'Update Password';
         }
     }
     
@@ -943,7 +893,7 @@ class SettingsManager {
      * Handles the logic for clearing user's chat history.
      */
     async clearChatHistory() {
-        const toast = this.showToast('Clearing history... please wait.', 'info');
+        this.showToast('Clearing history… please wait.', 'info');
         try {
             const response = await fetch('api/clear_history.php', {
                 method: 'POST'
@@ -997,52 +947,6 @@ class SettingsManager {
         strengthText.textContent = text;
     }
 
-    /**
-     * Shows a custom confirmation dialog for destructive actions.
-     * @param {object} options Configuration for the dialog.
-     */
-    showConfirmDialog({ title, message, action, needsPassword = false }) {
-        const dialog = document.getElementById('settings-confirm-dialog');
-        dialog.classList.remove('hidden'); // Use the global .hidden class
-        dialog.querySelector('#confirm-title').textContent = title;
-        
-        const messageContainer = dialog.querySelector('.confirm-dialog-box');
-        let existingMessage = messageContainer.querySelector('#confirm-message');
-        if (existingMessage) existingMessage.parentElement.innerHTML = `<p id="confirm-message">${message}</p>`;
-
-        if (needsPassword) {
-            const passwordHtml = `
-                <div class="form-group" style="text-align: left; margin-top: 16px;">
-                    <label for="confirm-password-input">Password</label>
-                    <input type="password" id="confirm-password-input" class="form-control" placeholder="Enter your password">
-                </div>
-            `;
-            dialog.querySelector('#confirm-message').insertAdjacentHTML('afterend', passwordHtml);
-        }
-
-        const cancelBtn = dialog.querySelector('#confirm-cancel-btn');
-        const proceedBtn = dialog.querySelector('#confirm-proceed-btn');
-
-        const cleanup = () => {
-            dialog.classList.add('hidden'); // Use the global .hidden class
-            // Important: remove event listeners to prevent multiple executions
-            proceedBtn.removeEventListener('click', proceedHandler);
-            cancelBtn.removeEventListener('click', cleanup);
-        };
-
-        const proceedHandler = () => {
-            const passwordInput = dialog.querySelector('#confirm-password-input');
-            const password = passwordInput ? passwordInput.value : null;
-            if (typeof action === 'function') {
-                action(password);
-            }
-            cleanup();
-        };
-
-        cancelBtn.addEventListener('click', cleanup, { once: true });
-        proceedBtn.addEventListener('click', proceedHandler, { once: true });
-    }
-
     // --- UTILITY & HELPER METHODS ---
 
     showToast(message, type = 'info') {
@@ -1087,10 +991,10 @@ class SettingsManager {
     }
 
     resetFormState() {
-        this.dirty = false;
-        const saveBtn = this.modal.querySelector('#settings-save-btn');
-        saveBtn.classList.remove('loading');
-        saveBtn.querySelector('.btn-text').textContent = 'Save Changes';
+        this.setDirty(false);
+        this.modal.querySelector('#settings-save-btn').classList.remove('loading');
+        this.modal.querySelector('#settings-email').classList.remove('is-invalid');
+        this.modal.querySelector('#email-error').style.display = 'none';
         this.clearPasswordFields();
         this.clearPasswordErrors();
     }

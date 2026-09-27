@@ -103,7 +103,48 @@ const TmDialog = (() => {
         });
     }
 
-    return { confirm, alert };
+    /**
+     * Show a confirm dialog with one input (e.g. a password to authorise a
+     * destructive action). Returns a Promise<string|null>: the value, or null
+     * if cancelled. Confirm stays disabled until something is typed.
+     */
+    function prompt({ title = 'Are you sure?', message = '', inputType = 'text', inputLabel = '', placeholder = '', destructive = false, confirmLabel = 'Confirm', cancelLabel = 'Cancel' } = {}) {
+        return new Promise((resolve) => {
+            const overlay = _build({ title, message, type: 'warning', destructive, confirmLabel, cancelLabel, showCancel: true });
+            const field = document.createElement('label');
+            field.className = 'tm-dialog-field';
+            field.innerHTML = `<span>${inputLabel}</span><input class="tm-dialog-input" type="${inputType}">`;
+            const input = field.querySelector('input');
+            input.placeholder = placeholder;
+            if (inputType === 'password') input.autocomplete = 'current-password';
+            overlay.querySelector('.tm-dialog-actions').before(field);
+            document.body.appendChild(overlay);
+
+            const confirmBtn = overlay.querySelector('#tm-confirm');
+            confirmBtn.disabled = true;
+            input.addEventListener('input', () => { confirmBtn.disabled = !input.value; });
+            input.focus();
+
+            function cleanup(result) {
+                document.removeEventListener('keydown', onKey);
+                overlay.style.animation = 'tmOverlayIn 0.1s ease reverse';
+                setTimeout(() => {
+                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                    resolve(result);
+                }, 100);
+            }
+            const submit = () => { if (input.value) cleanup(input.value); };
+
+            confirmBtn.addEventListener('click', submit);
+            overlay.querySelector('#tm-cancel').addEventListener('click', () => cleanup(null));
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+            function onKey(e) { if (e.key === 'Escape') cleanup(null); }
+            document.addEventListener('keydown', onKey);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(null); });
+        });
+    }
+
+    return { confirm, alert, prompt };
 })();
 
 // Make globally available

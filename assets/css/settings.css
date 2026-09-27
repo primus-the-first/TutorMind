@@ -505,64 +505,11 @@ input:checked + .slider:before {
     to { transform: rotate(360deg); }
 }
 
-/* Custom Confirm Dialog */
-#settings-confirm-dialog {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    z-index: 1100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-}
-.confirm-dialog-box {
-    background: var(--card-bg);
-    padding: 30px;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 400px;
-    text-align: center;
-    transform: scale(0.95);
-    transition: transform 0.3s ease;
-    box-shadow: var(--shadow);
-}
-.confirm-dialog-box .icon {
-    font-size: 36px;
-    color: var(--error-color);
-    margin-bottom: 15px;
-}
-#confirm-title {
-    margin-top: 0;
-    font-family: var(--font-family-headings);
-}
-#confirm-message {
-    margin: 15px 0 25px;
-    line-height: 1.6;
-}
-.confirm-dialog-actions {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-}
-.confirm-dialog-box .btn-settings {
-    padding: 10px 25px;
-    border-radius: 8px;
-    border: none;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-}
-.confirm-dialog-box .btn-danger {
-    background-color: var(--error-color) !important;
-    color: white !important;
+.btn-save:disabled,
+.btn-save:disabled:hover {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--primary-color);
 }
 
 /* Loading Spinner Overlay */
