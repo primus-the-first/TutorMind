@@ -4,9 +4,12 @@
  * The dashboard stores { conversationId, prompt } in sessionStorage under
  * tm_review_prompt and opens /chat/{conversationId}. Here we prefill the
  * composer with that prompt — never auto-send — so the learner asks for
- * another go themselves. Load after tutor_mysql.js: its DOMContentLoaded
- * handler attaches the composer's 'input' listeners (auto-resize, send pill)
- * synchronously, so dispatching 'input' below updates them.
+ * another go themselves.
+ *
+ * tutor_mysql.js attaches the composer's 'input' listeners (auto-resize, send
+ * pill) only after `await settingsManager.loadSettings()`, so one 'input' now
+ * can land before anyone listens. Re-fire it until the send pill shows the
+ * text (or the learner edits, or ~10s pass).
  */
 document.addEventListener('DOMContentLoaded', () => {
     let handoff;
@@ -23,7 +26,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('question');
     if (!input) return;
     input.value = handoff.prompt;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
+    const row = document.getElementById('inputPillRow');
+    const settle = () => {
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+    };
+    settle();
+    let tries = 0;
+    const timer = setInterval(() => {
+        const done = !row || row.classList.contains('has-text');
+        if (done || input.value !== handoff.prompt || ++tries > 40) { clearInterval(timer); return; }
+        settle();
+    }, 250);
 });

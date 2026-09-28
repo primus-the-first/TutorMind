@@ -1,0 +1,376 @@
+/* =============================================================
+   "Your learning" dashboard — dashboard.css
+   Loaded after tm-tokens.css + tm-ds.css. Tokens only: one accent
+   (--ds-accent-ink / --primary), --cta for the one Continue button,
+   radius scale, token shadows. --tm-good/--tm-bad are for right/wrong
+   answers only, so nothing here uses them.
+   ============================================================= */
+
+.db-page {
+  --db-track: var(--ds-stage-raised);
+  --db-heat-0: var(--ds-stage-raised);
+  --db-heat-1: var(--primary-light);
+  --db-heat-2: var(--primary);
+  --db-heat-3: var(--primary-dark);
+}
+/* Dark: brighter = more, so the scale runs the other way */
+body.dark-mode.db-page {
+  --db-heat-1: var(--primary-dark);
+  --db-heat-3: var(--primary-light);
+}
+.db-page [hidden] { display: none !important; }
+/* `.ds-page a { color: inherit }` would out-rank the CTA's ink in dark mode */
+.db-page a.ds-btn--cta { color: var(--ds-ink-on-cta); }
+
+.db-muted { margin: 0; color: var(--ds-ink-2); font-size: 0.95rem; }
+
+/* ---------- Top bar ---------- */
+.db-top { background: var(--ds-surface); border-bottom: 1px solid var(--ds-line); }
+.db-top__inner { display: flex; align-items: center; gap: 14px; min-height: 64px; }
+.db-top__logo { margin-right: 0; min-height: 44px; }
+.db-top__title { padding-left: 14px; border-left: 1px solid var(--ds-line); color: var(--ds-ink-2); font-size: 1rem; }
+.db-back { margin-left: auto; min-height: 44px; }
+.db-back .ds-i { transform: scaleX(-1); }
+.db-back__short { display: none; }
+
+/* ---------- Greeting ---------- */
+.db-main { padding-top: 32px; padding-bottom: 64px; }
+.db-hello { margin-bottom: 28px; }
+.db-hello__title {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: 2.5rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.db-hello__sub { margin: 8px 0 0; color: var(--ds-ink-2); font-size: 1.0625rem; max-width: 60ch; }
+.db-hello__sub:empty { display: none; }
+
+/* ---------- Layout ---------- */
+.db-layout {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-areas:
+    "summary  summary"
+    "continue streak"
+    "review   recall"
+    "subjects subjects";
+  align-items: start;
+}
+.db-summary  { grid-area: summary; }
+.db-continue { grid-area: continue; }
+.db-streak   { grid-area: streak; }
+.db-review   { grid-area: review; }
+.db-recall   { grid-area: recall; }
+.db-subjects { grid-area: subjects; margin-top: 12px; }
+
+/* ---------- Card basics ---------- */
+.db-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  box-shadow: var(--ds-lift);
+}
+.db-card__kind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ds-ink-2);
+}
+.db-card__title {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: 1.375rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.db-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--ds-r-sm);
+  background: var(--ds-tint);
+  color: var(--ds-accent-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Milestone segments + single-series bars share the track token */
+.db-segs { display: flex; gap: 6px; }
+.db-segs span { flex: 1; height: 8px; border-radius: 4px; background: var(--db-track); }
+.db-segs span.is-on { background: var(--ds-accent-ink); }
+.db-bar { height: 8px; border-radius: 4px; background: var(--db-track); overflow: hidden; }
+.db-bar span { display: block; height: 100%; border-radius: 4px; background: var(--ds-accent-ink); }
+
+/* Bridge-arch mark (streak, first visit) */
+.db-arch { width: 44px; height: 44px; flex: none; }
+.db-arch path { fill: none; stroke: var(--ds-accent-ink); stroke-width: 4; stroke-linecap: round; }
+.db-arch circle { fill: var(--ds-accent-ink); }
+.db-arch .db-arch__dot { fill: var(--cta); }
+
+/* ---------- Summary band ---------- */
+.db-summary { display: flex; flex-direction: column; gap: 12px; transition: opacity 0.2s; }
+.db-summary[aria-busy="true"] { opacity: 0.6; }
+.db-summary__head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.db-summary__label { color: var(--ds-ink-2); font-size: 0.9375rem; }
+.db-summary__band {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  box-shadow: var(--ds-lift);
+}
+.db-stat { display: flex; flex-direction: column; gap: 2px; padding: 20px 26px; min-width: 0; }
+.db-stat + .db-stat { border-left: 1px solid var(--ds-line); }
+.db-stat__value {
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.db-stat__label { font-size: 0.9375rem; font-weight: 500; }
+.db-stat__note { font-size: 0.875rem; color: var(--ds-ink-2); }
+
+/* ---------- Pick up where you left off ---------- */
+.db-continue__title {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.db-continue__progress { display: flex; flex-direction: column; gap: 10px; }
+.db-continue__meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 0.9375rem; color: var(--ds-ink-2); }
+.db-continue__next { margin: 0; font-size: 0.9375rem; }
+.db-continue__next span { color: var(--ds-ink-2); }
+.db-continue__actions { padding-top: 4px; }
+
+.db-rows { display: flex; flex-direction: column; padding-top: 12px; border-top: 1px solid var(--ds-line); }
+.db-rows__label { padding-bottom: 4px; font-size: 0.8125rem; font-weight: 500; color: var(--ds-ink-2); }
+.db-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 0 -8px;
+  padding: 0 8px;
+  border-radius: var(--ds-r-sm);
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+.db-row__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-row__meta { flex: none; font-size: 0.875rem; color: var(--ds-ink-2); }
+.db-row .ds-i { width: 18px; height: 18px; color: var(--ds-ink-2); }
+.db-row:hover { background: var(--ds-tint); }
+.db-row:hover .db-row__title { color: var(--ds-accent-ink); }
+
+/* ---------- Streak ---------- */
+.db-streak { gap: 12px; }
+.db-streak__count {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: 2.25rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.db-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin: 4px 0 0; padding: 0; list-style: none; }
+.db-day { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.db-day__box { width: 100%; height: 40px; border-radius: var(--ds-r-sm); background: var(--db-track); }
+.db-day.is-done .db-day__box { background: var(--ds-accent-ink); }
+.db-day.is-today .db-day__box { background: transparent; border: 2px dashed var(--ds-accent-ink); }
+.db-day__label { font-size: 0.75rem; font-weight: 500; color: var(--ds-ink-2); }
+.db-day.is-today .db-day__label { color: var(--ds-ink); font-weight: 700; }
+
+/* ---------- Worth another look ---------- */
+.db-review { gap: 6px; }
+.db-review > .db-muted { margin-bottom: 8px; }
+.db-review__list { margin: 0; padding: 0; list-style: none; }
+.db-review__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 16px 0;
+  border-top: 1px solid var(--ds-line);
+}
+.db-review__item:last-child { padding-bottom: 0; }
+.db-review__text { display: flex; flex-direction: column; gap: 4px; flex: 1 1 260px; min-width: 0; }
+.db-review__kind, .db-review__meta { font-size: 0.8125rem; color: var(--ds-ink-2); }
+.db-review__kind { font-weight: 500; }
+.db-review__q { font-size: 1rem; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.db-review__item .ds-btn { flex: none; min-height: 44px; }
+
+/* ---------- How well it sticks ---------- */
+.db-recall__list { display: flex; flex-direction: column; gap: 14px; margin: 4px 0 0; padding: 0; list-style: none; }
+.db-recall__row { display: flex; flex-direction: column; gap: 8px; }
+.db-recall__line { display: flex; align-items: center; gap: 8px; font-size: 0.9375rem; }
+.db-recall__label { flex: 1; min-width: 0; }
+.db-recall__pct { min-width: 3ch; text-align: right; font-family: var(--ds-font-display); font-weight: 700; }
+.db-tip { margin: 0; padding: 12px 14px; border-radius: var(--ds-r-md); background: var(--ds-tint); font-size: 0.875rem; line-height: 1.45; }
+.db-foot { font-size: 0.8125rem; color: var(--ds-ink-2); }
+
+/* ---------- Subjects ---------- */
+.db-section__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 16px; }
+.db-subjects__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.db-subject {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 150px;
+  padding: 22px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  box-shadow: var(--ds-lift);
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+.db-subject:hover { border-color: var(--primary-light); }
+.db-subject__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.db-subject__name {
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.db-subject .ds-i { color: var(--ds-ink-2); transition: transform 0.2s var(--ds-ease), color 0.15s; }
+.db-subject:hover .ds-i { color: var(--ds-accent-ink); transform: translateX(3px); }
+.db-subject__meta { display: flex; flex-direction: column; gap: 2px; margin-top: auto; font-size: 0.9375rem; font-weight: 500; }
+.db-subject__meta .db-muted { font-size: 0.875rem; font-weight: 400; }
+
+/* ---------- Past 12 weeks (inside the streak card, desktop only) ---------- */
+.db-week { display: none; }
+.db-activity { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--ds-line); }
+.db-activity__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.db-activity__head .db-muted { font-size: 0.875rem; }
+.db-activity__title { font-family: var(--ds-font-display); font-weight: 700; font-size: 1.0625rem; letter-spacing: -0.01em; }
+.db-heat { display: flex; gap: 8px; }
+.db-heat__days { display: grid; grid-template-rows: repeat(7, 16px); row-gap: 4px; font-size: 0.6875rem; line-height: 16px; color: var(--ds-ink-2); }
+.db-heat__grid { display: flex; gap: 4px; }
+.db-heat__col { display: grid; grid-template-rows: repeat(7, 16px); row-gap: 4px; }
+.db-heat__cell { display: inline-block; width: 16px; height: 16px; border-radius: 4px; }
+.db-heat__cell.l0 { background: var(--db-heat-0); }
+.db-heat__cell.l1 { background: var(--db-heat-1); }
+.db-heat__cell.l2 { background: var(--db-heat-2); }
+.db-heat__cell.l3 { background: var(--db-heat-3); }
+.db-heat__cell.is-today { box-shadow: inset 0 0 0 2px var(--ds-accent-ink); }
+.db-heat__cell.is-future { background: transparent; }
+.db-heat__legend { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--ds-ink-2); }
+.db-heat__legend .db-heat__cell { width: 12px; height: 12px; border-radius: 3px; }
+.db-heat__ends { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.6875rem; color: var(--ds-ink-2); }
+
+/* ---------- First visit ---------- */
+.db-first {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  padding: 40px 48px;
+  background: var(--ds-tint);
+  border: 1px solid var(--ds-stage-line);
+  border-radius: var(--ds-r-xl);
+}
+.db-first__arch { width: 148px; height: 148px; }
+.db-first__arch path { stroke-width: 3; }
+.db-first__text { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.db-first__text .db-muted { font-size: 1.0625rem; max-width: 62ch; }
+.db-first__text .ds-btn { margin-top: 8px; }
+.db-first__title {
+  margin: 0;
+  font-family: var(--ds-font-display);
+  font-weight: 700;
+  font-size: 1.875rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.db-preview { display: flex; flex-direction: column; gap: 16px; margin-top: 36px; }
+.db-preview__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+.db-preview__item { display: flex; flex-direction: column; gap: 10px; padding: 22px; border: 1.5px dashed var(--ds-line); border-radius: var(--ds-r-lg); }
+.db-preview__item .ds-i { width: 26px; height: 26px; color: var(--ds-accent-ink); }
+.db-preview__arch { width: 26px; height: 26px; }
+.db-preview__name { font-family: var(--ds-font-display); font-weight: 700; font-size: 1.1875rem; letter-spacing: -0.02em; }
+
+/* ---------- Loading / error ---------- */
+.db-skeleton { display: grid; gap: 24px; }
+.db-skel { border-radius: var(--ds-r-lg); background: var(--ds-tint); }
+.db-skel--band { height: 150px; }
+.db-skel--card { height: 260px; }
+@media (prefers-reduced-motion: no-preference) {
+  .db-skel { animation: db-pulse 1.4s var(--ds-ease) infinite alternate; }
+}
+@keyframes db-pulse { from { opacity: 1; } to { opacity: 0.55; } }
+.db-error { align-items: flex-start; }
+
+/* ---------- Narrow screens ---------- */
+@media (max-width: 899px) {
+  .db-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "streak" "continue" "summary" "review" "recall" "subjects";
+    gap: 20px;
+  }
+  .db-activity { display: none; }
+  .db-week { display: grid; }
+  .db-card { padding: 20px; }
+  .db-continue__actions .ds-btn { width: 100%; }
+}
+
+@media (max-width: 599px) {
+  .db-top__inner { gap: 10px; min-height: 60px; }
+  .db-top__brand { display: none; }
+  .db-top__title {
+    padding-left: 0;
+    border-left: 0;
+    color: var(--ds-ink);
+    font-family: var(--ds-font-display);
+    font-weight: 700;
+    font-size: 1.125rem;
+    letter-spacing: -0.02em;
+  }
+  .db-back__long { display: none; }
+  .db-back__short { display: inline; }
+
+  .db-main { padding-top: 24px; padding-bottom: 40px; }
+  .db-hello { margin-bottom: 20px; }
+  .db-hello__title { font-size: 1.875rem; line-height: 1.15; }
+  .db-hello__sub { font-size: 1rem; }
+
+  .db-summary__label { display: none; }
+  .db-summary__head .ds-chip-row { width: 100%; flex-wrap: nowrap; }
+  .db-summary__head .ds-chip { flex: 1 1 0; justify-content: center; min-height: 44px; padding: 0 6px; }
+  .db-stat { padding: 14px 12px; }
+  .db-stat__value { font-size: 1.5rem; }
+  .db-stat__label { font-size: 0.8125rem; font-weight: 400; color: var(--ds-ink-2); }
+  .db-stat__note { display: none; }
+
+  .db-continue__title { font-size: 1.4rem; }
+  .db-streak__count { font-size: 1.625rem; }
+  .db-arch { width: 36px; height: 36px; }
+  .db-week { gap: 6px; }
+  .db-day__box { height: 36px; }
+  .db-review__item .ds-btn { margin-left: auto; }
+  .db-subject { min-height: 0; padding: 18px; }
+  .db-subject__name { font-size: 1.125rem; }
+
+  .db-first { flex-direction: column; align-items: flex-start; gap: 20px; padding: 28px 20px; }
+  .db-first__arch { width: 88px; height: 88px; }
+  .db-first__title { font-size: 1.5rem; }
+  .db-first__text .ds-btn { width: 100%; }
+}

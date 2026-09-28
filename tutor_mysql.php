@@ -431,7 +431,7 @@ function tm_goal_icon($paths) {
                     </div>
                 </div>
                 <nav class="user-menu-nav">
-                    <a href="dashboard.php" target="_blank"><i class="fas fa-chart-line"></i> Dashboard</a>
+                    <a href="dashboard.php"><i class="fas fa-chart-line"></i> Dashboard</a>
                     <a href="group_study.php"><i class="fas fa-users"></i> Group Study</a>
                     <a href="#"><i class="fas fa-star"></i> Upgrade plan</a>
                     <a href="#" id="open-personalization-btn"><i class="fas fa-user-edit"></i> Personalization</a>
