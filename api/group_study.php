@@ -169,6 +169,25 @@ function gsFirstName(string $name): string {
     return preg_split('/\s+/', trim($name))[0] ?: $name;
 }
 
+// Models (the Groq/DeepSeek fallbacks especially) sometimes drop the fences
+// around the hand-off block, or relabel it ```json. Store the one canonical
+// form the client parses and later prompts see — otherwise the room shows raw
+// JSON and Q starts imitating its own broken output from the history.
+function gsNormalizeHandoff(string $text): string {
+    $re = '/(?:```[ \t]*(?:tm-chips|json)?[ \t]*\r?\n|(?:^|\n)[ \t]*tm-chips[ \t]*\r?\n)?[ \t]*(\{[^{}]*"options"[^{}]*\})[ \t]*\r?\n?(?:```)?\s*$/';
+    if (!preg_match($re, $text, $m, PREG_OFFSET_CAPTURE)) return $text;
+
+    $before = rtrim(substr($text, 0, $m[0][1]));
+    $spec = json_decode($m[1][0], true);
+    if (!is_array($spec) || !isset($spec['options']) || !is_array($spec['options'])) return $before;
+
+    $block = "```tm-chips\n" . json_encode([
+        'q'       => $spec['q'] ?? "Who's teaching next?",
+        'options' => array_values($spec['options']),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n```";
+    return $before === '' ? $block : $before . "\n\n" . $block;
+}
+
 /** The facilitator's latest call-on, if the person hasn't answered yet. */
 function gsOpenAsk(PDO $pdo, int $sessionId): ?array {
     $stmt = $pdo->prepare("SELECT id, addressed_user_id FROM group_session_messages
@@ -523,6 +542,7 @@ function gsFacilitate(PDO $pdo, array $session, array $participants, int $sender
         }
     }
     $text = trim($response['candidates'][0]['content']['parts'][0]['text'] ?? '');
+    $text = gsNormalizeHandoff($text);
     if ($text === '') return null;
 
     // Only mark it addressed if Q actually spoke to them by name.

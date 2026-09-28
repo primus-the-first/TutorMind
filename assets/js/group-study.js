@@ -350,6 +350,8 @@
         });
     }
 
+    var HANDOFF_RE = /(?:```[ \t]*(?:tm-chips|json)?[ \t]*\r?\n|(?:^|\n)[ \t]*tm-chips[ \t]*\r?\n)?[ \t]*(\{[^{}]*"options"[^{}]*\})[ \t]*\r?\n?(?:```)?\s*$/;
+
     function appendMessage(m, res) {
         if (els.transcript.querySelector('[data-id="' + m.id + '"]')) return;
 
@@ -386,7 +388,9 @@
 
             var bubble = document.createElement('div');
             bubble.className = 'gs-msg__bubble';
-            var fence = isQ ? m.content.match(/```tm-chips\s*\n([\s\S]*?)```/) : null;
+            // Tolerant on purpose: rows stored before the server normalised the
+            // block can still have it unfenced or labelled ```json.
+            var fence = isQ ? m.content.match(HANDOFF_RE) : null;
             richText(bubble, fence ? m.content.replace(fence[0], '').trim() : m.content);
             body.appendChild(bubble);
             if (fence) {
@@ -622,7 +626,7 @@
         b.className = 'gs-msg__speak';
         b.setAttribute('aria-label', 'Read aloud');
         b.innerHTML = '<svg class="ds-i"><use href="#i-volume"/></svg>';
-        var text = content.replace(/```[\s\S]*?```/g, '').replace(/\*/g, '').trim();
+        var text = content.replace(HANDOFF_RE, '').replace(/```[\s\S]*?```/g, '').replace(/\*/g, '').trim();
         b.addEventListener('click', function () { speak(text, b); });
         return b;
     }
