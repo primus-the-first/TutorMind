@@ -307,10 +307,11 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             transition: background 0.1s, transform 0.1s;
         }
         .dropdown-option:hover {
-            background: var(--ink);
-            color: var(--card-bg);
+            background: rgba(124, 58, 237, 0.1);
+            color: var(--primary, #7C3AED);
             transform: translateX(2px);
         }
+        .dark-mode .dropdown-option:hover { background: rgba(167, 139, 250, 0.14); color: #A78BFA; }
         .dropdown-option.selected {
             background: var(--accent-violet);
             color: #fff;
@@ -470,15 +471,16 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
 
         .heatmap-wrapper { overflow-x: auto; padding-bottom: 4px; }
 
+        /* Month labels sit over their week column: margin = day-label width + body gap. */
         .heatmap-months-row {
-            display: flex;
-            margin-left: 30px;
+            position: relative;
+            height: 1rem;
+            margin-left: calc(14px + 6px);
             margin-bottom: 4px;
             font-size: 0.68rem;
             color: var(--text-secondary);
-            gap: 0;
         }
-        .heatmap-month-label { min-width: 0; }
+        .heatmap-month-label { position: absolute; top: 0; white-space: nowrap; }
 
         .heatmap-body { display: flex; gap: 6px; }
 
@@ -486,12 +488,12 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             display: flex;
             flex-direction: column;
             gap: 2px;
+            width: 14px;
+            flex-shrink: 0;
             font-size: 0.62rem;
             color: var(--text-secondary);
-            margin-right: 4px;
-            margin-top: 0;
         }
-        .heatmap-day-label { height: 12px; line-height: 12px; }
+        .heatmap-day-label { height: 14px; line-height: 14px; }
 
         .heatmap-grid { display: flex; gap: 2px; }
         .heatmap-week { display: flex; flex-direction: column; gap: 2px; }
@@ -851,19 +853,9 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         })();
     </script>
 
-    <!-- Boot loader: shown for at least 2 full animation cycles, extended to
-         cover real page-load time if that takes longer. -->
+    <!-- Boot loader: covers the page until the first dashboard render (loadDashboard hides it). -->
     <script>
-        (function() {
-            var bootStart = Date.now();
-            if (typeof TmLoader === 'undefined') return;
-            TmLoader.showFullscreen('Loading TutorMind…');
-            window.addEventListener('load', function() {
-                var minDuration = 2 * TmLoader.FULL_CYCLE_MS;
-                var remaining = Math.max(0, minDuration - (Date.now() - bootStart));
-                setTimeout(function() { TmLoader.hide(); }, remaining);
-            });
-        })();
+        if (typeof TmLoader !== 'undefined') TmLoader.showFullscreen('Loading your learning…');
     </script>
 
 <!-- Mobile overlay -->
@@ -1039,6 +1031,12 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         if (charts[key]) { charts[key].destroy(); delete charts[key]; }
     }
 
+    // Server strings (titles, questions, topics) are user/AI-authored — escape before innerHTML.
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+    // Local YYYY-MM-DD (toISOString is UTC and shifts days east of UTC).
+    const localDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
     function formatMinutes(mins) {
         mins = Math.round(mins);
         if (mins < 60) return `${mins}m`;
@@ -1100,7 +1098,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         } catch (_) {}
         if (localStorage.getItem('darkMode') === 'enabled') document.body.classList.add('dark-mode');
     }
-    await applyDarkMode();
+    // The server already set the theme class; this only syncs it, so don't block the data load on it.
+    applyDarkMode();
 
     // ── Sidebar toggle ─────────────────────────────────────
     const sidebar        = document.getElementById('sidebar');
@@ -1180,10 +1179,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         Object.keys(charts).forEach(destroyChart);
 
         try {
-            const [res] = await Promise.all([
-                fetch(`api/analytics.php?period=${period}`),
-                new Promise(r => setTimeout(r, 250))
-            ]);
+            const res = await fetch(`api/analytics.php?period=${period}`);
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Unknown error');
             lastData = data;
@@ -1194,9 +1190,10 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                 <div class="empty-state">
                     ${ICO.exclaim}
                     <p>Could not load dashboard data</p>
-                    <small>${err.message}</small>
+                    <small>${esc(err.message)}</small>
                 </div>`;
         }
+        if (typeof TmLoader !== 'undefined') TmLoader.hide();
     }
 
     function renderAll(data) {
@@ -1311,7 +1308,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                 lastMonth = weekStart.getMonth();
             }
             for (let d = 0; d < 7; d++) {
-                const dateStr = cur.toISOString().split('T')[0];
+                const dateStr = localDate(cur);
                 week.push({ date: dateStr, count: data[dateStr] || 0, future: cur > today });
                 cur.setDate(cur.getDate() + 1);
             }
@@ -1319,20 +1316,20 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
             if (cur > today && weeks.length >= 53) break;
         }
 
-        const CELL = 14; // cell + gap
+        const COL = 16; // 14px cell + 2px gap
         const monthsRow = document.createElement('div');
         monthsRow.className = 'heatmap-months-row';
-        monthsRow.style.marginLeft = '30px';
+        monthsRow.style.width = (weeks.length * COL) + 'px';
 
-        let prevIdx = 0;
         monthLabels.forEach((m, i) => {
-            const gap  = (m.weekIndex - prevIdx) * CELL;
+            // Skip a label that would collide with the next one (a partial first month).
+            const next = monthLabels[i + 1];
+            if (next && next.weekIndex - m.weekIndex < 3) return;
             const span = document.createElement('span');
             span.className = 'heatmap-month-label';
-            span.style.paddingLeft = (i === 0 ? 0 : gap) + 'px';
+            span.style.left = (m.weekIndex * COL) + 'px';
             span.textContent = m.label;
             monthsRow.appendChild(span);
-            prevIdx = m.weekIndex;
         });
 
         const body = document.createElement('div');
@@ -1373,6 +1370,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         wrapper.innerHTML = '';
         wrapper.appendChild(monthsRow);
         wrapper.appendChild(body);
+        // Narrow screens scroll this; open on the recent end, not last year.
+        wrapper.scrollLeft = wrapper.scrollWidth;
     }
 
     // Heatmap tooltip
@@ -1538,10 +1537,10 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
         list.innerHTML = sessions.map(s => `
             <div class="session-item">
                 <div class="session-info">
-                    <div class="session-title">${s.title || 'Untitled Session'}</div>
+                    <div class="session-title">${esc(s.title || 'Untitled Session')}</div>
                     <div class="session-meta">${s.date ? getTimeAgo(s.date) : ''}</div>
                 </div>
-                <span class="session-goal-badge">${GOAL_LABELS[s.goal] || s.goal || 'General'}</span>
+                <span class="session-goal-badge">${esc(GOAL_LABELS[s.goal] || s.goal || 'General')}</span>
                 <div class="session-progress-wrap">
                     <div class="progress-bar"><div class="progress-fill" style="width:${s.progress}%"></div></div>
                     <div class="progress-pct">${s.progress}%</div>
@@ -1572,7 +1571,7 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                     return `
                     <div class="subject-card">
                         <div class="subject-name">
-                            <span>${s.topic}</span>
+                            <span>${esc(s.topic)}</span>
                             <span class="subject-pct" style="color:${color}">${s.completionPct}%</span>
                         </div>
                         <div class="subject-bar-track">
@@ -1635,8 +1634,8 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
                         ${q.recentQuizzes.map(r => `
                         <div class="quiz-item">
                             <span class="quiz-score-badge ${quizScoreClass(r.score)}">${r.score}%</span>
-                            <span class="quiz-question">${r.question}</span>
-                            <span class="quiz-type-tag">${QUIZ_TYPE_LABELS[r.question_type] || r.question_type}</span>
+                            <span class="quiz-question">${esc(r.question)}</span>
+                            <span class="quiz-type-tag">${esc(QUIZ_TYPE_LABELS[r.question_type] || r.question_type)}</span>
                         </div>`).join('')}
                     </div>
                 </div>` : ''}
@@ -1853,7 +1852,11 @@ $displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
     }
 
     // ── Dark mode reactivity: rebuild charts ───────────────
+    // body's class also toggles for the mobile sidebar; only a real theme flip should redraw.
+    let renderedDark = isDark();
     const darkObserver = new MutationObserver(() => {
+        if (isDark() === renderedDark) return;
+        renderedDark = isDark();
         if (lastData) {
             renderProgressChart(lastData.progressOverTime);
             renderTopicsChart(lastData.topTopics);

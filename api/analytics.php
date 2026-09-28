@@ -170,14 +170,17 @@ try {
     ");
     $stmt->execute([$user_id]);
     $studyDates = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    // Consecutive days ending today — or yesterday, since a streak survives until today is over.
+    // "Today" comes from MySQL so it matches DATE(created_at) (PHP and MySQL time zones differ).
     $currentStreak = 0;
-    $today = new DateTime('today');
+    $expected = new DateTime($pdo->query("SELECT CURDATE()")->fetchColumn());
+    if (!empty($studyDates) && $studyDates[0] !== $expected->format('Y-m-d')) {
+        $expected->modify('-1 day');
+    }
     foreach ($studyDates as $dateStr) {
-        $studyDate = new DateTime($dateStr);
-        $diff = $today->diff($studyDate)->days;
-        if ($diff === 0 || $diff === $currentStreak) {
-            if ($diff > 0) $currentStreak++;
-        } else break;
+        if ($dateStr !== $expected->format('Y-m-d')) break;
+        $currentStreak++;
+        $expected->modify('-1 day');
     }
 
     // -------------------------------------------------------------------------
