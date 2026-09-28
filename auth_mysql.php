@@ -252,39 +252,24 @@ switch ($request_method) {
                 exit;
             }
 
-            error_log("AUTH_MYSQL: Credential received, length: " . strlen($credential));
-            
-            // Verify the token with Google
-            $url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $credential;
-            error_log("AUTH_MYSQL: Starting cURL to Google API");
-            
-            // Use cURL for better control and error reporting
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Localhost dev only
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);     // Localhost dev only
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);     // Connection timeout
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);           // Total timeout
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);  // Follow redirects
-            
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            error_log("AUTH_MYSQL: cURL completed with HTTP code: $httpCode");
-            
-            if ($response === false) {
-                $curlError = curl_error($ch);
-                $curlErrno = curl_errno($ch);
-                curl_close($ch);
-                error_log("Google Token Verification cURL Error: [$curlErrno] $curlError");
-                throw new Exception("cURL connection failed: [$curlErrno] " . $curlError);
+            // Verify with Google: TLS, audience = TutorMind, issuer, expiry (includes/google_auth.php)
+            require_once 'includes/google_auth.php';
+            try {
+                $verified = verifyGoogleIdToken($credential);
+            } catch (RuntimeException $e) {
+                error_log("Google Login Error: " . $e->getMessage());
+                $msg = 'Could not reach Google to confirm your sign-in. Please try again.';
+                if ($is_redirect_flow) {
+                    header("Location: login?error=" . urlencode($msg));
+                } else {
+                    http_response_code(502);
+                    echo json_encode(['success' => false, 'error' => $msg]);
+                }
+                exit;
             }
-            
-            curl_close($ch);
-            error_log("AUTH_MYSQL: Token verified successfully");
-            $payload = json_decode($response, true);
+            $payload = $verified['payload'] ?? null;
 
-            if (!$payload || isset($payload['error_description'])) {
+            if (!$verified) {
                 if ($is_redirect_flow) {
                     header("Location: login?error=" . urlencode('Invalid Google token.'));
                     exit;
@@ -310,12 +295,28 @@ switch ($request_method) {
                 $pdo = getDbConnection();
                 error_log("AUTH_MYSQL: DB connection obtained");
                 
-                // Check if user exists by google_id or email
-                error_log("AUTH_MYSQL: Checking if user exists...");
-                $stmt = $pdo->prepare("SELECT * FROM users WHERE google_id = ? OR email = ?");
-                $stmt->execute([$google_id, $email]);
+                // Find the account: by Google ID first; by email only if Google has
+                // verified that address — otherwise anyone could create a Google
+                // account with someone else's email and walk into their account.
+                $stmt = $pdo->prepare("SELECT * FROM users WHERE google_id = ?");
+                $stmt->execute([$google_id]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                error_log("AUTH_MYSQL: User lookup complete, found: " . ($user ? 'yes' : 'no'));
+                if (!$user) {
+                    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
+                    $stmt->execute([$email]);
+                    $byEmail = $stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($byEmail && !$verified['email_verified']) {
+                        $msg = 'This email already has a TutorMind account. Verify the email on your Google account, or log in with your password.';
+                        if ($is_redirect_flow) {
+                            header("Location: login?error=" . urlencode($msg));
+                        } else {
+                            http_response_code(409);
+                            echo json_encode(['success' => false, 'error' => $msg]);
+                        }
+                        exit;
+                    }
+                    $user = $byEmail;
+                }
 
                 if ($user) {
                     // User exists - Update google_id, avatar, and names if missing
