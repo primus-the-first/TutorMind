@@ -1,151 +1,172 @@
 <?php
+// Group study — a study chat room with an AI facilitator ("Q").
+// Design system page (tm-tokens + tm-ds, like login/register) + group-study.css.
+// Behaviour: assets/js/group-study.js · API: api/group_study.php
 header("Cache-Control: no-cache, no-store, must-revalidate, max-age=0");
 header("Pragma: no-cache");
 header("Expires: 0");
 
 require_once 'includes/check_auth.php';
 
-$displayName = isset($_SESSION['first_name']) && !empty($_SESSION['first_name'])
-    ? $_SESSION['first_name']
-    : (isset($_SESSION['username']) ? $_SESSION['username'] : 'User');
+$firstName = !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : ($_SESSION['username'] ?? 'there');
+$v = fn($f) => filemtime($f);
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Study - TutorMind</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Group study — TutorMind</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
     <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Source+Sans+Pro:wght@400;600;700&family=Funnel+Display:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= filemtime('assets/css/ui-overhaul.css') ?>">
-    <link rel="stylesheet" href="assets/css/tm-widgets.css?v=<?= filemtime('assets/css/tm-widgets.css') ?>">
-    <link rel="stylesheet" href="assets/css/group-study.css?v=<?= filemtime('assets/css/group-study.css') ?>">
-    <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
-    <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/tm-tokens.css?v=<?= $v('assets/css/tm-tokens.css') ?>">
+    <link rel="stylesheet" href="assets/css/tm-ds.css?v=<?= $v('assets/css/tm-ds.css') ?>">
+    <link rel="stylesheet" href="assets/css/group-study.css?v=<?= $v('assets/css/group-study.css') ?>">
 </head>
-<body data-display-name="<?= htmlspecialchars($displayName) ?>">
-    <div class="gs-page">
-        <header class="gs-header">
-            <a href="tutor_mysql.php" class="gs-back" aria-label="Back to chat">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </a>
-            <div class="gs-header-title">
-                <span class="gs-header-icon" aria-hidden="true"></span>
-                <h1>Group Study</h1>
+<body class="ds-page gs-page">
+    <script>
+        // Same theme key and fallbacks as the rest of the app
+        (function () {
+            var theme = null;
+            try { theme = localStorage.getItem('tutormind-theme') || (localStorage.getItem('darkMode') === 'enabled' ? 'dark' : null); } catch (e) {}
+            if (theme === 'dark') document.body.classList.add('dark-mode');
+        })();
+    </script>
+
+    <header class="gs-top">
+        <a href="chat" class="ds-icon-btn gs-back" aria-label="Back to chat"><svg class="ds-i"><use href="#i-arrow"/></svg></a>
+        <a href="chat" class="ds-logo gs-top__logo"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+        <span class="gs-top__title">Group study</span>
+        <button class="ds-icon-btn" type="button" data-ds-theme aria-label="Dark mode"><svg class="ds-i"><use href="#i-moon"/></svg></button>
+    </header>
+
+    <!-- ================= Lobby ================= -->
+    <main id="gsLobby" class="gs-lobby">
+        <div class="gs-lobby__intro">
+            <span class="ds-kicker">Hi, <?= htmlspecialchars($firstName) ?></span>
+            <h1 class="ds-h2">Teach it to <span class="ds-accent">each other.</span></h1>
+            <p class="ds-lede">One of you explains, the room talks it through, and Q points at gaps. It'll ask the quiet ones what they think, and it never just hands you the answer.</p>
+        </div>
+
+        <section id="gsRejoin" class="gs-rejoin" hidden aria-labelledby="gsRejoinTitle">
+            <h2 id="gsRejoinTitle" class="gs-section-title">Pick up where you left off</h2>
+            <ul id="gsRejoinList" class="gs-rejoin__list"></ul>
+        </section>
+
+        <div class="gs-lobby__cards">
+            <div class="gs-card" id="gsCreateCard">
+                <button type="button" class="gs-card__head" id="gsCreateHead" aria-expanded="false" aria-controls="gsCreateForm">
+                    <span class="gs-card__icon" aria-hidden="true"><svg class="ds-i"><use href="#i-plus"/></svg></span>
+                    <span class="gs-card__text">
+                        <span class="gs-card__title">Start a room</span>
+                        <span class="gs-card__desc">Pick a topic. You teach first, everyone else joins with a code.</span>
+                    </span>
+                </button>
+                <form class="gs-card__form" id="gsCreateForm" novalidate>
+                    <div class="ds-field">
+                        <label for="gsTopicInput" class="ds-label">Topic</label>
+                        <input type="text" id="gsTopicInput" class="ds-input" placeholder="e.g. Photosynthesis, binary search" maxlength="255" autocomplete="off">
+                    </div>
+                    <button type="submit" id="gsCreateBtn" class="ds-btn ds-btn--primary ds-btn--block">Open the room <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                </form>
             </div>
-            <button type="button" id="darkModeToggle" class="gs-theme-toggle" aria-label="Toggle dark mode">
-                <i class="fas fa-moon"></i>
-            </button>
-        </header>
 
-        <main class="gs-main">
-            <!-- Landing: create or join -->
-            <section id="gsLanding" class="gs-panel">
-                <div class="gs-hero">
-                    <p class="gs-hero-hey">Hey <span aria-hidden="true">👋</span></p>
-                    <p class="gs-hero-name"><?= htmlspecialchars($displayName) ?></p>
+            <div class="gs-card" id="gsJoinCard">
+                <button type="button" class="gs-card__head" id="gsJoinHead" aria-expanded="false" aria-controls="gsJoinForm">
+                    <span class="gs-card__icon" aria-hidden="true"><svg class="ds-i"><use href="#i-users"/></svg></span>
+                    <span class="gs-card__text">
+                        <span class="gs-card__title">Join a room</span>
+                        <span class="gs-card__desc">Enter the 6-character code someone shared with you.</span>
+                    </span>
+                </button>
+                <form class="gs-card__form" id="gsJoinForm" novalidate>
+                    <div class="ds-field">
+                        <label for="gsJoinCodeInput" class="ds-label">Join code</label>
+                        <input type="text" id="gsJoinCodeInput" class="ds-input gs-code-input" placeholder="AB2XQ9" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                    </div>
+                    <button type="submit" id="gsJoinBtn" class="ds-btn ds-btn--secondary ds-btn--block">Join</button>
+                </form>
+            </div>
+        </div>
+        <div class="ds-alert" id="gsLobbyError" role="alert" hidden><svg class="ds-i"><use href="#i-alert"/></svg><span></span></div>
+    </main>
+
+    <!-- ================= Room ================= -->
+    <div id="gsRoom" class="gs-room" hidden>
+        <div class="gs-room__bar">
+            <div class="gs-room__heading">
+                <h1 id="gsTopic" class="gs-room__topic"></h1>
+                <p id="gsTeaching" class="gs-room__teaching"></p>
+            </div>
+            <div class="gs-room__actions">
+                <button type="button" class="ds-icon-btn gs-people-toggle" id="gsPeopleToggle" aria-controls="gsPeople" aria-expanded="false" aria-label="People in the room">
+                    <svg class="ds-i"><use href="#i-users"/></svg><span id="gsPeopleCount"></span>
+                </button>
+                <div class="gs-menu-wrap">
+                    <button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" id="gsPassBtn" aria-haspopup="true" aria-expanded="false" hidden>Pass the turn</button>
+                    <div class="gs-menu" id="gsPassMenu" role="menu" hidden></div>
                 </div>
-                <p class="gs-tagline">One of you teaches, the group works through it together — the AI only steps in to point at gaps, never to hand you the answer.</p>
+                <button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" id="gsEndBtn" hidden>End session</button>
+                <button type="button" class="ds-icon-btn" id="gsLeaveBtn" aria-label="Leave the room" title="Leave the room"><svg class="ds-i"><use href="#i-leave"/></svg></button>
+            </div>
+        </div>
+        <div class="gs-confirm" id="gsEndConfirm" role="alertdialog" aria-labelledby="gsEndConfirmText" hidden>
+            <span id="gsEndConfirmText">End the session for everyone?</span>
+            <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" id="gsEndYes">End it</button>
+            <button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" id="gsEndNo">Keep going</button>
+        </div>
 
-                <div class="gs-landing-grid">
-                    <div class="gs-card" id="gsCreateCard">
-                        <button type="button" class="gs-card-head" id="gsCreateHead" aria-expanded="false">
-                            <div class="gs-tile gs-tile-teal" aria-hidden="true"><i class="fas fa-chalkboard-user"></i></div>
-                            <h2>Start a session</h2>
-                            <p>Pick a topic. You'll teach it first — everyone else joins with a code.</p>
-                            <i class="fas fa-chevron-down gs-card-chevron" aria-hidden="true"></i>
-                        </button>
-                        <div class="gs-card-form">
-                            <label for="gsTopicInput" class="gs-label">Topic</label>
-                            <input type="text" id="gsTopicInput" class="gs-input" placeholder="e.g. Photosynthesis, Binary search, The French Revolution" maxlength="255">
-                            <button type="button" id="gsCreateBtn" class="gs-btn gs-btn-primary">Create session</button>
-                        </div>
+        <div class="gs-room__body">
+            <div class="gs-room__main">
+                <!-- Waiting for a second person -->
+                <section id="gsInvite" class="gs-invite" hidden>
+                    <h2 class="gs-invite__title">Get your group in</h2>
+                    <p class="gs-invite__text">Share this code. The room opens as soon as one more person joins.</p>
+                    <div class="gs-invite__code" id="gsInviteCode" aria-label="Join code"></div>
+                    <div class="gs-invite__actions">
+                        <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" id="gsCopyCode"><svg class="ds-i"><use href="#i-copy"/></svg><span>Copy code</span></button>
+                        <button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" id="gsCopyLink"><svg class="ds-i"><use href="#i-link"/></svg><span>Copy invite link</span></button>
                     </div>
-                    <div class="gs-card" id="gsJoinCard">
-                        <button type="button" class="gs-card-head" id="gsJoinHead" aria-expanded="false">
-                            <div class="gs-tile gs-tile-pink" aria-hidden="true"><i class="fas fa-right-to-bracket"></i></div>
-                            <h2>Join a session</h2>
-                            <p>Enter the 6-character code someone shared with you.</p>
-                            <i class="fas fa-chevron-down gs-card-chevron" aria-hidden="true"></i>
-                        </button>
-                        <div class="gs-card-form">
-                            <label for="gsJoinCodeInput" class="gs-label">Join code</label>
-                            <input type="text" id="gsJoinCodeInput" class="gs-input gs-input-code" placeholder="AB2XQ9" maxlength="6" autocapitalize="characters">
-                            <button type="button" id="gsJoinBtn" class="gs-btn">Join session</button>
-                        </div>
+                </section>
+
+                <div class="gs-transcript" id="gsTranscript" role="log" aria-live="polite" aria-label="Room messages"></div>
+
+                <div class="gs-foot">
+                    <p class="gs-status" id="gsStatus" aria-live="polite"></p>
+                    <div class="gs-asked" id="gsAsked" hidden>
+                        <strong>Q asked you.</strong> Say what you think, in your own words. Getting it wrong is fine, the room will help.
                     </div>
-                </div>
-                <p id="gsLandingError" class="gs-error" hidden></p>
-            </section>
-
-            <!-- Waiting room: created but not enough participants yet -->
-            <section id="gsWaiting" class="gs-panel" hidden>
-                <div class="gs-waiting-card">
-                    <div class="gs-avatar-stack" id="gsWaitingAvatarStack"></div>
-                    <h2 class="gs-waiting-headline">Share this code</h2>
-                    <p class="gs-waiting-label">Get your study group into the room</p>
-                    <div class="gs-code-row">
-                        <div class="gs-join-code" id="gsWaitingCode">------</div>
-                        <button type="button" class="gs-copy-code-btn" id="gsCopyCodeBtn">
-                            <i class="fas fa-copy"></i> Copy code
-                        </button>
-                    </div>
-                    <p class="gs-waiting-hint">
-                        <span class="gs-waiting-dots" aria-hidden="true"><span></span><span></span><span></span></span>
-                        Waiting for at least one more person to join before you can start teaching "<span id="gsWaitingTopic"></span>"...
-                    </p>
-                    <button type="button" class="gs-exit-btn" data-gs-exit>Exit room</button>
-                </div>
-            </section>
-
-            <!-- Active session -->
-            <section id="gsSession" class="gs-panel gs-session" hidden>
-                <div class="gs-session-meta">
-                    <div>
-                        <h2 id="gsSessionTopic"></h2>
-                        <span class="gs-teaching-badge">Teaching now: <strong id="gsCurrentTeacher"></strong></span>
-                    </div>
-                    <div class="gs-session-meta-right">
-                        <div class="gs-participants" id="gsParticipants"></div>
-                        <button type="button" class="gs-exit-btn" data-gs-exit>Exit room</button>
-                    </div>
-                </div>
-
-                <div class="gs-transcript" id="gsTranscript"></div>
-
-                <p class="gs-typing" id="gsTypingIndicator" hidden>
-                    <span class="gs-typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>
-                    <span id="gsTypingText"></span>
-                </p>
-
-                <div class="gs-composer" id="gsComposer">
-                    <textarea id="gsMessageInput" class="gs-message-input" placeholder="Explain it in your own words, add to what's been said, or challenge it..." rows="2"></textarea>
-                    <div class="gs-composer-actions">
-                        <button type="button" id="gsMicBtn" class="gs-mic-btn" title="Voice typing (Speak your thoughts)" aria-label="Voice input">
-                            <i class="fas fa-microphone"></i>
-                        </button>
-                        <button type="button" id="gsSendBtn" class="gs-btn gs-btn-primary">Send</button>
+                    <form class="gs-composer" id="gsComposer" novalidate>
+                        <label for="gsInput" class="ds-visually-hidden">Message</label>
+                        <textarea id="gsInput" class="gs-composer__input" rows="1" maxlength="2000" placeholder="Message the room…"></textarea>
+                        <button type="button" class="gs-composer__tool" id="gsMicBtn" aria-label="Voice typing" aria-pressed="false"><svg class="ds-i"><use href="#i-mic"/></svg></button>
+                        <button type="submit" class="gs-composer__send" id="gsSendBtn" aria-label="Send"><svg class="ds-i"><use href="#i-send"/></svg></button>
+                    </form>
+                    <p class="gs-hint" id="gsHint">Q replies to whoever is teaching and to anyone it asks. Mention <strong>@Q</strong> to ask it directly.</p>
+                    <div class="gs-ended" id="gsEnded" hidden>
+                        <p>This session has ended. Nice work, everyone.</p>
+                        <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" id="gsBackToLobby">Back to group study</button>
                     </div>
                 </div>
-                <p class="gs-composer-hint" id="gsComposerHint" hidden>This session has ended.</p>
-            </section>
-        </main>
+            </div>
+
+            <aside class="gs-people" id="gsPeople" aria-label="People">
+                <h2 class="gs-section-title">In the room</h2>
+                <ul class="gs-people__list" id="gsPeopleList"></ul>
+                <div class="gs-people__code">
+                    <span>Code</span>
+                    <button type="button" class="gs-people__code-btn" id="gsSideCode" title="Copy code"></button>
+                </div>
+            </aside>
+        </div>
     </div>
 
-    <script src="assets/js/tm-widgets.js?v=<?= filemtime('assets/js/tm-widgets.js') ?>"></script>
-    <script src="assets/js/group-study.js?v=<?= filemtime('assets/js/group-study.js') ?>"></script>
-    <script>
-        document.getElementById('darkModeToggle').addEventListener('click', function () {
-            document.body.classList.toggle('dark-mode');
-            try { localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? '1' : '0'); } catch (e) {}
-        });
-        try { if (localStorage.getItem('darkMode') === '1') document.body.classList.add('dark-mode'); } catch (e) {}
-    </script>
+    <script src="assets/js/tm-ds.js?v=<?= $v('assets/js/tm-ds.js') ?>"></script>
+    <script src="assets/js/group-study.js?v=<?= $v('assets/js/group-study.js') ?>"></script>
 </body>
 </html>

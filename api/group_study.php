@@ -1,29 +1,31 @@
 <?php
 /**
- * Group Study API
+ * Group Study API — a study chat room with an AI facilitator ("Q").
  *
- * One student ("the teacher") explains a concept to their peers; the AI
- * facilitates — diagnosing gaps in the explanation and inviting the group to
- * challenge it — but never teaches the concept itself. See
- * api/services/facilitator_service.php for the prompt that enforces that.
+ * One participant teaches the topic at a time; everyone else can chat,
+ * challenge and help. Q doesn't answer every line: it replies to the current
+ * teacher, to the person it last called on, and to anyone who mentions @Q.
+ * Every other reply or so it calls on whoever has been quietest, by name, to
+ * hear their understanding; if they get it wrong, Q hands it to the group
+ * (or gives one hint) rather than correcting them itself — the prompt that
+ * enforces "never teach, point at gaps" is api/services/facilitator_service.php.
  *
- * Actions:
- *   create        — host starts a new session, gets back a join code
- *   join          — a student joins an existing session via its join code
- *   teach         — any participant sends a message (explanation, challenge,
- *                   addition); the AI facilitator responds
- *   advance_turn  — hand the "teaching" role to a different participant
- *   poll          — cheap incremental sync: new messages + current session
- *                   state since a given message id (no WebSockets — see
- *                   migration 015's header for why: this hosting can't
- *                   sustain persistent connections, and nothing else in the
- *                   app polls today either, so this is new ground)
- *   typing        — a participant is actively typing; poll picks this up
- *                   a few seconds late (see migration 016's header)
+ * Actions (POST JSON { action, ... }):
+ *   create     { topic }                      host opens a room, gets a join code
+ *   join       { join_code }                  enter (or re-enter) a room by code
+ *   open       { session_id }                 resume a room you're already in
+ *   mine       {}                             your open rooms, for "Rejoin"
+ *   send       { session_id, message }        post to the room (returns at once)
+ *   reply      { session_id, message_id }     Q answers that message, if it should
+ *   typing     { session_id }                 "is typing" ping (throttled client-side)
+ *   poll       { session_id, since_id }       new messages + room state; also presence
+ *   pass_turn  { session_id, next_user_id }   current teacher (or host) hands off
+ *   end        { session_id }                 host ends the session for everyone
+ *   leave      { session_id }                 leave the room (rejoinable)
  *
- * Kept fully separate from the 1:1 chat pipeline in server_mysql.php on
- * purpose — reuses callGeminiAPI() from ai_service.php (same AI call, same
- * fallback chain), but with its own tables and its own prompt.
+ * No WebSockets (see migration 015): clients poll. Presence, typing and
+ * "Q is thinking" are all timestamps the poll reads (migrations 016/017).
+ * Reuses the AI fallback chain from ai_service.php with its own prompt.
  */
 
 require_once __DIR__ . '/../includes/check_auth.php';
@@ -33,99 +35,168 @@ require_once __DIR__ . '/services/facilitator_service.php';
 
 header('Content-Type: application/json');
 
+const GS_ONLINE_SECONDS = 20;   // seen by a poll within this window = "here"
+const GS_TYPING_SECONDS = 6;    // 2 × the 3s poll: survives one missed tick
+const GS_AI_LEASE_SECONDS = 90; // longest one facilitator reply may hold the room
+const GS_STALE_HOURS = 6;       // untouched this long = ended
+const GS_HISTORY_MESSAGES = 40; // most recent lines sent to the AI
+const GS_MAX_MESSAGE = 2000;
+
 // --------------------------------------------------------------------------
 // Config + DB
 // --------------------------------------------------------------------------
-$configFiles = [__DIR__ . '/../includes/config-sql.ini', __DIR__ . '/../includes/config.ini'];
 $config = null;
-foreach ($configFiles as $f) {
-    if (file_exists($f)) {
-        $parsed = parse_ini_file($f);
-        if ($parsed !== false) { $config = $parsed; break; }
-    }
+foreach ([__DIR__ . '/../includes/config-sql.ini', __DIR__ . '/../includes/config.ini'] as $f) {
+    if (file_exists($f) && ($parsed = parse_ini_file($f)) !== false) { $config = $parsed; break; }
 }
-
-$GEMINI_KEY = $config['GEMINI_API_KEY'] ?? null;
-$GROQ_KEY   = $config['GROQ_API_KEY'] ?? null;
-$DEEPSEEK_KEY = $config['DEEPSEEK_API_KEY'] ?? null;
+$AI_KEYS = [
+    'gemini'   => $config['GEMINI_API_KEY'] ?? null,
+    'groq'     => $config['GROQ_API_KEY'] ?? null,
+    'deepseek' => $config['DEEPSEEK_API_KEY'] ?? null,
+];
 
 try {
-    $pdo     = getDbConnection();
-    $user_id = (int) $_SESSION['user_id'];
+    $pdo = getDbConnection();
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'DB connection failed']);
     exit;
 }
 
+$user_id = (int) $_SESSION['user_id'];
 $displayName = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? ''));
-if ($displayName === '') {
-    $displayName = $_SESSION['username'] ?? 'Student';
-}
+if ($displayName === '') $displayName = $_SESSION['username'] ?? 'Student';
+// Nothing below writes the session: release its lock so a slow AI reply
+// doesn't stall this user's polls and typing pings.
+session_write_close();
 
-// --------------------------------------------------------------------------
-// Router
-// --------------------------------------------------------------------------
 $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $body['action'] ?? $_GET['action'] ?? '';
 
 try {
     switch ($action) {
-        case 'create':       handleCreate($pdo, $user_id, $displayName, $body); break;
-        case 'join':         handleJoin($pdo, $user_id, $displayName, $body); break;
-        case 'teach':        handleTeach($pdo, $user_id, $body, $GEMINI_KEY, $GROQ_KEY, $DEEPSEEK_KEY); break;
-        case 'advance_turn': handleAdvanceTurn($pdo, $user_id, $body); break;
-        case 'poll':         handlePoll($pdo, $user_id, $body); break;
-        case 'typing':       handleTyping($pdo, $user_id, $body); break;
-        default:
-            http_response_code(400);
-            echo json_encode(['success' => false, 'error' => 'Unknown action']);
+        case 'create':    gsCreate($pdo, $user_id, $displayName, $body); break;
+        case 'join':      gsJoin($pdo, $user_id, $displayName, $body); break;
+        case 'open':      gsOpen($pdo, $user_id, $body); break;
+        case 'mine':      gsMine($pdo, $user_id); break;
+        case 'send':      gsSend($pdo, $user_id, $body); break;
+        case 'reply':     gsReply($pdo, $user_id, $body, $AI_KEYS); break;
+        case 'typing':    gsTyping($pdo, $user_id, $body); break;
+        case 'poll':      gsPoll($pdo, $user_id, $body); break;
+        case 'pass_turn': gsPassTurn($pdo, $user_id, $body); break;
+        case 'end':       gsEnd($pdo, $user_id, $body); break;
+        case 'leave':     gsLeave($pdo, $user_id, $body); break;
+        default:          gsFail(400, 'Unknown action');
     }
 } catch (Throwable $e) {
     error_log("group_study.php action '{$action}' failed: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Group study feature unavailable']);
+    gsFail(500, 'Group study is unavailable right now. Try again in a moment.');
 }
 
 // --------------------------------------------------------------------------
 // Helpers
 // --------------------------------------------------------------------------
 
-/** 6-char join code — excludes 0/O/1/I/L so it's unambiguous read aloud or handwritten. */
-function generateJoinCode(PDO $pdo): string {
+function gsFail(int $code, string $error): void {
+    http_response_code($code);
+    echo json_encode(['success' => false, 'error' => $error]);
+}
+
+/** 6-char join code — no 0/O/1/I/L, so it's unambiguous read aloud or handwritten. */
+function gsJoinCode(PDO $pdo): string {
     $charset = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
     for ($attempt = 0; $attempt < 10; $attempt++) {
         $code = '';
-        for ($i = 0; $i < 6; $i++) {
-            $code .= $charset[random_int(0, strlen($charset) - 1)];
-        }
+        for ($i = 0; $i < 6; $i++) $code .= $charset[random_int(0, strlen($charset) - 1)];
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM group_sessions WHERE join_code = ?");
         $stmt->execute([$code]);
-        if ((int) $stmt->fetchColumn() === 0) {
-            return $code;
-        }
+        if ((int) $stmt->fetchColumn() === 0) return $code;
     }
-    throw new Exception('Could not generate a unique join code — try again.');
+    throw new Exception('Could not generate a unique join code.');
 }
 
-/** Participants of a session, keyed by user_id, each with display_name + has_taught. */
-function getParticipants(PDO $pdo, int $sessionId): array {
-    $stmt = $pdo->prepare("SELECT user_id, display_name, has_taught FROM group_session_participants WHERE session_id = ?");
+/** Session row, ending it first if it's gone stale. */
+function gsSession(PDO $pdo, int $sessionId): ?array {
+    $pdo->prepare("
+        UPDATE group_sessions SET status = 'completed', ended_at = NOW()
+        WHERE id = ? AND status != 'completed' AND updated_at < NOW() - INTERVAL " . GS_STALE_HOURS . " HOUR
+    ")->execute([$sessionId]);
+    $stmt = $pdo->prepare("SELECT id, host_user_id, topic, join_code, status, current_teacher_user_id,
+        (ai_busy_until IS NOT NULL AND ai_busy_until > NOW()) AS ai_thinking FROM group_sessions WHERE id = ?");
+    $stmt->execute([$sessionId]);
+    $s = $stmt->fetch();
+    return $s ?: null;
+}
+
+/** Participants keyed by user_id, with presence and how much each has said. */
+function gsParticipants(PDO $pdo, int $sessionId): array {
+    $stmt = $pdo->prepare("
+        SELECT p.user_id, p.display_name, p.has_taught, p.left_at IS NOT NULL AS has_left,
+               (p.left_at IS NULL AND p.last_seen_at > NOW() - INTERVAL " . GS_ONLINE_SECONDS . " SECOND) AS online,
+               (SELECT COUNT(*) FROM group_session_messages m
+                 WHERE m.session_id = p.session_id AND m.sender_type = 'student' AND m.student_user_id = p.user_id) AS said,
+               (SELECT MAX(m.id) FROM group_session_messages m
+                 WHERE m.session_id = p.session_id AND m.sender_type = 'student' AND m.student_user_id = p.user_id) AS last_said_id
+        FROM group_session_participants p WHERE p.session_id = ? ORDER BY p.id
+    ");
     $stmt->execute([$sessionId]);
     $out = [];
-    foreach ($stmt->fetchAll() as $row) {
-        $out[(int) $row['user_id']] = $row;
+    foreach ($stmt->fetchAll() as $r) {
+        $out[(int) $r['user_id']] = [
+            'user_id'      => (int) $r['user_id'],
+            'display_name' => $r['display_name'],
+            'has_taught'   => (bool) $r['has_taught'],
+            'left'         => (bool) $r['has_left'],
+            'online'       => (bool) $r['online'],
+            'said'         => (int) $r['said'],
+            'last_said_id' => (int) $r['last_said_id'],
+        ];
     }
     return $out;
 }
 
-/** Fire-and-forget push notification — a failed push must never break the actual state change. */
-function pushTurnNotification(PDO $pdo, int $userId, string $sessionTopic): void {
+function gsSystem(PDO $pdo, int $sessionId, string $text): void {
+    $pdo->prepare("INSERT INTO group_session_messages (session_id, sender_type, content) VALUES (?, 'system', ?)")
+        ->execute([$sessionId, $text]);
+    gsTouch($pdo, $sessionId);
+}
+
+function gsTouch(PDO $pdo, int $sessionId): void {
+    $pdo->prepare("UPDATE group_sessions SET updated_at = NOW() WHERE id = ?")->execute([$sessionId]);
+}
+
+function gsFirstName(string $name): string {
+    return preg_split('/\s+/', trim($name))[0] ?: $name;
+}
+
+/** The facilitator's latest call-on, if the person hasn't answered yet. */
+function gsOpenAsk(PDO $pdo, int $sessionId): ?array {
+    $stmt = $pdo->prepare("SELECT id, addressed_user_id FROM group_session_messages
+        WHERE session_id = ? AND sender_type = 'ai' AND addressed_user_id IS NOT NULL ORDER BY id DESC LIMIT 1");
+    $stmt->execute([$sessionId]);
+    $ask = $stmt->fetch();
+    if (!$ask) return null;
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM group_session_messages
+        WHERE session_id = ? AND sender_type = 'student' AND student_user_id = ? AND id > ?");
+    $stmt->execute([$sessionId, $ask['addressed_user_id'], $ask['id']]);
+    return (int) $stmt->fetchColumn() === 0 ? ['message_id' => (int) $ask['id'], 'user_id' => (int) $ask['addressed_user_id']] : null;
+}
+
+/** A name nobody else in the room has, so the AI and the UI can't mix two people up. */
+function gsUniqueName(PDO $pdo, int $sessionId, int $userId, string $name): string {
+    $stmt = $pdo->prepare("SELECT display_name FROM group_session_participants WHERE session_id = ? AND user_id != ?");
+    $stmt->execute([$sessionId, $userId]);
+    $taken = array_column($stmt->fetchAll(), 'display_name');
+    $candidate = $name;
+    for ($n = 2; in_array($candidate, $taken, true); $n++) $candidate = "{$name} ({$n})";
+    return $candidate;
+}
+
+/** Fire-and-forget push — a failed push must never break the actual state change. */
+function gsPushTurn(PDO $pdo, int $userId, string $topic): void {
     try {
         require_once __DIR__ . '/../includes/webpush_config.php';
-        if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
-            require_once __DIR__ . '/../vendor/autoload.php';
-        }
+        if (file_exists(__DIR__ . '/../vendor/autoload.php')) require_once __DIR__ . '/../vendor/autoload.php';
         if (!class_exists('Minishlink\\WebPush\\WebPush')) return;
 
         $stmt = $pdo->prepare("SELECT endpoint, endpoint_hash, p256dh, auth FROM push_subscriptions WHERE user_id = ?");
@@ -133,390 +204,443 @@ function pushTurnNotification(PDO $pdo, int $userId, string $sessionTopic): void
         $subs = $stmt->fetchAll();
         if (!$subs) return;
 
-        $webPushConfig = getWebPushConfig();
-        $webPush = new \Minishlink\WebPush\WebPush([
-            'VAPID' => [
-                'subject'    => $webPushConfig['vapid_subject'],
-                'publicKey'  => $webPushConfig['vapid_public_key'],
-                'privateKey' => $webPushConfig['vapid_private_key'],
-            ],
-        ]);
-
-        $payload = json_encode([
-            'title' => "It's your turn!",
-            'body'  => "Your study group is ready for you to teach \"{$sessionTopic}\".",
-        ]);
-
+        $cfg = getWebPushConfig();
+        $webPush = new \Minishlink\WebPush\WebPush(['VAPID' => [
+            'subject' => $cfg['vapid_subject'], 'publicKey' => $cfg['vapid_public_key'], 'privateKey' => $cfg['vapid_private_key'],
+        ]]);
+        $payload = json_encode(['title' => "It's your turn!", 'body' => "Your study group is ready for you to teach \"{$topic}\"."]);
         foreach ($subs as $sub) {
-            $subscription = \Minishlink\WebPush\Subscription::create([
-                'endpoint'  => $sub['endpoint'],
-                'publicKey' => $sub['p256dh'],
-                'authToken' => $sub['auth'],
-            ]);
-            $webPush->queueNotification($subscription, $payload);
+            $webPush->queueNotification(\Minishlink\WebPush\Subscription::create([
+                'endpoint' => $sub['endpoint'], 'publicKey' => $sub['p256dh'], 'authToken' => $sub['auth'],
+            ]), $payload);
         }
-
-        $delStmt = $pdo->prepare("DELETE FROM push_subscriptions WHERE endpoint_hash = ?");
+        $del = $pdo->prepare("DELETE FROM push_subscriptions WHERE endpoint_hash = ?");
         foreach ($webPush->flush() as $report) {
-            if (!$report->isSuccess() && $report->isSubscriptionExpired()) {
-                $delStmt->execute([hash('sha256', $report->getEndpoint())]);
-            }
+            if (!$report->isSuccess() && $report->isSubscriptionExpired()) $del->execute([hash('sha256', $report->getEndpoint())]);
         }
     } catch (Throwable $e) {
         error_log("group_study: turn-notification push failed: " . $e->getMessage());
     }
 }
 
-// --------------------------------------------------------------------------
-// Handlers
-// --------------------------------------------------------------------------
-
-function handleCreate($pdo, $user_id, $displayName, $data) {
-    $topic = trim($data['topic'] ?? '');
-    if ($topic === '') {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'A topic is required to start a session.']);
-        return;
+/** Load a room the caller belongs to, or fail the request. */
+function gsRequireMember(PDO $pdo, int $userId, int $sessionId, bool $mustBeActive = false): ?array {
+    $session = $sessionId > 0 ? gsSession($pdo, $sessionId) : null;
+    if (!$session) { gsFail(404, 'That room no longer exists.'); return null; }
+    $participants = gsParticipants($pdo, $sessionId);
+    if (!isset($participants[$userId])) { gsFail(403, "You're not in this room."); return null; }
+    if ($mustBeActive && $session['status'] !== 'active') {
+        gsFail(409, $session['status'] === 'completed' ? 'This session has ended.' : 'Waiting for someone else to join.');
+        return null;
     }
+    return [$session, $participants];
+}
 
-    $joinCode = generateJoinCode($pdo);
-
+/** Hand the teacher role to $nextId (caller already validated). */
+function gsHandTurn(PDO $pdo, array $session, ?int $nextId, string $line): void {
+    $sessionId = (int) $session['id'];
+    $current = $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null;
     $pdo->beginTransaction();
     try {
-        $stmt = $pdo->prepare("INSERT INTO group_sessions (host_user_id, topic, join_code, status) VALUES (?, ?, ?, 'waiting')");
-        $stmt->execute([$user_id, $topic, $joinCode]);
-        $sessionId = (int) $pdo->lastInsertId();
-
-        $stmt = $pdo->prepare("INSERT INTO group_session_participants (session_id, user_id, display_name) VALUES (?, ?, ?)");
-        $stmt->execute([$sessionId, $user_id, $displayName]);
-
+        $pdo->prepare("UPDATE group_session_turns SET status = 'completed', ended_at = NOW() WHERE session_id = ? AND status != 'completed'")
+            ->execute([$sessionId]);
+        if ($current !== null) {
+            $pdo->prepare("UPDATE group_session_participants SET has_taught = 1 WHERE session_id = ? AND user_id = ?")
+                ->execute([$sessionId, $current]);
+        }
+        $pdo->prepare("UPDATE group_sessions SET current_teacher_user_id = ? WHERE id = ?")->execute([$nextId, $sessionId]);
+        if ($nextId !== null) {
+            $pdo->prepare("INSERT INTO group_session_turns (session_id, teacher_user_id) VALUES (?, ?)")->execute([$sessionId, $nextId]);
+        }
+        gsSystem($pdo, $sessionId, $line);
         $pdo->commit();
     } catch (Exception $e) {
         $pdo->rollBack();
         throw $e;
     }
-
-    echo json_encode([
-        'success'    => true,
-        'session_id' => $sessionId,
-        'join_code'  => $joinCode,
-        'topic'      => $topic,
-        'status'     => 'waiting',
-    ]);
+    if ($nextId !== null) gsPushTurn($pdo, $nextId, $session['topic']);
 }
 
-function handleJoin($pdo, $user_id, $displayName, $data) {
-    $joinCode = strtoupper(trim($data['join_code'] ?? ''));
-    if ($joinCode === '') {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'Enter a join code.']);
-        return;
+// --------------------------------------------------------------------------
+// Handlers
+// --------------------------------------------------------------------------
+
+function gsCreate(PDO $pdo, int $userId, string $name, array $data): void {
+    $topic = mb_substr(trim($data['topic'] ?? ''), 0, 255);
+    if ($topic === '') { gsFail(400, 'Give the session a topic first.'); return; }
+
+    $code = gsJoinCode($pdo);
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare("INSERT INTO group_sessions (host_user_id, topic, join_code, status) VALUES (?, ?, ?, 'waiting')")
+            ->execute([$userId, $topic, $code]);
+        $sessionId = (int) $pdo->lastInsertId();
+        $pdo->prepare("INSERT INTO group_session_participants (session_id, user_id, display_name, last_seen_at) VALUES (?, ?, ?, NOW())")
+            ->execute([$sessionId, $userId, $name]);
+        gsSystem($pdo, $sessionId, gsFirstName($name) . " opened the room.");
+        $pdo->commit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+    echo json_encode(['success' => true, 'session_id' => $sessionId, 'join_code' => $code]);
+}
+
+function gsJoin(PDO $pdo, int $userId, string $name, array $data): void {
+    $code = strtoupper(preg_replace('/\s+/', '', $data['join_code'] ?? ''));
+    if (!preg_match('/^[A-Z0-9]{6}$/', $code)) { gsFail(400, 'Join codes are 6 letters and numbers.'); return; }
+
+    $stmt = $pdo->prepare("SELECT id FROM group_sessions WHERE join_code = ?");
+    $stmt->execute([$code]);
+    $sessionId = (int) $stmt->fetchColumn();
+    $session = $sessionId ? gsSession($pdo, $sessionId) : null;
+    if (!$session) { gsFail(404, 'No room found with that code.'); return; }
+    if ($session['status'] === 'completed') { gsFail(410, 'That session has already ended.'); return; }
+
+    $stmt = $pdo->prepare("SELECT display_name, left_at FROM group_session_participants WHERE session_id = ? AND user_id = ?");
+    $stmt->execute([$sessionId, $userId]);
+    $existing = $stmt->fetch();
+
+    if (!$existing) {
+        $pdo->prepare("INSERT INTO group_session_participants (session_id, user_id, display_name, last_seen_at) VALUES (?, ?, ?, NOW())")
+            ->execute([$sessionId, $userId, gsUniqueName($pdo, $sessionId, $userId, $name)]);
+        gsSystem($pdo, $sessionId, gsFirstName($name) . " joined.");
+    } else {
+        $pdo->prepare("UPDATE group_session_participants SET left_at = NULL, last_seen_at = NOW() WHERE session_id = ? AND user_id = ?")
+            ->execute([$sessionId, $userId]);
+        if ($existing['left_at'] !== null) gsSystem($pdo, $sessionId, gsFirstName($existing['display_name']) . " is back.");
     }
 
-    $stmt = $pdo->prepare("SELECT id, topic, status, host_user_id, current_teacher_user_id FROM group_sessions WHERE join_code = ?");
-    $stmt->execute([$joinCode]);
-    $session = $stmt->fetch();
-
-    if (!$session) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'No session found with that code.']);
-        return;
+    // Two people in the room: open the first turn — the host teaches first.
+    $present = array_filter(gsParticipants($pdo, $sessionId), fn($p) => !$p['left']);
+    if ($session['status'] === 'waiting' && count($present) >= 2) {
+        $pdo->prepare("UPDATE group_sessions SET status = 'active', current_teacher_user_id = ? WHERE id = ?")
+            ->execute([$session['host_user_id'], $sessionId]);
+        $pdo->prepare("INSERT INTO group_session_turns (session_id, teacher_user_id) VALUES (?, ?)")
+            ->execute([$sessionId, $session['host_user_id']]);
+        $host = gsParticipants($pdo, $sessionId)[(int) $session['host_user_id']]['display_name'] ?? 'The host';
+        gsSystem($pdo, $sessionId, gsFirstName($host) . " is teaching first.");
     }
-    if ($session['status'] === 'completed') {
-        http_response_code(410);
-        echo json_encode(['success' => false, 'error' => 'That session has already ended.']);
-        return;
-    }
+    echo json_encode(['success' => true, 'session_id' => $sessionId]);
+}
 
-    $sessionId = (int) $session['id'];
+function gsOpen(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId))) return;
+    if ($m[0]['status'] === 'completed') { gsFail(410, 'That session has already ended.'); return; }
+    gsJoin($pdo, $userId, '', ['join_code' => $m[0]['join_code']]);
+}
 
+function gsMine(PDO $pdo, int $userId): void {
     $stmt = $pdo->prepare("
-        INSERT INTO group_session_participants (session_id, user_id, display_name)
-        VALUES (?, ?, ?)
-        ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)
+        SELECT s.id, s.topic, s.join_code, s.status, s.host_user_id = ? AS is_host
+        FROM group_sessions s JOIN group_session_participants p ON p.session_id = s.id AND p.user_id = ?
+        WHERE s.status != 'completed' AND s.updated_at > NOW() - INTERVAL " . GS_STALE_HOURS . " HOUR
+        ORDER BY s.updated_at DESC LIMIT 5
     ");
-    $stmt->execute([$sessionId, $user_id, $displayName]);
-
-    $participants = getParticipants($pdo, $sessionId);
-
-    // Room needs at least 2 people before teaching makes sense — flip
-    // waiting -> active and open the first turn (host teaches first) the
-    // moment a second participant shows up.
-    if ($session['status'] === 'waiting' && count($participants) >= 2) {
-        $pdo->beginTransaction();
-        try {
-            $stmt = $pdo->prepare("UPDATE group_sessions SET status = 'active', current_teacher_user_id = ? WHERE id = ?");
-            $stmt->execute([$session['host_user_id'], $sessionId]);
-
-            $stmt = $pdo->prepare("INSERT INTO group_session_turns (session_id, teacher_user_id) VALUES (?, ?)");
-            $stmt->execute([$sessionId, $session['host_user_id']]);
-
-            $pdo->commit();
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            throw $e;
-        }
-        $session['status'] = 'active';
-        $session['current_teacher_user_id'] = $session['host_user_id'];
-    }
-
-    echo json_encode([
-        'success'      => true,
-        'session_id'   => $sessionId,
-        'topic'        => $session['topic'],
-        'status'       => $session['status'],
-        'current_teacher_user_id' => $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null,
-        'participants' => array_values($participants),
-    ]);
+    $stmt->execute([$userId, $userId]);
+    $rooms = array_map(fn($r) => ['session_id' => (int) $r['id'], 'topic' => $r['topic'], 'join_code' => $r['join_code'],
+        'status' => $r['status'], 'is_host' => (bool) $r['is_host']], $stmt->fetchAll());
+    echo json_encode(['success' => true, 'rooms' => $rooms]);
 }
 
-function handleTeach($pdo, $user_id, $data, $geminiKey, $groqKey, $deepseekKey) {
-    $sessionId   = (int) ($data['session_id'] ?? 0);
-    $explanation = trim($data['message'] ?? '');
+function gsTyping(PDO $pdo, int $userId, array $data): void {
+    $pdo->prepare("UPDATE group_session_participants SET typing_at = NOW(), last_seen_at = NOW() WHERE session_id = ? AND user_id = ?")
+        ->execute([(int) ($data['session_id'] ?? 0), $userId]);
+    echo json_encode(['success' => true]);
+}
 
-    if ($sessionId <= 0 || $explanation === '') {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'A message is required.']);
-        return;
-    }
+function gsSend(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    $text = trim($data['message'] ?? '');
+    if ($text === '') { gsFail(400, 'Type a message first.'); return; }
+    if (mb_strlen($text) > GS_MAX_MESSAGE) { gsFail(400, 'That message is too long — split it up.'); return; }
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId, true))) return;
+    [$session, $participants] = $m;
+    if ($participants[$userId]['left']) { gsFail(409, 'Rejoin the room to send messages.'); return; }
 
-    $stmt = $pdo->prepare("SELECT topic, status, current_teacher_user_id FROM group_sessions WHERE id = ?");
-    $stmt->execute([$sessionId]);
-    $session = $stmt->fetch();
+    $openAsk = gsOpenAsk($pdo, $sessionId);
+    $teacherId = $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null;
 
-    if (!$session) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Session not found.']);
-        return;
-    }
-    if ($session['status'] !== 'active') {
-        http_response_code(409);
-        echo json_encode(['success' => false, 'error' => 'This session is not active yet — waiting for more participants.']);
-        return;
-    }
-
-    $participants = getParticipants($pdo, $sessionId);
-    if (!isset($participants[$user_id])) {
-        http_response_code(403);
-        echo json_encode(['success' => false, 'error' => 'You are not part of this session.']);
-        return;
-    }
-
-    // Clear the sender's own typing state now — otherwise everyone else
-    // would keep seeing "X is typing..." for up to 6s after X's message
-    // already landed.
-    $pdo->prepare("UPDATE group_session_participants SET typing_at = NULL WHERE session_id = ? AND user_id = ?")
-        ->execute([$sessionId, $user_id]);
-
-    // Find (or, defensively, create) the currently-open turn for this session.
     $stmt = $pdo->prepare("SELECT id FROM group_session_turns WHERE session_id = ? AND status != 'completed' ORDER BY id DESC LIMIT 1");
     $stmt->execute([$sessionId]);
-    $turnId = $stmt->fetchColumn();
-    if (!$turnId) {
-        $stmt = $pdo->prepare("INSERT INTO group_session_turns (session_id, teacher_user_id) VALUES (?, ?)");
-        $stmt->execute([$sessionId, $session['current_teacher_user_id']]);
-        $turnId = (int) $pdo->lastInsertId();
+    $turnId = $stmt->fetchColumn() ?: null;
+
+    $pdo->prepare("INSERT INTO group_session_messages (session_id, turn_id, sender_type, student_user_id, content) VALUES (?, ?, 'student', ?, ?)")
+        ->execute([$sessionId, $turnId, $userId, $text]);
+    $messageId = (int) $pdo->lastInsertId();
+    $pdo->prepare("UPDATE group_session_participants SET typing_at = NULL, last_seen_at = NOW() WHERE session_id = ? AND user_id = ?")
+        ->execute([$sessionId, $userId]);
+    gsTouch($pdo, $sessionId);
+
+    // Returns at once so the sender's composer frees up; if Q should answer,
+    // the client follows with `reply`, which does the slow AI call.
+    $mode = gsReplyMode($openAsk, $userId, $teacherId, $text);
+    echo json_encode(['success' => true, 'message_id' => $messageId, 'q_replies' => $mode !== null]);
+}
+
+/** Does Q answer this message? The person it called on, an @Q mention, or the teacher. */
+function gsReplyMode(?array $openAsk, int $senderId, ?int $teacherId, string $text): ?string {
+    if ($openAsk && $openAsk['user_id'] === $senderId) return 'answer';
+    if (preg_match('/(^|[^\w@])@q\b/i', $text)) return 'mention';
+    if ($senderId === $teacherId) return 'teacher';
+    return null;
+}
+
+/** Q's reply to one of the caller's messages (the second half of `send`). */
+function gsReply(PDO $pdo, int $userId, array $data, array $keys): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    $messageId = (int) ($data['message_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId, true))) return;
+    [$session, $participants] = $m;
+
+    $stmt = $pdo->prepare("SELECT id, turn_id, content FROM group_session_messages
+        WHERE id = ? AND session_id = ? AND sender_type = 'student' AND student_user_id = ? AND created_at > NOW() - INTERVAL 5 MINUTE");
+    $stmt->execute([$messageId, $sessionId, $userId]);
+    $msg = $stmt->fetch();
+    if (!$msg) { gsFail(404, 'Nothing to reply to.'); return; }
+    // Already answered (e.g. a retried request)?
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM group_session_messages WHERE session_id = ? AND sender_type = 'ai' AND id > ?");
+    $stmt->execute([$sessionId, $messageId]);
+    if ((int) $stmt->fetchColumn() > 0) { echo json_encode(['success' => true, 'replied' => false]); return; }
+
+    // Re-derive why Q answers, as of when the message was sent
+    $stmt = $pdo->prepare("SELECT id, addressed_user_id FROM group_session_messages
+        WHERE session_id = ? AND sender_type = 'ai' AND id < ? ORDER BY id DESC LIMIT 1");
+    $stmt->execute([$sessionId, $messageId]);
+    $lastQ = $stmt->fetch();
+    $openAsk = null;
+    if ($lastQ && $lastQ['addressed_user_id'] !== null && (int) $lastQ['addressed_user_id'] === $userId) {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM group_session_messages
+            WHERE session_id = ? AND sender_type = 'student' AND student_user_id = ? AND id > ? AND id < ?");
+        $stmt->execute([$sessionId, $userId, $lastQ['id'], $messageId]);
+        if ((int) $stmt->fetchColumn() === 0) $openAsk = ['message_id' => (int) $lastQ['id'], 'user_id' => $userId];
     }
+    $teacherId = $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null;
+    $mode = gsReplyMode($openAsk, $userId, $teacherId, $msg['content']);
+    if ($mode === null) { echo json_encode(['success' => true, 'replied' => false]); return; }
 
-    $stmt = $pdo->prepare("INSERT INTO group_session_messages (session_id, turn_id, sender_type, student_user_id, content) VALUES (?, ?, 'student', ?, ?)");
-    $stmt->execute([$sessionId, $turnId, $user_id, $explanation]);
+    // One reply at a time per room: take the lease, or leave it to the reply
+    // in flight (which reads the recent history, so it'll see this message).
+    $lease = $pdo->prepare("UPDATE group_sessions SET ai_busy_until = NOW() + INTERVAL " . GS_AI_LEASE_SECONDS . " SECOND
+        WHERE id = ? AND (ai_busy_until IS NULL OR ai_busy_until < NOW())");
+    $lease->execute([$sessionId]);
+    if ($lease->rowCount() === 0) { echo json_encode(['success' => true, 'replied' => false]); return; }
 
-    // Build the Gemini-format history for this session so far, prefixing
-    // each student line with who said it — Gemini's roles are only
-    // user/model, so speaker identity has to travel in the text itself.
-    $stmt = $pdo->prepare("SELECT sender_type, student_user_id, content FROM group_session_messages WHERE session_id = ? ORDER BY id ASC");
+    try {
+        $reply = gsFacilitate($pdo, $session, $participants, $userId, $mode, $openAsk, $msg['turn_id'], $keys);
+    } finally {
+        $pdo->prepare("UPDATE group_sessions SET ai_busy_until = NULL WHERE id = ?")->execute([$sessionId]);
+    }
+    if ($reply === null) { gsFail(502, "Q couldn't reply just now."); return; }
+    echo json_encode(['success' => true, 'replied' => true]);
+}
+
+/** Build the prompt, pick who (if anyone) Q calls on, call the AI, store the reply. */
+function gsFacilitate(PDO $pdo, array $session, array $participants, int $senderId, string $mode, ?array $openAsk, $turnId, array $keys): ?int {
+    $sessionId = (int) $session['id'];
+    $teacherId = $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null;
+
+    // Recent history, oldest first. Speaker names travel in the text (the
+    // model only has user/model roles); system lines give it the room's events.
+    $stmt = $pdo->prepare("SELECT * FROM (SELECT id, sender_type, student_user_id, content FROM group_session_messages
+        WHERE session_id = ? ORDER BY id DESC LIMIT " . GS_HISTORY_MESSAGES . ") t ORDER BY id ASC");
     $stmt->execute([$sessionId]);
     $contents = [];
     foreach ($stmt->fetchAll() as $row) {
         if ($row['sender_type'] === 'ai') {
             $contents[] = ['role' => 'model', 'parts' => [['text' => $row['content']]]];
         } else {
-            $speaker = $participants[(int) $row['student_user_id']]['display_name'] ?? 'A student';
-            $contents[] = ['role' => 'user', 'parts' => [['text' => "[{$speaker}]: {$row['content']}"]]];
+            $who = $row['sender_type'] === 'system' ? 'Room'
+                : ($participants[(int) $row['student_user_id']]['display_name'] ?? 'A student');
+            $contents[] = ['role' => 'user', 'parts' => [['text' => "[{$who}]: {$row['content']}"]]];
+        }
+    }
+    // Gemini wants alternating turns; merge consecutive user lines into one.
+    $merged = [];
+    foreach ($contents as $c) {
+        $last = count($merged) - 1;
+        if ($last >= 0 && $merged[$last]['role'] === $c['role']) $merged[$last]['parts'][0]['text'] .= "\n" . $c['parts'][0]['text'];
+        else $merged[] = $c;
+    }
+    if ($merged && $merged[0]['role'] === 'model') array_shift($merged);
+
+    // Who to call on: the quietest person who's here, isn't teaching, didn't
+    // just speak, and wasn't the last one asked — at most every other Q reply.
+    $callOn = null;
+    if ($mode !== 'answer') {
+        $stmt = $pdo->prepare("SELECT addressed_user_id FROM group_session_messages WHERE session_id = ? AND sender_type = 'ai' ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$sessionId]);
+        $recentQ = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $qHasSpoken = count($recentQ) > 0;
+        $askedRecently = array_filter(array_map('intval', array_filter($recentQ, fn($v) => $v !== null)));
+        if ($qHasSpoken && !$askedRecently && !$openAsk) {
+            $pool = array_filter($participants, fn($p) => $p['online'] && !$p['left']
+                && $p['user_id'] !== $teacherId && $p['user_id'] !== $senderId);
+            if ($pool) {
+                usort($pool, fn($a, $b) => [$a['said'], $a['last_said_id']] <=> [$b['said'], $b['last_said_id']]);
+                $quietest = $pool[0];
+                $others = array_filter($participants, fn($p) => $p['user_id'] !== $quietest['user_id'] && !$p['left']);
+                $avg = $others ? array_sum(array_column($others, 'said')) / count($others) : 0;
+                if ($quietest['said'] <= $avg) $callOn = $quietest;
+            }
         }
     }
 
-    $teacherId   = (int) $session['current_teacher_user_id'];
-    $teacherName = $participants[$teacherId]['display_name'] ?? 'The teacher';
-    $untaughtNames = array_values(array_map(
-        fn($p) => $p['display_name'],
-        array_filter($participants, fn($p, $uid) => (int) $p['has_taught'] === 0 && $uid !== $teacherId, ARRAY_FILTER_USE_BOTH)
-    ));
+    $roster = [];
+    foreach ($participants as $p) {
+        if ($p['left']) continue;
+        $roster[] = ['name' => $p['display_name'], 'teaching' => $p['user_id'] === $teacherId,
+            'has_taught' => $p['has_taught'], 'said' => $p['said'], 'here' => $p['online']];
+    }
+    $untaught = array_values(array_map(fn($p) => $p['display_name'], array_filter($participants,
+        fn($p) => !$p['has_taught'] && !$p['left'] && $p['user_id'] !== $teacherId)));
 
-    $systemPrompt = buildFacilitatorPrompt($session['topic'], $teacherName, $untaughtNames);
+    $systemPrompt = buildFacilitatorPrompt([
+        'topic'    => $session['topic'],
+        'teacher'  => $teacherId !== null ? ($participants[$teacherId]['display_name'] ?? null) : null,
+        'roster'   => $roster,
+        'untaught' => $untaught,
+        'mode'     => $mode,
+        'sender'   => $participants[$senderId]['display_name'],
+        'call_on'  => $callOn['display_name'] ?? null,
+    ]);
 
     $payload = json_encode([
-        'contents' => $contents,
+        'contents' => $merged,
         'system_instruction' => ['role' => 'system', 'parts' => [['text' => $systemPrompt]]],
-        'generationConfig' => ['maxOutputTokens' => 1024, 'temperature' => 0.7],
+        // Replies are 2-4 sentences, but gemini-flash-latest's hidden "thinking"
+        // tokens count against this budget: at 1024 replies got cut mid-sentence
+        'generationConfig' => ['maxOutputTokens' => 4096, 'temperature' => 0.7],
     ]);
-
     try {
-        $responseData = callGeminiAPI($payload, $geminiKey);
-    } catch (Exception $geminiError) {
+        $response = callGeminiAPI($payload, $keys['gemini']);
+    } catch (Exception $e) {
         try {
-            $responseData = callGroqAPI($contents, $systemPrompt, $groqKey);
-        } catch (Exception $groqError) {
-            $responseData = callDeepSeekAPI($contents, $systemPrompt, $deepseekKey);
+            $response = callGroqAPI($merged, $systemPrompt, $keys['groq']);
+        } catch (Exception $e2) {
+            $response = callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek']);
         }
     }
+    $text = trim($response['candidates'][0]['content']['parts'][0]['text'] ?? '');
+    if ($text === '') return null;
 
-    $aiText = $responseData['candidates'][0]['content']['parts'][0]['text'] ?? null;
-    if (!$aiText) {
-        http_response_code(502);
-        echo json_encode(['success' => false, 'error' => 'The facilitator had no response — try again.']);
-        return;
-    }
+    // Only mark it addressed if Q actually spoke to them by name.
+    $addressed = null;
+    if ($callOn && stripos($text, gsFirstName($callOn['display_name'])) !== false) $addressed = $callOn['user_id'];
 
-    $stmt = $pdo->prepare("INSERT INTO group_session_messages (session_id, turn_id, sender_type, content) VALUES (?, ?, 'ai', ?)");
-    $stmt->execute([$sessionId, $turnId, $aiText]);
-    $aiMessageId = (int) $pdo->lastInsertId();
-
-    echo json_encode([
-        'success'    => true,
-        'message_id' => $aiMessageId,
-        'ai_message' => $aiText,
-    ]);
+    $pdo->prepare("INSERT INTO group_session_messages (session_id, turn_id, sender_type, content, addressed_user_id) VALUES (?, ?, 'ai', ?, ?)")
+        ->execute([$sessionId, $turnId, $text, $addressed]);
+    gsTouch($pdo, $sessionId);
+    return (int) $pdo->lastInsertId();
 }
 
-function handleAdvanceTurn($pdo, $user_id, $data) {
-    $sessionId    = (int) ($data['session_id'] ?? 0);
-    $nextTeacher  = trim($data['next_teacher_name'] ?? '');
-
-    if ($sessionId <= 0 || $nextTeacher === '') {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'A session and next teacher are required.']);
-        return;
-    }
-
-    $stmt = $pdo->prepare("SELECT topic, status, current_teacher_user_id FROM group_sessions WHERE id = ?");
-    $stmt->execute([$sessionId]);
-    $session = $stmt->fetch();
-    if (!$session || $session['status'] !== 'active') {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Session not found or not active.']);
-        return;
-    }
-
-    $participants = getParticipants($pdo, $sessionId);
-    if (!isset($participants[$user_id])) {
-        http_response_code(403);
-        echo json_encode(['success' => false, 'error' => 'You are not part of this session.']);
-        return;
-    }
-
-    $nextTeacherId = null;
-    foreach ($participants as $uid => $p) {
-        if ($p['display_name'] === $nextTeacher) { $nextTeacherId = $uid; break; }
-    }
-    if ($nextTeacherId === null) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Could not find that participant.']);
-        return;
-    }
-
-    $currentTeacherId = (int) $session['current_teacher_user_id'];
-
-    $pdo->beginTransaction();
-    try {
-        $pdo->prepare("UPDATE group_session_turns SET status = 'completed', ended_at = NOW() WHERE session_id = ? AND status != 'completed'")
-            ->execute([$sessionId]);
-        $pdo->prepare("UPDATE group_session_participants SET has_taught = 1 WHERE session_id = ? AND user_id = ?")
-            ->execute([$sessionId, $currentTeacherId]);
-        $pdo->prepare("UPDATE group_sessions SET current_teacher_user_id = ? WHERE id = ?")
-            ->execute([$nextTeacherId, $sessionId]);
-        $pdo->prepare("INSERT INTO group_session_turns (session_id, teacher_user_id) VALUES (?, ?)")
-            ->execute([$sessionId, $nextTeacherId]);
-        $pdo->commit();
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        throw $e;
-    }
-
-    pushTurnNotification($pdo, $nextTeacherId, $session['topic']);
-
-    echo json_encode([
-        'success' => true,
-        'current_teacher_user_id' => $nextTeacherId,
-        'current_teacher_name'    => $nextTeacher,
-    ]);
-}
-
-/** Fire-and-forget: a participant is actively typing. No session-membership
- *  check beyond the UPDATE itself — a no-op for a non-participant leaks
- *  nothing and errors nowhere. */
-function handleTyping($pdo, $user_id, $data) {
+function gsPoll(PDO $pdo, int $userId, array $data): void {
     $sessionId = (int) ($data['session_id'] ?? 0);
-    if ($sessionId <= 0) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'session_id is required.']);
-        return;
-    }
+    $sinceId = (int) ($data['since_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId))) return;
+    [$session] = $m;
 
-    $pdo->prepare("UPDATE group_session_participants SET typing_at = NOW() WHERE session_id = ? AND user_id = ?")
-        ->execute([$sessionId, $user_id]);
+    $pdo->prepare("UPDATE group_session_participants SET last_seen_at = NOW() WHERE session_id = ? AND user_id = ? AND left_at IS NULL")
+        ->execute([$sessionId, $userId]);
+    $participants = gsParticipants($pdo, $sessionId);
 
-    echo json_encode(['success' => true]);
-}
-
-function handlePoll($pdo, $user_id, $data) {
-    $sessionId = (int) ($data['session_id'] ?? $_GET['session_id'] ?? 0);
-    $sinceId   = (int) ($data['since_id'] ?? $_GET['since_id'] ?? 0);
-
-    if ($sessionId <= 0) {
-        http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'session_id is required.']);
-        return;
-    }
-
-    $stmt = $pdo->prepare("SELECT topic, status, current_teacher_user_id FROM group_sessions WHERE id = ?");
-    $stmt->execute([$sessionId]);
-    $session = $stmt->fetch();
-    if (!$session) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Session not found.']);
-        return;
-    }
-
-    $participants = getParticipants($pdo, $sessionId);
-    if (!isset($participants[$user_id])) {
-        http_response_code(403);
-        echo json_encode(['success' => false, 'error' => 'You are not part of this session.']);
-        return;
-    }
-
-    $stmt = $pdo->prepare("SELECT id, sender_type, student_user_id, content, created_at FROM group_session_messages WHERE session_id = ? AND id > ? ORDER BY id ASC");
+    $stmt = $pdo->prepare("SELECT id, turn_id, sender_type, student_user_id, content, addressed_user_id
+        FROM group_session_messages WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT 200");
     $stmt->execute([$sessionId, $sinceId]);
     $messages = [];
-    foreach ($stmt->fetchAll() as $row) {
+    foreach ($stmt->fetchAll() as $r) {
+        $uid = $r['student_user_id'] !== null ? (int) $r['student_user_id'] : null;
         $messages[] = [
-            'id'      => (int) $row['id'],
-            'sender'  => $row['sender_type'] === 'ai' ? 'Q' : ($participants[(int) $row['student_user_id']]['display_name'] ?? 'A student'),
-            'is_ai'   => $row['sender_type'] === 'ai',
-            'content' => $row['content'],
+            'id'        => (int) $r['id'],
+            'type'      => $r['sender_type'],
+            'user_id'   => $uid,
+            'sender'    => $r['sender_type'] === 'ai' ? 'Q' : ($r['sender_type'] === 'system' ? null : ($participants[$uid]['display_name'] ?? 'Someone who left')),
+            'content'   => $r['content'],
+            'turn_id'   => $r['turn_id'] !== null ? (int) $r['turn_id'] : null,
+            'addressed_user_id' => $r['addressed_user_id'] !== null ? (int) $r['addressed_user_id'] : null,
         ];
     }
 
-    $currentTeacherId = $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null;
+    $stmt = $pdo->prepare("SELECT user_id FROM group_session_participants
+        WHERE session_id = ? AND user_id != ? AND left_at IS NULL AND typing_at > NOW() - INTERVAL " . GS_TYPING_SECONDS . " SECOND");
+    $stmt->execute([$sessionId, $userId]);
+    $typing = array_values(array_filter(array_map(fn($id) => $participants[(int) $id]['display_name'] ?? null, $stmt->fetchAll(PDO::FETCH_COLUMN))));
 
-    // 6s window = double the 3s poll interval: survives one missed tick
-    // without flickering, still clears within ~2 polls of someone stopping.
-    $stmt = $pdo->prepare("SELECT user_id FROM group_session_participants WHERE session_id = ? AND user_id != ? AND typing_at > (NOW() - INTERVAL 6 SECOND)");
-    $stmt->execute([$sessionId, $user_id]);
-    $typingNames = [];
-    foreach ($stmt->fetchAll() as $row) {
-        $uid = (int) $row['user_id'];
-        if (isset($participants[$uid])) $typingNames[] = $participants[$uid]['display_name'];
-    }
+    $stmt = $pdo->prepare("SELECT id FROM group_session_turns WHERE session_id = ? AND status != 'completed' ORDER BY id DESC LIMIT 1");
+    $stmt->execute([$sessionId]);
+    $teacherId = $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null;
 
     echo json_encode([
-        'success' => true,
-        'status'  => $session['status'],
-        'topic'   => $session['topic'],
-        'current_teacher_user_id' => $currentTeacherId,
-        'current_teacher_name'    => $currentTeacherId !== null ? ($participants[$currentTeacherId]['display_name'] ?? null) : null,
-        'participants' => array_values($participants),
-        'typing' => $typingNames,
-        'messages' => $messages,
+        'success'      => true,
+        'me'           => $userId,
+        'status'       => $session['status'],
+        'topic'        => $session['topic'],
+        'join_code'    => $session['join_code'],
+        'host_user_id' => (int) $session['host_user_id'],
+        'teacher_user_id' => $teacherId,
+        'turn_id'      => ($t = $stmt->fetchColumn()) ? (int) $t : null,
+        'q_thinking'   => (bool) $session['ai_thinking'],
+        'open_ask'     => gsOpenAsk($pdo, $sessionId),
+        'participants' => array_values(array_map(fn($p) => array_diff_key($p, ['last_said_id' => 1]), $participants)),
+        'typing'       => $typing,
+        'messages'     => $messages,
     ]);
+}
+
+function gsPassTurn(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    $nextId = (int) ($data['next_user_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId, true))) return;
+    [$session, $participants] = $m;
+
+    $teacherId = $session['current_teacher_user_id'] !== null ? (int) $session['current_teacher_user_id'] : null;
+    if ($userId !== $teacherId && $userId !== (int) $session['host_user_id']) {
+        gsFail(403, 'Only the person teaching (or the host) can pass the turn.'); return;
+    }
+    if (!isset($participants[$nextId]) || $participants[$nextId]['left'] || $nextId === $teacherId) {
+        gsFail(400, "Pick someone who's in the room and isn't teaching now."); return;
+    }
+    $from = gsFirstName($participants[$teacherId]['display_name'] ?? 'The teacher');
+    $to = gsFirstName($participants[$nextId]['display_name']);
+    gsHandTurn($pdo, $session, $nextId, "{$from} passed the turn to {$to}. {$to} is teaching now.");
+    echo json_encode(['success' => true]);
+}
+
+function gsEnd(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId))) return;
+    [$session, $participants] = $m;
+    if ($userId !== (int) $session['host_user_id']) { gsFail(403, 'Only the host can end the session.'); return; }
+    if ($session['status'] === 'completed') { echo json_encode(['success' => true]); return; }
+
+    $pdo->prepare("UPDATE group_session_turns SET status = 'completed', ended_at = NOW() WHERE session_id = ? AND status != 'completed'")
+        ->execute([$sessionId]);
+    $pdo->prepare("UPDATE group_sessions SET status = 'completed', ended_at = NOW() WHERE id = ?")->execute([$sessionId]);
+    gsSystem($pdo, $sessionId, gsFirstName($participants[$userId]['display_name']) . " ended the session.");
+    echo json_encode(['success' => true]);
+}
+
+function gsLeave(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId))) return;
+    [$session, $participants] = $m;
+    if ($session['status'] === 'completed' || $participants[$userId]['left']) { echo json_encode(['success' => true]); return; }
+
+    $pdo->prepare("UPDATE group_session_participants SET left_at = NOW(), typing_at = NULL WHERE session_id = ? AND user_id = ?")
+        ->execute([$sessionId, $userId]);
+    $name = gsFirstName($participants[$userId]['display_name']);
+    gsSystem($pdo, $sessionId, "{$name} left.");
+
+    $remaining = array_filter($participants, fn($p) => !$p['left'] && $p['user_id'] !== $userId);
+    if (!$remaining) {
+        // Last one out: nobody left to study with
+        $pdo->prepare("UPDATE group_sessions SET status = 'completed', ended_at = NOW() WHERE id = ?")->execute([$sessionId]);
+    } elseif ($session['status'] === 'active' && (int) $session['current_teacher_user_id'] === $userId) {
+        // The teacher left: hand it to someone here who hasn't taught, else anyone here
+        usort($remaining, fn($a, $b) => [$a['has_taught'], !$a['online']] <=> [$b['has_taught'], !$b['online']]);
+        $next = reset($remaining);
+        gsHandTurn($pdo, $session, $next['user_id'], gsFirstName($next['display_name']) . " is teaching now.");
+    }
+    echo json_encode(['success' => true]);
 }

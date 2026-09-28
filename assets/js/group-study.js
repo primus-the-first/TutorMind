@@ -1,609 +1,712 @@
 /**
- * Group Study page controller.
+ * Group study — room controller (group_study.php, api/group_study.php).
  *
- * Talks to api/group_study.php (create/join/teach/advance_turn/poll).
- * No WebSockets — polls every 3s while a session is active, the same
- * "cheap real-time" tradeoff documented in migrations/015's header
- * (this hosting can't sustain persistent connections, and nothing else
- * in the app polls today either).
+ * A study chat room: everyone can talk, one person teaches at a time, and Q
+ * (the AI facilitator) replies to the teacher, to whoever it called on, and
+ * to @Q mentions. The server decides when Q speaks and who it calls on; this
+ * file renders the room and keeps it in sync.
  *
- * Reuses TMWidgets as-is to render the AI facilitator's tm-chips
- * hand-off block — but with its own onReply, since a chip pick here
- * means "advance the turn," not "reply to the AI in a normal chat."
+ * No WebSockets (see migration 015): polls every 3s while the tab is
+ * visible, backs off on errors, and pauses when hidden. Identity is by
+ * user id from the poll ("me"), never by display name.
  */
 (function () {
     'use strict';
 
     var API = 'api/group_study.php';
-    var POLL_INTERVAL_MS = 3000;
+    var POLL_MS = 3000;
+    var ROOM_KEY = 'tm-group-room';
 
     var state = {
         sessionId: null,
-        lastMessageId: 0,
-        pollTimer: null,
-        myDisplayName: document.body.dataset.displayName || '',
+        lastId: 0,
+        room: null,          // last poll response
+        timer: null,
+        fails: 0,
+        sending: false,
+        typingPingAt: 0,
+        pickers: [],         // hand-off pickers, re-evaluated every poll
+        sendError: ''
     };
 
+    var $ = function (id) { return document.getElementById(id); };
     var els = {
-        landing: document.getElementById('gsLanding'),
-        waiting: document.getElementById('gsWaiting'),
-        session: document.getElementById('gsSession'),
-        landingError: document.getElementById('gsLandingError'),
-        createCard: document.getElementById('gsCreateCard'),
-        createHead: document.getElementById('gsCreateHead'),
-        topicInput: document.getElementById('gsTopicInput'),
-        createBtn: document.getElementById('gsCreateBtn'),
-        joinCard: document.getElementById('gsJoinCard'),
-        joinHead: document.getElementById('gsJoinHead'),
-        joinCodeInput: document.getElementById('gsJoinCodeInput'),
-        joinBtn: document.getElementById('gsJoinBtn'),
-        waitingCode: document.getElementById('gsWaitingCode'),
-        waitingTopic: document.getElementById('gsWaitingTopic'),
-        waitingAvatarStack: document.getElementById('gsWaitingAvatarStack'),
-        copyCodeBtn: document.getElementById('gsCopyCodeBtn'),
-        sessionTopic: document.getElementById('gsSessionTopic'),
-        currentTeacher: document.getElementById('gsCurrentTeacher'),
-        participants: document.getElementById('gsParticipants'),
-        transcript: document.getElementById('gsTranscript'),
-        typingIndicator: document.getElementById('gsTypingIndicator'),
-        typingText: document.getElementById('gsTypingText'),
-        messageInput: document.getElementById('gsMessageInput'),
-        sendBtn: document.getElementById('gsSendBtn'),
-        micBtn: document.getElementById('gsMicBtn'),
-        composer: document.getElementById('gsComposer'),
-        composerHint: document.getElementById('gsComposerHint'),
-        exitBtns: document.querySelectorAll('[data-gs-exit]'),
+        lobby: $('gsLobby'), room: $('gsRoom'),
+        lobbyError: $('gsLobbyError'), rejoin: $('gsRejoin'), rejoinList: $('gsRejoinList'),
+        createCard: $('gsCreateCard'), createHead: $('gsCreateHead'), createForm: $('gsCreateForm'),
+        topicInput: $('gsTopicInput'), createBtn: $('gsCreateBtn'),
+        joinCard: $('gsJoinCard'), joinHead: $('gsJoinHead'), joinForm: $('gsJoinForm'),
+        codeInput: $('gsJoinCodeInput'), joinBtn: $('gsJoinBtn'),
+        topic: $('gsTopic'), teaching: $('gsTeaching'),
+        peopleToggle: $('gsPeopleToggle'), peopleCount: $('gsPeopleCount'), people: $('gsPeople'), peopleList: $('gsPeopleList'),
+        sideCode: $('gsSideCode'),
+        passBtn: $('gsPassBtn'), passMenu: $('gsPassMenu'),
+        endBtn: $('gsEndBtn'), endConfirm: $('gsEndConfirm'), endYes: $('gsEndYes'), endNo: $('gsEndNo'),
+        leaveBtn: $('gsLeaveBtn'),
+        invite: $('gsInvite'), inviteCode: $('gsInviteCode'), copyCode: $('gsCopyCode'), copyLink: $('gsCopyLink'),
+        transcript: $('gsTranscript'), status: $('gsStatus'), asked: $('gsAsked'),
+        composer: $('gsComposer'), input: $('gsInput'), sendBtn: $('gsSendBtn'), micBtn: $('gsMicBtn'),
+        hint: $('gsHint'), ended: $('gsEnded'), backToLobby: $('gsBackToLobby')
     };
 
-    function showPanel(name) {
-        els.landing.hidden = name !== 'landing';
-        els.waiting.hidden = name !== 'waiting';
-        els.session.hidden = name !== 'session';
-    }
-
-    function post(action, data) {
+    // ---------------------------------------------------------------- API
+    function api(action, data) {
         return fetch(API, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify(Object.assign({ action: action }, data)),
-        }).then(function (r) { return r.json(); });
+            body: JSON.stringify(Object.assign({ action: action }, data || {}))
+        }).then(function (r) {
+            return r.json().catch(function () { throw new Error('bad response'); }).then(function (j) {
+                j.httpStatus = r.status;
+                return j;
+            });
+        });
     }
 
-    function setError(msg) {
-        els.landingError.textContent = msg || '';
-        els.landingError.hidden = !msg;
+    function firstName(name) { return String(name || '').trim().split(/\s+/)[0]; }
+    function storage(fn) { try { return fn(); } catch (e) { return null; } }
+
+    // ---------------------------------------------------------------- Lobby
+    function lobbyError(msg) {
+        els.lobbyError.querySelector('span').textContent = msg || '';
+        els.lobbyError.hidden = !msg;
     }
 
-    // ---- Landing card expand/collapse ----
-    // Tiles start collapsed (just the icon + heading), matching the
-    // jampolls-style pure-nav-tile pattern — clicking one reveals its form
-    // and closes the other (Create/Join are mutually exclusive, only one
-    // makes sense open at a time).
-    function expandCard(which) {
-        var openCard = which === 'create' ? els.createCard : els.joinCard;
-        var openHead = which === 'create' ? els.createHead : els.joinHead;
-        var closeCard = which === 'create' ? els.joinCard : els.createCard;
-        var closeHead = which === 'create' ? els.joinHead : els.createHead;
-        openCard.classList.add('gs-expanded');
-        openHead.setAttribute('aria-expanded', 'true');
-        closeCard.classList.remove('gs-expanded');
-        closeHead.setAttribute('aria-expanded', 'false');
-        var focusTarget = which === 'create' ? els.topicInput : els.joinCodeInput;
-        setTimeout(function () { focusTarget.focus(); }, 200);
+    function openCard(which) {
+        [['create', els.createCard, els.createHead, els.topicInput], ['join', els.joinCard, els.joinHead, els.codeInput]].forEach(function (c) {
+            var on = c[0] === which;
+            c[1].classList.toggle('is-open', on);
+            c[2].setAttribute('aria-expanded', String(on));
+            if (on) setTimeout(function () { c[3].focus(); }, 150);
+        });
     }
-    function collapseCards() {
-        els.createCard.classList.remove('gs-expanded');
-        els.createHead.setAttribute('aria-expanded', 'false');
-        els.joinCard.classList.remove('gs-expanded');
-        els.joinHead.setAttribute('aria-expanded', 'false');
-    }
-    els.createHead.addEventListener('click', function () { expandCard('create'); });
-    els.joinHead.addEventListener('click', function () { expandCard('join'); });
+    els.createHead.addEventListener('click', function () { openCard('create'); });
+    els.joinHead.addEventListener('click', function () { openCard('join'); });
 
-    // ---- Create / Join ----
-
-    els.createBtn.addEventListener('click', function () {
+    els.createForm.addEventListener('submit', function (e) {
+        e.preventDefault();
         var topic = els.topicInput.value.trim();
-        if (!topic) { setError('Enter a topic first.'); return; }
-        setError('');
+        if (!topic) { lobbyError('Give the room a topic first.'); els.topicInput.focus(); return; }
+        lobbyError('');
         els.createBtn.disabled = true;
-        post('create', { topic: topic }).then(function (res) {
+        api('create', { topic: topic }).then(function (res) {
             els.createBtn.disabled = false;
-            if (!res.success) { setError(res.error || 'Could not create a session.'); return; }
-            state.sessionId = res.session_id;
-            els.waitingCode.textContent = res.join_code;
-            els.waitingTopic.textContent = res.topic;
-            showPanel('waiting');
-            startPolling();
+            if (!res.success) { lobbyError(res.error || 'Could not open a room.'); return; }
+            enterRoom(res.session_id);
+        }).catch(function () {
+            els.createBtn.disabled = false;
+            lobbyError('Couldn’t reach TutorMind. Check your connection and try again.');
         });
     });
 
-    els.joinBtn.addEventListener('click', function () {
-        var code = els.joinCodeInput.value.trim().toUpperCase();
-        if (code.length !== 6) { setError('Join codes are 6 characters.'); return; }
-        setError('');
+    els.codeInput.addEventListener('input', function () {
+        els.codeInput.value = els.codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    });
+    els.joinForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        joinByCode(els.codeInput.value.trim());
+    });
+
+    function joinByCode(code) {
+        if (!/^[A-Z0-9]{6}$/.test(code)) { lobbyError('Join codes are 6 letters and numbers.'); return; }
+        lobbyError('');
         els.joinBtn.disabled = true;
-        post('join', { join_code: code }).then(function (res) {
+        api('join', { join_code: code }).then(function (res) {
             els.joinBtn.disabled = false;
-            if (!res.success) { setError(res.error || 'Could not join that session.'); return; }
-            state.sessionId = res.session_id;
-            if (res.status === 'waiting') {
-                els.waitingCode.textContent = code;
-                els.waitingTopic.textContent = res.topic;
-                showPanel('waiting');
-            } else {
-                showPanel('session');
-                renderSessionMeta(res);
-            }
-            startPolling();
-        });
-    });
-
-    // ---- Copy join code ----
-    if (els.copyCodeBtn) {
-        els.copyCodeBtn.addEventListener('click', function () {
-            var code = els.waitingCode.textContent.trim();
-            if (!code || code === '------') return;
-            var done = function () {
-                els.copyCodeBtn.dataset.copied = 'true';
-                els.copyCodeBtn.innerHTML = '<i class="fas fa-check"></i> Copied';
-                setTimeout(function () {
-                    els.copyCodeBtn.dataset.copied = 'false';
-                    els.copyCodeBtn.innerHTML = '<i class="fas fa-copy"></i> Copy code';
-                }, 1500);
-            };
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(code).then(done).catch(function () {});
-            } else {
-                var tmp = document.createElement('textarea');
-                tmp.value = code;
-                tmp.style.position = 'fixed';
-                tmp.style.opacity = '0';
-                document.body.appendChild(tmp);
-                tmp.select();
-                try { document.execCommand('copy'); done(); } catch (e) {}
-                document.body.removeChild(tmp);
-            }
+            if (!res.success) { lobbyError(res.error || 'Could not join that room.'); return; }
+            enterRoom(res.session_id);
+        }).catch(function () {
+            els.joinBtn.disabled = false;
+            lobbyError('Couldn’t reach TutorMind. Check your connection and try again.');
         });
     }
 
-    // ---- TTS / Voice Controller ----
-    var currentTTSAudio = null;
-    var currentSpeakingBtn = null;
-
-    function stopTTS() {
-        if (currentTTSAudio) {
-            currentTTSAudio.pause();
-            currentTTSAudio = null;
-        }
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-        }
-        if (currentSpeakingBtn) {
-            currentSpeakingBtn.dataset.speaking = 'false';
-            currentSpeakingBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-            currentSpeakingBtn.title = 'Read aloud';
-            currentSpeakingBtn = null;
-        }
-    }
-
-    function base64ToBlob(base64, mimeType) {
-        var byteChars = atob(base64);
-        var byteNumbers = new Array(byteChars.length);
-        for (var i = 0; i < byteChars.length; i++) {
-            byteNumbers[i] = byteChars.charCodeAt(i);
-        }
-        var byteArray = new Uint8Array(byteNumbers);
-        return new Blob([byteArray], { type: mimeType });
-    }
-
-    function speakText(text, btn) {
-        if (!text || !text.trim()) return;
-
-        // If clicking on the button that is already playing, toggle stop
-        if (btn && btn.dataset.speaking === 'true') {
-            stopTTS();
-            return;
-        }
-
-        stopTTS();
-
-        if (btn) {
-            btn.dataset.speaking = 'true';
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            btn.title = 'Loading voice...';
-            currentSpeakingBtn = btn;
-        }
-
-        fetch('api/tts.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text })
-        })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            if (btn !== currentSpeakingBtn) return;
-
-            if (data.success && data.audio) {
-                var audioBlob = base64ToBlob(data.audio, data.contentType || 'audio/mpeg');
-                var audioUrl = URL.createObjectURL(audioBlob);
-                currentTTSAudio = new Audio(audioUrl);
-
-                currentTTSAudio.onplay = function () {
-                    if (btn === currentSpeakingBtn) {
-                        btn.innerHTML = '<i class="fas fa-stop"></i>';
-                        btn.title = 'Stop reading';
-                    }
-                };
-                currentTTSAudio.onended = function () {
-                    stopTTS();
-                };
-                currentTTSAudio.onerror = function () {
-                    fallbackBrowserSpeak(text, btn);
-                };
-                currentTTSAudio.play().catch(function () {
-                    fallbackBrowserSpeak(text, btn);
+    function loadRejoin() {
+        api('mine').then(function (res) {
+            var rooms = (res.success && res.rooms) || [];
+            els.rejoinList.innerHTML = '';
+            rooms.forEach(function (r) {
+                var li = document.createElement('li');
+                li.className = 'gs-rejoin__item';
+                var text = document.createElement('div');
+                var t = document.createElement('span'); t.className = 'gs-rejoin__topic'; t.textContent = r.topic;
+                var meta = document.createElement('span'); meta.className = 'gs-rejoin__meta';
+                meta.textContent = (r.is_host ? 'Your room' : 'Joined') + ' · ' + r.join_code + (r.status === 'waiting' ? ' · waiting for people' : '');
+                text.appendChild(t); text.appendChild(meta);
+                var btn = document.createElement('button');
+                btn.type = 'button'; btn.className = 'ds-btn ds-btn--tertiary ds-btn--sm'; btn.textContent = 'Rejoin';
+                btn.addEventListener('click', function () {
+                    api('open', { session_id: r.session_id }).then(function (res2) {
+                        if (res2.success) enterRoom(r.session_id); else { lobbyError(res2.error); loadRejoin(); }
+                    });
                 });
-            } else {
-                fallbackBrowserSpeak(data.text || text, btn);
-            }
-        })
-        .catch(function (err) {
-            console.error('Group Study TTS error:', err);
-            fallbackBrowserSpeak(text, btn);
-        });
+                li.appendChild(text); li.appendChild(btn);
+                els.rejoinList.appendChild(li);
+            });
+            els.rejoin.hidden = rooms.length === 0;
+        }).catch(function () {});
     }
 
-    function fallbackBrowserSpeak(text, btn) {
-        if (!window.speechSynthesis) {
-            stopTTS();
-            return;
-        }
+    // Keep "Pick up where you left off" current while the lobby is on screen
+    // (a room can end or fill up while you're looking at it)
+    setInterval(function () {
+        if (!els.lobby.hidden && !document.hidden) loadRejoin();
+    }, 20000);
 
-        window.speechSynthesis.cancel();
-        var utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-
-        var voices = window.speechSynthesis.getVoices();
-        var preferredVoice = voices.find(function (v) {
-            return v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha');
-        });
-        if (preferredVoice) utterance.voice = preferredVoice;
-
-        utterance.onstart = function () {
-            if (btn === currentSpeakingBtn) {
-                btn.innerHTML = '<i class="fas fa-stop"></i>';
-                btn.title = 'Stop reading';
-            }
-        };
-        utterance.onend = function () {
-            stopTTS();
-        };
-        utterance.onerror = function () {
-            stopTTS();
-        };
-
-        window.speechSynthesis.speak(utterance);
-    }
-
-    // ---- Voice Input (Speech-to-Text) Controller ----
-    var recognition = null;
-    var isListening = false;
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        var baseTranscript = '';
-
-        recognition.onstart = function () {
-            isListening = true;
-            if (els.micBtn) {
-                els.micBtn.dataset.listening = 'true';
-                els.micBtn.title = 'Listening... Click to stop';
-            }
-            baseTranscript = els.messageInput.value ? els.messageInput.value.trim() + ' ' : '';
-        };
-
-        recognition.onresult = function (event) {
-            var interim = '';
-            for (var i = event.resultIndex; i < event.results.length; i++) {
-                interim += event.results[i][0].transcript;
-            }
-            els.messageInput.value = baseTranscript + interim;
-            els.messageInput.scrollTop = els.messageInput.scrollHeight;
-        };
-
-        recognition.onend = function () {
-            isListening = false;
-            if (els.micBtn) {
-                els.micBtn.dataset.listening = 'false';
-                els.micBtn.title = 'Voice typing (Speak your thoughts)';
-            }
-        };
-
-        recognition.onerror = function (event) {
-            console.warn('Speech recognition error:', event.error);
-            isListening = false;
-            if (els.micBtn) {
-                els.micBtn.dataset.listening = 'false';
-                els.micBtn.title = 'Voice typing (Speak your thoughts)';
-            }
-        };
-    }
-
-    if (els.micBtn) {
-        els.micBtn.addEventListener('click', function () {
-            if (!recognition) {
-                alert('Voice input is not supported in this browser. Please try Chrome or Edge.');
-                return;
-            }
-            if (isListening) {
-                recognition.stop();
-            } else {
-                try {
-                    recognition.start();
-                } catch (e) {
-                    console.error('Speech recognition start error:', e);
-                }
-            }
-        });
-    }
-
-    // ---- Exit room ----
-    // Deliberately non-destructive: only stops polling and clears local
-    // state. Your participant row stays on the server, so rejoining with
-    // the same code later picks the session back up with full history —
-    // same behavior already confirmed for a plain page refresh.
-    function exitRoom() {
-        stopTTS();
-        if (isListening && recognition) {
-            try { recognition.stop(); } catch (e) {}
-        }
-        if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+    function showLobby(message) {
+        stopPolling();
+        stopVoice();
         state.sessionId = null;
-        state.lastMessageId = 0;
-        els.transcript.innerHTML = '';
-        els.messageInput.value = '';
-        els.composer.hidden = false;
-        els.composerHint.hidden = true;
-        els.typingIndicator.hidden = true;
-        lastTypingPingAt = 0;
+        storage(function () { sessionStorage.removeItem(ROOM_KEY); });
+        els.room.hidden = true;
+        els.lobby.hidden = false;
+        document.title = 'Group study — TutorMind';
         els.topicInput.value = '';
-        els.joinCodeInput.value = '';
-        collapseCards();
-        setError('');
-        showPanel('landing');
-    }
-    els.exitBtns.forEach(function (btn) {
-        btn.addEventListener('click', exitRoom);
-    });
-
-    // ---- Teaching / messaging ----
-
-    function sendMessage() {
-        if (isListening && recognition) {
-            try { recognition.stop(); } catch (e) {}
-        }
-        var text = els.messageInput.value.trim();
-        if (!text || !state.sessionId) return;
-        els.messageInput.value = '';
-        els.sendBtn.disabled = true;
-        post('teach', { session_id: state.sessionId, message: text }).then(function (res) {
-            els.sendBtn.disabled = false;
-            if (!res.success) {
-                // Message still landed (student row is inserted before the AI
-                // call), so pull it in via a poll rather than losing it.
-                poll();
-                return;
-            }
-            poll(); // one immediate poll picks up both the student message and the AI reply in order
-        });
-    }
-    els.sendBtn.addEventListener('click', sendMessage);
-    els.messageInput.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-    });
-
-    // Throttled typing ping — at most once every 2.5s while the user keeps
-    // typing, enough to keep the server's 6s "is typing" window topped up
-    // without pinging on every keystroke. No explicit "stopped typing"
-    // signal; the field just goes stale and the indicator clears itself,
-    // same eventual-consistency shape as the rest of this feature.
-    var lastTypingPingAt = 0;
-    els.messageInput.addEventListener('input', function () {
-        if (!state.sessionId) return;
-        var now = Date.now();
-        if (now - lastTypingPingAt < 2500) return;
-        lastTypingPingAt = now;
-        post('typing', { session_id: state.sessionId });
-    });
-
-    function renderTyping(names) {
-        if (!names || !names.length) { els.typingIndicator.hidden = true; return; }
-        var text;
-        if (names.length === 1) text = names[0] + ' is typing...';
-        else if (names.length === 2) text = names[0] + ' and ' + names[1] + ' are typing...';
-        else text = names.length + ' people are typing...';
-        els.typingText.textContent = text;
-        els.typingIndicator.hidden = false;
+        els.codeInput.value = '';
+        lobbyError(message || '');
+        loadRejoin();
     }
 
-    // ---- Polling ----
+    // ---------------------------------------------------------------- Room
+    function enterRoom(sessionId) {
+        state.sessionId = sessionId;
+        state.lastId = 0;
+        state.room = null;
+        state.pickers = [];
+        state.sendError = '';
+        storage(function () { sessionStorage.setItem(ROOM_KEY, String(sessionId)); });
+        els.transcript.innerHTML = '';
+        els.input.value = '';
+        els.lobby.hidden = true;
+        els.room.hidden = false;
+        closeMenus();
+        startPolling();
+    }
 
     function startPolling() {
-        if (state.pollTimer) return;
+        stopPolling();
+        state.fails = 0;
         poll();
-        state.pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+    }
+    function stopPolling() {
+        clearTimeout(state.timer);
+        state.timer = null;
+    }
+    function schedule() {
+        clearTimeout(state.timer);
+        if (!state.sessionId || document.hidden) return;
+        if (state.room && state.room.status === 'completed') return;
+        var delay = state.fails ? Math.min(30000, POLL_MS * Math.pow(2, state.fails)) : POLL_MS;
+        state.timer = setTimeout(poll, delay);
     }
 
     function poll() {
-        if (!state.sessionId) return;
-        post('poll', { session_id: state.sessionId, since_id: state.lastMessageId }).then(function (res) {
-            if (!res.success) return;
-
-            if (res.status === 'active') {
-                showPanel('session');
+        var sid = state.sessionId;
+        if (!sid) return;
+        api('poll', { session_id: sid, since_id: state.lastId }).then(function (res) {
+            if (sid !== state.sessionId) return;
+            if (!res.success) {
+                if ([403, 404, 410].indexOf(res.httpStatus) !== -1) { showLobby(res.error); return; }
+                throw new Error(res.error);
             }
-            renderSessionMeta(res);
-            renderTyping(res.typing);
-
-            res.messages.forEach(function (msg) {
-                appendMessage(msg);
-                if (msg.id > state.lastMessageId) state.lastMessageId = msg.id;
-            });
-
-            if (res.status === 'completed') {
-                els.composer.hidden = true;
-                els.composerHint.hidden = false;
-                els.typingIndicator.hidden = true;
-                clearInterval(state.pollTimer);
-                state.pollTimer = null;
-            }
-        });
+            state.fails = 0;
+            render(res);
+        }).catch(function () {
+            state.fails++;
+            renderStatus();
+        }).then(schedule);
     }
 
-    function renderParticipantChips(container, participants, teacherUserId) {
-        if (!container) return;
-        container.innerHTML = '';
-        (participants || []).forEach(function (p) {
-            var chip = document.createElement('span');
-            chip.className = 'gs-participant-chip' + (p.user_id === teacherUserId ? ' gs-is-teacher' : '');
-            chip.textContent = p.display_name;
-            container.appendChild(chip);
-        });
-    }
-
-    function renderAvatarStack(container, participants) {
-        if (!container) return;
-        container.innerHTML = '';
-        (participants || []).forEach(function (p) {
-            var avatar = document.createElement('div');
-            avatar.className = 'gs-msg-avatar ' + avatarToneClass(p.display_name);
-            avatar.title = p.display_name;
-            avatar.textContent = p.display_name.charAt(0).toUpperCase();
-            container.appendChild(avatar);
-        });
-    }
-
-    function renderSessionMeta(res) {
-        els.sessionTopic.textContent = res.topic;
-        els.currentTeacher.textContent = res.current_teacher_name || '—';
-        renderParticipantChips(els.participants, res.participants, res.current_teacher_user_id);
-        renderAvatarStack(els.waitingAvatarStack, res.participants);
-    }
-
-    var AVATAR_TONE_COUNT = 4;
-    function avatarToneClass(name) {
-        var hash = 0;
-        for (var i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-        return 'gs-avatar-tone-' + (hash % AVATAR_TONE_COUNT);
-    }
-
-    function appendMessage(msg) {
-        // Overlapping polls (the 3s interval firing near a send-triggered
-        // poll) can both return the same "new" message before either
-        // updates lastMessageId — guard against rendering it twice.
-        if (els.transcript.querySelector('[data-msg-id="' + msg.id + '"]')) return;
-
-        var isSelf = !msg.is_ai && msg.sender === state.myDisplayName;
-        var row = document.createElement('div');
-        row.className = 'gs-msg' + (msg.is_ai ? ' gs-msg-ai' : '') + (isSelf ? ' gs-msg-self' : '');
-        row.dataset.msgId = msg.id;
-
-        var avatar = document.createElement('div');
-        avatar.className = 'gs-msg-avatar';
-        if (msg.is_ai) {
-            var icon = document.createElement('span');
-            icon.className = 'gs-msg-avatar-icon';
-            icon.setAttribute('aria-hidden', 'true');
-            avatar.appendChild(icon);
-        } else {
-            avatar.classList.add(avatarToneClass(msg.sender));
-            avatar.textContent = msg.sender.charAt(0).toUpperCase();
-        }
-
-        var body = document.createElement('div');
-        body.className = 'gs-msg-body';
-        var sender = document.createElement('div');
-        sender.className = 'gs-msg-sender';
-
-        var senderName = document.createElement('span');
-        senderName.textContent = msg.sender;
-        sender.appendChild(senderName);
-
-        // For AI messages, attach a "Read aloud" speaker button
-        if (msg.is_ai) {
-            var speakBtn = document.createElement('button');
-            speakBtn.type = 'button';
-            speakBtn.className = 'gs-msg-speak-btn';
-            speakBtn.title = 'Read aloud';
-            speakBtn.setAttribute('aria-label', 'Read message aloud');
-            speakBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-
-            // Clean prose for speaking (exclude code/chips blocks)
-            var textToSpeak = msg.content.replace(/```[\s\S]*?```/g, '').trim();
-            speakBtn.addEventListener('click', (function (text, button) {
-                return function (e) {
-                    e.stopPropagation();
-                    speakText(text, button);
-                };
-            })(textToSpeak, speakBtn));
-
-            sender.appendChild(speakBtn);
-        }
-
-        var content = document.createElement('div');
-        content.className = 'gs-msg-content';
-
-        // The AI's response may contain a fenced tm-chips block (the
-        // hand-off) alongside plain prose — split it out and render the
-        // prose as text, the widget as a real widget, same as normal chat.
-        var fenceMatch = msg.content.match(/```tm-chips\s*\n([\s\S]*?)```/);
-        if (fenceMatch) {
-            var prose = msg.content.replace(fenceMatch[0], '').trim();
-            if (prose) {
-                var p = document.createElement('p');
-                p.style.margin = '0 0 0.5rem';
-                p.textContent = prose;
-                content.appendChild(p);
-            }
-            var pre = document.createElement('pre');
-            var code = document.createElement('code');
-            code.className = 'language-tm-chips';
-            code.textContent = fenceMatch[1].trim();
-            pre.appendChild(code);
-            content.appendChild(pre);
-        } else {
-            content.textContent = msg.content;
-        }
-
-        body.appendChild(sender);
-        body.appendChild(content);
-        row.appendChild(avatar);
-        row.appendChild(body);
-        els.transcript.appendChild(row);
-        els.transcript.scrollTop = els.transcript.scrollHeight;
-
-        if (fenceMatch) {
-            TMWidgets.render(content);
-        }
-    }
-
-    // ---- Widget wiring: a chip pick here advances the turn, it does not
-    // reply to the AI the way it would in normal chat. ----
-    TMWidgets.init({
-        onReply: function (text) {
-            var m = text.match(/I chose "([^"]+)"\.?$/);
-            if (!m) return;
-            var nextTeacherName = m[1];
-            post('advance_turn', { session_id: state.sessionId, next_teacher_name: nextTeacherName }).then(function () {
-                poll();
-            });
-        },
-        onReveal: function () {},
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && state.sessionId) { stopPolling(); poll(); }
     });
+
+    function render(res) {
+        // Decide "stick to the bottom" before anything changes the layout
+        var t = els.transcript;
+        var wasAtBottom = !t.childElementCount || t.scrollHeight - t.scrollTop - t.clientHeight < 80;
+        var wasAskedMe = !els.asked.hidden;
+        state.room = res;
+        var me = res.me;
+        var people = res.participants || [];
+        var byId = {};
+        people.forEach(function (p) { byId[p.user_id] = p; });
+        var teacher = byId[res.teacher_user_id];
+        var active = res.status === 'active';
+        var ended = res.status === 'completed';
+
+        document.title = res.topic + ' — Group study';
+        els.topic.textContent = res.topic;
+        els.teaching.textContent = ended ? 'Session ended'
+            : !active ? 'Waiting for someone to join'
+            : teacher ? (teacher.user_id === me ? 'You’re teaching' : firstName(teacher.display_name) + ' is teaching') : 'Nobody is teaching';
+        els.teaching.classList.toggle('is-you', !!teacher && teacher.user_id === me && active);
+
+        // Invite panel while waiting
+        els.invite.hidden = res.status !== 'waiting';
+        els.inviteCode.textContent = res.join_code;
+        els.sideCode.textContent = res.join_code;
+
+        // People
+        var here = people.filter(function (p) { return !p.left; });
+        els.peopleCount.textContent = here.length;
+        els.peopleList.innerHTML = '';
+        people.slice().sort(function (a, b) {
+            return (a.left - b.left) || (b.online - a.online);
+        }).forEach(function (p) {
+            var li = document.createElement('li');
+            li.className = 'gs-person' + (p.left ? ' is-left' : p.online ? ' is-here' : ' is-away');
+            li.appendChild(avatar(p.display_name));
+            var name = document.createElement('span');
+            name.className = 'gs-person__name';
+            name.textContent = p.display_name + (p.user_id === me ? ' (you)' : '');
+            li.appendChild(name);
+            var tag = document.createElement('span');
+            tag.className = 'gs-person__tag';
+            tag.textContent = p.left ? 'left' : p.user_id === res.teacher_user_id && active ? 'teaching' : p.online ? '' : 'away';
+            if (tag.textContent) li.appendChild(tag);
+            els.peopleList.appendChild(li);
+        });
+
+        // Controls
+        var canPass = active && (me === res.teacher_user_id || me === res.host_user_id) && here.length > 1;
+        els.passBtn.hidden = !canPass;
+        if (!canPass) closeMenus();
+        els.endBtn.hidden = ended || me !== res.host_user_id;
+        if (els.endBtn.hidden) els.endConfirm.hidden = true;
+
+        // Messages
+        (res.messages || []).forEach(function (m) {
+            appendMessage(m, res);
+            if (m.id > state.lastId) state.lastId = m.id;
+        });
+        state.pickers.forEach(function (p) { p.update(res); });
+        markAddressed(res);
+
+        // Composer / ended
+        var askedMe = active && res.open_ask && res.open_ask.user_id === me;
+        els.asked.hidden = !askedMe;
+        els.input.placeholder = askedMe ? 'Answer Q in your own words…' : active ? 'Message the room…' : 'The room opens when someone joins…';
+        els.composer.hidden = ended;
+        els.hint.hidden = ended || !active;
+        els.ended.hidden = !ended;
+        setComposerEnabled(active && !state.sending);
+        if (ended) { stopVoice(); storage(function () { sessionStorage.removeItem(ROOM_KEY); }); }
+        renderStatus();
+
+        // The callout/ended panel can shrink the transcript after new messages
+        // landed, so scroll last. When Q has just asked me, show its whole question.
+        var asking = askedMe && !wasAskedMe && t.querySelector('.gs-msg.is-asking-me');
+        if (asking) asking.scrollIntoView({ block: 'nearest' });
+        else if (wasAtBottom) t.scrollTop = t.scrollHeight;
+    }
+
+    function renderStatus() {
+        var res = state.room;
+        var text = '', tone = '';
+        if (state.fails >= 2) { text = 'Reconnecting…'; tone = 'warn'; }
+        else if (state.sendError) { text = state.sendError; tone = 'bad'; }
+        else if (res && res.status === 'active') {
+            var parts = [];
+            if (res.q_thinking) parts.push('Q is thinking…');
+            var t = res.typing || [];
+            if (t.length === 1) parts.push(firstName(t[0]) + ' is typing…');
+            else if (t.length === 2) parts.push(firstName(t[0]) + ' and ' + firstName(t[1]) + ' are typing…');
+            else if (t.length > 2) parts.push(t.length + ' people are typing…');
+            text = parts.join(' · ');
+            if (text) tone = 'live';
+        }
+        els.status.textContent = text;
+        els.status.dataset.tone = tone;
+    }
+
+    // ---------------------------------------------------------------- Messages
+    function avatar(name, isQ) {
+        var a = document.createElement('span');
+        a.className = 'gs-avatar' + (isQ ? ' gs-avatar--q' : '');
+        a.setAttribute('aria-hidden', 'true');
+        if (!isQ) a.textContent = firstName(name).charAt(0).toUpperCase();
+        return a;
+    }
+
+    // Plain text with **bold**, *italic* and line breaks — built as nodes, never innerHTML
+    function richText(container, text) {
+        String(text).split(/\n{2,}/).forEach(function (para) {
+            var p = document.createElement('p');
+            para.split(/(\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/).forEach(function (bit) {
+                if (!bit) return;
+                if (/^\*\*[^*]+\*\*$/.test(bit)) {
+                    var b = document.createElement('strong'); b.textContent = bit.slice(2, -2); p.appendChild(b);
+                } else if (/^\*[^*\s][^*]*\*$/.test(bit)) {
+                    var em = document.createElement('em'); em.textContent = bit.slice(1, -1); p.appendChild(em);
+                } else {
+                    bit.split('\n').forEach(function (line, j) {
+                        if (j) p.appendChild(document.createElement('br'));
+                        p.appendChild(document.createTextNode(line));
+                    });
+                }
+            });
+            container.appendChild(p);
+        });
+    }
+
+    function appendMessage(m, res) {
+        if (els.transcript.querySelector('[data-id="' + m.id + '"]')) return;
+
+        var row = document.createElement('div');
+        row.dataset.id = m.id;
+
+        if (m.type === 'system') {
+            row.className = 'gs-msg gs-msg--system';
+            row.textContent = m.content;
+        } else {
+            var isQ = m.type === 'ai';
+            var mine = !isQ && m.user_id === res.me;
+            row.className = 'gs-msg' + (isQ ? ' gs-msg--q' : mine ? ' gs-msg--me' : '');
+            if (!mine) row.appendChild(avatar(m.sender, isQ));
+
+            var body = document.createElement('div');
+            body.className = 'gs-msg__body';
+            var head = document.createElement('div');
+            head.className = 'gs-msg__head';
+            if (!mine) {
+                var who = document.createElement('span');
+                who.className = 'gs-msg__name';
+                who.textContent = isQ ? 'Q' : m.sender;
+                head.appendChild(who);
+            }
+            if (isQ && m.addressed_user_id) {
+                var tag = document.createElement('span');
+                tag.className = 'gs-msg__asked';
+                tag.dataset.userId = m.addressed_user_id;
+                head.appendChild(tag);
+            }
+            if (isQ) head.appendChild(speakButton(m.content));
+            if (head.childNodes.length) body.appendChild(head);
+
+            var bubble = document.createElement('div');
+            bubble.className = 'gs-msg__bubble';
+            var fence = isQ ? m.content.match(/```tm-chips\s*\n([\s\S]*?)```/) : null;
+            richText(bubble, fence ? m.content.replace(fence[0], '').trim() : m.content);
+            body.appendChild(bubble);
+            if (fence) {
+                var picker = handoffPicker(fence[1], m);
+                if (picker) body.appendChild(picker);
+            }
+            row.appendChild(body);
+        }
+
+        els.transcript.appendChild(row);
+        if (m.type === 'student' && m.user_id === res.me) els.transcript.scrollTop = els.transcript.scrollHeight;
+    }
+
+    // "asked you" / "asked Ben" tags, and a highlight while the ask is open
+    function markAddressed(res) {
+        var byId = {};
+        (res.participants || []).forEach(function (p) { byId[p.user_id] = p; });
+        els.transcript.querySelectorAll('.gs-msg__asked').forEach(function (tag) {
+            var uid = Number(tag.dataset.userId);
+            tag.textContent = uid === res.me ? 'asked you' : 'asked ' + firstName((byId[uid] || {}).display_name || 'someone');
+            var row = tag.closest('.gs-msg');
+            var open = res.open_ask && res.open_ask.message_id === Number(row.dataset.id);
+            row.classList.toggle('is-asking-me', !!open && uid === res.me);
+        });
+    }
+
+    // The facilitator's "who's teaching next" block → buttons only the current
+    // teacher (or host) can use, and only while that turn is still open.
+    function handoffPicker(json, msg) {
+        var spec;
+        try { spec = JSON.parse(json); } catch (e) { return null; }
+        if (!spec || !Array.isArray(spec.options)) return null;
+
+        var box = document.createElement('div');
+        box.className = 'gs-handoff';
+        var q = document.createElement('p');
+        q.className = 'gs-handoff__q';
+        q.textContent = spec.q || 'Who’s teaching next?';
+        var row = document.createElement('div');
+        row.className = 'gs-handoff__options';
+        var note = document.createElement('p');
+        note.className = 'gs-handoff__note';
+        box.appendChild(q); box.appendChild(row); box.appendChild(note);
+
+        var buttons = spec.options.map(function (name) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'ds-chip';
+            b.textContent = firstName(name);
+            b.dataset.name = name;
+            b.addEventListener('click', function () {
+                var p = (state.room.participants || []).filter(function (x) { return x.display_name === name && !x.left; })[0];
+                if (!p) return;
+                buttons.forEach(function (x) { x.disabled = true; });
+                b.setAttribute('aria-pressed', 'true');
+                passTurn(p.user_id);
+            });
+            row.appendChild(b);
+            return b;
+        });
+
+        state.pickers.push({
+            update: function (res) {
+                var current = res.status === 'active' && msg.turn_id !== null && msg.turn_id === res.turn_id;
+                var mayPick = current && (res.me === res.teacher_user_id || res.me === res.host_user_id);
+                var teacher = (res.participants || []).filter(function (p) { return p.user_id === res.teacher_user_id; })[0];
+                buttons.forEach(function (b) {
+                    var p = (res.participants || []).filter(function (x) { return x.display_name === b.dataset.name; })[0];
+                    b.disabled = !mayPick || !p || p.left;
+                });
+                box.classList.toggle('is-done', !current);
+                note.textContent = !current ? 'Turn passed.'
+                    : mayPick ? 'Pick who explains next.'
+                    : (teacher ? firstName(teacher.display_name) : 'The teacher') + ' is picking who teaches next.';
+            }
+        });
+        return box;
+    }
+
+    // ---------------------------------------------------------------- Sending
+    function setComposerEnabled(on) {
+        els.input.disabled = !on && !state.sending;
+        els.sendBtn.disabled = !on;
+    }
+
+    els.composer.addEventListener('submit', function (e) {
+        e.preventDefault();
+        send();
+    });
+    els.input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+    });
+    els.input.addEventListener('input', function () {
+        autosize();
+        if (state.sendError) { state.sendError = ''; renderStatus(); }
+        var now = Date.now();
+        if (state.sessionId && els.input.value.trim() && now - state.typingPingAt > 2500) {
+            state.typingPingAt = now;
+            api('typing', { session_id: state.sessionId }).catch(function () {});
+        }
+    });
+    function autosize() {
+        els.input.style.height = 'auto';
+        els.input.style.height = Math.min(els.input.scrollHeight, 160) + 'px';
+    }
+
+    function send() {
+        var text = els.input.value.trim();
+        var sid = state.sessionId;
+        if (!text || !sid || state.sending) return;
+        if (listening) stopVoice();
+        state.sending = true;
+        state.sendError = '';
+        setComposerEnabled(false);
+        api('send', { session_id: sid, message: text }).then(function (res) {
+            if (!res.success) throw new Error(res.error || 'Your message didn’t send.');
+            // Only now is it safe to clear: the server has it
+            if (els.input.value.trim() === text) els.input.value = '';
+            autosize();
+            state.typingPingAt = 0;
+            if (res.q_replies) askQ(sid, res.message_id);
+        }).catch(function (err) {
+            state.sendError = err && err.message && err.message !== 'Failed to fetch' && err.message !== 'bad response'
+                ? err.message : 'Couldn’t send. Check your connection — your message is still in the box.';
+        }).then(function () {
+            state.sending = false;
+            setComposerEnabled(state.room && state.room.status === 'active');
+            els.input.focus();
+            stopPolling(); poll();
+        });
+    }
+
+    // The slow half: Q's reply. The room shows "Q is thinking" from the server.
+    function askQ(sid, messageId) {
+        setTimeout(function () { if (state.sessionId === sid) { stopPolling(); poll(); } }, 400);
+        api('reply', { session_id: sid, message_id: messageId }).then(function (res) {
+            if (!res.success && state.sessionId === sid) { state.sendError = res.error || 'Q couldn’t reply just now.'; renderStatus(); }
+        }).catch(function () {}).then(function () {
+            if (state.sessionId === sid) { stopPolling(); poll(); }
+        });
+    }
+
+    // ---------------------------------------------------------------- Turn, end, leave
+    function passTurn(userId) {
+        closeMenus();
+        api('pass_turn', { session_id: state.sessionId, next_user_id: userId }).then(function (res) {
+            if (!res.success) { state.sendError = res.error; renderStatus(); }
+        }).catch(function () {}).then(function () { stopPolling(); poll(); });
+    }
+
+    function closeMenus() {
+        els.passMenu.hidden = true;
+        els.passBtn.setAttribute('aria-expanded', 'false');
+    }
+    els.passBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = els.passMenu.hidden;
+        closeMenus();
+        if (!open || !state.room) return;
+        var res = state.room;
+        els.passMenu.innerHTML = '';
+        (res.participants || []).filter(function (p) { return !p.left && p.user_id !== res.teacher_user_id; })
+            .sort(function (a, b) { return (a.has_taught - b.has_taught) || (b.online - a.online); })
+            .forEach(function (p) {
+                var item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'gs-menu__item';
+                item.setAttribute('role', 'menuitem');
+                item.textContent = p.display_name + (p.user_id === res.me ? ' (you)' : '');
+                var note = document.createElement('span');
+                note.textContent = p.has_taught ? 'has taught' : p.online ? 'hasn’t taught yet' : 'away';
+                item.appendChild(note);
+                item.addEventListener('click', function () { passTurn(p.user_id); });
+                els.passMenu.appendChild(item);
+            });
+        els.passMenu.hidden = false;
+        els.passBtn.setAttribute('aria-expanded', 'true');
+        var first = els.passMenu.querySelector('button');
+        if (first) first.focus();
+    });
+    function closePeople() {
+        els.room.classList.remove('is-people-open');
+        els.peopleToggle.setAttribute('aria-expanded', 'false');
+    }
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.gs-menu-wrap')) closeMenus();
+        // The phone's people panel closes on a tap outside it
+        if (els.room.classList.contains('is-people-open') && !e.target.closest('.gs-people, #gsPeopleToggle')) closePeople();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { closeMenus(); closePeople(); els.endConfirm.hidden = true; }
+    });
+
+    els.endBtn.addEventListener('click', function () { els.endConfirm.hidden = false; els.endYes.focus(); });
+    els.endNo.addEventListener('click', function () { els.endConfirm.hidden = true; });
+    els.endYes.addEventListener('click', function () {
+        els.endConfirm.hidden = true;
+        api('end', { session_id: state.sessionId }).catch(function () {}).then(function () { stopPolling(); poll(); });
+    });
+
+    els.leaveBtn.addEventListener('click', function () {
+        var sid = state.sessionId;
+        showLobby();
+        if (sid) api('leave', { session_id: sid }).catch(function () {}).then(loadRejoin);
+    });
+    els.backToLobby.addEventListener('click', function () { showLobby(); });
+
+    els.peopleToggle.addEventListener('click', function () {
+        var open = !els.room.classList.contains('is-people-open');
+        els.room.classList.toggle('is-people-open', open);
+        els.peopleToggle.setAttribute('aria-expanded', String(open));
+    });
+
+    // ---------------------------------------------------------------- Invite
+    function copy(text, btn, done) {
+        var label = btn.querySelector('span') || btn;
+        var original = label.textContent;
+        var finish = function () { label.textContent = done; setTimeout(function () { label.textContent = original; }, 1500); };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(finish).catch(function () {});
+    }
+    function inviteLink() {
+        return location.origin + location.pathname.replace(/\.php$/, '') + '?code=' + (state.room ? state.room.join_code : '');
+    }
+    els.copyCode.addEventListener('click', function () { copy(state.room.join_code, els.copyCode, 'Copied'); });
+    els.copyLink.addEventListener('click', function () { copy(inviteLink(), els.copyLink, 'Link copied'); });
+    els.sideCode.addEventListener('click', function () { copy(state.room.join_code, els.sideCode, 'Copied'); });
+
+    // ---------------------------------------------------------------- Voice (read aloud + voice typing)
+    var audio = null, speakingBtn = null;
+    function speakButton(content) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'gs-msg__speak';
+        b.setAttribute('aria-label', 'Read aloud');
+        b.innerHTML = '<svg class="ds-i"><use href="#i-volume"/></svg>';
+        var text = content.replace(/```[\s\S]*?```/g, '').replace(/\*/g, '').trim();
+        b.addEventListener('click', function () { speak(text, b); });
+        return b;
+    }
+    function setSpeaking(btn, on) {
+        if (!btn) return;
+        btn.setAttribute('aria-label', on ? 'Stop reading' : 'Read aloud');
+        btn.querySelector('use').setAttribute('href', on ? '#i-stop' : '#i-volume');
+    }
+    function stopSpeaking() {
+        if (audio) { audio.pause(); audio = null; }
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        setSpeaking(speakingBtn, false);
+        speakingBtn = null;
+    }
+    function speak(text, btn) {
+        if (speakingBtn === btn) { stopSpeaking(); return; }
+        stopSpeaking();
+        speakingBtn = btn;
+        setSpeaking(btn, true);
+        fetch('api/tts.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: text }) })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (speakingBtn !== btn) return;
+                if (!d.success || !d.audio) throw new Error('no audio');
+                var bytes = Uint8Array.from(atob(d.audio), function (c) { return c.charCodeAt(0); });
+                audio = new Audio(URL.createObjectURL(new Blob([bytes], { type: d.contentType || 'audio/mpeg' })));
+                audio.onended = stopSpeaking;
+                return audio.play();
+            })
+            .catch(function () {
+                if (speakingBtn !== btn || !window.speechSynthesis) { if (speakingBtn === btn) stopSpeaking(); return; }
+                var u = new SpeechSynthesisUtterance(text);
+                u.onend = u.onerror = stopSpeaking;
+                window.speechSynthesis.speak(u);
+            });
+    }
+
+    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = null, listening = false, baseText = '';
+    if (Recognition) {
+        recognition = new Recognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = document.documentElement.lang === 'en' ? 'en-US' : (navigator.language || 'en-US');
+        recognition.onstart = function () {
+            listening = true;
+            baseText = els.input.value ? els.input.value.trim() + ' ' : '';
+            els.micBtn.setAttribute('aria-pressed', 'true');
+        };
+        recognition.onresult = function (e) {
+            var said = '';
+            for (var i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
+            els.input.value = baseText + said;
+            autosize();
+        };
+        recognition.onend = recognition.onerror = function () {
+            listening = false;
+            els.micBtn.setAttribute('aria-pressed', 'false');
+        };
+    } else {
+        els.micBtn.hidden = true;
+    }
+    function stopVoice() {
+        stopSpeaking();
+        if (listening && recognition) { try { recognition.stop(); } catch (e) {} }
+    }
+    els.micBtn.addEventListener('click', function () {
+        if (!recognition) return;
+        if (listening) recognition.stop();
+        else { try { recognition.start(); } catch (e) {} }
+    });
+
+    // ---------------------------------------------------------------- Boot
+    var params = new URLSearchParams(location.search);
+    var inviteCode = (params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    var savedRoom = Number(storage(function () { return sessionStorage.getItem(ROOM_KEY); })) || 0;
+    if (inviteCode) {
+        history.replaceState(null, '', location.pathname);
+        openCard('join');
+        els.codeInput.value = inviteCode;
+        joinByCode(inviteCode);
+    } else if (savedRoom) {
+        enterRoom(savedRoom); // a refresh drops you back in the same room
+    } else {
+        loadRejoin();
+    }
 })();
