@@ -421,6 +421,23 @@ body.dark-mode .settings-overlay { background: rgba(0, 0, 0, 0.6); }
 }
 .legibility-description { margin: 0; color: var(--ds-ink-2); font-size: 0.85rem; }
 
+/* ---------- Security: Google sign-ups can get a set-password link ---------- */
+.settings-callout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 16px;
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    border-radius: var(--ds-r-lg);
+    background: var(--ds-tint);
+}
+.settings-callout[hidden] { display: none; }
+.settings-callout p { flex: 1 1 260px; margin: 0; font-size: 0.95rem; color: var(--ds-ink); }
+.settings-callout .btn-cancel { background: var(--ds-surface); } /* tint-on-tint wouldn't read as a button */
+.settings-callout .btn-cancel:disabled { opacity: 0.6; cursor: default; }
+
 /* ---------- Your data (destructive actions) ---------- */
 .danger-zone {
     margin-top: 28px;

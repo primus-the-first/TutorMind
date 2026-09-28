@@ -80,6 +80,9 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
                 <div class="ds-alert" id="auth-error" role="alert" hidden>
                     <svg class="ds-i"><use href="#i-alert"/></svg><span></span>
                 </div>
+                <div class="ds-alert ds-alert--info" id="auth-notice" role="status" hidden>
+                    <svg class="ds-i"><use href="#i-check"/></svg><span>Your new password is set. Log in with it below.</span>
+                </div>
 
                 <form id="loginForm" action="auth_mysql" method="POST" style="display:grid;gap:18px" novalidate>
                     <input type="hidden" name="action" value="login">
@@ -103,7 +106,7 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 
                     <div class="ds-row">
                         <label class="ds-check"><input type="checkbox" id="remember" name="remember"> Remember me</label>
-                        <a href="#" class="ds-textlink">Forgot password?</a>
+                        <a href="forgot-password" class="ds-textlink" id="forgotLink">Forgot password?</a>
                     </div>
 
                     <button type="submit" class="ds-btn ds-btn--primary ds-btn--block" id="loginBtn">Log in <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
@@ -175,6 +178,17 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
                 showError(decodeURIComponent(errorMsg));
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
+            // Back from reset-password
+            if (urlParams.get('reset') === 'done') {
+                document.getElementById('auth-notice').hidden = false;
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            // "Forgot password?" carries over an email typed here
+            document.getElementById('forgotLink').addEventListener('click', function (e) {
+                var typed = document.getElementById('email').value.trim();
+                if (/@/.test(typed)) { e.preventDefault(); location.href = 'forgot-password?email=' + encodeURIComponent(typed); }
+            });
 
             // Sync local theme to form
             var isDarkLocal = false;

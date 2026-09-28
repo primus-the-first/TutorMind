@@ -1056,6 +1056,12 @@ body.dark-mode .ds-viewfinder > i { border-color: var(--primary-light); }
 }
 .ds-alert[hidden] { display: none; }
 .ds-alert .ds-i { color: var(--tm-bad); margin-top: 2px; }
+/* Auth-page form stack. A class, not inline display:grid — inline display beats [hidden]. */
+.ds-form { display: grid; gap: 18px; }
+.ds-form[hidden] { display: none; }
+/* Neutral notice ("check your email", "password set") — accent, not --tm-good (that's for right answers) */
+.ds-alert--info { border-color: var(--primary-light); background: var(--ds-tint); }
+.ds-alert--info .ds-i { color: var(--ds-accent-ink); }
 
 /* Any WebGL scene host (landing bridge, login lock, register keystone) */
 [data-ds-bridge] canvas, [data-ds-scene] canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }

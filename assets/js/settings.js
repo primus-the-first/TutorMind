@@ -198,6 +198,10 @@ class SettingsManager {
             <div id="tab-security" class="tab-panel">
                 <h3>Change password</h3>
                 <p>Use a long password you don't use anywhere else.</p>
+                <div class="settings-callout" id="google-password-note" hidden>
+                    <p>Signed up with Google? You never chose a TutorMind password, so there's no current one to enter. We can email you a link to set one.</p>
+                    <button type="button" class="btn-cancel" id="email-password-link-btn">Email me a link</button>
+                </div>
                 <form id="password-form" novalidate>
                     <div class="form-group">
                         <label for="settings-current-password">Current password</label>
@@ -489,6 +493,30 @@ class SettingsManager {
             e.preventDefault();
             this.changePassword();
         });
+
+        // Google sign-ups: email a link to set a password (same flow as "Forgot password?")
+        const linkBtn = securityTab.querySelector('#email-password-link-btn');
+        linkBtn.addEventListener('click', async () => {
+            linkBtn.disabled = true;
+            try {
+                if (!this.initialSettings.email) await this.loadSettings({ quiet: true });
+                const email = this.initialSettings.email;
+                if (!email) throw new Error('Could not load your account email. Please try again.');
+                const t = await (await fetch('includes/csrf.php?action=get_token')).json();
+                const body = new FormData();
+                body.append('action', 'request');
+                body.append('email', email);
+                body.append('csrf_token', t.token);
+                const res = await fetch('api/password_reset.php', { method: 'POST', body });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Could not send the link.');
+                this.showToast(`Check ${email} for a link to set your password.`, 'success');
+                linkBtn.textContent = 'Link sent';
+            } catch (error) {
+                this.showToast('Error: ' + error.message, 'error');
+                linkBtn.disabled = false;
+            }
+        });
     }
 
     /**
@@ -716,6 +744,10 @@ class SettingsManager {
         });
         this.applyLegibility(settings.legibility ?? 100);
 
+
+        // Google sign-ups have no password they know: offer an emailed set-password link
+        const googleNote = this.modal.querySelector('#google-password-note');
+        if (googleNote) googleNote.hidden = !settings.google_linked;
 
         // Read-only fields
         const createdAt = this.modal.querySelector('#settings-created-at');
