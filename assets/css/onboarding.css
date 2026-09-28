@@ -1,0 +1,229 @@
+/* =============================================================
+   Onboarding — built on tm-tokens.css + tm-ds.css (.ds-auth layout).
+   Tokens only: every colour here resolves to a --ds-* / brand token,
+   so both themes come from tm-tokens.css. --tm-good/--tm-bad appear
+   only on the quick-check answers, where they mean right and wrong.
+   ============================================================= */
+
+/* The steps need more room than a login form */
+.tm-onb .ds-auth__top,
+.tm-onb .ds-auth__stage,
+.tm-onb .ds-auth__card { max-width: 520px; }
+
+/* On phones the scene is a banner above the form; keep it short so each
+   step's question is still in the first screenful. */
+@media (max-width: 959px) {
+  .tm-onb .ds-auth__visual { height: 150px; }
+}
+
+.onb-card { gap: 24px; }
+
+/* A section that sets display must still honour [hidden] */
+.onb-step { display: grid; gap: 22px; }
+.onb-step[hidden],
+.onb-branch[hidden],
+.onb-group[hidden],
+.onb-result[hidden],
+.onb-quiz[hidden],
+.ds-field[hidden] { display: none; }
+
+.onb-branch { display: grid; gap: 22px; }
+
+.onb-head { display: grid; gap: 6px; }
+.onb-head p { margin: 0; }
+.onb-title {
+  margin: 0;
+  font: 700 clamp(1.6rem, 4vw, 2.1rem)/1.1 var(--ds-font-display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+/* Headings take focus programmatically on each step change (for screen
+   readers); they aren't controls, so no focus ring. */
+.onb-title:focus, .onb-quiz__q:focus { outline: none; }
+
+/* ---------- Progress: five stones ---------- */
+.onb-progress { display: grid; gap: 8px; }
+.onb-progress[hidden] { display: none; }
+.onb-progress__label {
+  margin: 0;
+  font: 600 0.9rem var(--ds-font-display);
+  color: var(--ds-accent-ink);
+}
+.onb-progress__bar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.onb-progress__bar li {
+  height: 6px;
+  border-radius: 6px;
+  background: var(--ds-tint);
+  transition: background-color 0.3s var(--ds-ease);
+}
+.onb-progress__bar li.is-done { background: var(--primary); }
+.onb-progress__bar li.is-now { background: var(--primary-light); }
+
+/* ---------- Groups ---------- */
+.onb-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+.onb-group legend { padding: 0; margin-bottom: 10px; }
+
+/* Input + Add button: grid with a 0-min track so the input never
+   forces its intrinsic width past a phone screen. */
+.onb-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.onb-add .ds-input { width: 100%; min-width: 0; }
+
+/* ---------- Tags (added subjects, interests) ---------- */
+.onb-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.onb-tags:empty { display: none; }
+.onb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px 5px 12px;
+  border-radius: var(--ds-r-sm);
+  background: var(--ds-tint);
+  color: var(--ds-accent-ink);
+  font-weight: 500;
+  font-size: 0.925rem;
+}
+.onb-tag button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.onb-tag button:hover { background: var(--ds-surface); }
+.onb-tag .ds-i { width: 14px; height: 14px; }
+
+/* ---------- Navigation ---------- */
+.onb-nav { display: flex; gap: 10px; }
+.onb-nav .ds-btn--primary,
+.onb-nav .ds-btn--cta { flex: 1; }
+
+.onb-skip {
+  justify-self: center;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--ds-r-sm);
+  background: transparent;
+  color: var(--ds-ink-2);
+  font: 500 0.925rem var(--ds-font-body);
+  cursor: pointer;
+}
+.onb-skip:hover { color: var(--ds-accent-ink); text-decoration: underline; }
+.onb-skip[hidden] { display: none; }
+
+/* ---------- Quick check (same language as the in-chat check widget) ---------- */
+.onb-quiz { display: grid; gap: 14px; }
+.onb-quiz__count {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ds-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.onb-quiz__q {
+  margin: 0;
+  font: 600 1.2rem/1.3 var(--ds-font-display);
+  text-wrap: balance;
+}
+.onb-quiz__opts { display: grid; gap: 10px; }
+.onb-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 500 1rem var(--ds-font-body);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--ds-line);
+  transition: transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease), border-color 0.15s;
+}
+.onb-opt:hover:not(:disabled) { border-color: var(--primary-light); }
+.onb-opt:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--ds-line); }
+.onb-opt:disabled { cursor: default; }
+.onb-opt .ds-i { visibility: hidden; }
+.onb-opt.is-correct { border-color: var(--tm-good); background: var(--tm-good-bg); box-shadow: 0 3px 0 var(--tm-good); }
+.onb-opt.is-correct .ds-i { visibility: visible; color: var(--tm-good); }
+.onb-opt.is-wrong { border-color: var(--tm-bad); background: var(--tm-bad-bg); box-shadow: 0 3px 0 var(--tm-bad); }
+.onb-opt.is-wrong .ds-i { visibility: visible; color: var(--tm-bad); }
+.onb-quiz__feedback { margin: 0; min-height: 1.6em; color: var(--ds-ink-2); font-size: 0.95rem; }
+
+.onb-result {
+  display: grid;
+  gap: 6px;
+  padding: 20px;
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-tint);
+}
+.onb-result p { margin: 0; }
+.onb-result__level {
+  font: 700 1.9rem/1.1 var(--ds-font-display);
+  color: var(--ds-accent-ink);
+}
+
+/* ---------- Ready: starter questions ---------- */
+.onb-starters { display: grid; gap: 8px; }
+.onb-starter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 500 0.975rem/1.35 var(--ds-font-body);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--ds-line);
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.12s var(--ds-ease), transform 0.12s var(--ds-ease);
+}
+.onb-starter:hover { border-color: var(--primary-light); }
+.onb-starter:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ds-line); }
+.onb-starter[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: var(--ds-tint);
+  box-shadow: 0 2px 0 var(--primary);
+}
+.onb-starter .ds-i { color: var(--ds-accent-ink); }
+
+.onb-prompt {
+  resize: vertical;
+  min-height: 3.2em;
+  line-height: 1.45;
+}

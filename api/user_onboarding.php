@@ -44,14 +44,19 @@ if ($edu === 'college' || $edu === 'university' || $edu === 'University') {
     ]);
     $field_of_study = implode(' — ', $parts) ?: null;
 } elseif ($edu === 'high' || $edu === 'shs' || $edu === 'Secondary') {
+    $humanize = fn($s) => ucwords(str_replace('-', ' ', $s)); // 'general-science' → 'General Science'
     $parts = array_filter([
-        isset($input['shsProgram']) && is_string($input['shsProgram']) ? $input['shsProgram'] : null,
-        !empty($input['shsElectives']) ? implode(', ', (array)$input['shsElectives']) : null,
+        isset($input['shsProgram']) && is_string($input['shsProgram']) ? 'SHS ' . $humanize($input['shsProgram']) : null,
+        !empty($input['shsElectives']) ? implode(', ', array_map($humanize, array_filter((array)$input['shsElectives'], 'is_string'))) : null,
     ]);
     $field_of_study = implode(': ', $parts) ?: null;
 } else {
+    // Subject keys ('computer-science') read as names in the prompt ('Computer Science');
+    // anything specific the learner typed (customSubjects) is part of their field too.
     $primary = isset($input['primarySubject']) && is_string($input['primarySubject']) ? $input['primarySubject'] : null;
-    $others  = !empty($input['subjects']) ? implode(', ', array_filter(array_map(fn($s) => is_string($s) ? $s : null, (array)$input['subjects']))) : null;
+    $named   = array_map(fn($s) => ucwords(str_replace('-', ' ', $s)), array_filter((array)($input['subjects'] ?? []), 'is_string'));
+    $custom  = array_filter((array)($input['customSubjects'] ?? []), 'is_string');
+    $others  = implode(', ', array_merge($named, $custom));
     $field_of_study = $primary ?: $others ?: null;
 }
 if ($field_of_study) {
@@ -69,6 +74,8 @@ $edu_level_map = [
     'university' => 'University',
     'graduate'   => 'Graduate',
     'professional' => 'Professional',
+    'adult'      => 'Professional', // onboarding's "Working or adult learner"
+    'other'      => 'Other',
 ];
 $education_level  = $edu !== null ? ($edu_level_map[strtolower($edu)] ?? null) : null;
 if ($education_level === 'University' && ($input['enrollmentStatus'] ?? null) === 'graduated') {
@@ -89,6 +96,13 @@ if (isset($input['interests']) && is_array($input['interests'])) {
     $cleanInterests = array_slice(array_values(array_filter(array_map('trim', array_map('strval', $input['interests'])))), 0, 20);
     $interests = json_encode($cleanInterests);
 }
+
+// Response depth lives in response_style — the column the tutor prompt and
+// Settings → Personalization both read (explanation_style is legacy, unread).
+$response_style = in_array($input['responseStyle'] ?? null, ['concise', 'detailed'], true) ? $input['responseStyle'] : null;
+
+$valid_goals = ['homework_help', 'exam_prep', 'concept_mastery', 'get_ahead', 'catch_up', 'general_learning'];
+$learning_goal = in_array($input['learningGoal'] ?? null, $valid_goals, true) ? $input['learningGoal'] : null;
 
 try {
     $pdo = getDbConnection();
@@ -124,6 +138,7 @@ try {
         if ($country)          { $fields[] = 'country = ?';          $params[] = $country; }
         if ($primary_language) { $fields[] = 'primary_language = ?'; $params[] = $primary_language; }
         if ($interests)        { $fields[] = 'interests = ?';        $params[] = $interests; }
+        if ($response_style)   { $fields[] = 'response_style = ?';   $params[] = $response_style; }
 
         if (!empty($fields)) {
             $params[] = $user_id;
@@ -149,9 +164,9 @@ try {
             }
         }
 
-        if (!empty($input['learningGoal']) && is_string($input['learningGoal'])) {
+        if ($learning_goal) {
             $fields[] = 'learning_goal = ?';
-            $params[] = $input['learningGoal'];
+            $params[] = $learning_goal;
         }
 
         if (isset($input['assessmentResults']) && is_array($input['assessmentResults'])) {

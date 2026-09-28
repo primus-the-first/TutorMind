@@ -3524,6 +3524,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (questionInput) questionInput.addEventListener('input', syncPillHasText);
     syncPillHasText();
 
+    // Onboarding hands over the first question the learner picked. Prefill it,
+    // never auto-send, so they can edit it before asking.
+    try {
+        const firstPrompt = sessionStorage.getItem('tm_first_prompt');
+        if (firstPrompt) {
+            sessionStorage.removeItem('tm_first_prompt');
+            if (questionInput && !conversationIdInput.value) {
+                questionInput.value = firstPrompt;
+                syncPillHasText();
+                questionInput.focus();
+                questionInput.setSelectionRange(firstPrompt.length, firstPrompt.length);
+            }
+        }
+    } catch (e) { /* storage blocked — chat just opens empty */ }
+
     // --------------------------------------------------------
     // Pomodoro Timer + Active Recall Quiz
     // --------------------------------------------------------

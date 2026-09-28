@@ -26,7 +26,7 @@ const STRICT = process.argv.includes('--strict');
 // dedicated bundle — this only checks pairs listed here, not the whole repo,
 // to keep false positives low.
 const PAIRS = [
-    { php: 'onboarding.php', js: ['assets/js/onboarding-bundle.js'] },
+    { php: 'onboarding.php', js: ['assets/js/onboarding-flow.js'] },
     { php: 'onboarding-new.php', js: ['assets/js/onboarding-bundle.js'] },
     { php: 'tutor_mysql.php', js: ['assets/js/tutor_mysql.js', 'assets/js/tm-widgets.js'] },
 ];

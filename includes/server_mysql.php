@@ -791,7 +791,7 @@ try {
     }
 
     // Fetch user personalization data for AI context
-    $stmt = $pdo->prepare("SELECT country, primary_language, education_level, field_of_study, knowledge_level, interests, response_style FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT country, primary_language, education_level, field_of_study, knowledge_level, interests, response_style, learning_goal FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $user_profile = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -799,7 +799,7 @@ try {
     $personalization_context = "";
 
     // Only add profile context if user has profile data
-    $hasProfile = $user_profile && ($user_profile['country'] || $user_profile['education_level'] || $user_profile['field_of_study'] || $user_profile['primary_language'] || $user_profile['knowledge_level'] || $user_profile['interests']);
+    $hasProfile = $user_profile && ($user_profile['country'] || $user_profile['education_level'] || $user_profile['field_of_study'] || $user_profile['primary_language'] || $user_profile['knowledge_level'] || $user_profile['interests'] || $user_profile['learning_goal']);
 
     if ($hasProfile) {
         // CRITICAL: Add instruction to use personalization subtly
@@ -859,6 +859,21 @@ EOT;
             ];
             $personalization_context .= "- Prior knowledge level (from onboarding assessment): **{$kl}**\n";
             $personalization_context .= "  → {$kl_instructions[$kl]}\n";
+        }
+        // Standing goal from onboarding. A goal picked for this chat (quick start,
+        // "Current Session Goal" below) is more specific and wins over it.
+        $lg_instructions = [
+            'homework_help'    => "They mostly bring specific assignments. Guide them to their own answer one step at a time; don't hand over finished solutions.",
+            'exam_prep'        => "They are preparing for exams. Once an idea lands, follow up with an exam-style question and point out the mistakes examiners commonly see.",
+            'concept_mastery'  => "They want deep understanding. Go after the why, connect new ideas to ones they already hold, and don't settle for a memorised procedure.",
+            'catch_up'         => "They are filling gaps in things they feel they should already know. Check prerequisites before building on them, and never make them feel behind.",
+            'get_ahead'        => "They want to learn beyond their current level. Stretching past the syllabus is welcome; show where a topic leads next.",
+            'general_learning' => "They are learning out of curiosity. Follow their tangents and favour the interesting over the examinable.",
+        ];
+        $lg = $user_profile['learning_goal'] ?? null;
+        if ($lg && isset($lg_instructions[$lg])) {
+            $personalization_context .= "- Overall learning goal: **" . str_replace('_', ' ', $lg) . "**\n";
+            $personalization_context .= "  → {$lg_instructions[$lg]} If this chat has its own session goal, that one takes priority.\n";
         }
         if (!empty($user_profile['interests'])) {
             $interestsList = json_decode($user_profile['interests'], true);

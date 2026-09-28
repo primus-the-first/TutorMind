@@ -1,4 +1,8 @@
 <?php
+// Onboarding — 2026-09 design system (tm-ds.css/js), same layout as register:
+// the keystone arch on the stage keeps building from where register left off.
+// Five steps, and every question asked here reaches the tutor's prompt.
+
 // Force HTTPS redirect (skip on localhost for development)
 $isLocalhost = in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1', '::1']);
 if (!$isLocalhost && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] !== 'on')) {
@@ -26,15 +30,18 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 $update_mode = false;
 $existing_profile = null;
 $user_dark_mode = false;
+// Seeds for answers Settings may already hold, so onboarding never overwrites them with defaults
+$saved_prefs = ['country' => null, 'responseStyle' => null];
 if ($user_id) {
     try {
         $pdo = getDbConnection();
-        $stmt = $pdo->prepare("SELECT onboarding_completed, dark_mode, interests, profile_data FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT onboarding_completed, dark_mode, interests, profile_data, country, response_style FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user) {
             $user_dark_mode = (bool)($user['dark_mode'] ?? false);
+            $saved_prefs = ['country' => $user['country'] ?: null, 'responseStyle' => $user['response_style'] ?: null];
             if ($user['onboarding_completed']) {
                 // NULL interests means the user never submitted an interests payload;
                 // any valid JSON array (including []) means they did submit one.
@@ -53,680 +60,290 @@ if ($user_id) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to TutorMind - Interactive Setup</title>
+    <title>Set up your tutor — TutorMind</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
     <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
 
-    <!-- Fonts: landing.css asks for Funnel Display (--font-heading) and Inter (--font-body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Logo Styles -->
-    <link rel="stylesheet" href="assets/css/logo.css?v=<?= time() ?>">
-
-    <!-- Main Design System -->
-    <link rel="stylesheet" href="assets/css/landing.css?v=<?= time() ?>">
-
-    <!-- Wizard Styles -->
-    <link rel="stylesheet" href="assets/css/onboarding-wizard.css?v=<?= time() ?>">
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/tm-tokens.css?v=<?= filemtime('assets/css/tm-tokens.css') ?>">
+    <link rel="stylesheet" href="assets/css/tm-ds.css?v=<?= filemtime('assets/css/tm-ds.css') ?>">
+    <link rel="stylesheet" href="assets/css/onboarding.css?v=<?= filemtime('assets/css/onboarding.css') ?>">
 
     <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
     <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
 </head>
-<body class="<?= $user_dark_mode ? 'dark-mode' : '' ?>">
-    <!-- Unified Theme Script -->
+<body class="ds-page tm-onb<?= $user_dark_mode ? ' dark-mode' : '' ?>">
+    <!-- Unified Theme Script (same fallbacks as register.php) -->
     <script>
-        (function() {
-            const isDark = localStorage.getItem('tutormind-theme') === 'dark' || localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark';
-            // Only add the class if it's not already there from SSR
-            if (isDark && !document.body.classList.contains('dark-mode')) {
-                document.body.classList.add('dark-mode');
-            }
+        (function () {
+            var theme = null, isDark = null;
+            try {
+                theme = localStorage.getItem('tutormind-theme');
+                if (theme) isDark = theme === 'dark';
+                else if (localStorage.getItem('darkMode') === 'enabled' || localStorage.getItem('theme') === 'dark') isDark = true;
+            } catch (e) {}
+            if (isDark !== null) document.body.classList.toggle('dark-mode', isDark);
         })();
     </script>
 
     <!-- Boot loader: shown for at least 2 full animation cycles, extended to
-         cover real page-load time if that takes longer. -->
+         cover real page-load time if that takes longer (same as chat/dashboard). -->
     <script>
-        (function() {
+        (function () {
             var bootStart = Date.now();
             if (typeof TmLoader === 'undefined') return;
             TmLoader.showFullscreen('Loading TutorMind…');
-            window.addEventListener('load', function() {
+            window.addEventListener('load', function () {
                 var minDuration = 2 * TmLoader.FULL_CYCLE_MS;
                 var remaining = Math.max(0, minDuration - (Date.now() - bootStart));
-                setTimeout(function() { TmLoader.hide(); }, remaining);
+                setTimeout(function () { TmLoader.hide(); }, remaining);
             });
         })();
     </script>
 
-    <div id="onboarding-container">
-        <!-- Progress Bar -->
-        <div class="wizard-progress">
-            <div class="wizard-progress-text">
-                <h2>Let's Get Started, <?= htmlspecialchars($displayName) ?>! 👋</h2>
+    <div class="ds-auth">
+        <!-- Scene: register laid the first stones; each step here lays the next
+             pair, and the amber keystone drops when the learner starts. -->
+        <aside class="ds-auth__stage" aria-hidden="true">
+            <a href="index" class="ds-logo" tabindex="-1"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+            <div class="ds-auth__intro">
+                <p class="ds-auth__headline">Finish your<br><span class="ds-accent">bridge.</span></p>
+                <p class="ds-lede">Five quick steps. Each one lays a stone, and your tutor learns a little more about how to teach you.</p>
             </div>
-            <div class="wizard-progress-bar-container">
-                <div id="wizard-progress-bar" style="width: 11%;"></div>
+            <div class="ds-auth__visual" data-ds-scene="keystone">
+                <div class="ds-hero__fallback"><img src="assets/logo-bridge.svg" alt=""></div>
             </div>
-        </div>
-        
-        <!-- Screens Container -->
-        <div class="screens-wrapper">
-            <!-- ==================== SCREEN 1: WELCOME ==================== -->
-            <div class="screen active" id="screen1">
-                <div class="gradient-bg"></div>
-                
-                <h1>Your Personal AI Tutor, Ready 24/7</h1>
-                <p class="subtitle">Get instant help, step-by-step explanations, and practice tailored to your needs</p>
-                
-                <div class="hero-icons">
-                    <div class="hero-icon hero-icon--gold" style="--tilt: -6deg;">
-                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="9" y="38" width="46" height="9" rx="2" transform="rotate(-2 32 42)" fill="var(--hero-accent)" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linejoin="round"/>
-                            <path d="M12 37c1-11 0-20-1-25 6-3 15-3 20 1 5-4 15-4 20-1-1 6-2 15 0 25" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M31 13v24" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linecap="round"/>
-                            <path d="M17 18c3-1 6-1 9 0M17 24c3-1 6-1 9 0M38 18c3-1 6-1 9 0M38 24c3-1 6-1 9 0" stroke="var(--primary-ink)" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <div class="hero-icon hero-icon--purple" style="--tilt: 4deg;">
-                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M26 12c-8-1-14 4-14 11-4 2-5 9-1 12-2 5 2 10 7 10 1 4 6 6 10 4 4 3 10 1 11-3 5 0 8-5 6-9 4-3 3-10-2-12 1-7-5-13-12-12-1-2-3-1-5-1z" fill="var(--hero-accent)" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linejoin="round"/>
-                            <path d="M27 20c-3 0-6 2-6 6M32 18v24M38 21c3 0 5 3 5 6-3 1-4 4-2 7" stroke="var(--primary-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M48 14l2 3 3 1-3 2-1 3-2-3-3-1z" fill="var(--primary-ink)"/>
-                        </svg>
-                    </div>
-                    <div class="hero-icon hero-icon--gold" style="--tilt: -3deg;">
-                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="30" cy="32" r="19" stroke="var(--primary-ink)" stroke-width="2.5"/>
-                            <circle cx="30" cy="32" r="12" fill="var(--hero-accent)" stroke="var(--primary-ink)" stroke-width="2.5"/>
-                            <circle cx="30" cy="32" r="4" fill="var(--primary-ink)"/>
-                            <path d="M40 14l14-6-6 14-6-2z" fill="var(--primary-ink)" stroke="var(--primary-ink)" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
-                    <div class="hero-icon hero-icon--purple" style="--tilt: 6deg;">
-                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M32 8c8 4 12 14 11 26-3 2-8 3-11 3s-8-1-11-3c-1-12 3-22 11-26z" fill="var(--hero-accent)" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linejoin="round"/>
-                            <circle cx="32" cy="24" r="4.5" fill="var(--paper-bg)" stroke="var(--primary-ink)" stroke-width="2.2"/>
-                            <path d="M21 30c-5 2-7 7-7 13 5-1 9-3 11-7M43 30c5 2 7 7 7 13-5-1-9-3-11-7" stroke="var(--primary-ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M27 37l-3 12 5-3M37 37l3 12-5-3" stroke="var(--primary-ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
-                </div>
-                
-                <button id="get-started-btn" class="btn btn-primary btn-large">
-                    Get Started <i class="fas fa-arrow-right"></i>
-                </button>
+        </aside>
+
+        <main class="ds-auth__main">
+            <div class="ds-auth__top">
+                <a href="index" class="ds-logo ds-auth__mobile-logo"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
+                <button class="ds-icon-btn" type="button" data-ds-theme aria-label="Dark mode"><svg class="ds-i"><use href="#i-moon"/></svg></button>
             </div>
-            
-            <!-- ==================== SCREEN 2: EDUCATION ==================== -->
-            <div class="screen" id="screen2">
-                <h2>What's your current education level?</h2>
-                <p class="subtitle">This helps us align with your curriculum and difficulty level.</p>
-                
-                <!-- Education Level Cards -->
-                <div class="education-grid">
-                    <!-- High School -->
-                    <div class="education-card" data-level="high">
-                        <div class="education-icon">🎓</div>
-                        <h3>High School</h3>
-                        <p>Grades 9-12</p>
-                    </div>
-                    
-                    <!-- College -->
-                    <div class="education-card" data-level="college">
-                        <div class="education-icon">🏛️</div>
-                        <h3>College/University</h3>
-                        <p>Undergraduate & Graduate</p>
-                    </div>
-                    
-                    <!-- Adult Learner -->
-                    <div class="education-card" data-level="adult">
-                        <div class="education-icon">👔</div>
-                        <h3>Adult Learner</h3>
-                        <p>Professional Development</p>
-                    </div>
-                    
-                    <!-- Other -->
-                    <div class="education-card" data-level="other">
-                        <div class="education-icon">🌍</div>
-                        <h3>Other</h3>
-                        <p>Custom / Homeschool</p>
-                    </div>
+
+            <div class="ds-auth__card onb-card" id="onb-card">
+                <div class="onb-progress" id="onb-progress">
+                    <p class="onb-progress__label" id="onb-progress-label">Step 1 of 5</p>
+                    <ol class="onb-progress__bar" aria-hidden="true">
+                        <li></li><li></li><li></li><li></li><li></li>
+                    </ol>
                 </div>
 
-                <!-- Enrollment Status (College/University only) -->
-                <div id="enrollment-status-toggle" class="enrollment-toggle hidden" style="margin-top: 2rem;">
-                    <button type="button" class="enrollment-btn" data-status="enrolled">Currently Enrolled</button>
-                    <button type="button" class="enrollment-btn" data-status="graduated">Graduated</button>
-                </div>
+                <!-- ============ 1. About you ============ -->
+                <section class="onb-step" data-step="1" aria-labelledby="s1-title">
+                    <header class="onb-head">
+                        <h1 class="onb-title" id="s1-title">Hi <?= htmlspecialchars($displayName) ?>, let’s set up your tutor</h1>
+                        <p class="ds-muted">You can change any of this later in Settings.</p>
+                    </header>
 
-                <!-- School/University Input -->
-                <div id="school-input-container" class="school-input-wrapper hidden" style="margin-top: 2rem;">
-                    <label id="school-input-label" for="school-name-input" style="display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-weight: 500;">School or University Name</label>
-                    <div class="input-with-icon" style="position: relative;">
-                        <input type="text" id="school-name-input" placeholder="Start typing..." style="width: 100%; padding: 1rem; border-radius: 12px; border: 2px solid var(--border-color); font-size: 1rem;">
-                    </div>
-                    <datalist id="university-list">
-                        <!-- Populated via JS -->
-                    </datalist>
-                </div>
-                
-                <!-- Error Message -->
-                <p class="error-message" id="screen2-error">Please select your education level to continue.</p>
-                
-                <!-- Navigation -->
-                <div class="screen-navigation">
-                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </button>
-                    <button class="btn btn-primary" id="screen2-next-btn" onclick="wizard.saveEducationAndNext()">
-                        Continue <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- ==================== SCREEN 3: SUBJECTS ==================== -->
-            <div class="screen" id="screen3">
-                <h2>Which subjects do you want help with?</h2>
-                <p class="subtitle">Don't worry, you can add or change these anytime.</p>
-                
-                <!-- Search Bar -->
-                <div class="subject-search-container">
-                    <i class="fas fa-search"></i>
-                    <input type="search" id="subject-search" placeholder="Search subjects..." class="subject-search-input">
-                </div>
-                
-                <!-- Subject Grid -->
-                <div class="subject-grid" id="subject-grid">
-                    <!-- Mathematics -->
-                    <div class="subject-card" data-subject="mathematics">
-                        <div class="subject-card-header">
-                            <div class="subject-icon">🧮</div>
-                            <h3>Mathematics</h3>
-                            <div class="checkmark hidden"><i class="fas fa-check-circle"></i></div>
+                    <fieldset class="onb-group">
+                        <legend class="ds-label">Where are you in your studies?</legend>
+                        <div class="ds-chip-row" data-single="educationLevel">
+                            <button type="button" class="ds-chip" data-value="high" aria-pressed="false">High school (SHS)</button>
+                            <button type="button" class="ds-chip" data-value="college" aria-pressed="false">University</button>
+                            <button type="button" class="ds-chip" data-value="adult" aria-pressed="false">Working or adult learner</button>
+                            <button type="button" class="ds-chip" data-value="other" aria-pressed="false">Something else</button>
                         </div>
-                        <div class="subcategories hidden">
-                            <label><input type="checkbox" value="arithmetic" data-parent="mathematics"> Arithmetic</label>
-                            <label><input type="checkbox" value="algebra" data-parent="mathematics"> Algebra</label>
-                            <label><input type="checkbox" value="geometry" data-parent="mathematics"> Geometry</label>
-                            <label><input type="checkbox" value="calculus" data-parent="mathematics"> Calculus</label>
-                            <label><input type="checkbox" value="statistics" data-parent="mathematics"> Statistics</label>
-                            <label><input type="checkbox" value="trigonometry" data-parent="mathematics"> Trigonometry</label>
+                    </fieldset>
+
+                    <fieldset class="onb-group" id="enrollment-group" hidden>
+                        <legend class="ds-label">At university, are you…</legend>
+                        <div class="ds-chip-row" data-single="enrollmentStatus">
+                            <button type="button" class="ds-chip" data-value="enrolled" aria-pressed="false">Studying now</button>
+                            <button type="button" class="ds-chip" data-value="graduated" aria-pressed="false">Graduated</button>
                         </div>
-                    </div>
-                    
-                    <!-- Science -->
-                    <div class="subject-card" data-subject="science">
-                        <div class="subject-card-header">
-                            <div class="subject-icon">🔬</div>
-                            <h3>Science</h3>
-                            <div class="checkmark hidden"><i class="fas fa-check-circle"></i></div>
-                        </div>
-                        <div class="subcategories hidden">
-                            <label><input type="checkbox" value="physics" data-parent="science"> Physics</label>
-                            <label><input type="checkbox" value="chemistry" data-parent="science"> Chemistry</label>
-                            <label><input type="checkbox" value="biology" data-parent="science"> Biology</label>
-                            <label><input type="checkbox" value="earth-science" data-parent="science"> Earth Science</label>
-                            <label><input type="checkbox" value="environmental" data-parent="science"> Environmental Science</label>
-                        </div>
-                    </div>
-                    
-                    <!-- Languages -->
-                    <div class="subject-card" data-subject="languages">
-                        <div class="subject-card-header">
-                            <div class="subject-icon">📖</div>
-                            <h3>Languages</h3>
-                            <div class="checkmark hidden"><i class="fas fa-check-circle"></i></div>
-                        </div>
-                        <div class="subcategories hidden">
-                            <label><input type="checkbox" value="english" data-parent="languages"> English</label>
-                            <label><input type="checkbox" value="spanish" data-parent="languages"> Spanish</label>
-                            <label><input type="checkbox" value="french" data-parent="languages"> French</label>
-                            <label><input type="checkbox" value="grammar" data-parent="languages"> Grammar</label>
-                            <label><input type="checkbox" value="writing" data-parent="languages"> Essay Writing</label>
-                            <label><input type="checkbox" value="literature" data-parent="languages"> Literature</label>
-                        </div>
-                    </div>
-                    
-                    <!-- Computer Science -->
-                    <div class="subject-card" data-subject="computer-science">
-                        <div class="subject-card-header">
-                            <div class="subject-icon">💻</div>
-                            <h3>Computer Science</h3>
-                            <div class="checkmark hidden"><i class="fas fa-check-circle"></i></div>
-                        </div>
-                        <div class="subcategories hidden">
-                            <label><input type="checkbox" value="programming" data-parent="computer-science"> Programming</label>
-                            <label><input type="checkbox" value="data-structures" data-parent="computer-science"> Data Structures</label>
-                            <label><input type="checkbox" value="web-dev" data-parent="computer-science"> Web Development</label>
-                            <label><input type="checkbox" value="algorithms" data-parent="computer-science"> Algorithms</label>
-                            <label><input type="checkbox" value="databases" data-parent="computer-science"> Databases</label>
-                        </div>
-                    </div>
-                    
-                    <!-- Social Studies -->
-                    <div class="subject-card" data-subject="social-studies">
-                        <div class="subject-card-header">
-                            <div class="subject-icon">📊</div>
-                            <h3>Social Studies</h3>
-                            <div class="checkmark hidden"><i class="fas fa-check-circle"></i></div>
-                        </div>
-                        <div class="subcategories hidden">
-                            <label><input type="checkbox" value="history" data-parent="social-studies"> History</label>
-                            <label><input type="checkbox" value="geography" data-parent="social-studies"> Geography</label>
-                            <label><input type="checkbox" value="economics" data-parent="social-studies"> Economics</label>
-                            <label><input type="checkbox" value="civics" data-parent="social-studies"> Civics</label>
-                            <label><input type="checkbox" value="psychology" data-parent="social-studies"> Psychology</label>
-                        </div>
-                    </div>
-                    
-                    <!--Other -->
-                    <div class="subject-card" data-subject="other">
-                        <div class="subject-card-header">
-                            <div class="subject-icon">🎨</div>
-                            <h3>Other</h3>
-                            <div class="checkmark hidden"><i class="fas fa-check-circle"></i></div>
-                        </div>
-                        <div class="subcategories hidden">
-                            <label><input type="checkbox" value="arts" data-parent="other"> Arts</label>
-                            <label><input type="checkbox" value="music" data-parent="other"> Music Theory</label>
-                            <label><input type="checkbox" value="sat-act" data-parent="other"> SAT/ACT Prep</label>
-                            <label><input type="checkbox" value="test-prep" data-parent="other"> Test Preparation</label>
-                            <label><input type="checkbox" value="study-skills" data-parent="other"> Study Skills</label>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- ==================== GHANA SHS PROGRAM SELECTOR (High School) ==================== -->
-                <div id="shs-program-selector" class="shs-program-selector hidden">
-                    <!-- Info Banner -->
-                    <div class="info-banner">
-                        <i class="fas fa-info-circle"></i>
-                        <p><strong>You're not limited to your program!</strong> While we'll suggest topics from your subjects, you can ask questions about anything - even outside your program.</p>
+                    </fieldset>
+
+                    <div class="ds-field" id="school-field" hidden>
+                        <label for="school-input" class="ds-label" id="school-label">Your school</label>
+                        <input type="text" id="school-input" class="ds-input" autocomplete="organization" placeholder="Optional">
+                        <datalist id="university-list"></datalist>
                     </div>
 
-                    <!-- Program Selection Grid -->
-                    <div id="shs-program-grid" class="shs-grid">
-                        <!-- Programs populated via JS -->
+                    <div class="ds-field">
+                        <label for="country-input" class="ds-label">Which country are you studying in?</label>
+                        <input type="text" id="country-input" class="ds-input" list="country-list" autocomplete="country-name" placeholder="e.g. Ghana">
+                        <datalist id="country-list"></datalist>
+                        <p class="ds-field__hint">Your tutor uses it for local examples, currency and spelling.</p>
                     </div>
 
-                    <!-- Selected Program Detail View (Initially Hidden) -->
-                    <div id="shs-program-detail" class="shs-program-detail hidden">
-                        <div class="shs-detail-header">
-                            <button class="shs-change-btn" id="shs-change-program-btn">
-                                <i class="fas fa-arrow-left"></i> Change Program
-                            </button>
-                            <div class="shs-program-title">
-                                <div id="shs-selected-icon" class="shs-icon-wrapper"></div>
-                                <div>
-                                    <h2 id="shs-selected-name">Program Name</h2>
-                                    <p id="shs-selected-desc">Description</p>
-                                </div>
+                    <p class="ds-field__error" id="err-1" role="alert"></p>
+                    <div class="onb-nav">
+                        <button type="button" class="ds-btn ds-btn--primary ds-btn--block" data-next>Continue <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    </div>
+                </section>
+
+                <!-- ============ 2. Subjects ============ -->
+                <section class="onb-step" data-step="2" aria-labelledby="s2-title" hidden>
+                    <header class="onb-head">
+                        <h1 class="onb-title" id="s2-title">What are you studying?</h1>
+                        <p class="ds-muted" id="s2-sub">Pick what you’d like help with. You can ask about anything else too.</p>
+                    </header>
+
+                    <!-- SHS: programme, then its electives -->
+                    <div class="onb-branch" data-branch="high" hidden>
+                        <fieldset class="onb-group">
+                            <legend class="ds-label">Your programme</legend>
+                            <div class="ds-chip-row" id="shs-programs"></div>
+                        </fieldset>
+                        <fieldset class="onb-group" id="shs-electives-group" hidden>
+                            <legend class="ds-label">Your electives</legend>
+                            <div class="ds-chip-row" id="shs-electives"></div>
+                            <p class="ds-field__hint">Everyone also takes English, Core Maths, Integrated Science and Social Studies. Ask about those anytime.</p>
+                        </fieldset>
+                    </div>
+
+                    <!-- University: programme + free-text subjects -->
+                    <div class="onb-branch" data-branch="college" hidden>
+                        <div class="ds-field">
+                            <label for="uni-program" class="ds-label">Your programme</label>
+                            <input type="text" id="uni-program" class="ds-input" placeholder="e.g. BSc Computer Science (optional)">
+                        </div>
+                        <div class="ds-field">
+                            <label for="uni-subject" class="ds-label" id="uni-subject-label">Courses you want help with</label>
+                            <div class="onb-add">
+                                <input type="text" id="uni-subject" class="ds-input" placeholder="e.g. Calculus II">
+                                <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-add="uni-subject">Add</button>
                             </div>
+                            <ul class="onb-tags" data-tags="customSubjects" aria-label="Courses added"></ul>
                         </div>
+                    </div>
 
-                        <!-- Core Subjects -->
-                        <div class="shs-core-subjects">
-                            <h4 class="shs-section-title">Core Subjects <span class="shs-section-subtitle">(All students take these)</span></h4>
-                            <div class="core-grid">
-                                <div class="core-item"><div class="check-circle"><i class="fas fa-check"></i></div> English Language</div>
-                                <div class="core-item"><div class="check-circle"><i class="fas fa-check"></i></div> Mathematics (Core)</div>
-                                <div class="core-item"><div class="check-circle"><i class="fas fa-check"></i></div> Integrated Science</div>
-                                <div class="core-item"><div class="check-circle"><i class="fas fa-check"></i></div> Social Studies</div>
+                    <!-- Everyone else: broad subjects + anything specific -->
+                    <div class="onb-branch" data-branch="general" hidden>
+                        <fieldset class="onb-group">
+                            <legend class="ds-label">Subjects</legend>
+                            <div class="ds-chip-row" data-multi="subjects">
+                                <button type="button" class="ds-chip" data-value="mathematics" aria-pressed="false">Mathematics</button>
+                                <button type="button" class="ds-chip" data-value="science" aria-pressed="false">Science</button>
+                                <button type="button" class="ds-chip" data-value="languages" aria-pressed="false">Languages and writing</button>
+                                <button type="button" class="ds-chip" data-value="computer-science" aria-pressed="false">Computer science</button>
+                                <button type="button" class="ds-chip" data-value="social-studies" aria-pressed="false">Social studies</button>
+                                <button type="button" class="ds-chip" data-value="business" aria-pressed="false">Business and finance</button>
                             </div>
-                        </div>
-
-                        <!-- Electives -->
-                        <div class="shs-electives">
-                            <h4 class="shs-section-title">Which elective subjects are you taking?</h4>
-                            <div id="shs-electives-grid" class="electives-grid">
-                                <!-- Populated via JS -->
+                        </fieldset>
+                        <div class="ds-field">
+                            <label for="gen-subject" class="ds-label">Anything more specific?</label>
+                            <div class="onb-add">
+                                <input type="text" id="gen-subject" class="ds-input" placeholder="e.g. Excel, IELTS, Statistics">
+                                <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-add="gen-subject">Add</button>
                             </div>
+                            <ul class="onb-tags" data-tags="customSubjects" aria-label="Topics added"></ul>
                         </div>
                     </div>
-                </div>
 
-                <!-- ==================== UNIVERSITY CUSTOM FORM ==================== -->
-                <div id="university-custom-form" class="university-custom-form hidden">
-                    <label>School/University Name:</label>
-                    <input type="text" id="uni-school-name" readonly style="background: var(--bg-secondary); cursor: not-allowed;">
-
-                    <label>Your Program/Course:</label>
-                    <input type="text" id="uni-program-input" placeholder="e.g., BSc Computer Science, BA Economics">
-
-                    <label>Which subjects do you need help with?</label>
-                    <div class="uni-subject-input-group">
-                        <input type="text" id="uni-subject-entry" placeholder="e.g., Calculus II">
-                        <button type="button" id="add-uni-subject-btn" class="btn-icon-only"><i class="fas fa-plus"></i></button>
+                    <p class="ds-field__error" id="err-2" role="alert"></p>
+                    <div class="onb-nav">
+                        <button type="button" class="ds-btn ds-btn--tertiary" data-back>Back</button>
+                        <button type="button" class="ds-btn ds-btn--primary" data-next>Continue <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
                     </div>
-                    
-                    <div id="uni-subjects-list" class="uni-tags-container">
-                        <!-- Tags populated via JS -->
+                </section>
+
+                <!-- ============ 3. Goal and you ============ -->
+                <section class="onb-step" data-step="3" aria-labelledby="s3-title" hidden>
+                    <header class="onb-head">
+                        <h1 class="onb-title" id="s3-title">What do you want from your tutor?</h1>
+                        <p class="ds-muted" id="s3-sub">This shapes how your tutor starts each conversation.</p>
+                    </header>
+
+                    <fieldset class="onb-group">
+                        <legend class="ds-label">Mostly, I want help with…</legend>
+                        <div class="ds-chip-row" data-single="learningGoal">
+                            <button type="button" class="ds-chip" data-value="homework_help" aria-pressed="false">Homework</button>
+                            <button type="button" class="ds-chip" data-value="exam_prep" aria-pressed="false">Exam prep</button>
+                            <button type="button" class="ds-chip" data-value="concept_mastery" aria-pressed="false">Understanding topics deeply</button>
+                            <button type="button" class="ds-chip" data-value="catch_up" aria-pressed="false">Catching up</button>
+                            <button type="button" class="ds-chip" data-value="get_ahead" aria-pressed="false">Getting ahead</button>
+                            <button type="button" class="ds-chip" data-value="general_learning" aria-pressed="false">Learning for fun</button>
+                        </div>
+                    </fieldset>
+
+                    <div class="ds-field">
+                        <label for="interest-input" class="ds-label">What are you into?</label>
+                        <div class="onb-add">
+                            <input type="text" id="interest-input" class="ds-input" placeholder="e.g. football, cooking, Minecraft">
+                            <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-add="interest-input">Add</button>
+                        </div>
+                        <p class="ds-field__hint">Hobbies, sports, games, your job. Your tutor builds examples around them. Optional.</p>
+                        <ul class="onb-tags" data-tags="interests" aria-label="Interests added"></ul>
                     </div>
-                    
-                    <p class="helper-text">Don't worry, you can add more subjects later!</p>
-                </div>
-                
-                <!-- Primary Subject Selection (appears when multiple subjects selected) -->
-                <div class="primary-subject-selector hidden" id="primary-subject-selector">
-                    <p class="primary-subject-question">Which subject would you like to start with?</p>
-                    <div class="primary-subject-buttons" id="primary-subject-buttons"></div>
-                </div>
-                
-                <!-- No Selection Message -->
-                <p class="error-message" id="screen3-error">Please select at least one subject to continue.</p>
-                
-                <!-- Navigation -->
-                <div class="screen-navigation">
-                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </button>
-                    <button class="btn btn-primary" id="subjects-continue-btn" onclick="wizard.saveSubjectsAndNext()">
-                        Continue <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
+
+                    <fieldset class="onb-group">
+                        <legend class="ds-label">How much explanation do you like?</legend>
+                        <div class="ds-chip-row" data-single="responseStyle">
+                            <button type="button" class="ds-chip" data-value="concise" aria-pressed="false">Short and to the point</button>
+                            <button type="button" class="ds-chip" data-value="detailed" aria-pressed="false">Fuller, with worked examples</button>
+                        </div>
+                    </fieldset>
+
+                    <p class="ds-field__error" id="err-3" role="alert"></p>
+                    <div class="onb-nav">
+                        <button type="button" class="ds-btn ds-btn--tertiary" data-back>Back</button>
+                        <button type="button" class="ds-btn ds-btn--primary" data-next id="s3-next">Continue <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    </div>
+                </section>
+
+                <!-- ============ 4. Quick check ============ -->
+                <section class="onb-step" data-step="4" aria-labelledby="s4-title" hidden>
+                    <header class="onb-head">
+                        <h1 class="onb-title" id="s4-title">A quick check</h1>
+                        <p class="ds-muted" id="s4-sub">Three questions so your tutor knows where to start. It isn’t graded.</p>
+                    </header>
+
+                    <div class="onb-quiz" id="quiz">
+                        <p class="onb-quiz__count" id="quiz-count">Question 1 of 3</p>
+                        <p class="onb-quiz__q" id="quiz-q"></p>
+                        <div class="onb-quiz__opts" id="quiz-opts" role="group" aria-labelledby="quiz-q"></div>
+                        <p class="onb-quiz__feedback" id="quiz-feedback" aria-live="polite"></p>
+                    </div>
+
+                    <div class="onb-result" id="quiz-result" hidden>
+                        <p class="ds-label">Your tutor will start at</p>
+                        <p class="onb-result__level" id="result-level"></p>
+                        <p class="ds-muted" id="result-msg"></p>
+                    </div>
+
+                    <div class="onb-nav">
+                        <button type="button" class="ds-btn ds-btn--tertiary" data-back>Back</button>
+                        <button type="button" class="ds-btn ds-btn--primary" id="quiz-next" disabled>Next question <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    </div>
+                    <button type="button" class="onb-skip" id="quiz-skip">Skip the check</button>
+                </section>
+
+                <!-- ============ 5. Ready ============ -->
+                <section class="onb-step" data-step="5" aria-labelledby="s5-title" hidden>
+                    <header class="onb-head">
+                        <h1 class="onb-title" id="s5-title">Your tutor is ready</h1>
+                        <p class="ds-muted" id="recap"></p>
+                    </header>
+
+                    <fieldset class="onb-group">
+                        <legend class="ds-label">Pick a first question, or write your own</legend>
+                        <div class="onb-starters" id="starters"></div>
+                    </fieldset>
+                    <div class="ds-field">
+                        <label for="first-prompt" class="ds-visually-hidden">Your first question</label>
+                        <textarea id="first-prompt" class="ds-input onb-prompt" rows="2" placeholder="Ask anything about what you’re studying"></textarea>
+                    </div>
+
+                    <div class="ds-alert" id="save-error" role="alert" hidden>
+                        <svg class="ds-i"><use href="#i-alert"/></svg><span></span>
+                    </div>
+                    <div class="onb-nav">
+                        <button type="button" class="ds-btn ds-btn--tertiary" data-back>Back</button>
+                        <button type="button" class="ds-btn ds-btn--cta" id="finish-btn">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
+                    </div>
+                </section>
             </div>
-            
-            <!-- ==================== SCREEN 4: GOALS ==================== -->
-            <div class="screen" id="screen4">
-                <h2>What brings you here today?</h2>
-                <p class="subtitle">Choose your main learning goal so we can personalize your experience.</p>
-                
-                <!-- Goal Cards Grid -->
-                <div class="goal-grid">
-                    <!-- Homework Help -->
-                    <div class="goal-card" data-goal="homework_help">
-                        <div class="goal-icon">📚</div>
-                        <h3>Homework Help</h3>
-                        <p>I need help with specific assignments</p>
-                    </div>
-                    
-                    <!-- Exam Preparation -->
-                    <div class="goal-card" data-goal="exam_prep">
-                        <div class="goal-icon">🎯</div>
-                        <h3>Exam Preparation</h3>
-                        <p>I'm studying for a test or exam</p>
-                    </div>
-                    
-                    <!-- Concept Mastery -->
-                    <div class="goal-card" data-goal="concept_mastery">
-                        <div class="goal-icon">💡</div>
-                        <h3>Concept Mastery</h3>
-                        <p>I want to deeply understand topics</p>
-                    </div>
-                    
-                    <!-- Get Ahead -->
-                    <div class="goal-card" data-goal="get_ahead">
-                        <div class="goal-icon">🚀</div>
-                        <h3>Get Ahead</h3>
-                        <p>I want to learn beyond my current grade</p>
-                    </div>
-                    
-                    <!-- Catch Up -->
-                    <div class="goal-card" data-goal="catch_up">
-                        <div class="goal-icon">🔄</div>
-                        <h3>Catch Up</h3>
-                        <p>I'm struggling with topics I should already know</p>
-                    </div>
-                    
-                    <!-- General Learning -->
-                    <div class="goal-card" data-goal="general_learning">
-                        <div class="goal-icon">🌟</div>
-                        <h3>General Learning</h3>
-                        <p>I'm curious and want to explore</p>
-                    </div>
-                </div>
-                
-                <!-- Error Message -->
-                <p class="error-message" id="screen4-error">Please select a goal to continue.</p>
-                
-                <!-- Navigation -->
-                <div class="screen-navigation">
-                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </button>
-                    <button class="btn btn-primary" id="goals-continue-btn" onclick="wizard.saveGoalAndNext()">
-                        Continue <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- ==================== SCREEN 5: ASSESSMENT ==================== -->
-            <div class="screen" id="screen5">
-                <!-- Loading State (Initial) -->
-                <div id="assessment-loading" class="text-center">
-                    <div class="ai-spinner"></div>
-                    <h3 class="mt-4">Analyzing your profile...</h3>
-                    <p class="text-muted">AI is generating a personalized skills check based on your goals.</p>
-                </div>
-
-                <!-- Assessment Content (Hidden Initially) -->
-                <div id="assessment-content" class="hidden">
-                    <div class="assessment-header">
-                        <span class="badge-pill">Skills Check</span>
-                        <span class="question-tracker">Question <span id="current-q-num">1</span> of <span id="total-q-num">5</span></span>
-                    </div>
-
-                    <div class="question-card">
-                        <h3 id="question-text">Question text goes here?</h3>
-                        
-                        <div class="options-grid" id="options-container">
-                            <!-- Options injected by JS -->
-                        </div>
-                    </div>
-
-                    <!-- Navigation -->
-                    <div class="screen-navigation">
-                        <button class="btn btn-secondary" onclick="wizard.previousScreen()">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button class="btn btn-primary disabled" id="assessment-continue-btn" onclick="wizard.nextQuestionOnly()">
-                            Next Question <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
-                    
-                    <button class="btn-text mt-2" onclick="wizard.skipAssessment()">
-                        Skip assessment for now
-                    </button>
-                </div>
-            </div>
-            
-            <!-- ==================== SCREEN 6: PREFERENCES ==================== -->
-            <div class="screen" id="screen6">
-                <h2>How do you learn best?</h2>
-                <p class="subtitle">Customize your learning environment to fit your style.</p>
-                
-                <div class="preferences-container">
-                    <!-- Section A: Schedule -->
-                    <div class="preference-section">
-                        <h4>📅 When do you usually study?</h4>
-                        <div class="options-row">
-                            <button class="preference-btn schedule-option" data-value="weekdays">Weekdays</button>
-                            <button class="preference-btn schedule-option" data-value="weekends">Weekends</button>
-                            <button class="preference-btn schedule-option" data-value="daily">Daily</button>
-                            <button class="preference-btn schedule-option" data-value="flexible">Flexible / Whenever</button>
-                        </div>
-                    </div>
-
-                    <!-- Section B: Duration -->
-                    <div class="preference-section">
-                        <h4>⏱️ Preferred Session Length</h4>
-                        <div class="options-row">
-                            <button class="preference-btn duration-option" data-value="15m">15 mins</button>
-                            <button class="preference-btn duration-option" data-value="30m">30 mins</button>
-                            <button class="preference-btn duration-option" data-value="45m">45 mins</button>
-                            <button class="preference-btn duration-option" data-value="60m+">60+ mins</button>
-                        </div>
-                    </div>
-
-                    <!-- Section C: Style -->
-                    <div class="preference-section">
-                        <h4>🤔 Preferred Explanation Style</h4>
-                        <div class="style-grid">
-                            <div class="style-card" data-value="simple">
-                                <div class="style-icon">💡</div>
-                                <h3 class="summary-key">Simple & Direct</h3>
-                                <p>Get straight to the point.</p>
-                            </div>
-                            <div class="style-card" data-value="detailed">
-                                <div class="style-icon">📖</div>
-                                <h3 class="summary-key">Detailed & In-depth</h3>
-                                <p>Explain the 'why' and 'how'.</p>
-                            </div>
-                            <div class="style-card" data-value="socratic">
-                                <div class="style-icon">❓</div>
-                                <h3 class="summary-key">Socratic</h3>
-                                <p>Guide me with questions.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section D: Interests -->
-                    <div class="preference-section">
-                        <h4>🎯 What do you already know or enjoy?</h4>
-                        <p class="helper-text">Hobbies, games, sports, your job — anything. We'll use these to make new ideas click faster. (Optional)</p>
-                        <div class="uni-subject-input-group">
-                            <input type="text" id="interests-entry" placeholder="e.g., basketball, cooking, Minecraft">
-                            <button type="button" id="add-interest-btn" class="btn-icon-only"><i class="fas fa-plus"></i></button>
-                        </div>
-                        <div id="interests-list" class="uni-tags-container"></div>
-                    </div>
-                </div>
-
-                <!-- Error Message -->
-                <p class="error-message" id="preferences-error">Please select an option for each category.</p>
-
-                <!-- Navigation -->
-                <div class="screen-navigation">
-                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </button>
-                    <button class="btn btn-primary disabled" id="preferences-continue-btn" onclick="wizard.savePreferencesAndNext()">
-                        Continue <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- ==================== SCREEN 7: NOTIFICATIONS ==================== -->
-            <div class="screen" id="screen7">
-                <h2>Stay on track with reminders</h2>
-                <p class="subtitle">Building a habit is easier with a nudge. We won't spam you.</p>
-                
-                <div class="notifications-wrapper">
-                    <!-- Master Toggle -->
-                    <button id="notification-toggle" class="notification-toggle-btn active">
-                        <i class="fas fa-bell"></i>
-                        <span>Reminders Enabled</span>
-                        <div class="toggle-switch"></div>
-                    </button>
-                    
-                    <!-- Settings Container -->
-                    <div id="notification-settings-container" class="mt-4">
-                        <div class="notification-card">
-                            <div class="setting-row">
-                                <label>Frequency</label>
-                                <div class="frequency-selector">
-                                    <button class="frequency-option selected" data-value="daily">Daily</button>
-                                    <button class="frequency-option" data-value="weekdays">Weekdays</button>
-                                    <button class="frequency-option" data-value="weekends">Weekends</button>
-                                </div>
-                            </div>
-                            
-                            <div class="setting-row">
-                                <label>Time</label>
-                                <div class="time-picker-wrapper">
-                                    <input type="time" id="notification-time" value="17:00">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="notification-preview">
-                            <div class="mini-notification">
-                                <div class="notif-icon">🤖</div>
-                                <div class="notif-content">
-                                    <div class="notif-title">TutorMind</div>
-                                    <div class="notif-body">Time for your daily session! Ready to solve some problems? 🚀</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Navigation -->
-                <div class="screen-navigation">
-                    <button class="btn btn-secondary" onclick="wizard.previousScreen()">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </button>
-                    <button class="btn btn-primary" id="notifications-continue-btn">
-                        Continue <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-                
-                <button id="notifications-skip-btn" class="btn-text mt-2">
-                    Maybe later
-                </button>
-            </div>
-            
-            <!-- ==================== SCREEN 8: FIRST LESSON ==================== -->
-            <div class="screen" id="screen8">
-                <h2>Let's solve your first problem together!</h2>
-                <p class="subtitle">Experience how TutorMind works in real-time.</p>
-                
-                <div class="lesson-interface-container">
-                    <div class="lesson-window">
-                        <!-- Chat Area -->
-                        <div id="lesson-chat-container" class="lesson-chat-area">
-                            <!-- Messages injected by JS -->
-                        </div>
-                        
-                        <!-- Interaction Area -->
-                        <div class="lesson-input-area">
-                            <div id="lesson-options" class="lesson-options-grid hidden">
-                                <!-- Options injected by JS -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Navigation (Initially Hidden) -->
-                <div class="screen-navigation centered-nav">
-                   <button class="btn btn-primary hidden" id="lesson-continue-btn" onclick="wizard.finishLessonAndNext()">
-                        Continue to Summary <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- ==================== SCREEN 9: SUMMARY ==================== -->
-            <div class="screen" id="screen9">
-                <h2>You're all set! 🎉</h2>
-                <p class="subtitle">We've personalized TutorMind just for you.</p>
-                
-                <div id="summary-content" class="summary-wrapper">
-                    <!-- Injected by JS -->
-                </div>
-                
-                <div class="completion-actions">
-                    <p class="completion-note">Ready to start learning?</p>
-                    <button class="btn btn-primary btn-large pop-in-delay" onclick="wizard.completeOnboarding()">
-                        Start learning <i class="fas fa-arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
-    
-    <!-- GSAP Animation Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
 
     <!-- Update mode: completed users returning to fill in newly added fields.
          Their saved profile is preloaded so re-saving doesn't wipe earlier answers. -->
@@ -734,6 +351,7 @@ if ($user_id) {
         window.TUTORMIND_UPDATE_MODE = <?= json_encode($update_mode) ?>;
         // Scopes the saved wizard progress so a shared browser never restores another account's answers
         window.TUTORMIND_USER_ID = <?= json_encode($user_id) ?>;
+        window.TUTORMIND_SAVED_PREFS = <?= json_encode($saved_prefs, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         <?php
             // Re-encode profile_data with HTML-safe flags so sequences like
             // </script> in user-supplied values cannot terminate this element.
@@ -748,7 +366,10 @@ if ($user_id) {
         window.TUTORMIND_EXISTING_PROFILE = <?= $safe_profile !== null ? $safe_profile : 'null' ?>;
     </script>
 
-    <!-- Consolidated Wizard Logic and Animations -->
-    <script src="assets/js/onboarding-bundle.js?v=<?= time() ?>"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+    <script src="assets/js/tm-ds.js?v=<?= filemtime('assets/js/tm-ds.js') ?>"></script>
+    <!-- After tm-ds.js: its DOMContentLoaded boot attaches host.tmScene first -->
+    <script src="assets/js/onboarding-data.js?v=<?= filemtime('assets/js/onboarding-data.js') ?>"></script>
+    <script src="assets/js/onboarding-flow.js?v=<?= filemtime('assets/js/onboarding-flow.js') ?>"></script>
 </body>
 </html>
