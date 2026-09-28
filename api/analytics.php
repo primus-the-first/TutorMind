@@ -171,9 +171,10 @@ try {
     $stmt->execute([$user_id]);
     $studyDates = $stmt->fetchAll(PDO::FETCH_COLUMN);
     // Consecutive days ending today — or yesterday, since a streak survives until today is over.
-    // "Today" comes from MySQL so it matches DATE(created_at) (PHP and MySQL time zones differ).
+    // "Today"/"now" come from MySQL so they match DATE(created_at) (PHP and MySQL time zones differ).
+    [$dbToday, $dbNow] = $pdo->query("SELECT CURDATE(), NOW()")->fetch(PDO::FETCH_NUM);
     $currentStreak = 0;
-    $expected = new DateTime($pdo->query("SELECT CURDATE()")->fetchColumn());
+    $expected = new DateTime($dbToday);
     if (!empty($studyDates) && $studyDates[0] !== $expected->format('Y-m-d')) {
         $expected->modify('-1 day');
     }
@@ -344,6 +345,125 @@ try {
     ];
 
     // -------------------------------------------------------------------------
+    // 12. "Right now" view: continue, recent, subjects, review, streak, recall.
+    //     Not period-filtered. Topic = context_data.topic (the tutor's detected
+    //     topic), never words from the title. Milestones are marked done when the
+    //     tutor's reply covers them, so they mean "covered", not "mastered".
+    // -------------------------------------------------------------------------
+    $stmt = $pdo->prepare("
+        SELECT id, title, context_data, COALESCE(updated_at, created_at) AS updated_at
+        FROM conversations
+        WHERE user_id = ?
+        ORDER BY updated_at DESC
+        LIMIT 200
+    ");
+    $stmt->execute([$user_id]);
+    $convs = array_map(function ($c) {
+        $cd = !empty($c['context_data']) ? json_decode($c['context_data'], true) : null;
+        $ms = is_array($cd['outline']['milestones'] ?? null) ? $cd['outline']['milestones'] : [];
+        $next = null;
+        foreach ($ms as $m) {
+            if (empty($m['completed'])) { $next = $m['title'] ?? null; break; }
+        }
+        $topic = trim((string)($cd['topic'] ?? ''));
+        return [
+            'id'              => (int)$c['id'],
+            'title'           => $c['title'] ?: 'Untitled session',
+            'topic'           => $topic !== '' ? ucwords($topic) : null,
+            'updatedAt'       => $c['updated_at'],
+            'milestonesDone'  => count(array_filter($ms, fn($m) => !empty($m['completed']))),
+            'milestonesTotal' => count($ms),
+            'nextMilestone'   => $next,
+        ];
+    }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    $convById = array_column($convs, null, 'id');
+    $unfinished = fn($c) => $c['milestonesTotal'] === 0 || $c['milestonesDone'] < $c['milestonesTotal'];
+
+    // Pick up where you left off: the newest unfinished session among the last 10.
+    $continue = null;
+    foreach (array_slice($convs, 0, 10) as $c) {
+        if ($unfinished($c)) { $continue = $c; break; }
+    }
+    $continue = $continue ?? ($convs[0] ?? null);
+    $recent = array_slice(array_values(array_filter($convs, fn($c) => $c['id'] !== ($continue['id'] ?? null))), 0, 3);
+
+    // Subjects, most recent first. The newest session on a topic carries its current outline.
+    $subjects = [];
+    foreach ($convs as $c) {
+        if (!$c['topic']) continue;
+        $key = strtolower($c['topic']);
+        if (!isset($subjects[$key])) {
+            $subjects[$key] = [
+                'topic' => $c['topic'], 'conversationId' => $c['id'], 'sessions' => 0,
+                'milestonesDone' => $c['milestonesDone'], 'milestonesTotal' => $c['milestonesTotal'],
+                'lastStudied' => $c['updatedAt'],
+            ];
+        }
+        $subjects[$key]['sessions']++;
+    }
+    $subjects = array_values($subjects);
+
+    // Worth another look: missed quiz questions (last 14 days), then subjects gone quiet (7+ days).
+    // The client drops ones this browser already retried and shows the first three.
+    $stmt = $pdo->prepare("
+        SELECT id, conversation_id, question, score, answered_at
+        FROM recall_quizzes
+        WHERE user_id = ? AND answered_at IS NOT NULL AND score < 0.7
+          AND answered_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY answered_at DESC
+        LIMIT 20
+    ");
+    $stmt->execute([$user_id]);
+    $review = [];
+    $seenQuestions = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $q) {
+        $k = strtolower(trim($q['question']));
+        if (isset($seenQuestions[$k])) continue;
+        $seenQuestions[$k] = true;
+        // Null when its conversation is gone (deleted) — the client then opens a fresh chat.
+        $conv = $convById[(int)$q['conversation_id']] ?? null;
+        $review[] = [
+            'kind' => 'quiz', 'quizId' => (int)$q['id'],
+            'conversationId' => $conv['id'] ?? null,
+            'topic' => $conv['topic'] ?? null, 'question' => $q['question'],
+            'score' => (int)round($q['score'] * 100), 'answeredAt' => $q['answered_at'],
+        ];
+        if (count($review) >= 5) break;
+    }
+    $quiet = array_filter($subjects, fn($s) =>
+        (strtotime($dbNow) - strtotime($s['lastStudied'])) >= 7 * 86400
+        && ($s['milestonesTotal'] === 0 || $s['milestonesDone'] < $s['milestonesTotal']));
+    foreach (array_slice($quiet, 0, 2) as $s) {
+        $review[] = ['kind' => 'quiet'] + $s;
+    }
+
+    // Last 7 days, oldest first; today is null until studied (it is still "open").
+    $studied = array_flip($studyDates);
+    $last7 = [];
+    for ($i = 6; $i >= 0; $i--) {
+        $d = (new DateTime($dbToday))->modify("-$i day")->format('Y-m-d');
+        $last7[] = isset($studied[$d]) ? true : ($i === 0 ? null : false);
+    }
+
+    // How well it sticks: quiz results by question type over the last 90 days, weakest first.
+    $stmt = $pdo->prepare("
+        SELECT question_type, ROUND(AVG(score) * 100) AS avg_score, COUNT(*) AS n
+        FROM recall_quizzes
+        WHERE user_id = ? AND answered_at IS NOT NULL AND answered_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
+        GROUP BY question_type
+        ORDER BY avg_score ASC
+    ");
+    $stmt->execute([$user_id]);
+    $recallLabels = [
+        'free_recall' => 'Explaining from memory', 'application' => 'Applying it to a new problem',
+        'cued' => 'Recalling with a hint', 'recognition' => 'Picking the right answer',
+    ];
+    $recall = array_map(fn($r) => [
+        'type' => $r['question_type'], 'label' => $recallLabels[$r['question_type']] ?? ucfirst($r['question_type']),
+        'avg' => (int)$r['avg_score'], 'count' => (int)$r['n'],
+    ], $stmt->fetchAll(PDO::FETCH_ASSOC));
+
+    // -------------------------------------------------------------------------
     // Response
     // -------------------------------------------------------------------------
     echo json_encode([
@@ -367,6 +487,22 @@ try {
         'subjectProgress' => $subjectProgress,
         'quizStats'       => $quizStats,
         'pomodoroStats'   => $pomodoroStats,
+
+        // Dashboard v2 ("right now" + period summary). The keys above go once v2 ships.
+        'now'      => $dbNow,
+        'summary'  => [
+            'sessions'      => $totalSessions,
+            'activeDays'    => count($activeDaysSet),
+            'focusMinutes'  => array_sum($pOverTimeMap),   // finished Pomodoros only
+            'pomodorosDone' => $pCompleted,
+            'prev'          => $trends ? ['sessions' => $trends['prevTotalSessions'], 'activeDays' => $trends['prevActiveDays']] : null,
+        ],
+        'continue' => $continue,
+        'recent'   => $recent,
+        'review'   => $review,
+        'streak'   => ['days' => $currentStreak, 'studiedToday' => isset($studied[$dbToday]), 'last7' => $last7],
+        'subjects' => array_slice($subjects, 0, 9),
+        'recall'   => $recall,
     ]);
 
 } catch (Exception $e) {

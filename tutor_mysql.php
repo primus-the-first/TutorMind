@@ -765,7 +765,8 @@ function tm_goal_icon($paths) {
     <script src="assets/js/quick-start.js?v=<?= filemtime('assets/js/quick-start.js') ?>"></script>
     <script src="assets/js/tm-widgets.js?v=<?= filemtime('assets/js/tm-widgets.js') ?>"></script>
     <script src="assets/js/tutor_mysql.js?v=<?= filemtime('assets/js/tutor_mysql.js') ?>"></script>
-    
+    <script src="assets/js/review-handoff.js?v=<?= filemtime('assets/js/review-handoff.js') ?>"></script>
+
     <!-- Initialize Highlight.js -->
     <script>
         if (typeof hljs !== 'undefined') {
