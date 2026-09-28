@@ -502,12 +502,6 @@
         bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-input-bar-height) + env(safe-area-inset-bottom, 0px) + 16px);
     }
 
-    /* --- Section: Dialog box --- */
-    .tm-dialog-box {
-        width: calc(100vw - 32px);
-        max-width: 400px;
-    }
-
     /* --- Section: Pomodoro compact --- */
     .pomodoro-widget {
         margin-right: 0.5rem;
@@ -643,10 +637,7 @@
         .bottom-nav-item span {
             display: none;
         }
-        
-        .tm-dialog-box {
-            width: calc(100vw - 24px);
-        }
+
         .recall-modal-content {
             width: calc(100vw - 24px);
             max-width: none;

@@ -22,6 +22,10 @@ body.dark-mode {
   --border: var(--ds-line);
   --shadow-sm: var(--ds-lift);
   --shadow-md: var(--ds-lift-hi);
+  /* Used to come only from settings.css's old :root palette (recall
+     modals, mobile header in ui-overhaul.css read them) */
+  --card-bg: var(--ds-surface);
+  --border-color: var(--ds-line);
   --chat-fade-color: var(--ds-canvas);
   background: var(--ds-canvas);
   color: var(--ds-ink);
@@ -850,3 +854,81 @@ body .bottom-nav-item { font-size: 0.6rem; }
 /* Voice button: no hover zoom (the old rule scaled it to 1.05) */
 body .input-pill-row .voice-mode-trigger-btn:hover,
 body.dark-mode .input-pill-row .voice-mode-trigger-btn:hover { transform: none; box-shadow: none; }
+
+/* ---------- 9. Dialogs (TmDialog — tm-dialog.js) ----------
+   Took over from ui-overhaul.css's "brutalist" dialog (ink borders,
+   offset shadows, a different icon hue per type); those rules were
+   deleted. Same language as the Settings modal: surface card, display
+   title, .ds-btn buttons. Destructive = red border + edge, ink text
+   (--tm-bad text on white fails AA). */
+.tm-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(22, 18, 31, 0.45);
+  animation: tmOverlayIn 0.15s ease; /* tm-dialog.js reverses this on close */
+}
+body.dark-mode .tm-dialog-overlay { background: rgba(0, 0, 0, 0.6); }
+@keyframes tmOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+.tm-dialog-box {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px 24px 20px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-xl);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font-family: var(--ds-font-body);
+  box-shadow: var(--ds-lift-hi);
+  animation: tmBoxIn 0.2s var(--ds-ease);
+}
+@keyframes tmBoxIn { from { opacity: 0; transform: translateY(8px); } }
+.tm-dialog-title {
+  margin: 0 0 8px;
+  font: 700 1.2rem/1.2 var(--ds-font-display);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
+}
+.tm-dialog-message { margin: 0 0 20px; color: var(--ds-ink-2); font-size: 0.95rem; line-height: 1.55; }
+.tm-dialog-field { display: grid; gap: 8px; margin: -6px 0 20px; font-weight: 600; font-size: 0.95rem; }
+.tm-dialog-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 400 1rem var(--ds-font-body);
+  box-shadow: 0 3px 0 var(--ds-line);
+}
+.tm-dialog-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 3px 0 var(--primary-light); }
+.tm-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.tm-dialog-btn {
+  --edge-color: transparent;
+  padding: 10px 18px;
+  border: 2px solid transparent;
+  border-radius: var(--ds-r-md);
+  font: 600 0.95rem/1.1 var(--ds-font-body);
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--edge-color);
+  transition: transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease), background-color 0.15s, color 0.15s;
+}
+.tm-dialog-btn-confirm:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--edge-color); }
+.tm-dialog-btn-confirm:active { transform: translateY(3px); box-shadow: 0 0 0 var(--edge-color); }
+.tm-dialog-btn-cancel { background: var(--ds-tint); color: var(--ds-ink); }
+.tm-dialog-btn-cancel:hover { color: var(--ds-accent-ink); }
+.tm-dialog-btn-confirm { background: var(--primary); color: #fff; --edge-color: var(--primary-dark); }
+.tm-dialog-btn-confirm:hover { background: var(--primary-dark); }
+body.dark-mode .tm-dialog-btn-confirm { --edge-color: #3b1580; }
+.tm-dialog-btn-confirm.destructive { background: var(--ds-surface); color: var(--ds-ink); border-color: var(--tm-bad); --edge-color: var(--tm-bad); }
+.tm-dialog-btn-confirm.destructive:hover { background: var(--tm-bad-bg); }
+.tm-dialog-btn:disabled,
+.tm-dialog-btn:disabled:hover { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: 0 3px 0 var(--edge-color); }
+@media (max-width: 480px) {
+  .tm-dialog-box { padding: 20px 18px 18px; }
+  .tm-dialog-actions .tm-dialog-btn { flex: 1 1 0; }
+}

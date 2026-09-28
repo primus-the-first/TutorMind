@@ -1,6 +1,6 @@
 /**
  * TutorMind Custom Dialog System
- * Replaces browser-native confirm() and alert() with brutalist-styled dialogs.
+ * Replaces browser-native confirm() and alert() with design-system dialogs.
  *
  * Usage:
  *   await TmDialog.confirm({ title, message })           → true / false
@@ -8,25 +8,18 @@
  *   await TmDialog.confirm({ ..., destructive: true })   → red confirm button
  */
 const TmDialog = (() => {
-    const ICONS = {
-        confirm: '<i class="fas fa-circle-question"></i>',
-        alert:   '<i class="fas fa-circle-exclamation"></i>',
-        warning: '<i class="fas fa-triangle-exclamation"></i>',
-        info:    '<i class="fas fa-circle-info"></i>',
-    };
-
-    function _build({ title, message, type = 'confirm', destructive = false, confirmLabel = 'OK', cancelLabel = 'Cancel', showCancel = true }) {
+    // No per-type icon: the old one gave each dialog type its own hue
+    // (styles: tm-chat.css §9). `type` is still accepted for callers.
+    function _build({ title, message, destructive = false, confirmLabel = 'OK', cancelLabel = 'Cancel', showCancel = true }) {
         const overlay = document.createElement('div');
         overlay.className = 'tm-dialog-overlay';
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
 
-        const iconHtml = ICONS[type] || ICONS.info;
         const confirmClass = `tm-dialog-btn tm-dialog-btn-confirm${destructive ? ' destructive' : ''}`;
 
         overlay.innerHTML = `
             <div class="tm-dialog-box">
-                <div class="tm-dialog-icon type-${type}">${iconHtml}</div>
                 <p class="tm-dialog-title">${title}</p>
                 <p class="tm-dialog-message">${message}</p>
                 <div class="tm-dialog-actions">

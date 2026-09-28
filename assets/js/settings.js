@@ -51,18 +51,18 @@ class SettingsManager {
                 <div class="settings-overlay" data-action="close"></div>
                 <div class="settings-container" role="dialog" aria-modal="true" aria-labelledby="settings-title">
                     <header class="settings-header">
-                        <h2 id="settings-title"><i class="fas fa-cog"></i> Settings</h2>
-                        <button class="close-settings" data-action="close" aria-label="Close settings"><i class="fas fa-times"></i></button>
+                        <h2 id="settings-title">Settings</h2>
+                        <button type="button" class="close-settings" data-action="close" aria-label="Close settings"><i class="fas fa-times" aria-hidden="true"></i></button>
                     </header>
-                    
+
                     <div class="settings-body">
-                        <nav class="settings-tabs" aria-label="Settings categories">
-                            <button class="tab-btn active" data-tab="account" role="tab" aria-selected="true"><i class="fas fa-user-circle"></i> Account</button>
-                            <button class="tab-btn" data-tab="personalization" role="tab" aria-selected="false"><i class="fas fa-user-edit"></i> Personalization</button>
-                            <button class="tab-btn" data-tab="security" role="tab" aria-selected="false"><i class="fas fa-shield-alt"></i> Security</button>
-                            <button class="tab-btn" data-tab="notifications" role="tab" aria-selected="false"><i class="fas fa-bell"></i> Notifications</button>
-                            <button class="tab-btn" data-tab="appearance" role="tab" aria-selected="false"><i class="fas fa-palette"></i> Appearance</button>
-                            <button class="tab-btn" data-tab="privacy" role="tab" aria-selected="false"><i class="fas fa-user-secret"></i> Privacy & Data</button>
+                        <nav class="settings-tabs" role="tablist" aria-label="Settings categories">
+                            <button type="button" class="tab-btn active" data-tab="account" role="tab" aria-selected="true">Account</button>
+                            <button type="button" class="tab-btn" data-tab="personalization" role="tab" aria-selected="false">Personalization</button>
+                            <button type="button" class="tab-btn" data-tab="security" role="tab" aria-selected="false">Security</button>
+                            <button type="button" class="tab-btn" data-tab="notifications" role="tab" aria-selected="false">Notifications</button>
+                            <button type="button" class="tab-btn" data-tab="appearance" role="tab" aria-selected="false">Appearance</button>
+                            <button type="button" class="tab-btn" data-tab="privacy" role="tab" aria-selected="false">Privacy and data</button>
                         </nav>
                         
                         <main class="settings-content">
@@ -73,7 +73,7 @@ class SettingsManager {
                     <footer class="settings-footer">
                         <button type="button" class="btn-cancel" data-action="close">Close</button>
                         <button type="button" class="btn-save" id="settings-save-btn" disabled>
-                            <span class="btn-text">Save Changes</span>
+                            <span class="btn-text">Save changes</span>
                             <span class="spinner"></span>
                         </button>
                     </footer>
@@ -93,14 +93,15 @@ class SettingsManager {
         modalElement.querySelector('.settings-content').innerHTML = /*html*/`
             <!-- ACCOUNT PANEL -->
             <div id="tab-account" class="tab-panel active">
-                <h3>Profile Information</h3>
+                <h3>Profile</h3>
+                <p>Your name and how you sign in.</p>
                 <form id="account-form" novalidate>
                     <div class="form-group">
-                        <label for="settings-first-name">First Name</label>
+                        <label for="settings-first-name">First name</label>
                         <input type="text" id="settings-first-name" class="form-control" data-setting="first_name" placeholder="e.g., Jane" autocomplete="given-name">
                     </div>
                     <div class="form-group">
-                        <label for="settings-last-name">Last Name</label>
+                        <label for="settings-last-name">Last name</label>
                         <input type="text" id="settings-last-name" class="form-control" data-setting="last_name" placeholder="e.g., Doe" autocomplete="family-name">
                     </div>
                     <div class="form-group">
@@ -108,12 +109,12 @@ class SettingsManager {
                         <input type="text" id="settings-username" class="form-control" data-setting="username" placeholder="e.g., janedoe">
                     </div>
                     <div class="form-group">
-                        <label for="settings-email">Email Address</label>
+                        <label for="settings-email">Email address</label>
                         <input type="email" id="settings-email" class="form-control" data-setting="email" placeholder="e.g., jane.doe@example.com">
                         <p class="form-error-message" id="email-error">Please enter a valid email.</p>
                     </div>
                     <div class="form-group">
-                        <label for="settings-created-at">Account Created</label>
+                        <label for="settings-created-at">Account created</label>
                         <input type="text" id="settings-created-at" class="form-control" disabled>
                     </div>
                 </form>
@@ -189,24 +190,24 @@ class SettingsManager {
 
             <!-- SECURITY PANEL -->
             <div id="tab-security" class="tab-panel">
-                <h3>Change Password</h3>
-                <p>For your security, we recommend using a long, unique password.</p>
+                <h3>Change password</h3>
+                <p>Use a long password you don't use anywhere else.</p>
                 <form id="password-form" novalidate>
                     <div class="form-group">
-                        <label for="settings-current-password">Current Password</label>
+                        <label for="settings-current-password">Current password</label>
                         <div class="input-group">
                             <input type="password" id="settings-current-password" class="form-control" autocomplete="current-password">
                             <div class="input-group-append">
-                                <button class="btn-icon password-toggle" type="button" aria-label="Toggle password visibility"><i class="fas fa-eye"></i></button>
+                                <button class="btn-icon password-toggle" type="button" aria-label="Show password" aria-pressed="false"><i class="fas fa-eye" aria-hidden="true"></i></button>
                             </div>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="settings-new-password">New Password</label>
+                        <label for="settings-new-password">New password</label>
                         <div class="input-group">
                             <input type="password" id="settings-new-password" class="form-control" autocomplete="new-password">
                              <div class="input-group-append">
-                                <button class="btn-icon password-toggle" type="button" aria-label="Toggle password visibility"><i class="fas fa-eye"></i></button>
+                                <button class="btn-icon password-toggle" type="button" aria-label="Show password" aria-pressed="false"><i class="fas fa-eye" aria-hidden="true"></i></button>
                             </div>
                         </div>
                         <div class="password-strength">
@@ -218,16 +219,16 @@ class SettingsManager {
                         <p class="form-error-message" id="new-password-error">Password must be at least 8 characters.</p>
                     </div>
                     <div class="form-group">
-                        <label for="settings-confirm-password">Confirm New Password</label>
+                        <label for="settings-confirm-password">Confirm new password</label>
                         <div class="input-group">
                             <input type="password" id="settings-confirm-password" class="form-control" autocomplete="new-password">
                              <div class="input-group-append">
-                                <button class="btn-icon password-toggle" type="button" aria-label="Toggle password visibility"><i class="fas fa-eye"></i></button>
+                                <button class="btn-icon password-toggle" type="button" aria-label="Show password" aria-pressed="false"><i class="fas fa-eye" aria-hidden="true"></i></button>
                             </div>
                         </div>
                         <p class="form-error-message" id="confirm-password-error">Passwords do not match.</p>
                     </div>
-                    <button type="submit" class="btn-save" id="change-password-btn">Update Password</button>
+                    <button type="submit" class="btn-save" id="change-password-btn">Update password</button>
                 </form>
             </div>
 
@@ -239,33 +240,33 @@ class SettingsManager {
                      the old study_reminders / email / weekly-summary columns had no sender. -->
                 <div class="toggle-group">
                     <div class="toggle-label">
-                        <h4>Study Reminders</h4>
+                        <h4>Study reminders</h4>
                         <p>Get reminded to study on the schedule you picked during setup.</p>
                     </div>
-                    <label class="switch"><input type="checkbox" data-setting="notifications_enabled"><span class="slider"></span></label>
+                    <label class="switch"><input type="checkbox" role="switch" aria-label="Study reminders" data-setting="notifications_enabled"><span class="slider"></span></label>
                 </div>
                 <div class="toggle-group">
                     <div class="toggle-label">
-                        <h4>Push Notifications</h4>
+                        <h4>Push notifications</h4>
                         <p>Get reminders on this device, even when TutorMind isn't open.</p>
                     </div>
-                    <label class="switch"><input type="checkbox" id="settings-push-toggle"><span class="slider"></span></label>
+                    <label class="switch"><input type="checkbox" role="switch" aria-label="Push notifications" id="settings-push-toggle"><span class="slider"></span></label>
                 </div>
             </div>
 
             <!-- APPEARANCE PANEL -->
             <div id="tab-appearance" class="tab-panel">
-                <h3>Theme & Layout</h3>
-                <p>Customize how TutorMind looks and feels.</p>
+                <h3>Theme and text</h3>
+                <p>How TutorMind looks on this account.</p>
                 <div class="toggle-group">
                     <div class="toggle-label">
-                        <h4>Dark Mode</h4>
-                        <p>Reduces eye strain in low-light environments.</p>
+                        <h4>Dark mode</h4>
+                        <p>Easier on the eyes in low light.</p>
                     </div>
-                    <label class="switch"><input type="checkbox" id="settings-dark-mode" data-setting="dark_mode"><span class="slider"></span></label>
+                    <label class="switch"><input type="checkbox" role="switch" aria-label="Dark mode" id="settings-dark-mode" data-setting="dark_mode"><span class="slider"></span></label>
                 </div>
                 <div class="form-group">
-                    <label>Chat Density</label>
+                    <label>Chat density</label>
                     <div class="option-group" data-setting="chat_density">
                         <button type="button" class="option-btn" data-value="compact">Compact</button>
                         <button type="button" class="option-btn active" data-value="comfortable">Comfortable</button>
@@ -276,7 +277,7 @@ class SettingsManager {
                      did the same job less well, so they're gone and no longer applied. -->
                 <div class="form-group legibility-slider-group">
                     <label for="settings-legibility">
-                        Text Size
+                        Text size
                         <span class="legibility-value" id="legibility-value">100%</span>
                         <button type="button" class="legibility-reset" id="legibility-reset" hidden>Reset</button>
                     </label>
@@ -292,32 +293,28 @@ class SettingsManager {
 
             <!-- PRIVACY PANEL -->
             <div id="tab-privacy" class="tab-panel">
-                <h3>Privacy Settings</h3>
+                <h3>Privacy</h3>
                 <div class="toggle-group">
                     <div class="toggle-label">
                         <h4>Help improve TutorMind</h4>
                         <p>Allow us to use anonymized data to improve our AI.</p>
                     </div>
-                    <label class="switch"><input type="checkbox" data-setting="data_sharing"><span class="slider"></span></label>
+                    <label class="switch"><input type="checkbox" role="switch" aria-label="Help improve TutorMind" data-setting="data_sharing"><span class="slider"></span></label>
                 </div>
 
                 <div class="danger-zone">
-                    <h4>Data Management</h4>
+                    <h4>Your data</h4>
                     <div class="action-item">
                         <div class="action-item-label">
-                            <p>Permanently delete all your conversation history.</p>
+                            <p>Permanently delete all of your conversations.</p>
                         </div>
-                        <button type="button" class="btn-danger" id="clear-history-btn">Clear All History</button>
+                        <button type="button" class="btn-danger" id="clear-history-btn">Clear history</button>
                     </div>
-                </div>
-
-                <div class="danger-zone">
-                    <h4>Account Deletion</h4>
-                     <div class="action-item">
+                    <div class="action-item">
                         <div class="action-item-label">
-                           <p>Permanently delete your account and all associated data.</p>
+                            <p>Permanently delete your account and everything in it.</p>
                         </div>
-                        <button type="button" class="btn-danger" id="delete-account-btn">Delete My Account</button>
+                        <button type="button" class="btn-danger" id="delete-account-btn">Delete account</button>
                     </div>
                 </div>
             </div>
@@ -465,17 +462,15 @@ class SettingsManager {
         const securityTab = this.modal.querySelector('#tab-security');
         
         // Password visibility toggles
+        // (the button sits in .input-group-append, so its input isn't a sibling)
         securityTab.querySelectorAll('.password-toggle').forEach(btn => {
             btn.addEventListener('click', () => {
-                const input = btn.previousElementSibling;
-                const icon = btn.querySelector('i');
-                if (input.type === 'password') {
-                    input.type = 'text';
-                    icon.classList.replace('fa-eye', 'fa-eye-slash');
-                } else {
-                    input.type = 'password';
-                    icon.classList.replace('fa-eye-slash', 'fa-eye');
-                }
+                const input = btn.closest('.input-group').querySelector('input');
+                const show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                btn.setAttribute('aria-pressed', String(show));
+                btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                btn.querySelector('i').classList.replace(show ? 'fa-eye' : 'fa-eye-slash', show ? 'fa-eye-slash' : 'fa-eye');
             });
         });
 
@@ -873,7 +868,9 @@ class SettingsManager {
      */
     updateOptionButtons(group, value) {
         group.querySelectorAll('.option-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.value === value);
+            const on = btn.dataset.value === value;
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', String(on));
         });
     }
 
@@ -939,7 +936,7 @@ class SettingsManager {
             this.showToast('Error: ' + error.message, 'error');
         } finally {
             changeBtn.disabled = false;
-            changeBtn.textContent = 'Update Password';
+            changeBtn.textContent = 'Update password';
         }
     }
     
@@ -1009,6 +1006,8 @@ class SettingsManager {
         const strengthText = this.modal.querySelector('.password-strength-text');
         const strengthBars = this.modal.querySelectorAll('.strength-bar');
         strengthBars.forEach(bar => bar.className = 'strength-bar');
+        // Empty field: empty meter (it used to fall through to "Medium")
+        if (!password) { strengthText.textContent = ''; return; }
 
         let score = 0;
         let text = '';
@@ -1067,7 +1066,7 @@ class SettingsManager {
                 ? TmLoader.inlineHTML()
                 : '<i class="fas fa-spinner fa-spin fa-3x"></i>'; // Fallback if tm-loader.js didn't load
             const svg = spinner.querySelector('svg');
-            if (svg) { svg.style.width = '48px'; svg.style.height = '48px'; svg.style.color = 'var(--primary-color)'; }
+            if (svg) { svg.style.width = '48px'; svg.style.height = '48px'; svg.style.color = 'var(--primary)'; }
             container.appendChild(spinner);
         } else {
             const spinner = container.querySelector('.loading-spinner-overlay');
@@ -1089,6 +1088,8 @@ class SettingsManager {
         this.modal.querySelector('#settings-new-password').value = '';
         this.modal.querySelector('#settings-confirm-password').value = '';
         this.updatePasswordStrength('');
+        // Anything left revealed goes back to hidden
+        this.modal.querySelectorAll('.password-toggle[aria-pressed="true"]').forEach(btn => btn.click());
     }
     
     clearPasswordErrors() {
