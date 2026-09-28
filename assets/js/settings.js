@@ -1,6 +1,9 @@
 // settings.js
 // TutorMind - User Settings Manager
 class SettingsManager {
+    // Same client as login.php / register.php and includes/google_auth.php — keep in sync.
+    static GOOGLE_CLIENT_ID = '1083917773706-gc0f400l24eavps3ckcnj04581gj3plk.apps.googleusercontent.com';
+
     constructor() {
         this.modal = null;
         this.currentTab = 'account';
@@ -493,15 +496,20 @@ class SettingsManager {
      */
     attachPrivacyListeners() {
         this.modal.querySelector('#delete-account-btn').addEventListener('click', async () => {
-            const password = await TmDialog.prompt({
-                title: 'Delete your account?',
-                message: 'This permanently erases your account and all of your chats. Enter your password to confirm.',
-                inputType: 'password',
-                inputLabel: 'Password',
-                destructive: true,
-                confirmLabel: 'Delete account'
-            });
-            if (password) this.deleteAccount(password);
+            // Google sign-ups have a random password they never saw, so they confirm with Google.
+            let proof = this.initialSettings.google_linked ? await this.confirmDeleteWithGoogle() : 'password';
+            if (proof === 'password') {
+                const password = await TmDialog.prompt({
+                    title: 'Delete your account?',
+                    message: 'This permanently erases your account and all of your chats. Enter your password to confirm.',
+                    inputType: 'password',
+                    inputLabel: 'Password',
+                    destructive: true,
+                    confirmLabel: 'Delete account'
+                });
+                proof = password ? { password } : null;
+            }
+            if (proof) this.deleteAccount(proof);
         });
 
         this.modal.querySelector('#clear-history-btn').addEventListener('click', async () => {
@@ -971,17 +979,72 @@ class SettingsManager {
      * Handles the logic for deleting a user's account.
      * @param {string} password The user's current password for confirmation.
      */
-    async deleteAccount(password) {
-        if (!password) {
-            this.showToast('Password is required to delete your account.', 'error');
-            return;
+    /**
+     * Delete-account dialog for Google-linked accounts: Google's own button
+     * (a fresh sign-in the server checks belongs to this account). Resolves to
+     * { google_credential }, 'password' (use the password prompt), or null.
+     */
+    confirmDeleteWithGoogle() {
+        return TmDialog.custom({
+            title: 'Delete your account?',
+            message: 'This permanently erases your account and all of your chats. To confirm it is you, sign in with the Google account you use for TutorMind.',
+            destructive: true,
+            mount: (slot, done) => {
+                slot.innerHTML = `
+                    <div class="tm-google-btn" aria-live="polite"><p class="tm-dialog-note">Loading Google sign-in…</p></div>
+                    <button type="button" class="tm-dialog-link">I have a TutorMind password</button>`;
+                const holder = slot.querySelector('.tm-google-btn');
+                slot.querySelector('.tm-dialog-link').addEventListener('click', () => done('password'));
+                this.loadGoogleIdentity().then(google => {
+                    google.accounts.id.initialize({
+                        client_id: SettingsManager.GOOGLE_CLIENT_ID,
+                        callback: (response) => done({ google_credential: response.credential }),
+                        auto_select: false,
+                        ux_mode: 'popup',
+                        context: 'use'
+                    });
+                    holder.innerHTML = '';
+                    google.accounts.id.renderButton(holder, {
+                        type: 'standard',
+                        theme: document.body.classList.contains('dark-mode') ? 'filled_black' : 'outline',
+                        size: 'large',
+                        text: 'continue_with',
+                        shape: 'rectangular'
+                    });
+                }).catch(() => {
+                    holder.innerHTML = '<p class="tm-dialog-note is-error">Google sign-in could not load. Check your connection or any ad blocker, then try again.</p>';
+                });
+            }
+        });
+    }
+
+    /** Loads Google Identity Services once, on demand (only this dialog needs it). */
+    loadGoogleIdentity() {
+        if (window.google?.accounts?.id) return Promise.resolve(window.google);
+        if (!this.gisPromise) {
+            this.gisPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://accounts.google.com/gsi/client';
+                script.async = true;
+                const timer = setTimeout(() => reject(new Error('Google sign-in timed out')), 10000);
+                script.onload = () => {
+                    clearTimeout(timer);
+                    window.google?.accounts?.id ? resolve(window.google) : reject(new Error('Google sign-in unavailable'));
+                };
+                script.onerror = () => { clearTimeout(timer); reject(new Error('Google sign-in blocked')); };
+                document.head.appendChild(script);
+            }).catch(err => { this.gisPromise = null; throw err; }); // let a later attempt retry
         }
-        
+        return this.gisPromise;
+    }
+
+    /** proof: { password } or { google_credential } — checked by api/delete_account.php */
+    async deleteAccount(proof) {
         try {
             const response = await fetch('api/delete_account.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: password })
+                body: JSON.stringify(proof)
             });
             
             const result = await response.json();

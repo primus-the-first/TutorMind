@@ -906,6 +906,21 @@ body.dark-mode .tm-dialog-overlay { background: rgba(0, 0, 0, 0.6); }
   box-shadow: 0 3px 0 var(--ds-line);
 }
 .tm-dialog-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 3px 0 var(--primary-light); }
+/* TmDialog.custom(): caller-supplied action (e.g. Google re-confirm) */
+.tm-dialog-slot { display: grid; justify-items: start; gap: 12px; margin: -6px 0 20px; min-height: 44px; }
+.tm-dialog-slot[hidden] { display: none; }
+.tm-dialog-note { margin: 0; font-size: 0.875rem; color: var(--ds-ink-2); }
+.tm-dialog-note.is-error { color: var(--ds-ink); }
+.tm-dialog-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ds-accent-ink);
+  font: 600 0.9rem var(--ds-font-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
 .tm-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .tm-dialog-btn {
   --edge-color: transparent;

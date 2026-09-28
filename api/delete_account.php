@@ -18,29 +18,49 @@ $user_id = $_SESSION['user_id'];
 // Get the JSON payload from the request
 $input = json_decode(file_get_contents('php://input'), true);
 
-if (json_last_error() !== JSON_ERROR_NONE || !isset($input['password'])) {
+// Confirm with the password, or — for accounts that sign in with Google (whose
+// password is a random one they never saw) — a fresh Google sign-in.
+$password   = $input['password'] ?? null;
+$credential = $input['google_credential'] ?? null;
+if (json_last_error() !== JSON_ERROR_NONE || (!is_string($password) && !is_string($credential))) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid request. Password is required.']);
+    echo json_encode(['success' => false, 'error' => 'Invalid request. Confirm with your password or with Google.']);
     exit;
 }
 
-$password = $input['password'];
+$deny = function (int $code, string $error) {
+    http_response_code($code);
+    echo json_encode(['success' => false, 'error' => $error]);
+    exit;
+};
 
 try {
     $pdo = getDbConnection();
 
-    // 1. Fetch the user's current password hash
-    $stmt = $pdo->prepare("SELECT password_hash FROM users WHERE id = ?");
+    // 1. Fetch what we can confirm against
+    $stmt = $pdo->prepare("SELECT password_hash, google_id FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$user) $deny(401, 'Account not found.');
 
-    if (!$user || !password_verify($password, $user['password_hash'])) {
-        http_response_code(401); // Unauthorized
-        echo json_encode(['success' => false, 'error' => 'Incorrect password.']);
-        exit;
+    if (is_string($credential)) {
+        require_once '../includes/google_auth.php';
+        try {
+            $google = verifyGoogleIdToken($credential);
+        } catch (RuntimeException $e) {
+            error_log("Account deletion: " . $e->getMessage());
+            $deny(502, 'Could not reach Google to confirm. Please try again.');
+        }
+        if (!$google || empty($user['google_id']) || !hash_equals((string)$user['google_id'], $google['sub'])) {
+            $deny(401, 'That Google account is not the one linked to this TutorMind account.');
+        }
+        // Must be a sign-in made just now for this, not one left over from earlier.
+        if (time() - $google['iat'] > 300) $deny(401, 'That Google confirmation expired. Please try again.');
+    } elseif (!password_verify($password, $user['password_hash'])) {
+        $deny(401, 'Incorrect password.');
     }
 
-    // 2. Password is correct, proceed with deletion
+    // 2. Confirmed, proceed with deletion
     $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
     $stmt->execute([$user_id]);
 

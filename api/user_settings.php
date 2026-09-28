@@ -68,7 +68,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
     try {
         // Prepare and execute the query to get user settings.
         // We also fetch created_at for display purposes.
-        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, interests, country, primary_language FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, interests, country, primary_language, (google_id IS NOT NULL AND google_id <> '') AS google_linked FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $settings = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -81,6 +81,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
             $settings['data_sharing'] = (bool)$settings['data_sharing'];
             $settings['dark_mode'] = (bool)$settings['dark_mode'];
             $settings['notifications_enabled'] = (bool)$settings['notifications_enabled'];
+            $settings['google_linked'] = (bool)$settings['google_linked']; // read-only: delete confirms with Google
             // interests is stored as a JSON array string
             $interests = json_decode($settings['interests'] ?? '', true);
             $settings['interests'] = is_array($interests) ? $interests : [];

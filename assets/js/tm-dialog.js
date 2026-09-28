@@ -137,7 +137,42 @@ const TmDialog = (() => {
         });
     }
 
-    return { confirm, alert, prompt };
+    /**
+     * A dialog whose action is supplied by the caller (e.g. a third-party
+     * sign-in button). mount(slot, done) fills the slot; calling done(value)
+     * closes the dialog and resolves with value. Cancel/Esc/outside → null.
+     */
+    function custom({ title = 'Are you sure?', message = '', destructive = false, cancelLabel = 'Cancel', mount } = {}) {
+        return new Promise((resolve) => {
+            const overlay = _build({ title, message, type: 'warning', destructive, confirmLabel: '', cancelLabel, showCancel: true });
+            overlay.querySelector('#tm-confirm').remove();
+            const slot = document.createElement('div');
+            slot.className = 'tm-dialog-slot';
+            overlay.querySelector('.tm-dialog-actions').before(slot);
+            document.body.appendChild(overlay);
+
+            let settled = false;
+            function cleanup(result) {
+                if (settled) return;
+                settled = true;
+                document.removeEventListener('keydown', onKey);
+                overlay.style.animation = 'tmOverlayIn 0.1s ease reverse';
+                setTimeout(() => {
+                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                    resolve(result);
+                }, 100);
+            }
+            overlay.querySelector('#tm-cancel').addEventListener('click', () => cleanup(null));
+            function onKey(e) { if (e.key === 'Escape') cleanup(null); }
+            document.addEventListener('keydown', onKey);
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(null); });
+            overlay.querySelector('#tm-cancel').focus();
+
+            if (typeof mount === 'function') mount(slot, cleanup);
+        });
+    }
+
+    return { confirm, alert, prompt, custom };
 })();
 
 // Make globally available
