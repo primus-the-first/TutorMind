@@ -16,6 +16,7 @@ body {
     --wizard-shadow: var(--primary-ink);
     --wizard-highlight: var(--accent-purple);
     --wizard-accent: var(--accent-gold);
+    --wizard-tint: #F3E8FF; /* Selected/info surface; dark value in the dark-mode block */
 }
 
 body {
@@ -143,15 +144,13 @@ body.dark-mode #onboarding-container {
     margin-bottom: 2rem;
 }
 
+/* GSAP owns this element's transform (pop-in + float), so no CSS transition
+   on transform: a transition re-eases every frame GSAP writes, and the
+   pop-in never reached full scale — three of the four icons stayed tiny. */
 .hero-icon {
     width: 56px;
     height: 56px;
     transform: rotate(var(--tilt, 0deg));
-    transition: transform 0.2s ease;
-}
-
-.hero-icon:hover {
-    transform: rotate(0deg) scale(1.08);
 }
 
 .hero-icon svg {
@@ -328,11 +327,17 @@ body.dark-mode .btn-secondary {
    #preferences-error on a failed attempt. A pointer-events:none block here
    would swallow the click before that handler ever runs, silently
    reproducing the exact "nothing happens" bug this is meant to fix. */
-#preferences-error {
+
+/* Validation errors stay hidden until JS reveals them (.show from
+   showError(), .visible from the preferences screen). landing.css makes
+   .error-message display:block, which printed every screen's error before
+   the learner had done anything. */
+#onboarding-container .error-message {
     display: none;
 }
-#preferences-error.visible {
-    display: flex;
+#onboarding-container .error-message.show,
+#onboarding-container .error-message.visible {
+    display: block;
 }
 
 .screen-navigation {
@@ -971,6 +976,210 @@ body.dark-mode .style-card.selected { background: #2D2438; }
     to { transform: rotate(360deg); }
 }
 
+/* ==================== GHANA SHS PROGRAM SELECTOR ==================== */
+/* One accent for every program — the per-program styleClass from the JS
+   data is intentionally left unstyled rather than given its own hue. */
+.info-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    background: var(--wizard-tint);
+    border: 2px solid var(--wizard-highlight);
+    border-radius: 4px;
+    color: var(--text-primary);
+}
+
+.info-banner i {
+    color: var(--wizard-highlight);
+    margin-top: 0.2rem;
+}
+
+.info-banner p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.shs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+    gap: 1rem;
+}
+
+.shs-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    width: 100%;
+    padding: 1rem 1.25rem;
+    background: var(--wizard-card-bg);
+    border: 2px solid var(--wizard-border);
+    border-radius: 4px;
+    color: var(--primary-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.shs-card:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 5px 5px 0px var(--wizard-shadow);
+}
+
+.shs-card h3 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: inherit;
+}
+
+.shs-icon-wrapper {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    background: var(--wizard-tint);
+    border: 2px solid var(--wizard-highlight);
+    border-radius: 4px;
+    color: var(--wizard-highlight);
+    font-size: 1.15rem;
+}
+
+.shs-program-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+.shs-detail-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.shs-change-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    background: transparent;
+    border: 2px dashed var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.shs-change-btn:hover {
+    border-style: solid;
+    border-color: var(--text-secondary);
+    color: var(--text-primary);
+}
+
+.shs-program-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.screen .shs-program-title h2 {
+    margin: 0 0 0.25rem;
+    font-size: 1.5rem;
+}
+
+.shs-program-title p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.shs-section-title {
+    margin: 0 0 0.875rem;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary-ink);
+}
+
+.shs-section-subtitle {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.core-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+    gap: 0.625rem;
+}
+
+.core-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.check-circle {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--wizard-highlight);
+    color: #fff;
+    font-size: 0.7rem;
+}
+
+.electives-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.elective-btn {
+    padding: 0.625rem 1rem;
+    background: var(--wizard-card-bg);
+    border: 2px solid var(--wizard-border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.elective-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 3px 3px 0px var(--wizard-shadow);
+}
+
+.elective-btn.selected {
+    background: var(--wizard-highlight);
+    border-color: var(--wizard-highlight);
+    color: #fff;
+    box-shadow: 3px 3px 0px var(--wizard-accent);
+}
+
+.shs-card:focus-visible,
+.shs-change-btn:focus-visible,
+.elective-btn:focus-visible {
+    outline: 2px solid var(--wizard-highlight);
+    outline-offset: 2px;
+}
+
 /* ==================== UNIVERSITY CUSTOM FORM ==================== */
 .university-custom-form {
     margin-top: 2rem;
@@ -1156,6 +1365,7 @@ body.dark-mode {
     --text-secondary: #B9B4C7;
     --primary-ink: #F3E8FF;
     --bg-surface: #1E1830;
+    --wizard-tint: #2D2438;
 }
 
 /* Body & Container */

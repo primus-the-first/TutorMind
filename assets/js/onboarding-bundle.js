@@ -149,14 +149,15 @@ class OnboardingWizard {
         console.log('🧠 TutorMind Wizard Initialized');
         this.setupAnimations();
         this.setupEventListeners();
-        this.loadProgress(); // Restore state if available
 
         // Update mode: a user who already completed onboarding is back to fill
         // in newly added fields (e.g. interests). Preload their saved profile so
         // re-saving doesn't wipe earlier answers, and jump straight to preferences.
         this.updateMode = window.TUTORMIND_UPDATE_MODE === true;
         this.isCompleting = false;
-        if (this.updateMode) {
+        if (!this.updateMode) {
+            this.loadProgress(); // Resume a half-finished wizard after a refresh
+        } else {
             const existing = window.TUTORMIND_EXISTING_PROFILE;
             if (existing && typeof existing === 'object') {
                 Object.keys(this.profileData).forEach(key => {
@@ -201,6 +202,7 @@ class OnboardingWizard {
             this.animateScreenExit(this.currentScreen, 'backward', () => {
                 this.currentScreen--;
                 this.showScreen(this.currentScreen, 'backward');
+                this.saveProgress();
             });
         }
     }
@@ -211,6 +213,7 @@ class OnboardingWizard {
             s.classList.remove('active');
             s.style.display = 'none';
         });
+        this.clearErrors();
 
         const target = document.getElementById(`screen${screenNumber}`);
         if (target) {
@@ -482,7 +485,8 @@ class OnboardingWizard {
         grid.innerHTML = '';
         
         Object.entries(shsPrograms).forEach(([id, prog]) => {
-            const card = document.createElement('div');
+            const card = document.createElement('button');
+            card.type = 'button';
             card.className = `shs-card ${prog.styleClass}`;
             card.innerHTML = `<div class="shs-icon-wrapper"><i class="fas ${prog.icon}"></i></div><h3>${prog.name}</h3>`;
             card.onclick = () => this.selectSHSProgram(id);
@@ -501,18 +505,23 @@ class OnboardingWizard {
         detail.classList.remove('hidden');
         
         const program = shsPrograms[id];
+        document.getElementById('shs-selected-icon').innerHTML = `<i class="fas ${program.icon}"></i>`;
         document.getElementById('shs-selected-name').textContent = program.name;
         document.getElementById('shs-selected-desc').textContent = program.description;
-        
+
         // Render Electives
         const elecGrid = document.getElementById('shs-electives-grid');
         elecGrid.innerHTML = '';
         program.electives.forEach(elec => {
             const btn = document.createElement('button');
-            btn.className = `elective-btn ${this.profileData.shsElectives.includes(elec.id) ? 'selected' : ''}`;
+            btn.type = 'button';
+            const isSelected = this.profileData.shsElectives.includes(elec.id);
+            btn.className = `elective-btn ${isSelected ? 'selected' : ''}`;
+            btn.setAttribute('aria-pressed', String(isSelected));
             btn.textContent = elec.name;
             btn.onclick = () => {
                 btn.classList.toggle('selected');
+                btn.setAttribute('aria-pressed', String(btn.classList.contains('selected')));
                 if (btn.classList.contains('selected')) {
                     this.profileData.shsElectives.push(elec.id);
                 } else {
@@ -590,13 +599,18 @@ class OnboardingWizard {
     validateAndNextSubject() {
         // Logic to validate based on mode
         const level = this.profileData.educationLevel;
-        let valid = false;
-        
-        if (level === 'high') valid = this.profileData.shsProgram && this.profileData.shsElectives.length > 0;
-        else if (level === 'college') valid = this.profileData.customSubjects.length > 0;
-        else valid = this.profileData.subjects.length > 0;
+        let error = null;
 
-        if (!valid) this.showError('screen3-error', 'Please complete the selection.');
+        if (level === 'high') {
+            if (!this.profileData.shsProgram) error = 'Pick your SHS program to continue.';
+            else if (this.profileData.shsElectives.length === 0) error = 'Pick at least one elective to continue.';
+        } else if (level === 'college') {
+            if (this.profileData.customSubjects.length === 0) error = "Add at least one subject you'd like help with.";
+        } else if (this.profileData.subjects.length === 0) {
+            error = 'Select at least one subject to continue.';
+        }
+
+        if (error) this.showError('screen3-error', error);
         else this.nextScreen();
     }
 
@@ -1204,7 +1218,8 @@ class OnboardingWizard {
     /* ==================== UTILS ==================== */
     bindOptionSelect(selector, key, onSelect) {
         document.querySelectorAll(selector).forEach(el => {
-            if (this.profileData[key] === el.dataset.value) el.classList.add('selected');
+            // toggle, not add: markup may preselect a default (e.g. Daily) that a restored answer replaces
+            el.classList.toggle('selected', this.profileData[key] === el.dataset.value);
             el.onclick = () => {
                 document.querySelectorAll(selector).forEach(x => x.classList.remove('selected'));
                 el.classList.add('selected');
@@ -1215,18 +1230,40 @@ class OnboardingWizard {
         });
     }
 
+    progressKey() {
+        return `tutormind_wizard_v2:${window.TUTORMIND_USER_ID ?? 'anon'}`;
+    }
+
     saveProgress() {
         const data = {
             currentScreen: this.currentScreen,
             profileData: this.profileData
         };
-        localStorage.setItem('tutormind_wizard_v2', JSON.stringify(data));
+        try {
+            localStorage.setItem(this.progressKey(), JSON.stringify(data));
+        } catch (e) { /* storage blocked (private mode) — progress just won't survive a refresh */ }
     }
 
-     loadProgress() {
-        // Disabled for dev testing to always start fresh or uncomment to enable
-        // const saved = localStorage.getItem('tutormind_wizard_v2');
-        // if (saved) { ... }
+    loadProgress() {
+        let saved = null;
+        try {
+            localStorage.removeItem('tutormind_wizard_v2'); // pre-scoping key, may hold another account's answers
+            saved = JSON.parse(localStorage.getItem(this.progressKey()));
+        } catch (e) {
+            return;
+        }
+        if (!saved || typeof saved !== 'object' || !saved.profileData || typeof saved.profileData !== 'object') return;
+
+        Object.assign(this.profileData, saved.profileData);
+        // Screen init code calls array methods on these; never let a bad save crash it
+        ['subjects', 'shsElectives', 'customSubjects', 'interests'].forEach(key => {
+            if (!Array.isArray(this.profileData[key])) this.profileData[key] = [];
+        });
+
+        const screen = Number(saved.currentScreen);
+        if (Number.isInteger(screen) && screen >= 1 && screen <= this.totalScreens) {
+            this.currentScreen = screen;
+        }
     }
 
     setupEventListeners() {
@@ -1239,6 +1276,20 @@ class OnboardingWizard {
             }
         });
 
+        // A validation error describes the state at the last Continue press;
+        // once the learner picks or types something, it no longer applies.
+        const wrapper = document.querySelector('.screens-wrapper');
+        if (wrapper) {
+            const dismiss = (e) => {
+                const screen = e.target.closest('.screen');
+                if (screen && e.target.closest('input, [data-level], [data-subject], [data-goal], .shs-card, .elective-btn, .btn-icon-only')) {
+                    this.clearErrors(screen);
+                }
+            };
+            wrapper.addEventListener('click', dismiss);
+            wrapper.addEventListener('input', dismiss);
+        }
+
         // Prevent accidental page refresh during onboarding
         window.addEventListener('beforeunload', (e) => {
             if (this.isCompleting) return;
@@ -1248,6 +1299,10 @@ class OnboardingWizard {
                 return e.returnValue;
             }
         });
+    }
+
+    clearErrors(scope = document) {
+        scope.querySelectorAll('.error-message.show').forEach(el => el.classList.remove('show'));
     }
 
     showError(id, msg) {
@@ -1299,7 +1354,7 @@ class OnboardingWizard {
                 console.log('✅ Profile saved successfully');
 
                 // Clear progress cache
-                localStorage.removeItem('tutormind_wizard_v2');
+                try { localStorage.removeItem(this.progressKey()); } catch (e) { /* storage blocked */ }
 
                 // Mark completing only immediately before redirect so beforeunload
                 // warning remains active during stalled or failed saves.
@@ -1317,7 +1372,7 @@ class OnboardingWizard {
                 btn.disabled = false;
                 btn.innerHTML = this.updateMode
                     ? 'Save & Finish <i class="fas fa-check"></i>'
-                    : 'Go to Dashboard <i class="fas fa-rocket"></i>';
+                    : 'Start learning <i class="fas fa-arrow-right"></i>';
             }
 
             alert('There was an error saving your profile. Please try again or contact support.');

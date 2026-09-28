@@ -62,8 +62,10 @@ if ($user_id) {
     <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
 
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Fonts: landing.css asks for Funnel Display (--font-heading) and Inter (--font-body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -716,7 +718,7 @@ if ($user_id) {
                 <div class="completion-actions">
                     <p class="completion-note">Ready to start learning?</p>
                     <button class="btn btn-primary btn-large pop-in-delay" onclick="wizard.completeOnboarding()">
-                        Go to Dashboard <i class="fas fa-rocket"></i>
+                        Start learning <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
@@ -730,6 +732,8 @@ if ($user_id) {
          Their saved profile is preloaded so re-saving doesn't wipe earlier answers. -->
     <script>
         window.TUTORMIND_UPDATE_MODE = <?= json_encode($update_mode) ?>;
+        // Scopes the saved wizard progress so a shared browser never restores another account's answers
+        window.TUTORMIND_USER_ID = <?= json_encode($user_id) ?>;
         <?php
             // Re-encode profile_data with HTML-safe flags so sequences like
             // </script> in user-supplied values cannot terminate this element.
