@@ -390,18 +390,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.documentElement.style.setProperty('--legibility-line-height', `${1.5 + (scale - 1) * 0.4}`);
     }
 
-    // --- Initialize Settings Manager FIRST ---
-    // This ensures settings (especially dark mode) are applied before page renders
+    // --- Settings Manager ---
     window.settingsManager = new SettingsManager();
     window.settingsManager.init();
 
-    // Load settings immediately and wait for them to apply
-    try {
-        await window.settingsManager.loadSettings();
-        if (DEBUG) console.log('Settings applied successfully on page load');
-    } catch (error) {
-        if (DEBUG) console.error('Failed to load settings on page load:', error);
-    }
+    // Load settings in the background. Don't await: everything below (every
+    // button, the composer, send) used to wait on this request, so the chat
+    // ignored clicks for as long as it took (~1s+). What it applies is cosmetic
+    // and already server-rendered where it matters (dark mode), and open()
+    // shows its own loader if Settings is opened before this lands.
+    window.settingsManager.loadSettings({ quiet: true });
 
     // --- Load chat history on page load ---
     // --- Load chat history on page load ---
@@ -478,6 +476,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Listen for dark mode toggle changes in the main UI
     if (darkModeToggle) {
+        // The page may already be dark (server-rendered or from localStorage) before
+        // settings load and set this; start the switch in the same position.
+        darkModeToggle.checked = document.body.classList.contains('dark-mode');
         darkModeToggle.addEventListener('change', async () => {
             const isDark = darkModeToggle.checked;
             document.body.classList.toggle('dark-mode', isDark);

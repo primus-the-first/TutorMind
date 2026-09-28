@@ -7,9 +7,9 @@
  * another go themselves.
  *
  * tutor_mysql.js attaches the composer's 'input' listeners (auto-resize, send
- * pill) only after `await settingsManager.loadSettings()`, so one 'input' now
- * can land before anyone listens. Re-fire it until the send pill shows the
- * text (or the learner edits, or ~10s pass).
+ * pill) in its own DOMContentLoaded handler. If an 'input' ever lands before
+ * they exist (that handler used to await the settings request first), re-fire
+ * it until the send pill shows the text (or the learner edits, or ~10s pass).
  */
 document.addEventListener('DOMContentLoaded', () => {
     let handoff;

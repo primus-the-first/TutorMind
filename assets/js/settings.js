@@ -8,6 +8,8 @@ class SettingsManager {
         this.dirty = false; // Unsaved edits to the Account text fields (the only fields that need "Save")
         this.isPopulating = false; // Flag to prevent input events during form population
         this.loaded = false; // initialSettings holds a server copy, so open() can render instantly
+        this.inflight = null; // the settings GET in progress; callers share it instead of racing
+        this.unsaved = {}; // changes made here that the server hasn't confirmed yet — a load must not undo them
         this.interests = []; // Personalization chips, mirrored from initialSettings.interests
 
         // Everything except the Account text fields saves as soon as it changes.
@@ -21,6 +23,7 @@ class SettingsManager {
         }, 500);
         this.debouncedSave = (settings) => {
             Object.assign(this.pendingSave, settings);
+            Object.assign(this.unsaved, settings);
             this.flushSave();
         };
 
@@ -593,18 +596,15 @@ class SettingsManager {
     async loadSettings({ quiet = false } = {}) {
         if (!quiet) this.showLoadingState(true);
         try {
-            const response = await fetch('api/user_settings.php');
-            if (!response.ok) throw new Error('Failed to load settings.');
-
-            const data = await response.json();
-            if (!data.success) throw new Error(data.error || 'Unknown error loading settings.');
-
-            const changed = JSON.stringify(data.settings) !== JSON.stringify(this.initialSettings);
-            this.initialSettings = data.settings;
-            this.loaded = true;
+            // The chat starts a background load on page load; opening Settings
+            // meanwhile joins that request rather than firing a second one.
+            if (!this.inflight) {
+                this.inflight = this.fetchSettings().finally(() => { this.inflight = null; });
+            }
+            const changed = await this.inflight;
             if (!quiet || (changed && !this.dirty)) {
-                this.populateForm(data.settings);
-                this.applyGlobalSettings(data.settings);
+                this.populateForm(this.initialSettings);
+                this.applyGlobalSettings(this.initialSettings);
             }
         } catch (error) {
             console.error('Settings load error:', error);
@@ -612,6 +612,26 @@ class SettingsManager {
         } finally {
             if (!quiet) this.showLoadingState(false);
         }
+    }
+
+    /**
+     * GETs the server copy into initialSettings. Changes made here that the
+     * server hasn't confirmed yet (this.unsaved) sit on top: a response that
+     * was already on its way when the user flipped something must not flip it
+     * back. Resolves to whether the result differs from what we had.
+     */
+    async fetchSettings() {
+        const response = await fetch('api/user_settings.php');
+        if (!response.ok) throw new Error('Failed to load settings.');
+
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'Unknown error loading settings.');
+
+        const settings = { ...data.settings, ...this.unsaved };
+        const changed = JSON.stringify(settings) !== JSON.stringify(this.initialSettings);
+        this.initialSettings = settings;
+        this.loaded = true;
+        return changed;
     }
 
     /**
@@ -720,6 +740,11 @@ class SettingsManager {
      * @param {object} settings An object containing the setting key and value.
      */
     async saveToggle(settings) {
+        // Settled (saved or reverted): loads may use the server's value again — unless
+        // the same setting was changed once more while this save was out.
+        const settle = () => Object.keys(settings).forEach(key => {
+            if (this.unsaved[key] === settings[key]) delete this.unsaved[key];
+        });
         try {
             const response = await fetch('api/user_settings.php', {
                 method: 'POST',
@@ -728,10 +753,12 @@ class SettingsManager {
             });
             const result = await response.json();
             if (!result.success) throw new Error(result.error || 'Failed to save.');
+            settle();
             this.showToast('Setting saved!', 'success');
             this.applyGlobalSettings(settings);
             Object.assign(this.initialSettings, settings);
         } catch (error) {
+            settle();
             console.error('saveToggle error:', error);
             this.showToast('Error: ' + error.message, 'error');
             // Put every control in the failed batch back to its last saved value
