@@ -947,3 +947,41 @@ body.dark-mode .tm-dialog-btn-confirm { --edge-color: #3b1580; }
   .tm-dialog-box { padding: 20px 18px 18px; }
   .tm-dialog-actions .tm-dialog-btn { flex: 1 1 0; }
 }
+
+/* ---------- 10. Reminder ask (reminder-prompt.js) ----------
+   Appears in the conversation after a few replies. Sits under the AI
+   column (avatar 36px + 12px gap in), same surface language as the
+   dialogs; the buttons ARE the .tm-dialog-btn set from section 9. */
+.tm-remind {
+  max-width: 85%;
+  margin: 0 auto 1.5rem 48px;
+  padding: 18px 20px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  animation: tmBoxIn 0.25s var(--ds-ease);
+}
+.tm-remind__title { margin: 0 0 6px; font: 700 1.05rem/1.25 var(--ds-font-display); letter-spacing: -0.02em; }
+.tm-remind__text { margin: 0; color: var(--ds-ink-2); font-size: 0.925rem; line-height: 1.55; }
+.tm-remind__note { margin: 10px 0 0; color: var(--ds-ink); font-size: 0.875rem; }
+.tm-remind__note[hidden] { display: none; }
+.tm-remind__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.tm-remind__skip {
+  padding: 8px 6px;
+  border: 0;
+  background: none;
+  color: var(--ds-ink-2);
+  font: 600 0.9rem var(--ds-font-body);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.tm-remind__skip:hover { color: var(--ds-accent-ink); }
+.tm-remind__skip:disabled { opacity: 0.45; cursor: not-allowed; }
+@media (max-width: 768px) {
+  .tm-remind { max-width: 95%; margin-left: 0; }
+}
+@media (max-width: 480px) {
+  .tm-remind__actions .tm-dialog-btn { flex: 1 1 100%; }
+}

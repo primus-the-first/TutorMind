@@ -65,6 +65,16 @@ if ($user_id) {
             error_log("Profile fetch error (column might be missing): " . $e->getMessage());
         }
 
+        // Whether they've already chosen a reminder channel (the in-chat reminder ask skips them)
+        try {
+            $stmt = $pdo->prepare("SELECT notifications_enabled, email_reminders FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $rem = $stmt->fetch(PDO::FETCH_ASSOC);
+            $user_reminders_on = $rem && ($rem['notifications_enabled'] || $rem['email_reminders']);
+        } catch (Exception $e) {
+            error_log("Reminder settings fetch error (column might be missing): " . $e->getMessage());
+        }
+
         // Setup is needed when onboarding was never finished, or when fields added
         // after the user's original onboarding (e.g. interests) are still empty
         try {
@@ -747,7 +757,8 @@ function tm_goal_icon($paths) {
             id:             <?= json_encode($user_id) ?>,
             knowledgeLevel: <?= json_encode($user_knowledge_lvl ?? null) ?>,
             educationLevel: <?= json_encode($user_education    ?? null) ?>,
-            fieldOfStudy:   <?= json_encode($user_program      ?? null) ?>
+            fieldOfStudy:   <?= json_encode($user_program      ?? null) ?>,
+            remindersOn:    <?= json_encode(!empty($user_reminders_on)) ?>
         };
         window.TutorMindPushConfig = { vapidPublicKey: <?= json_encode($vapidPublicKey) ?> };
     </script>
@@ -760,6 +771,7 @@ function tm_goal_icon($paths) {
 
     <!-- Main application scripts -->
     <script src="assets/js/push-notifications.js?v=<?= filemtime('assets/js/push-notifications.js') ?>"></script>
+    <script src="assets/js/reminder-prompt.js?v=<?= filemtime('assets/js/reminder-prompt.js') ?>"></script>
     <script src="assets/js/settings.js?v=<?= filemtime('assets/js/settings.js') ?>"></script>
     <script src="assets/js/session-context.js?v=<?= filemtime('assets/js/session-context.js') ?>"></script>
     <script src="assets/js/quick-start.js?v=<?= filemtime('assets/js/quick-start.js') ?>"></script>

@@ -520,7 +520,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     // --- Function to add a message to the chat window ---
-    function addMessage(sender, messageHtml, animate = false, messageId = null, isEdited = false) {
+    function addMessage(sender, messageHtml, animate = false, messageId = null, isEdited = false, onTyped = null) {
         const messageWrapper = document.createElement('div');
         messageWrapper.classList.add('message', sender); // 'message ai' or 'message user'
         if (messageId) messageWrapper.setAttribute('data-message-id', messageId);
@@ -547,6 +547,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Callback after typing finishes
                 if (window.TMWidgets) window.TMWidgets.fill(messageBubble, extracted.specs);
                 finalizeMessage(messageBubble);
+                if (onTyped) onTyped();
             });
         } else {
             // Instant render for user messages or history
@@ -2620,7 +2621,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                     </div>
                 `;
-                addMessage('ai', messageContent, true);
+                // The reminder ask waits until the reply has finished typing
+                addMessage('ai', messageContent, true, null, false, () => {
+                    if (window.TmReminderPrompt) window.TmReminderPrompt.onReply(chatMessages);
+                });
                 updateContactChip(result.contactState);
 
                 // Event listeners are now attached in finalizeMessage after typing is complete
