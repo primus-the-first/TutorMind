@@ -18,6 +18,7 @@ require_once __DIR__ . '/../includes/db_mysql.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/rate_limiter.php';   // getClientIP()
 require_once __DIR__ . '/../includes/mailer.php';
+require_once __DIR__ . '/../includes/email_template.php';   // renderEmail(), appBaseUrl()
 
 const RESET_TTL_MINUTES = 30;
 const RESET_MAX_PER_ACCOUNT = 3;   // per 30 minutes — extra requests are silently not sent
@@ -29,31 +30,6 @@ function respond(int $code, array $body): void
     http_response_code($code);
     echo json_encode($body);
     exit;
-}
-
-/**
- * Where the emailed link points. Never trust the Host header blindly: a forged
- * Host would put a working reset link to someone else's site in a real user's
- * inbox. Uses [app] base_url from config, else an allowlisted host.
- */
-function appBaseUrl(): string
-{
-    foreach (['config-sql.ini', 'config.ini'] as $file) {
-        $path = __DIR__ . '/../includes/' . $file;
-        if (file_exists($path)) {
-            $cfg = parse_ini_file($path, true);
-            if (!empty($cfg['app']['base_url'])) return rtrim($cfg['app']['base_url'], '/');
-            break;
-        }
-    }
-    $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
-    $bare = preg_replace('/:\d+$/', '', $host);
-    if (in_array($bare, ['tutormind.app', 'www.tutormind.app', 'localhost', '127.0.0.1'], true)) {
-        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
-        $root = rtrim(str_replace('\\', '/', dirname(dirname($_SERVER['SCRIPT_NAME']))), '/'); // api/ → app root
-        return ($https ? 'https' : 'http') . "://$host$root";
-    }
-    return 'https://tutormind.app';
 }
 
 function findResetRow(PDO $pdo, string $token): ?array
@@ -112,19 +88,19 @@ try {
 
         $link = appBaseUrl() . '/reset-password?token=' . $token;
         $name = $user['first_name'] ?: $user['username'];
-        $safeName = htmlspecialchars($name, ENT_QUOTES);
-        $safeLink = htmlspecialchars($link, ENT_QUOTES);
         $minutes = RESET_TTL_MINUTES;
-        $html = <<<HTML
-<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#1F2937;line-height:1.55">
-  <p style="font-size:20px;font-weight:700;margin:0 0 16px">Set a new password</p>
-  <p>Hi {$safeName},</p>
-  <p>Someone (hopefully you) asked to set a new password for your TutorMind account. If you usually sign in with Google, this lets you add a password too.</p>
-  <p style="margin:24px 0"><a href="{$safeLink}" style="background:#7C3AED;color:#ffffff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:700;display:inline-block">Set a new password</a></p>
-  <p style="font-size:14px;color:#6b7280">The link works once, for {$minutes} minutes. If you did not ask for this, you can ignore this email; your password stays the same.</p>
-  <p style="font-size:13px;color:#6b7280;word-break:break-all">If the button does not work, open this link: {$safeLink}</p>
-</div>
-HTML;
+        $html = renderEmail([
+            'preheader'  => "Your link to set a new TutorMind password. It works once, for {$minutes} minutes.",
+            'kicker'     => 'Password reset',
+            'heading'    => 'Set a new password',
+            'paragraphs' => [
+                "Hi {$name},",
+                'Someone (hopefully you) asked to set a new password for your TutorMind account. If you usually sign in with Google, this lets you add a password too.',
+            ],
+            'button'     => ['label' => 'Set a new password', 'url' => $link],
+            'after'      => "The link works once, for {$minutes} minutes. If you didn't ask for this, you can ignore this email; your password stays the same.",
+            'footer'     => "You're getting this because a password reset was requested for {$user['email']} on TutorMind.",
+        ]);
         $text = "Hi {$name},\n\nSomeone (hopefully you) asked to set a new password for your TutorMind account. "
               . "Open this link to choose one (it works once, for {$minutes} minutes):\n\n{$link}\n\n"
               . "If you did not ask for this, ignore this email; your password stays the same.\n";

@@ -25,9 +25,10 @@ function getMailConfig(): array
 }
 
 /**
+ * @param array $headers extra headers, e.g. List-Unsubscribe for reminder emails
  * @return bool true when Brevo accepted the message (or it was logged in dev)
  */
-function sendEmail(string $toEmail, string $toName, string $subject, string $html, string $text): bool
+function sendEmail(string $toEmail, string $toName, string $subject, string $html, string $text, array $headers = []): bool
 {
     $cfg = getMailConfig();
     $apiKey = trim($cfg['api_key'] ?? '');
@@ -36,9 +37,11 @@ function sendEmail(string $toEmail, string $toName, string $subject, string $htm
         $dir = __DIR__ . '/../logs';
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
         @file_put_contents($dir . '/mail.log', sprintf(
-            "[%s] NOT SENT (no [brevo] api_key) -> %s <%s>\nSubject: %s\n%s\n\n",
-            date('Y-m-d H:i:s'), $toName, $toEmail, $subject, $text
+            "[%s] NOT SENT (no [brevo] api_key) -> %s <%s>\nSubject: %s\n%s%s\n\n",
+            date('Y-m-d H:i:s'), $toName, $toEmail, $subject,
+            $headers ? implode('', array_map(fn($k, $v) => "$k: $v\n", array_keys($headers), $headers)) : '', $text
         ), FILE_APPEND);
+        @file_put_contents($dir . '/mail-last.html', $html); // open in a browser to preview the design
         return true;
     }
 
@@ -49,6 +52,7 @@ function sendEmail(string $toEmail, string $toName, string $subject, string $htm
         'htmlContent' => $html,
         'textContent' => $text,
     ];
+    if ($headers) $payload['headers'] = $headers;
 
     $ch = curl_init('https://api.brevo.com/v3/smtp/email');
     curl_setopt_array($ch, [

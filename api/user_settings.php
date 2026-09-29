@@ -13,7 +13,7 @@ $allowed_fields = [
     'first_name', 'last_name', 'email', 'username', 'learning_level', 'response_style',
     'email_notifications', 'study_reminders', 'feature_announcements', 'weekly_summary',
     'data_sharing', 'dark_mode', 'font_size', 'chat_density', 'legibility',
-    'notifications_enabled', 'notification_frequency', 'notification_time',
+    'notifications_enabled', 'notification_frequency', 'notification_time', 'email_reminders',
     // Learning profile from onboarding — the tutor reads these into every prompt
     // (includes/server_mysql.php "personalization context")
     'education_level', 'field_of_study', 'knowledge_level', 'interests', 'country', 'primary_language'
@@ -68,7 +68,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
     try {
         // Prepare and execute the query to get user settings.
         // We also fetch created_at for display purposes.
-        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, interests, country, primary_language, (google_id IS NOT NULL AND google_id <> '') AS google_linked FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, interests, country, primary_language, email_reminders, (google_id IS NOT NULL AND google_id <> '') AS google_linked FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $settings = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -82,6 +82,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
             $settings['dark_mode'] = (bool)$settings['dark_mode'];
             $settings['notifications_enabled'] = (bool)$settings['notifications_enabled'];
             $settings['google_linked'] = (bool)$settings['google_linked']; // read-only: delete confirms with Google
+            $settings['email_reminders'] = (bool)$settings['email_reminders'];
             // interests is stored as a JSON array string
             $interests = json_decode($settings['interests'] ?? '', true);
             $settings['interests'] = is_array($interests) ? $interests : [];
@@ -198,6 +199,13 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'No valid fields provided for update.']);
         return;
+    }
+
+    // Switching reminders or reminder emails on with no schedule yet: default to "every few days",
+    // otherwise the reminder job (which needs a schedule) would silently never send anything.
+    if (!array_key_exists('notification_frequency', $input)
+        && (!empty($input['notifications_enabled']) || !empty($input['email_reminders']))) {
+        $updates[] = "`notification_frequency` = COALESCE(`notification_frequency`, 'three_weekly')";
     }
 
     // Add the user ID to the parameters for the WHERE clause.

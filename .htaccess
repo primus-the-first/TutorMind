@@ -15,6 +15,9 @@ Options -MultiViews -Indexes
 # Deny access to .git directory
 RewriteRule ^(.*/)?\.git/ - [F,L]
 
+# Deny the logs folder outright (dev mail previews there are .html, which the rule below doesn't cover)
+RewriteRule ^logs(/|$) - [F,L]
+
 # Deny access to any .log/.txt files written to the webroot (e.g. debug_log.txt
 # from DEBUG_MODE) — no legitimate request should ever need these served directly.
 <FilesMatch "\.(log|txt)$">

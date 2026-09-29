@@ -245,15 +245,32 @@ class SettingsManager {
             <!-- NOTIFICATIONS PANEL -->
             <div id="tab-notifications" class="tab-panel">
                 <h3>Reminders</h3>
-                <p>Choose how TutorMind nudges you to keep learning.</p>
-                <!-- notifications_enabled is what scripts/send_study_reminders.php reads;
-                     the old study_reminders / email / weekly-summary columns had no sender. -->
+                <p>Choose when and how TutorMind nudges you to keep learning.</p>
+                <!-- scripts/send_study_reminders.php reads notifications_enabled + notification_frequency,
+                     then emails only if email_reminders (opt-in) and pushes to subscribed devices.
+                     The old study_reminders / email_notifications / weekly-summary columns have no sender. -->
                 <div class="toggle-group">
                     <div class="toggle-label">
                         <h4>Study reminders</h4>
-                        <p>Get reminded to study on the schedule you picked during setup.</p>
+                        <p>A nudge when you haven't studied for a while, pointing at where you left off.</p>
                     </div>
                     <label class="switch"><input type="checkbox" role="switch" aria-label="Study reminders" data-setting="notifications_enabled"><span class="slider"></span></label>
+                </div>
+                <div class="form-group">
+                    <label>How often</label>
+                    <div class="option-group" data-setting="notification_frequency">
+                        <button type="button" class="option-btn" data-value="daily">Daily</button>
+                        <button type="button" class="option-btn" data-value="weekdays">Weekdays</button>
+                        <button type="button" class="option-btn" data-value="three_weekly">Every few days</button>
+                        <button type="button" class="option-btn" data-value="weekly">Weekly</button>
+                    </div>
+                </div>
+                <div class="toggle-group">
+                    <div class="toggle-label">
+                        <h4>Email me</h4>
+                        <p>Send reminders to your email too. Every email has a one-click unsubscribe.</p>
+                    </div>
+                    <label class="switch"><input type="checkbox" role="switch" aria-label="Email reminders" data-setting="email_reminders"><span class="slider"></span></label>
                 </div>
                 <div class="toggle-group">
                     <div class="toggle-label">
@@ -427,6 +444,17 @@ class SettingsManager {
                 }
             });
         }
+
+        // Turning reminders or email on with no schedule yet: pick "Every few days" so something happens
+        // (the server does the same, this just shows it)
+        this.modal.querySelectorAll('[data-setting="notifications_enabled"], [data-setting="email_reminders"]').forEach(sw => {
+            sw.addEventListener('change', () => {
+                const group = this.modal.querySelector('[data-setting="notification_frequency"]');
+                if (sw.checked && group && !group.querySelector('.option-btn.active')) {
+                    group.querySelector('[data-value="three_weekly"]').click();
+                }
+            });
+        });
 
         // Appearance option buttons (font size, density): apply and save right away
         this.modal.querySelectorAll('.option-group').forEach(group => {
