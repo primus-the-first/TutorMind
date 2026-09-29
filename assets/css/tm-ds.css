@@ -683,6 +683,8 @@ body.dark-mode .ds-btn--primary { --edge-color: #3b1580; }
   overflow: hidden;
   touch-action: pan-y;
 }
+/* Landing hero: no box — the arch sits straight on the page */
+.ds-hero__visual[data-ds-bridge] { border: 0; border-radius: 0; background: none; overflow: visible; }
 .ds-hero__visual canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
 .ds-hero__fallback { position: absolute; inset: 0; display: grid; place-items: center; }
 .ds-hero__fallback img { width: 45%; height: auto; }
