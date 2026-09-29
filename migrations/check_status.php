@@ -85,6 +85,8 @@ $migrations = [
     '015_add_group_study.php' => ['type' => 'multi_table', 'tables' => ['group_sessions', 'group_session_participants', 'group_session_turns', 'group_session_messages']],
     '016_add_group_study_typing.php' => ['type' => 'column', 'table' => 'group_session_participants', 'name' => 'typing_at'],
     '017_group_study_chat_room.php' => ['type' => 'column', 'table' => 'group_session_messages', 'name' => 'addressed_user_id'],
+    '018_password_resets.php' => ['type' => 'table', 'table' => 'password_resets'],
+    '019_email_reminders.php' => ['type' => 'multi_column', 'table' => 'users', 'columns' => ['email_reminders', 'email_token']],
     'add_message_edit.php' => ['type' => 'column', 'table' => 'messages', 'name' => 'is_edited'],
     'add_profile_column.php' => ['type' => 'column', 'table' => 'users', 'name' => 'profile_data'],
     'add_session_context.php' => ['type' => 'column', 'table' => 'conversations', 'name' => 'session_goal'],
@@ -116,6 +118,12 @@ foreach ($migrations as $file => $check) {
         case 'column':
             $applied = columnExists($pdo, $check['table'], $check['name']);
             $detail = "`{$check['table']}`.`{$check['name']}`";
+            break;
+        case 'multi_column':
+            $results = array_map(fn($c) => columnExists($pdo, $check['table'], $c), $check['columns']);
+            $applied = !in_array(false, $results, true);
+            $partial = !$applied && in_array(true, $results, true);
+            $detail = "`{$check['table']}`." . implode(', ', array_map(fn($c, $ok) => $c . ($ok ? '' : ' [missing]'), $check['columns'], $results));
             break;
         case 'multi_table':
             $results = array_map(fn($t) => tableExists($pdo, $t), $check['tables']);
