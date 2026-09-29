@@ -38,12 +38,7 @@ $v = fn($f) => filemtime($f);
         })();
     </script>
 
-    <header class="gs-top">
-        <a href="chat" class="ds-icon-btn gs-back" aria-label="Back to chat"><svg class="ds-i"><use href="#i-arrow"/></svg></a>
-        <a href="chat" class="ds-logo gs-top__logo"><img src="assets/logo-bridge.svg" alt="">TutorMind</a>
-        <span class="gs-top__title">Group study</span>
-        <button class="ds-icon-btn" type="button" data-ds-theme aria-label="Dark mode"><svg class="ds-i"><use href="#i-moon"/></svg></button>
-    </header>
+    <?php $appNavCurrent = 'group'; include __DIR__ . '/includes/app_nav.php'; ?>
 
     <!-- ================= Lobby ================= -->
     <main id="gsLobby" class="gs-lobby">
@@ -94,6 +89,12 @@ $v = fn($f) => filemtime($f);
             <h2 id="gsRejoinTitle" class="gs-section-title">Your study rooms</h2>
             <p class="gs-section-sub">Rooms you're in from the last few hours.</p>
             <ul id="gsRejoinList" class="gs-rooms"></ul>
+        </section>
+
+        <section id="gsHistory" class="gs-history" hidden aria-labelledby="gsHistoryTitle">
+            <h2 id="gsHistoryTitle" class="gs-section-title">Past rooms</h2>
+            <p class="gs-section-sub">Read back what your group worked through.</p>
+            <ul id="gsHistoryList" class="gs-history__list"></ul>
         </section>
     </main>
 

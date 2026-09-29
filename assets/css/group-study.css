@@ -17,28 +17,6 @@
 .gs-page:has(.gs-room:not([hidden])) { height: 100vh; height: 100dvh; overflow: hidden; }
 .gs-page [hidden] { display: none !important; }
 
-/* ---------- Top bar ---------- */
-.gs-top {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  padding-top: calc(12px + env(safe-area-inset-top, 0px));
-  border-bottom: 1px solid var(--ds-line);
-  background: var(--ds-surface);
-}
-.gs-back .ds-i { transform: scaleX(-1); }
-.gs-top__logo { margin: 0; font-size: 1.1rem; }
-.gs-top__logo img { width: 26px; height: 26px; }
-.gs-top__title {
-  padding-left: 12px;
-  border-left: 1px solid var(--ds-line);
-  font: 600 1rem var(--ds-font-display);
-  color: var(--ds-ink-2);
-}
-.gs-top > [data-ds-theme] { margin-left: auto; }
-
 .gs-section-title {
   margin: 0 0 10px;
   font: 600 1rem var(--ds-font-display);
@@ -149,6 +127,30 @@
 }
 .gs-roomcard__meta { margin: 0; color: var(--ds-ink-2); font-size: 0.875rem; }
 .gs-roomcard__foot { display: flex; align-items: end; justify-content: space-between; gap: 10px; margin-top: 8px; }
+
+/* ---------- Past rooms: quieter than live rooms — plain rows, one list ---------- */
+.gs-history .gs-section-title { margin: 0; font: 700 1.25rem/1.2 var(--ds-font-display); letter-spacing: -0.01em; }
+.gs-history__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  overflow: hidden;
+}
+.gs-history__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 12px 12px 18px;
+}
+.gs-history__item + .gs-history__item { border-top: 1px solid var(--ds-line); }
+.gs-history__text { display: grid; gap: 2px; min-width: 0; }
+.gs-history__topic { font: 600 1rem var(--ds-font-display); color: var(--ds-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-history__meta { color: var(--ds-ink-2); font-size: 0.85rem; }
+.gs-history__item .ds-btn { flex: none; }
 
 /* Initials, overlapped; ring in the card colour so they read as separate discs */
 .gs-stack { display: flex; padding-left: 6px; }
@@ -484,7 +486,8 @@ body.dark-mode .gs-msg--me .gs-msg__bubble { box-shadow: 0 3px 0 #3b1580; }
 }
 .gs-person.is-here .gs-avatar::after { background: var(--primary); box-shadow: none; }
 .gs-person.is-left { opacity: 0.55; }
-.gs-person.is-left .gs-avatar::after { display: none; }
+.gs-person.is-left .gs-avatar::after,
+.gs-person.is-past .gs-avatar::after { display: none; }
 .gs-person__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; }
 .gs-person__tag { margin-left: auto; color: var(--ds-ink-2); font-size: 0.8rem; white-space: nowrap; }
 .gs-person:not(.is-left) .gs-person__tag:is(:empty) { display: none; }
@@ -529,8 +532,6 @@ body.dark-mode .gs-msg--me .gs-msg__bubble { box-shadow: 0 3px 0 #3b1580; }
   .gs-room.is-people-open .gs-people { transform: none; }
 }
 @media (max-width: 600px) {
-  .gs-top__logo { display: none; }
-  .gs-top__title { padding-left: 0; border-left: 0; color: var(--ds-ink); }
   .gs-lobby { padding-top: 28px; }
   .gs-room__bar { padding: 10px 16px; }
   .gs-room__topic { font-size: 1.15rem; }

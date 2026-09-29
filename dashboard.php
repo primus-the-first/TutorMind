@@ -44,15 +44,7 @@ $v = fn($f) => filemtime($f);
         })();
     </script>
 
-    <header class="db-top">
-        <div class="ds-wrap db-top__inner">
-            <a href="chat" class="ds-logo db-top__logo"><img src="assets/logo-bridge.svg" alt=""><span class="db-top__brand">TutorMind</span></a>
-            <span class="db-top__title">Your learning</span>
-            <a href="chat" id="dbBack" class="ds-btn ds-btn--tertiary ds-btn--sm db-back">
-                <svg class="ds-i" aria-hidden="true"><use href="#i-arrow"/></svg><span class="db-back__long">Back to chat</span><span class="db-back__short">Chat</span>
-            </a>
-        </div>
-    </header>
+    <?php $appNavCurrent = 'dashboard'; include __DIR__ . '/includes/app_nav.php'; ?>
 
     <main class="ds-wrap db-main">
         <div class="db-hello">

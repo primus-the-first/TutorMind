@@ -69,6 +69,15 @@
         var dark = document.body.classList.toggle('dark-mode');
         document.body.classList.toggle('light-mode', !dark);
         try { localStorage.setItem('tutormind-theme', dark ? 'dark' : 'light'); } catch (e) {}
+        // Signed-in pages: keep the account setting in step, or chat (which starts
+        // from users.dark_mode) would flip back to the old theme
+        if (btn.hasAttribute('data-ds-theme-save')) {
+          fetch('api/user_settings.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dark_mode: dark })
+          }).catch(function () {});
+        }
         sync();
       });
     });

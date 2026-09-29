@@ -33,6 +33,7 @@
     var els = {
         lobby: $('gsLobby'), room: $('gsRoom'),
         lobbyError: $('gsLobbyError'), rejoin: $('gsRejoin'), rejoinList: $('gsRejoinList'),
+        history: $('gsHistory'), historyList: $('gsHistoryList'),
         createForm: $('gsCreateForm'), topicInput: $('gsTopicInput'), createBtn: $('gsCreateBtn'),
         joinForm: $('gsJoinForm'),
         codeInput: $('gsJoinCodeInput'), joinBtn: $('gsJoinBtn'),
@@ -177,7 +178,42 @@
         return li;
     }
 
+    // Server sends "seconds ago" (PHP/MySQL clocks disagree on timezone); the browser dates it
+    function endedWhen(secondsAgo) {
+        var then = new Date(Date.now() - secondsAgo * 1000);
+        var today = new Date(); today.setHours(0, 0, 0, 0);
+        var days = Math.round((today - new Date(then.getFullYear(), then.getMonth(), then.getDate())) / 864e5);
+        if (days <= 0) return 'Today';
+        if (days === 1) return 'Yesterday';
+        if (days < 7) return days + ' days ago';
+        return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    }
+
+    function loadHistory() {
+        api('history').then(function (res) {
+            var rooms = (res.success && res.rooms) || [];
+            els.historyList.innerHTML = '';
+            rooms.forEach(function (r) {
+                var li = el('li', 'gs-history__item');
+                var text = el('div', 'gs-history__text');
+                text.appendChild(el('span', 'gs-history__topic', r.topic));
+                text.appendChild(el('span', 'gs-history__meta', endedWhen(r.ended_seconds_ago) + ' · '
+                    + (r.people === 1 ? '1 person' : r.people + ' people') + ' · '
+                    + (r.said === 1 ? '1 message' : r.said + ' messages')));
+                li.appendChild(text);
+                var btn = el('button', 'ds-btn ds-btn--tertiary ds-btn--sm', 'Read back');
+                btn.type = 'button';
+                btn.setAttribute('aria-label', 'Read back ' + r.topic);
+                btn.addEventListener('click', function () { enterRoom(r.session_id); });
+                li.appendChild(btn);
+                els.historyList.appendChild(li);
+            });
+            els.history.hidden = rooms.length === 0;
+        }).catch(function () {});
+    }
+
     function loadRejoin() {
+        loadHistory();
         api('mine').then(function (res) {
             var rooms = (res.success && res.rooms) || [];
             els.rejoinList.innerHTML = '';
@@ -210,6 +246,7 @@
     function enterRoom(sessionId) {
         state.sessionId = sessionId;
         state.lastId = 0;
+        state.more = false;
         state.room = null;
         state.pickers = [];
         state.sendError = '';
@@ -234,8 +271,9 @@
     function schedule() {
         clearTimeout(state.timer);
         if (!state.sessionId || document.hidden) return;
-        if (state.room && state.room.status === 'completed') return;
-        var delay = state.fails ? Math.min(30000, POLL_MS * Math.pow(2, state.fails)) : POLL_MS;
+        // An ended room stops polling once its whole transcript is in (poll pages 200 at a time)
+        if (state.room && state.room.status === 'completed' && !state.more) return;
+        var delay = state.more ? 0 : state.fails ? Math.min(30000, POLL_MS * Math.pow(2, state.fails)) : POLL_MS;
         state.timer = setTimeout(poll, delay);
     }
 
@@ -249,6 +287,7 @@
                 throw new Error(res.error);
             }
             state.fails = 0;
+            state.more = (res.messages || []).length >= 200;
             render(res);
         }).catch(function () {
             state.fails++;
@@ -294,7 +333,7 @@
             return (a.left - b.left) || (b.online - a.online);
         }).forEach(function (p) {
             var li = document.createElement('li');
-            li.className = 'gs-person' + (p.left ? ' is-left' : p.online ? ' is-here' : ' is-away');
+            li.className = 'gs-person' + (p.left ? ' is-left' : ended ? ' is-past' : p.online ? ' is-here' : ' is-away');
             li.appendChild(avatar(p.display_name));
             var name = document.createElement('span');
             name.className = 'gs-person__name';
@@ -302,7 +341,7 @@
             li.appendChild(name);
             var tag = document.createElement('span');
             tag.className = 'gs-person__tag';
-            tag.textContent = p.left ? 'left' : p.user_id === res.teacher_user_id && active ? 'teaching' : p.online ? '' : 'away';
+            tag.textContent = p.left ? 'left' : ended ? '' : p.user_id === res.teacher_user_id && active ? 'teaching' : p.online ? '' : 'away';
             if (tag.textContent) li.appendChild(tag);
             els.peopleList.appendChild(li);
         });

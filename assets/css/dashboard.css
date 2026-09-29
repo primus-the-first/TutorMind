@@ -24,15 +24,6 @@ body.dark-mode.db-page {
 
 .db-muted { margin: 0; color: var(--ds-ink-2); font-size: 0.95rem; }
 
-/* ---------- Top bar ---------- */
-.db-top { background: var(--ds-surface); border-bottom: 1px solid var(--ds-line); }
-.db-top__inner { display: flex; align-items: center; gap: 14px; min-height: 64px; }
-.db-top__logo { margin-right: 0; min-height: 44px; }
-.db-top__title { padding-left: 14px; border-left: 1px solid var(--ds-line); color: var(--ds-ink-2); font-size: 1rem; }
-.db-back { margin-left: auto; min-height: 44px; }
-.db-back .ds-i { transform: scaleX(-1); }
-.db-back__short { display: none; }
-
 /* ---------- Greeting ---------- */
 .db-main { padding-top: 32px; padding-bottom: 64px; }
 .db-hello { margin-bottom: 28px; }
@@ -333,20 +324,6 @@ body.dark-mode.db-page {
 }
 
 @media (max-width: 599px) {
-  .db-top__inner { gap: 10px; min-height: 60px; }
-  .db-top__brand { display: none; }
-  .db-top__title {
-    padding-left: 0;
-    border-left: 0;
-    color: var(--ds-ink);
-    font-family: var(--ds-font-display);
-    font-weight: 700;
-    font-size: 1.125rem;
-    letter-spacing: -0.02em;
-  }
-  .db-back__long { display: none; }
-  .db-back__short { display: inline; }
-
   .db-main { padding-top: 24px; padding-bottom: 40px; }
   .db-hello { margin-bottom: 20px; }
   .db-hello__title { font-size: 1.875rem; line-height: 1.15; }

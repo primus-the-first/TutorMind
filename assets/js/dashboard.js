@@ -290,9 +290,10 @@
             : st.days > 0 ? `You have studied ${plural(st.days, 'day')} in a row. One session today makes it ${st.days + 1}.`
             : 'Pick up where you left off, or start something new.';
 
-        // "Back to chat" returns to the newest conversation, not a blank chat.
-        const newest = [data.continue, ...data.recent].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
-        document.getElementById('dbBack').href = `chat/${newest.id}`;
+        // The nav's Chat link returns to the newest conversation, not a blank chat.
+        const newest = [data.continue, ...data.recent].filter(Boolean).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
+        const chatLink = document.getElementById('appNavChat');
+        if (newest && chatLink) chatLink.href = `chat/${newest.id}`;
 
         content.innerHTML = `
             <div class="db-layout">

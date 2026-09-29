@@ -338,6 +338,59 @@ body.dark-mode .ds-btn--primary { --edge-color: #3b1580; }
 }
 
 /* =============================================================
+   App nav — signed-in pages (includes/app_nav.php: dashboard,
+   group study). A full-width bar, not the floating marketing nav.
+   Only three destinations, so they stay visible on phones with
+   short labels instead of hiding behind a menu button.
+   ============================================================= */
+.tm-appnav {
+  flex: none;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: var(--ds-surface);
+  border-bottom: 1px solid var(--ds-line);
+}
+.tm-appnav__bar {
+  max-width: var(--ds-max);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 0 16px;
+}
+.tm-appnav__logo { margin-right: 0; min-height: 44px; font-size: 1.15rem; }
+.tm-appnav__logo img { width: 28px; height: 28px; }
+.tm-appnav__links { display: flex; gap: 4px; margin-right: auto; }
+.tm-appnav__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: var(--ds-r-sm);
+  color: var(--ds-ink-2);
+  font-weight: 500;
+  font-size: 0.95rem;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s, background-color 0.15s;
+}
+.tm-appnav__link:hover { color: var(--ds-ink); background: var(--ds-tint); }
+.tm-appnav__link[aria-current="page"] { color: var(--ds-accent-ink); background: var(--ds-tint); font-weight: 600; }
+.tm-appnav__link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.tm-appnav__short { display: none; }
+@media (max-width: 600px) {
+  .tm-appnav__bar { gap: 6px; min-height: 58px; padding: 0 10px 0 12px; }
+  .tm-appnav__brand { display: none; }
+  .tm-appnav__links { gap: 2px; }
+  .tm-appnav__link { padding: 0 10px; }
+  .tm-appnav__long { display: none; }
+  .tm-appnav__short { display: inline; }
+}
+
+/* =============================================================
    FAQ item — native <details>
    ============================================================= */
 .ds-faq { border-top: 1px solid var(--ds-line); }

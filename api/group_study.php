@@ -79,6 +79,7 @@ try {
         case 'join':      gsJoin($pdo, $user_id, $displayName, $body); break;
         case 'open':      gsOpen($pdo, $user_id, $body); break;
         case 'mine':      gsMine($pdo, $user_id); break;
+        case 'history':   gsHistory($pdo, $user_id); break;
         case 'send':      gsSend($pdo, $user_id, $body); break;
         case 'reply':     gsReply($pdo, $user_id, $body, $AI_KEYS); break;
         case 'typing':    gsTyping($pdo, $user_id, $body); break;
@@ -115,10 +116,12 @@ function gsJoinCode(PDO $pdo): string {
     throw new Exception('Could not generate a unique join code.');
 }
 
-/** Session row, ending it first if it's gone stale. */
+/** Session row, ending it first if it's gone stale. A stale room ended when it went
+ *  quiet, not when someone next opened it — and assigning updated_at to itself stops
+ *  ON UPDATE CURRENT_TIMESTAMP from bumping it (room history sorts by these). */
 function gsSession(PDO $pdo, int $sessionId): ?array {
     $pdo->prepare("
-        UPDATE group_sessions SET status = 'completed', ended_at = NOW()
+        UPDATE group_sessions SET status = 'completed', ended_at = updated_at, updated_at = updated_at
         WHERE id = ? AND status != 'completed' AND updated_at < NOW() - INTERVAL " . GS_STALE_HOURS . " HOUR
     ")->execute([$sessionId]);
     $stmt = $pdo->prepare("SELECT id, host_user_id, topic, join_code, status, current_teacher_user_id,
@@ -384,6 +387,25 @@ function gsMine(PDO $pdo, int $userId): void {
     $rooms = array_map(fn($r) => ['session_id' => (int) $r['id'], 'topic' => $r['topic'], 'join_code' => $r['join_code'],
         'status' => $r['status'], 'is_host' => (bool) $r['is_host'], 'i_left' => (bool) $r['i_left'],
         'idle_seconds' => max(0, (int) $r['idle_seconds']), 'members' => $members[(int) $r['id']] ?? []], $rows);
+    echo json_encode(['success' => true, 'rooms' => $rooms]);
+}
+
+/** Rooms you were in that have ended (by the host, the last one leaving, or going stale).
+ *  Read-only afterwards: poll still serves a completed room's transcript. */
+function gsHistory(PDO $pdo, int $userId): void {
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.topic, s.host_user_id = ? AS is_host,
+               TIMESTAMPDIFF(SECOND, COALESCE(s.ended_at, s.updated_at), NOW()) AS ended_seconds_ago,
+               (SELECT COUNT(*) FROM group_session_participants x WHERE x.session_id = s.id) AS people,
+               (SELECT COUNT(*) FROM group_session_messages m WHERE m.session_id = s.id AND m.sender_type = 'student') AS said
+        FROM group_sessions s JOIN group_session_participants p ON p.session_id = s.id AND p.user_id = ?
+        WHERE s.status = 'completed' OR s.updated_at < NOW() - INTERVAL " . GS_STALE_HOURS . " HOUR
+        ORDER BY COALESCE(s.ended_at, s.updated_at) DESC LIMIT 10
+    ");
+    $stmt->execute([$userId, $userId]);
+    $rooms = array_map(fn($r) => ['session_id' => (int) $r['id'], 'topic' => $r['topic'], 'is_host' => (bool) $r['is_host'],
+        'ended_seconds_ago' => max(0, (int) $r['ended_seconds_ago']), 'people' => (int) $r['people'], 'said' => (int) $r['said']],
+        $stmt->fetchAll());
     echo json_encode(['success' => true, 'rooms' => $rooms]);
 }
 
