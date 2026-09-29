@@ -44,7 +44,7 @@ class KnowledgeService {
      * @param int $numResults Number of results to return
      * @return array Search results
      */
-    public function searchWeb($query, $numResults = 5) {
+    public function searchWeb($query, $numResults = 5, $timeout = 15) {   // 15s: a student may be waiting; cron jobs pass more
         if (!$this->serpApiKey) {
             error_log("KnowledgeService: SERP_API_KEY not configured");
             return [];
@@ -62,16 +62,18 @@ class KnowledgeService {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 15,
+            CURLOPT_TIMEOUT => $timeout,
             CURLOPT_HTTPHEADER => ['Accept: application/json']
         ]);
-        
+
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
-        
+
         if ($httpCode !== 200) {
-            error_log("SerpAPI error: HTTP $httpCode");
+            // HTTP 0 = no response at all (timeout, DNS, TLS) — the curl error says which
+            error_log("SerpAPI error: HTTP $httpCode" . ($curlError ? " ($curlError)" : ''));
             return [];
         }
         
@@ -437,13 +439,67 @@ class KnowledgeService {
      * @param string $topic Topic tag to attach to stored chunks
      * @return int Number of chunks stored
      */
+    /**
+     * Is this a source we let into the knowledge base? Retrieved chunks go into the
+     * tutor's prompt unattributed, so only educational sources qualify: academic and
+     * government domains, plus a curated list of educational publishers. Everything
+     * else (Q&A sites, forums, marketing pages, blogs, shops) is rejected — before this
+     * gate the self-filling path stored Quora answers, a job-interview Stack Exchange
+     * thread and a vendor marketing page next to LibreTexts.
+     * Add a publisher to TRUSTED_DOMAINS when a good source keeps being skipped
+     * (the skips are logged: "KnowledgeService: skipped untrusted source ...").
+     */
+    const TRUSTED_DOMAINS = [
+        // Reference & open textbooks
+        'wikipedia.org', 'britannica.com', 'libretexts.org', 'openstax.org', 'khanacademy.org',
+        'ck12.org', 'scholarpedia.org', 'mathworld.wolfram.com', 'plato.stanford.edu',
+        // Research & publishers
+        'sciencedirect.com', 'ncbi.nlm.nih.gov', 'nature.com', 'springer.com', 'jstor.org',
+        'cambridge.org', 'oxfordreference.com', 'ebsco.com', 'pearson.com', 'apa.org',
+        // Subject learning sites
+        'simplypsychology.org', 'masterorganicchemistry.com', 'chemguide.co.uk', 'leah4sci.com',
+        'physicsclassroom.com', 'hyperphysics.phy-astr.gsu.edu', 'mathsisfun.com', 'purplemath.com',
+        'brilliant.org', 'byjus.com', 'jackwestin.com', 'investopedia.com', 'sparknotes.com',
+        'bbc.co.uk', 'coursera.org', 'edx.org',
+        // Computing
+        'developer.mozilla.org', 'docs.python.org', 'geeksforgeeks.org', 'w3schools.com',
+        // Universities outside .edu/.ac (Canada uses plain .ca, Switzerland .ch)
+        'ucalgary.ca', 'utoronto.ca', 'ubc.ca', 'mcgill.ca', 'uwaterloo.ca', 'ualberta.ca', 'ethz.ch',
+        'researchgate.net', 'arxiv.org', 'semanticscholar.org',
+        // Academic Q&A (not the general Stack Exchange network)
+        'math.stackexchange.com', 'physics.stackexchange.com', 'chemistry.stackexchange.com',
+        'biology.stackexchange.com', 'stats.stackexchange.com', 'mathoverflow.net',
+    ];
+
+    public static function isTrustedSource(string $url): bool
+    {
+        $host = strtolower((string)parse_url($url, PHP_URL_HOST));
+        if ($host === '' || $host === 'example.com' || str_ends_with($host, '.example.com')) return false;
+        // Academic / government: .edu .gov .ac, alone or under a country code (.edu.gh, .ac.uk, .gov.au)
+        if (preg_match('/\.(edu|gov|ac)(\.[a-z]{2})?$/', $host)) return true;
+        foreach (self::TRUSTED_DOMAINS as $domain) {
+            if ($host === $domain || str_ends_with($host, '.' . $domain)) return true;
+        }
+        return false;
+    }
+
     public function searchAndStore($query, $maxResults = 3, $topic = 'general') {
-        $results = $this->searchWeb($query, $maxResults);
+        // Ask for more results than we keep: the trusted-source gate drops some
+        $results = $this->searchWeb($query, 8);
         if (empty($results)) return 0;
 
         $stored = 0;
+        $kept = 0;
         foreach ($results as $result) {
             if (empty($result['url'])) continue;
+            if ($kept >= $maxResults) break;
+
+            // Only educational sources may shape the tutor's answers (see isTrustedSource)
+            if (!self::isTrustedSource($result['url'])) {
+                error_log("KnowledgeService: skipped untrusted source " . $result['url']);
+                continue;
+            }
+            $kept++;
 
             // Skip if already indexed
             if ($this->urlExists($result['url'])) continue;
@@ -510,6 +566,10 @@ class KnowledgeService {
         
         $processed = 0;
         foreach ($results as $result) {
+            // Same trusted-source gate as searchAndStore()
+            if (empty($result['url']) || !self::isTrustedSource($result['url'])) {
+                continue;
+            }
             // Skip if already in knowledge base
             if ($this->urlExists($result['url'])) {
                 continue;

@@ -215,7 +215,7 @@ EOT;
         $processed = 0;
         foreach ($searchQueries as $query) {
             try {
-                $results = $this->knowledgeService->searchWeb($query, 3);
+                $results = $this->knowledgeService->searchWeb($query, 3, 30); // background job: can wait
                 
                 foreach ($results as $result) {
                     // Filter for educational content
@@ -255,7 +255,7 @@ EOT;
     /**
      * Check if URL is likely educational content
      */
-    private function isEducationalContent($url) {
+    public function isEducationalContent($url) {   // public for scripts/refresh_learning_strategies.php --dry-run
         $educationalPatterns = [
             'youtube\.com',
             'learningscientists\.org',
@@ -272,6 +272,11 @@ EOT;
             if (preg_match("/$pattern/i", $url)) {
                 return true;
             }
+        }
+
+        // Plus everything the general knowledge base trusts (research, universities, textbooks)
+        if (KnowledgeService::isTrustedSource($url)) {
+            return true;
         }
 
         // Was `return true` unconditionally — a dead filter that stored anything
