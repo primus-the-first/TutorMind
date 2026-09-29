@@ -63,6 +63,12 @@
   --ds-max: 1180px;
 }
 
+/* TutorMind has its own light/dark theme. `only` stops the browser from repainting it
+   (Chrome's "Auto Dark Mode for Web Contents" darkened light pages into a broken mix), and
+   the used scheme follows the app's theme so native controls and scrollbars match. */
+:root { color-scheme: only light; }
+:root:has(> body.dark-mode) { color-scheme: only dark; }
+
 body.dark-mode {
   --ds-canvas: #16121F;
   --ds-surface: #1F1A2E;

@@ -168,6 +168,15 @@ body.dark-mode .settings-overlay { background: rgba(0, 0, 0, 0.6); }
     transition: border-color 0.15s, box-shadow 0.15s;
 }
 .form-control::placeholder { color: var(--ds-ink-2); }
+/* Autofill's own light fill ignores the theme — cover it (same fix as .ds-input in tm-ds.css) */
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover {
+    -webkit-text-fill-color: var(--ds-ink);
+    caret-color: var(--ds-ink);
+    box-shadow: 0 0 0 1000px var(--ds-surface) inset, 0 3px 0 var(--ds-line);
+    transition: background-color 9999s ease-out 0s;
+}
+.form-control:-webkit-autofill:focus { box-shadow: 0 0 0 1000px var(--ds-surface) inset, 0 3px 0 var(--primary-light); }
 .form-control:focus,
 .form-select:focus {
     outline: none;

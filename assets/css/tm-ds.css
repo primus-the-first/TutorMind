@@ -1034,6 +1034,16 @@ body.dark-mode .ds-viewfinder > i { border-color: var(--primary-light); }
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ds-input::placeholder { color: var(--ds-ink-2); }
+/* Browser autofill paints its own light fill and dark text over the theme (glaring in dark mode).
+   The background can't be overridden, so cover it with an inset shadow in the surface token. */
+.ds-input:-webkit-autofill,
+.ds-input:-webkit-autofill:hover {
+  -webkit-text-fill-color: var(--ds-ink);
+  caret-color: var(--ds-ink);
+  box-shadow: 0 0 0 1000px var(--ds-surface) inset, 0 3px 0 var(--ds-line);
+  transition: background-color 9999s ease-out 0s;
+}
+.ds-input:-webkit-autofill:focus { box-shadow: 0 0 0 1000px var(--ds-surface) inset, 0 3px 0 var(--primary-light); }
 .ds-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 3px 0 var(--primary-light); }
 .ds-input[aria-invalid="true"] { border-color: var(--tm-bad); box-shadow: 0 3px 0 var(--tm-bad); }
 .ds-input-wrap { position: relative; }
