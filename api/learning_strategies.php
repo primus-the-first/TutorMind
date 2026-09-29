@@ -273,8 +273,12 @@ EOT;
                 return true;
             }
         }
-        
-        return true; // Allow most content for now
+
+        // Was `return true` unconditionally — a dead filter that stored anything
+        // SerpAPI returned regardless of source, confirmed live: a search for
+        // "evidence-based learning strategies" pulled in a legal treaty page and a
+        // BI-tool homepage purely because they contained the word "evidence".
+        return false;
     }
     
     /**

@@ -137,15 +137,21 @@ function tryElevenLabs($text, $apiKey, $voiceId = null, $modelId = null) {
 
         $audioData = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
         if ($httpCode !== 200) {
-            error_log("ElevenLabs API error: HTTP $httpCode");
+            // httpCode 0 with a non-empty curl error means the request never reached
+            // ElevenLabs at all (e.g. TLS/CA bundle issue on some shared hosts) rather
+            // than ElevenLabs rejecting it — surface both so this is diagnosable from
+            // the browser network tab instead of needing server log access.
+            error_log("ElevenLabs API error: HTTP $httpCode" . ($curlError ? " curl: $curlError" : ''));
             return [
                 'success' => true,
                 'fallback' => true,
                 'text' => $text,
-                'message' => 'ElevenLabs API error.'
+                'message' => 'ElevenLabs API error.',
+                'debug' => ['httpCode' => $httpCode, 'curlError' => $curlError ?: null]
             ];
         }
 

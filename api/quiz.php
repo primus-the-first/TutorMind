@@ -456,7 +456,9 @@ function callDeepSeekJson($apiKey, $prompt, $timeoutSeconds = 20) {
 function callGemini($apiKey, $prompt, $timeoutSeconds = 10) {
     if (!$apiKey) return null;
 
-    $url     = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+    // Rolling alias, not a pinned version — gemini-2.5-flash deprecates 2026-10-16
+    // (see callGeminiAPI() in ai_service.php for the same change and why).
+    $url     = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={$apiKey}";
     $payload = json_encode([
         'contents' => [['parts' => [['text' => $prompt]]]],
         'generationConfig' => [

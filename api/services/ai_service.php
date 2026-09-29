@@ -122,7 +122,9 @@ function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'openai/gpt-
         CURLOPT_TIMEOUT => 90
     ]);
 
+    $attemptStart = microtime(true);
     $response = curl_exec($ch);
+    $attemptElapsed = round(microtime(true) - $attemptStart, 2);
     $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curl_error = curl_error($ch);
     curl_close($ch);
@@ -142,6 +144,10 @@ function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'openai/gpt-
         }
 
         throw new Exception('Groq API Error (HTTP ' . $http_status . '): ' . $errorMsg);
+    }
+
+    if ($attemptElapsed > 5) {
+        error_log("Groq ({$model}) call succeeded but took {$attemptElapsed}s");
     }
 
     $data = json_decode($response, true);
@@ -212,7 +218,9 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
         CURLOPT_TIMEOUT => 90
     ]);
 
+    $attemptStart = microtime(true);
     $response = curl_exec($ch);
+    $attemptElapsed = round(microtime(true) - $attemptStart, 2);
     $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curl_error = curl_error($ch);
     curl_close($ch);
@@ -225,6 +233,10 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
         $errorData = json_decode($response, true);
         $errorMsg = $errorData['error']['message'] ?? substr($response, 0, 200);
         throw new Exception('DeepSeek API Error (HTTP ' . $http_status . '): ' . $errorMsg);
+    }
+
+    if ($attemptElapsed > 5) {
+        error_log("DeepSeek call succeeded but took {$attemptElapsed}s");
     }
 
     $data = json_decode($response, true);
@@ -248,7 +260,11 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
 }
 
 function callGeminiAPI($payload, $apiKey) {
-    $model = 'gemini-2.5-flash';
+    // Rolling alias (confirmed live via GET /v1beta/models) instead of a pinned version:
+    // gemini-2.5-flash deprecates 2026-10-16, and pinning just recreates this same
+    // migration the next time Google retires whatever's current. Google moves this
+    // alias forward on its own schedule instead.
+    $model = 'gemini-flash-latest';
 
     $payloadArr = json_decode($payload, true);
     $payloadArr['tools'] = [
@@ -304,7 +320,9 @@ function callGeminiAPI($payload, $apiKey) {
             CURLOPT_TIMEOUT => 60
         ]);
 
+        $attemptStart = microtime(true);
         $response = curl_exec($ch);
+        $attemptElapsed = round(microtime(true) - $attemptStart, 2);
         $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curl_error = curl_error($ch);
         curl_close($ch);
@@ -319,14 +337,18 @@ function callGeminiAPI($payload, $apiKey) {
             continue;
         }
 
-        if ($http_status === 429 || $http_status === 503) {
-            $retries++;
+        if ($http_status === 429) {
+            // Free-tier rate limit is a hard quota wall for the current window, not a
+            // transient blip — retrying with backoff here just burns the time the
+            // Groq/DeepSeek fallback chain exists to route around (was observed adding
+            // 100+ seconds to a single request). Fail fast instead so the caller falls
+            // through immediately.
+            throw new Exception('AI service rate limit exceeded. Please try again in a moment.');
+        }
 
-            if ($model === 'gemini-3-flash-preview' && $retries > 1) {
-                $model = 'gemini-2.5-flash';
-                $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . $apiKey;
-                continue;
-            }
+        if ($http_status === 503) {
+            // 503 is a transient server-side error, unlike 429 — worth a real retry.
+            $retries++;
 
             if ($retries >= $max_retries)
                 throw new Exception('AI service rate limit exceeded. Please try again in a moment.');
@@ -337,6 +359,13 @@ function callGeminiAPI($payload, $apiKey) {
 
         if ($http_status !== 200) {
             throw new Exception('AI service returned an error: HTTP ' . $http_status . ' - ' . substr($response, 0, 200));
+        }
+
+        // Gemini has no retry/error to log a success case in this codebase's existing
+        // error_log calls, so a slow-but-successful call was previously invisible — this
+        // was found the hard way (a 74s request with no fallback/error logged anywhere).
+        if ($attemptElapsed > 5) {
+            error_log("Gemini call succeeded but took {$attemptElapsed}s");
         }
 
         $responseData = json_decode($response, true);

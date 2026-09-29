@@ -10,7 +10,8 @@
  * @param string $topic The topic to create an outline for
  * @param string $sessionGoal The session goal (explore, test_prep, homework_help, practice)
  * @param string $educationLevel The student's education level
- * @param string $apiKey The Gemini API key
+ * @param string|null $apiKey The DeepSeek API key (primary). Pass null/empty to force
+ *   the Gemini path (used automatically when DeepSeek isn't configured at all).
  * @return array|null The learning outline with milestones, or null on failure
  */
 function generateLearningOutline($topic, $sessionGoal, $educationLevel, $apiKey)
@@ -49,66 +50,274 @@ Return ONLY a valid JSON object in this exact format:
 EOT;
 
     try {
-        $payload = json_encode([
-            "contents" => [
-                ["parts" => [["text" => $prompt]]]
-            ],
-            "generationConfig" => [
-                "responseMimeType" => "application/json",
-                "temperature" => 0.3 // Lower temperature for more consistent structure
-            ]
-        ]);
-
-        $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey;
-
-        $ch = curl_init($apiUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $payload,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-            CURLOPT_TIMEOUT => 15
-        ]);
-
-        $response = curl_exec($ch);
-        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($http_status !== 200) {
-            error_log("Outline generation failed: HTTP $http_status");
-            return null;
+        // DeepSeek is primary here to keep this off Gemini's scarce free-tier request
+        // budget (15 RPM / 1,500 RPD, shared with every other Gemini call in the app).
+        // The output stays small regardless of provider, so this is purely a request-
+        // budget move, not a capability one. A failure here is NOT backstopped by
+        // Gemini: it already fails silently and self-heals on the student's next
+        // message (server_mysql.php only calls this again while no outline is set
+        // yet), so a same-provider retry inside callDeepSeekForOutline() is the right
+        // amount of resilience — a cross-provider fallback would spend Gemini budget
+        // guarding against something that's already free to just retry later.
+        if (!empty($apiKey)) {
+            $rawOutline = callDeepSeekForOutline($prompt, $apiKey);
+        } elseif (defined('GEMINI_API_KEY') && !empty(GEMINI_API_KEY)) {
+            // DeepSeek isn't configured in this environment at all — fall back to
+            // Gemini so outline generation still works out of the box.
+            $rawOutline = callGeminiForOutline($prompt, GEMINI_API_KEY);
+        } else {
+            $rawOutline = null;
         }
 
-        $data = json_decode($response, true);
-        $jsonText = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
-
-        if (!$jsonText) {
-            error_log("Outline generation: No text in response");
-            return null;
-        }
-
-        $outline = json_decode($jsonText, true);
-
-        if (!$outline || !isset($outline['milestones'])) {
-            error_log("Outline generation: Invalid JSON structure");
+        if (!$rawOutline || !isset($rawOutline['milestones'])) {
             return null;
         }
 
         // Initialize completion status for each milestone
-        foreach ($outline['milestones'] as &$milestone) {
+        foreach ($rawOutline['milestones'] as &$milestone) {
             $milestone['completed'] = false;
             $milestone['coveredAt'] = null;
         }
+        unset($milestone);
 
-        $outline['generatedAt'] = date('c');
-        $outline['lastUpdated'] = date('c');
+        $rawOutline['generatedAt'] = date('c');
+        $rawOutline['lastUpdated'] = date('c');
 
-        return $outline;
+        return $rawOutline;
 
     } catch (Exception $e) {
         error_log("Outline generation error: " . $e->getMessage());
         return null;
     }
+}
+
+/**
+ * DeepSeek call for generateLearningOutline(): a single-shot JSON-structured prompt
+ * (no chat history). Single attempt, no retry — this call already runs sequentially
+ * AFTER the main chat answer inside the same synchronous request (see server_mysql.php),
+ * so a retry here doesn't buy resilience so much as double the worst-case latency added
+ * to a request the student is actively waiting on. A failure is still free: it fails
+ * silently and self-heals on the student's next message (server_mysql.php only calls
+ * this again while no outline is set yet), so that natural retry is the right amount
+ * of resilience — this function just needs to fail fast, not fail twice.
+ */
+function callDeepSeekForOutline($prompt, $apiKey)
+{
+    $apiUrl = "https://api.deepseek.com/v1/chat/completions";
+    $payload = json_encode([
+        'model' => 'deepseek-flash',
+        'messages' => [['role' => 'user', 'content' => $prompt]],
+        // Requires the word "json" and an example format in the prompt to be reliable —
+        // both already present in $prompt above.
+        'response_format' => ['type' => 'json_object'],
+        'max_tokens' => 8192,
+        'temperature' => 0.3 // Lower temperature for more consistent structure
+    ]);
+
+    $ch = curl_init($apiUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey
+        ],
+        CURLOPT_TIMEOUT => 20
+    ]);
+
+    $start = microtime(true);
+    $response = curl_exec($ch);
+    $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    curl_close($ch);
+    $elapsed = round(microtime(true) - $start, 2);
+
+    if ($curl_error || $http_status !== 200) {
+        error_log("Outline generation (DeepSeek, {$elapsed}s) failed: HTTP {$http_status} {$curl_error}");
+        return null;
+    }
+
+    $data = json_decode($response, true);
+    $jsonText = $data['choices'][0]['message']['content'] ?? null;
+
+    if (!$jsonText) {
+        error_log("Outline generation (DeepSeek, {$elapsed}s): empty content");
+        return null;
+    }
+
+    $outline = json_decode($jsonText, true);
+    if ($outline && isset($outline['milestones'])) {
+        error_log("Outline generation (DeepSeek, {$elapsed}s): success, " . count($outline['milestones']) . " milestones");
+        return $outline;
+    }
+
+    error_log("Outline generation (DeepSeek, {$elapsed}s): invalid JSON structure");
+    return null;
+}
+
+/**
+ * Generate a short conversation title from the student's first message.
+ * Same primary/fallback shape as generateLearningOutline(): DeepSeek first (keeps
+ * this off Gemini's scarce free-tier budget), Gemini only if DeepSeek isn't
+ * configured at all. A failure here already degrades gracefully to a default
+ * title (see includes/server_mysql.php), so — like the outline call — this is a
+ * single attempt, not a retry loop.
+ *
+ * @param string $question The student's first message in the conversation
+ * @param string|null $apiKey The DeepSeek API key (primary), or null/empty to force Gemini
+ * @return string|null The generated title, or null on failure
+ */
+function generateConversationTitle($question, $apiKey)
+{
+    $prompt = "Based on this user question: \"{$question}\"\n\nGenerate a very concise, descriptive title for this conversation in 3-5 words maximum. The title should capture the main topic or question. Respond with ONLY the title, nothing else.";
+
+    if (!empty($apiKey)) {
+        $title = callDeepSeekForTitle($prompt, $apiKey);
+    } elseif (defined('GEMINI_API_KEY') && !empty(GEMINI_API_KEY)) {
+        $title = callGeminiForTitle($prompt, GEMINI_API_KEY);
+    } else {
+        $title = null;
+    }
+
+    if (!$title) {
+        return null;
+    }
+
+    $title = str_replace(['"', "'"], '', trim($title));
+    if (strlen($title) > 60) {
+        $title = substr($title, 0, 57) . '...';
+    }
+    return $title;
+}
+
+function callDeepSeekForTitle($prompt, $apiKey)
+{
+    $apiUrl = "https://api.deepseek.com/v1/chat/completions";
+    $payload = json_encode([
+        'model' => 'deepseek-flash',
+        'messages' => [['role' => 'user', 'content' => $prompt]],
+        // deepseek-flash emits hidden reasoning_content before the actual answer
+        // (confirmed live: a 30-token budget was spent entirely on reasoning, hit
+        // finish_reason "length", and never reached the real title) — needs real
+        // headroom even for a tiny output, not just room for the title itself.
+        'max_tokens' => 300,
+        'temperature' => 0.5
+    ]);
+
+    $ch = curl_init($apiUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey
+        ],
+        CURLOPT_TIMEOUT => 15
+    ]);
+
+    $start = microtime(true);
+    $response = curl_exec($ch);
+    $elapsed = round(microtime(true) - $start, 2);
+    $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    curl_close($ch);
+
+    if ($curl_error || $http_status !== 200) {
+        error_log("Title generation (DeepSeek, {$elapsed}s) failed: HTTP {$http_status} {$curl_error}");
+        return null;
+    }
+
+    $data = json_decode($response, true);
+    $text = $data['choices'][0]['message']['content'] ?? null;
+
+    if (!$text) {
+        error_log("Title generation (DeepSeek, {$elapsed}s): empty content");
+        return null;
+    }
+
+    if ($elapsed > 5) {
+        error_log("Title generation (DeepSeek, {$elapsed}s): success");
+    }
+
+    return $text;
+}
+
+/**
+ * Gemini call for generateConversationTitle() — used only when DeepSeek isn't
+ * configured in this environment at all. Reuses the shared callGeminiAPI() (with
+ * its own fast-fail-on-429 behavior) rather than a bespoke curl call, since that's
+ * what this call site always used before DeepSeek became primary.
+ */
+function callGeminiForTitle($prompt, $apiKey)
+{
+    try {
+        $payload = json_encode([
+            "contents" => [["role" => "user", "parts" => [["text" => $prompt]]]]
+        ]);
+        $response = callGeminiAPI($payload, $apiKey);
+        return $response['candidates'][0]['content']['parts'][0]['text'] ?? null;
+    } catch (Exception $e) {
+        error_log("Title generation (Gemini fallback) failed: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Gemini call for generateLearningOutline() — used only when DeepSeek isn't
+ * configured in this environment at all (see the primary/fallback branch above).
+ */
+function callGeminiForOutline($prompt, $apiKey)
+{
+    $payload = json_encode([
+        "contents" => [
+            ["parts" => [["text" => $prompt]]]
+        ],
+        "generationConfig" => [
+            "responseMimeType" => "application/json",
+            "temperature" => 0.3
+        ]
+    ]);
+
+    // Rolling alias, not a pinned version — gemini-2.5-flash deprecates 2026-10-16
+    // (see callGeminiAPI() in ai_service.php for the same change and why).
+    $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" . $apiKey;
+
+    $ch = curl_init($apiUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_TIMEOUT => 15
+    ]);
+
+    $response = curl_exec($ch);
+    $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($http_status !== 200) {
+        error_log("Outline generation (Gemini fallback) failed: HTTP $http_status");
+        return null;
+    }
+
+    $data = json_decode($response, true);
+    $jsonText = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
+
+    if (!$jsonText) {
+        error_log("Outline generation (Gemini fallback): No text in response");
+        return null;
+    }
+
+    $outline = json_decode($jsonText, true);
+
+    if (!$outline || !isset($outline['milestones'])) {
+        error_log("Outline generation (Gemini fallback): Invalid JSON structure");
+        return null;
+    }
+
+    return $outline;
 }
 
 /**

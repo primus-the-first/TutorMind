@@ -1068,10 +1068,13 @@ EOT;
         }
     }
 
-    // Cascade fallback: Gemini → Groq (free) → DeepSeek (paid)
+    // Cascade fallback: Gemini → DeepSeek (paid, reliable, credits available) → Groq
+    // (free, but its 8000 TPM cap fails on this app's prompt size almost every time —
+    // see the stripWidgetSectionForGroq() note in ai_service.php — so it's the last
+    // resort, not the first).
     $usedFallback = false;
     $fallbackProvider = null;
-    
+
     try {
         $responseData = callGeminiAPI($payload, $activeApiKey);
     } catch (Exception $geminiError) {
@@ -1086,43 +1089,43 @@ EOT;
         if (!$isFallbackEligible) {
             throw $geminiError;
         }
-        
+
         error_log("Gemini error, trying fallbacks: " . $geminiError->getMessage());
-        
-        // Try Groq first (free tier)
-        if (defined('GROQ_API_KEY')) {
+
+        // Try DeepSeek first (paid, reliable)
+        if (defined('DEEPSEEK_API_KEY')) {
             try {
-                error_log("Attempting Groq fallback...");
-                $responseData = callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY);
-                $usedFallback = true;
-                $fallbackProvider = 'groq';
-            } catch (Exception $groqError) {
-                error_log("Groq fallback failed: " . $groqError->getMessage());
-                
-                // Try DeepSeek as last resort (paid)
-                if (defined('DEEPSEEK_API_KEY')) {
-                    try {
-                        error_log("Attempting DeepSeek fallback...");
-                        $responseData = callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY);
-                        $usedFallback = true;
-                        $fallbackProvider = 'deepseek';
-                    } catch (Exception $deepseekError) {
-                        error_log("DeepSeek fallback failed: " . $deepseekError->getMessage());
-                        throw new Exception("All AI providers failed. Gemini: {$geminiError->getMessage()}");
-                    }
-                } else {
-                    throw new Exception("Groq fallback failed and DeepSeek not configured. Error: " . $groqError->getMessage());
-                }
-            }
-        } elseif (defined('DEEPSEEK_API_KEY')) {
-            // No Groq, try DeepSeek directly
-            try {
-                error_log("Attempting DeepSeek fallback (no Groq configured)...");
+                error_log("Attempting DeepSeek fallback...");
                 $responseData = callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY);
                 $usedFallback = true;
                 $fallbackProvider = 'deepseek';
             } catch (Exception $deepseekError) {
                 error_log("DeepSeek fallback failed: " . $deepseekError->getMessage());
+
+                // Try Groq as last resort (free, but TPM-capped)
+                if (defined('GROQ_API_KEY')) {
+                    try {
+                        error_log("Attempting Groq fallback...");
+                        $responseData = callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY);
+                        $usedFallback = true;
+                        $fallbackProvider = 'groq';
+                    } catch (Exception $groqError) {
+                        error_log("Groq fallback failed: " . $groqError->getMessage());
+                        throw new Exception("All AI providers failed. Gemini: {$geminiError->getMessage()}");
+                    }
+                } else {
+                    throw new Exception("DeepSeek fallback failed and Groq not configured. Error: " . $deepseekError->getMessage());
+                }
+            }
+        } elseif (defined('GROQ_API_KEY')) {
+            // No DeepSeek, try Groq directly
+            try {
+                error_log("Attempting Groq fallback (no DeepSeek configured)...");
+                $responseData = callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY);
+                $usedFallback = true;
+                $fallbackProvider = 'groq';
+            } catch (Exception $groqError) {
+                error_log("Groq fallback failed: " . $groqError->getMessage());
                 throw new Exception("All AI providers failed. Error: " . $geminiError->getMessage());
             }
         } else {
@@ -1189,8 +1192,11 @@ EOT;
             // Generate outline if we have a topic and a session goal
             if ($detectedTopic && $currentSessionGoal) {
                 $educationLevel = $user_profile['education_level'] ?? 'High School';
-                // Also use the active API key for outline generation if relevant
-                $outline = generateLearningOutline($detectedTopic, $currentSessionGoal, $educationLevel, $activeApiKey);
+                // DeepSeek is primary for outline generation (keeps it off Gemini's
+                // scarce free-tier request budget — see generateLearningOutline()).
+                // Falls back to Gemini internally if DeepSeek isn't configured.
+                $outlineApiKey = defined('DEEPSEEK_API_KEY') ? DEEPSEEK_API_KEY : null;
+                $outline = generateLearningOutline($detectedTopic, $currentSessionGoal, $educationLevel, $outlineApiKey);
 
                 if ($outline) {
                     $contextData['outline'] = $outline;
@@ -1221,24 +1227,15 @@ EOT;
         $hybridProgress = calculateHybridProgress($contextData);
         $contextData['calculatedProgress'] = $hybridProgress;
 
-        // For new chats, generate an AI title before the single conversation UPDATE
+        // For new chats, generate an AI title before the single conversation UPDATE.
+        // DeepSeek is primary (see generateConversationTitle() in tutor_service.php)
+        // to keep this off Gemini's scarce free-tier request budget, same as outline
+        // generation — falls back to Gemini internally if DeepSeek isn't configured.
         $generated_title = null;
         if (count($chat_history) === 1) {
-            try {
-                $title_prompt = "Based on this user question: \"$question\"\n\nGenerate a very concise, descriptive title for this conversation in 3-5 words maximum. The title should capture the main topic or question. Respond with ONLY the title, nothing else.";
-                $title_payload = json_encode([
-                    "contents" => [["role" => "user", "parts" => [["text" => $title_prompt]]]]
-                ]);
-                $title_response = callGeminiAPI($title_payload, GEMINI_API_KEY);
-                if (isset($title_response['candidates'][0]['content']['parts'][0]['text'])) {
-                    $generated_title = trim($title_response['candidates'][0]['content']['parts'][0]['text']);
-                    $generated_title = str_replace(['"', "'"], '', $generated_title);
-                    if (strlen($generated_title) > 60) {
-                        $generated_title = substr($generated_title, 0, 57) . '...';
-                    }
-                }
-            } catch (Exception $e) {
-                error_log("Title generation failed: " . $e->getMessage());
+            $titleApiKey = defined('DEEPSEEK_API_KEY') ? DEEPSEEK_API_KEY : null;
+            $generated_title = generateConversationTitle($question, $titleApiKey);
+            if ($generated_title === null) {
                 $generated_title = "New Chat";
             }
         }

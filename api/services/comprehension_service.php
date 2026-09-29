@@ -118,7 +118,9 @@ EOT;
         ]
     ]);
 
-    $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
+    // Rolling alias, not a pinned version — gemini-2.5-flash deprecates 2026-10-16
+    // (see callGeminiAPI() in ai_service.php for the same change and why).
+    $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key="
         . $config['GEMINI_API_KEY'];
 
     $ch = curl_init($apiUrl);

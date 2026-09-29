@@ -1676,14 +1676,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const audioBlob = VoiceManager.base64ToBlob(data.audio, data.contentType);
                     const audioUrl = URL.createObjectURL(audioBlob);
                     const audio = new Audio(audioUrl);
-                    
+
                     await new Promise((resolve) => {
                         audio.onended = resolve;
                         audio.onerror = resolve;
-                        audio.play();
+                        // play() can reject (e.g. mobile autoplay policy) without firing
+                        // onerror, which would hang this promise forever — resolve on
+                        // that rejection too and fall through to the browser voice.
+                        audio.play().catch(resolve);
                     });
                 } else {
-                    // Browser TTS fallback
+                    // Browser TTS fallback — log why ElevenLabs wasn't used so a
+                    // production-only failure (e.g. cURL/TLS issue on shared hosting)
+                    // is diagnosable from the browser console instead of server logs.
+                    console.warn('Voice Mode: ElevenLabs unavailable, using browser TTS.', data.message, data.debug);
                     await this.browserSpeak(text);
                 }
             } catch (error) {
