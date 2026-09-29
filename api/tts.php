@@ -151,7 +151,9 @@ function tryElevenLabs($text, $apiKey, $voiceId = null, $modelId = null) {
                 'fallback' => true,
                 'text' => $text,
                 'message' => 'ElevenLabs API error.',
-                'debug' => ['httpCode' => $httpCode, 'curlError' => $curlError ?: null]
+                // The raw curl message (paths, TLS details) stays in the server log above;
+                // the browser only needs to know whether ElevenLabs was reachable at all.
+                'debug' => ['httpCode' => $httpCode, 'network' => $curlError ? 'unreachable' : null]
             ];
         }
 

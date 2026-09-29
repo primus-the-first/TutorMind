@@ -265,7 +265,7 @@ EOT;
             'medium\.com',
             'substack',
             'notion\.site',
-            'edu$',
+            '\.edu(\/|$)', // a .edu domain, with or without a path after it
         ];
         
         foreach ($educationalPatterns as $pattern) {
