@@ -351,15 +351,39 @@ function gsOpen(PDO $pdo, int $userId, array $data): void {
 }
 
 function gsMine(PDO $pdo, int $userId): void {
+    // idle_seconds is worked out in SQL: PHP and MySQL don't share a timezone here
     $stmt = $pdo->prepare("
-        SELECT s.id, s.topic, s.join_code, s.status, s.host_user_id = ? AS is_host
+        SELECT s.id, s.topic, s.join_code, s.status, s.host_user_id = ? AS is_host,
+               p.left_at IS NOT NULL AS i_left, TIMESTAMPDIFF(SECOND, s.updated_at, NOW()) AS idle_seconds
         FROM group_sessions s JOIN group_session_participants p ON p.session_id = s.id AND p.user_id = ?
         WHERE s.status != 'completed' AND s.updated_at > NOW() - INTERVAL " . GS_STALE_HOURS . " HOUR
-        ORDER BY s.updated_at DESC LIMIT 5
+        ORDER BY s.updated_at DESC LIMIT 6
     ");
     $stmt->execute([$userId, $userId]);
+    $rows = $stmt->fetchAll();
+
+    // Who's still in each room (not left), and who's here right now
+    $members = [];
+    if ($rows) {
+        $ids = array_map(fn($r) => (int) $r['id'], $rows);
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $m = $pdo->prepare("
+            SELECT session_id, user_id, display_name,
+                   last_seen_at > NOW() - INTERVAL " . GS_ONLINE_SECONDS . " SECOND AS online
+            FROM group_session_participants
+            WHERE session_id IN ($in) AND left_at IS NULL
+            ORDER BY joined_at
+        ");
+        $m->execute($ids);
+        foreach ($m->fetchAll() as $p) {
+            $members[(int) $p['session_id']][] = ['name' => gsFirstName($p['display_name']),
+                'online' => (bool) $p['online'], 'me' => (int) $p['user_id'] === $userId];
+        }
+    }
+
     $rooms = array_map(fn($r) => ['session_id' => (int) $r['id'], 'topic' => $r['topic'], 'join_code' => $r['join_code'],
-        'status' => $r['status'], 'is_host' => (bool) $r['is_host']], $stmt->fetchAll());
+        'status' => $r['status'], 'is_host' => (bool) $r['is_host'], 'i_left' => (bool) $r['i_left'],
+        'idle_seconds' => max(0, (int) $r['idle_seconds']), 'members' => $members[(int) $r['id']] ?? []], $rows);
     echo json_encode(['success' => true, 'rooms' => $rooms]);
 }
 

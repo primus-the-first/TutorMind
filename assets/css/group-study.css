@@ -57,29 +57,26 @@
 }
 .gs-lobby__intro { display: grid; gap: 14px; justify-items: start; }
 .gs-lobby__intro .ds-lede { max-width: 58ch; }
-.gs-lobby__cards { display: grid; gap: 16px; align-items: start; }
-@media (min-width: 720px) { .gs-lobby__cards { grid-template-columns: 1fr 1fr; } }
+.gs-lobby__cards { display: grid; gap: 16px; }
+@media (min-width: 720px) { .gs-lobby__cards { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 
+/* Start / Join: always open, so the form is one click away. The card is a
+   grid so both buttons line up along the bottom whatever the copy length. */
 .gs-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
   border: 1.5px solid var(--ds-line);
   border-radius: var(--ds-r-lg);
   background: var(--ds-surface);
   box-shadow: 0 3px 0 var(--ds-line);
   transition: border-color 0.15s;
 }
-.gs-card:hover, .gs-card.is-open { border-color: var(--primary-light); }
+.gs-card:focus-within { border-color: var(--primary-light); }
 .gs-card__head {
-  width: 100%;
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 20px;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+  padding: 20px 20px 16px;
 }
 .gs-card__icon {
   flex: none;
@@ -92,27 +89,89 @@
   color: var(--ds-accent-ink);
 }
 .gs-card__text { display: grid; gap: 4px; }
-.gs-card__title { font: 700 1.15rem/1.2 var(--ds-font-display); letter-spacing: -0.01em; color: var(--ds-ink); }
+.gs-card__title { margin: 0; font: 700 1.15rem/1.2 var(--ds-font-display); letter-spacing: -0.01em; color: var(--ds-ink); }
 .gs-card__desc { color: var(--ds-ink-2); font-size: 0.95rem; }
-.gs-card__form { display: none; gap: 14px; padding: 0 20px 20px; }
-.gs-card.is-open .gs-card__form { display: grid; }
+.gs-card__form { display: grid; gap: 14px; align-content: end; padding: 0 20px 20px; }
 .gs-code-input { font: 600 1.25rem var(--ds-font-display); letter-spacing: 0.14em; text-transform: uppercase; }
 .gs-code-input::placeholder { letter-spacing: 0.14em; }
 
-.gs-rejoin__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.gs-rejoin__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 12px 12px 16px;
+/* Phones: rooms you're already in come before the two forms, or getting back
+   into a room means scrolling past both of them */
+@media (max-width: 719px) {
+  .gs-lobby__intro { order: -2; }
+  .gs-rejoin { order: -1; }
+}
+
+/* ---------- Your study rooms ---------- */
+.gs-rejoin .gs-section-title { margin: 0; font: 700 1.25rem/1.2 var(--ds-font-display); letter-spacing: -0.01em; }
+.gs-section-sub { margin: 4px 0 14px; color: var(--ds-ink-2); font-size: 0.95rem; }
+.gs-rooms { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+@media (min-width: 720px) { .gs-rooms { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+.gs-roomcard {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  gap: 6px;
+  padding: 16px 16px 14px 18px;
   border: 1px solid var(--ds-line);
-  border-radius: var(--ds-r-md);
+  border-radius: var(--ds-r-lg);
   background: var(--ds-surface);
 }
-.gs-rejoin__item > div { display: grid; gap: 2px; min-width: 0; }
-.gs-rejoin__topic { font: 600 1rem var(--ds-font-display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gs-rejoin__meta { color: var(--ds-ink-2); font-size: 0.875rem; }
+.gs-roomcard__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+/* Status tag: sentence case, small radius; the brand dot only when someone's actually here
+   (same presence dot as the people list — not green, that's for right answers) */
+.gs-roomcard__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--ds-r-sm);
+  background: var(--ds-tint);
+  color: var(--ds-ink-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.gs-roomcard__status.is-live { color: var(--ds-accent-ink); }
+.gs-roomcard__status.is-live::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.gs-roomcard__count { color: var(--ds-ink-2); font-size: 0.85rem; white-space: nowrap; }
+.gs-roomcard__topic {
+  margin: 0;
+  font: 700 1.1rem/1.25 var(--ds-font-display);
+  letter-spacing: -0.01em;
+  color: var(--ds-ink);
+  overflow-wrap: anywhere;
+}
+.gs-roomcard__meta { margin: 0; color: var(--ds-ink-2); font-size: 0.875rem; }
+.gs-roomcard__foot { display: flex; align-items: end; justify-content: space-between; gap: 10px; margin-top: 8px; }
+
+/* Initials, overlapped; ring in the card colour so they read as separate discs */
+.gs-stack { display: flex; padding-left: 6px; }
+.gs-stack__item {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  margin-left: -6px;
+  box-shadow: 0 0 0 2px var(--ds-surface);
+  font-size: 0.8rem;
+}
+.gs-stack__item.is-here::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ds-surface);
+  border-radius: 50%;
+  background: var(--primary);
+}
+.gs-stack__more { background: var(--ds-surface); color: var(--ds-ink-2); box-shadow: 0 0 0 2px var(--ds-surface), inset 0 0 0 1px var(--ds-line); }
 
 /* ---------- Room shell ---------- */
 .gs-room {

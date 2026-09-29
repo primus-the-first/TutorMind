@@ -53,20 +53,15 @@ $v = fn($f) => filemtime($f);
             <p class="ds-lede">One of you explains, the room talks it through, and Q points at gaps. It'll ask the quiet ones what they think, and it never just hands you the answer.</p>
         </div>
 
-        <section id="gsRejoin" class="gs-rejoin" hidden aria-labelledby="gsRejoinTitle">
-            <h2 id="gsRejoinTitle" class="gs-section-title">Pick up where you left off</h2>
-            <ul id="gsRejoinList" class="gs-rejoin__list"></ul>
-        </section>
-
         <div class="gs-lobby__cards">
-            <div class="gs-card" id="gsCreateCard">
-                <button type="button" class="gs-card__head" id="gsCreateHead" aria-expanded="false" aria-controls="gsCreateForm">
+            <section class="gs-card" id="gsCreateCard" aria-labelledby="gsCreateTitle">
+                <div class="gs-card__head">
                     <span class="gs-card__icon" aria-hidden="true"><svg class="ds-i"><use href="#i-plus"/></svg></span>
-                    <span class="gs-card__text">
-                        <span class="gs-card__title">Start a room</span>
+                    <div class="gs-card__text">
+                        <h2 class="gs-card__title" id="gsCreateTitle">Start a room</h2>
                         <span class="gs-card__desc">Pick a topic. You teach first, everyone else joins with a code.</span>
-                    </span>
-                </button>
+                    </div>
+                </div>
                 <form class="gs-card__form" id="gsCreateForm" novalidate>
                     <div class="ds-field">
                         <label for="gsTopicInput" class="ds-label">Topic</label>
@@ -74,16 +69,16 @@ $v = fn($f) => filemtime($f);
                     </div>
                     <button type="submit" id="gsCreateBtn" class="ds-btn ds-btn--primary ds-btn--block">Open the room <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></button>
                 </form>
-            </div>
+            </section>
 
-            <div class="gs-card" id="gsJoinCard">
-                <button type="button" class="gs-card__head" id="gsJoinHead" aria-expanded="false" aria-controls="gsJoinForm">
+            <section class="gs-card" id="gsJoinCard" aria-labelledby="gsJoinTitle">
+                <div class="gs-card__head">
                     <span class="gs-card__icon" aria-hidden="true"><svg class="ds-i"><use href="#i-users"/></svg></span>
-                    <span class="gs-card__text">
-                        <span class="gs-card__title">Join a room</span>
+                    <div class="gs-card__text">
+                        <h2 class="gs-card__title" id="gsJoinTitle">Join a room</h2>
                         <span class="gs-card__desc">Enter the 6-character code someone shared with you.</span>
-                    </span>
-                </button>
+                    </div>
+                </div>
                 <form class="gs-card__form" id="gsJoinForm" novalidate>
                     <div class="ds-field">
                         <label for="gsJoinCodeInput" class="ds-label">Join code</label>
@@ -91,9 +86,15 @@ $v = fn($f) => filemtime($f);
                     </div>
                     <button type="submit" id="gsJoinBtn" class="ds-btn ds-btn--secondary ds-btn--block">Join</button>
                 </form>
-            </div>
+            </section>
         </div>
         <div class="ds-alert" id="gsLobbyError" role="alert" hidden><svg class="ds-i"><use href="#i-alert"/></svg><span></span></div>
+
+        <section id="gsRejoin" class="gs-rejoin" hidden aria-labelledby="gsRejoinTitle">
+            <h2 id="gsRejoinTitle" class="gs-section-title">Your study rooms</h2>
+            <p class="gs-section-sub">Rooms you're in from the last few hours.</p>
+            <ul id="gsRejoinList" class="gs-rooms"></ul>
+        </section>
     </main>
 
     <!-- ================= Room ================= -->

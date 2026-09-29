@@ -33,9 +33,8 @@
     var els = {
         lobby: $('gsLobby'), room: $('gsRoom'),
         lobbyError: $('gsLobbyError'), rejoin: $('gsRejoin'), rejoinList: $('gsRejoinList'),
-        createCard: $('gsCreateCard'), createHead: $('gsCreateHead'), createForm: $('gsCreateForm'),
-        topicInput: $('gsTopicInput'), createBtn: $('gsCreateBtn'),
-        joinCard: $('gsJoinCard'), joinHead: $('gsJoinHead'), joinForm: $('gsJoinForm'),
+        createForm: $('gsCreateForm'), topicInput: $('gsTopicInput'), createBtn: $('gsCreateBtn'),
+        joinForm: $('gsJoinForm'),
         codeInput: $('gsJoinCodeInput'), joinBtn: $('gsJoinBtn'),
         topic: $('gsTopic'), teaching: $('gsTeaching'),
         peopleToggle: $('gsPeopleToggle'), peopleCount: $('gsPeopleCount'), people: $('gsPeople'), peopleList: $('gsPeopleList'),
@@ -71,17 +70,6 @@
         els.lobbyError.querySelector('span').textContent = msg || '';
         els.lobbyError.hidden = !msg;
     }
-
-    function openCard(which) {
-        [['create', els.createCard, els.createHead, els.topicInput], ['join', els.joinCard, els.joinHead, els.codeInput]].forEach(function (c) {
-            var on = c[0] === which;
-            c[1].classList.toggle('is-open', on);
-            c[2].setAttribute('aria-expanded', String(on));
-            if (on) setTimeout(function () { c[3].focus(); }, 150);
-        });
-    }
-    els.createHead.addEventListener('click', function () { openCard('create'); });
-    els.joinHead.addEventListener('click', function () { openCard('join'); });
 
     els.createForm.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -121,28 +109,79 @@
         });
     }
 
+    function el(tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text != null) n.textContent = text;
+        return n;
+    }
+
+    // "Here now" only counts other people: you're on the lobby, not in the room
+    function roomStatus(r) {
+        var others = r.members.filter(function (m) { return !m.me; });
+        var here = others.filter(function (m) { return m.online; }).length;
+        if (here) return { live: true, text: here === 1 ? '1 here now' : here + ' here now' };
+        if (r.status === 'waiting' && others.length === 0) return { live: false, text: 'Waiting for people' };
+        var min = Math.round(r.idle_seconds / 60);
+        if (min < 1) return { live: false, text: 'Active just now' };
+        if (min < 60) return { live: false, text: 'Quiet for ' + min + ' min' };
+        var h = Math.round(min / 60);
+        return { live: false, text: 'Quiet for ' + h + (h === 1 ? ' hour' : ' hours') };
+    }
+
+    function roomCard(r) {
+        var li = el('li', 'gs-roomcard');
+        var st = roomStatus(r);
+
+        var top = el('div', 'gs-roomcard__top');
+        top.appendChild(el('span', 'gs-roomcard__status' + (st.live ? ' is-live' : ''), st.text));
+        var n = r.members.length;
+        top.appendChild(el('span', 'gs-roomcard__count', n === 1 ? '1 person' : n + ' people'));
+        li.appendChild(top);
+
+        li.appendChild(el('h3', 'gs-roomcard__topic', r.topic));
+        li.appendChild(el('p', 'gs-roomcard__meta', (r.is_host ? 'Your room' : 'Joined') + ' · code ' + r.join_code));
+
+        var foot = el('div', 'gs-roomcard__foot');
+        var stack = el('span', 'gs-stack');
+        stack.setAttribute('aria-label', r.members.map(function (m) { return m.me ? 'you' : m.name; }).join(', '));
+        r.members.slice(0, 4).forEach(function (m, i) {
+            var a = el('span', 'gs-avatar gs-stack__item' + (m.online && !m.me ? ' is-here' : ''), (m.name || '?').charAt(0).toUpperCase());
+            a.setAttribute('aria-hidden', 'true');
+            a.style.zIndex = String(5 - i); // earlier on top, so each presence dot isn't covered by the next disc
+            stack.appendChild(a);
+        });
+        if (n > 4) {
+            var more = el('span', 'gs-avatar gs-stack__item gs-stack__more', '+' + (n - 4));
+            more.setAttribute('aria-hidden', 'true');
+            stack.appendChild(more);
+        }
+        foot.appendChild(stack);
+
+        var btn = el('button', 'ds-btn ds-btn--tertiary ds-btn--sm', r.i_left ? 'Rejoin' : 'Continue');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', (r.i_left ? 'Rejoin ' : 'Continue ') + r.topic);
+        btn.insertAdjacentHTML('beforeend', ' <svg class="ds-i ds-i-arrow" aria-hidden="true"><use href="#i-arrow"/></svg>');
+        btn.addEventListener('click', function () {
+            btn.disabled = true;
+            api('open', { session_id: r.session_id }).then(function (res2) {
+                if (res2.success) enterRoom(r.session_id);
+                else { btn.disabled = false; lobbyError(res2.error); loadRejoin(); }
+            }).catch(function () {
+                btn.disabled = false;
+                lobbyError('Couldn’t reach TutorMind. Check your connection and try again.');
+            });
+        });
+        foot.appendChild(btn);
+        li.appendChild(foot);
+        return li;
+    }
+
     function loadRejoin() {
         api('mine').then(function (res) {
             var rooms = (res.success && res.rooms) || [];
             els.rejoinList.innerHTML = '';
-            rooms.forEach(function (r) {
-                var li = document.createElement('li');
-                li.className = 'gs-rejoin__item';
-                var text = document.createElement('div');
-                var t = document.createElement('span'); t.className = 'gs-rejoin__topic'; t.textContent = r.topic;
-                var meta = document.createElement('span'); meta.className = 'gs-rejoin__meta';
-                meta.textContent = (r.is_host ? 'Your room' : 'Joined') + ' · ' + r.join_code + (r.status === 'waiting' ? ' · waiting for people' : '');
-                text.appendChild(t); text.appendChild(meta);
-                var btn = document.createElement('button');
-                btn.type = 'button'; btn.className = 'ds-btn ds-btn--tertiary ds-btn--sm'; btn.textContent = 'Rejoin';
-                btn.addEventListener('click', function () {
-                    api('open', { session_id: r.session_id }).then(function (res2) {
-                        if (res2.success) enterRoom(r.session_id); else { lobbyError(res2.error); loadRejoin(); }
-                    });
-                });
-                li.appendChild(text); li.appendChild(btn);
-                els.rejoinList.appendChild(li);
-            });
+            rooms.forEach(function (r) { els.rejoinList.appendChild(roomCard(r)); });
             els.rejoin.hidden = rooms.length === 0;
         }).catch(function () {});
     }
@@ -705,7 +744,6 @@
     var savedRoom = Number(storage(function () { return sessionStorage.getItem(ROOM_KEY); })) || 0;
     if (inviteCode) {
         history.replaceState(null, '', location.pathname);
-        openCard('join');
         els.codeInput.value = inviteCode;
         joinByCode(inviteCode);
     } else if (savedRoom) {
