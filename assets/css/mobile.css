@@ -638,11 +638,7 @@
             display: none;
         }
 
-        .recall-modal-content {
-            width: calc(100vw - 24px);
-            max-width: none;
-            padding: 1.25rem;
-        }
+        /* (.recall-modal-content rule deleted — the quiz is .tm-recall, tm-chat.css §11) */
         .pomodoro-panel {
             width: 260px;
             right: 0;

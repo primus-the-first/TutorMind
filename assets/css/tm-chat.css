@@ -525,12 +525,24 @@ body.dark-mode .message.user .message-content {
 body.dark-mode .message.user .message-content { box-shadow: 0 3px 0 #3b1580; }
 body .message.user .message-content a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
 
-/* Tutor replies: body text keeps the Settings legibility scale */
+/* Tutor replies: body text keeps the Settings legibility scale. A question
+   lifted into focus (.tm-focus-stage, tm-widgets.css) is still part of the
+   reply — same type, so it doesn't re-wrap in flight. */
 body .message.ai .message-content,
-body.dark-mode .message.ai .message-content {
+body.dark-mode .message.ai .message-content,
+body .tm-focus-stage {
   color: var(--ds-ink);
   font-size: calc(1rem * var(--legibility-scale, 1));
   line-height: var(--legibility-line-height, 1.65);
+}
+/* The bubble shrink-wraps its content, so a widget would widen it the moment
+   a long verdict appears. A reply with a widget (or its placeholder while
+   the widget is lifted into focus) takes the full reply width up front —
+   the card never changes width, in the chat or flying in and out of focus. */
+body .message.ai .message-content:has(.tm-widget, .tm-focus-ghost) { width: 100%; }
+@media (max-width: 640px) {
+  /* Phones: the 85% reply cap leaves a widget ~290px wide — too tight for code */
+  body .message.ai .message-content:has(.tm-widget, .tm-focus-ghost) { max-width: 100%; }
 }
 body .message.ai .message-content h1,
 body .message.ai .message-content h2,
@@ -626,77 +638,130 @@ body.dark-mode .copy-toast {
   box-shadow: var(--ds-lift-hi);
 }
 
-/* Code blocks follow the theme (they were always github-dark). The wrapper
-   (.code-block) carries the frame; the <pre> inside stays flat. Light-mode
-   syntax colours are GitHub's light palette — the one place outside the brand
-   tokens, since highlighting needs a full hue set. Dark keeps github-dark. */
+/* Code blocks: TutorMind's own syntax theme in both themes (tm-tokens.css
+   --tm-code-*; the github-dark stylesheet is gone). The wrapper (.code-block)
+   carries the frame; the <pre> inside stays flat. The header wears the same
+   arch mark + Funnel Display label as the widgets, so code reads as part of
+   the lesson rather than a pasted-in editor. */
 body .code-block,
 body.dark-mode .code-block {
-  margin: 0.8em 0;
+  margin: 0.9em 0;
   border: 1px solid var(--ds-line);
   border-radius: var(--ds-r-lg);
-  background: var(--ds-surface);
+  background: var(--tm-code-bg);
   overflow: hidden;
   box-shadow: none;
 }
-body.dark-mode .code-block { background: var(--ds-stage); }
 body .code-block .code-header,
 body.dark-mode .code-block .code-header {
-  padding: 6px 8px 6px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
   border-bottom: 1px solid var(--ds-line);
   background: transparent;
 }
 body .code-block .code-language {
-  font: 500 0.8rem ui-monospace, 'Roboto Mono', monospace;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 700 0.85rem var(--ds-font-display);
   letter-spacing: 0;
-  text-transform: lowercase;   /* JS upper-cases the language name */
-  color: var(--ds-ink-2);
+  text-transform: none;
+  color: var(--ds-ink);
+}
+body .code-block .code-language::before {
+  content: "";
+  flex: none;
+  width: 18px;
+  height: 13px;
+  background-color: var(--cta);
+  -webkit-mask: var(--tm-mark-arch) center / contain no-repeat;
+  mask: var(--tm-mark-arch) center / contain no-repeat;
 }
 body .code-block .copy-code-btn,
 body.dark-mode .code-block .copy-code-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 9px;
   border: 0;
   border-radius: var(--ds-r-sm);
   background: transparent;
   color: var(--ds-ink-2);
   font: 600 0.8rem var(--ds-font-body);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
 }
+body .code-block .copy-code-btn svg { width: 14px; height: 14px; flex: none; }
 body .code-block .copy-code-btn:hover { background: var(--ds-tint); color: var(--ds-ink); }
-body .code-block .copy-code-btn.copied { color: var(--tm-good); }
+body .code-block .copy-code-btn.copied { color: var(--ds-accent-ink); }
 body .code-block pre,
-body.dark-mode .code-block pre,
-body .code-block pre code,
-body .code-block .hljs {
+body.dark-mode .code-block pre {
   margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ds-line) transparent;
 }
-body:not(.dark-mode) .code-block pre,
-body:not(.dark-mode) .code-block .hljs { color: var(--ds-ink); }
-body:not(.dark-mode) .code-block .hljs-keyword,
-body:not(.dark-mode) .code-block .hljs-selector-tag,
-body:not(.dark-mode) .code-block .hljs-doctag,
-body:not(.dark-mode) .code-block .hljs-template-tag { color: #cf222e; }
-body:not(.dark-mode) .code-block .hljs-string,
-body:not(.dark-mode) .code-block .hljs-regexp { color: #0a3069; }
-body:not(.dark-mode) .code-block .hljs-number,
-body:not(.dark-mode) .code-block .hljs-literal,
-body:not(.dark-mode) .code-block .hljs-attr,
-body:not(.dark-mode) .code-block .hljs-attribute,
-body:not(.dark-mode) .code-block .hljs-variable,
-body:not(.dark-mode) .code-block .hljs-selector-attr,
-body:not(.dark-mode) .code-block .hljs-meta { color: #0550ae; }
-body:not(.dark-mode) .code-block .hljs-comment,
-body:not(.dark-mode) .code-block .hljs-quote { color: #6e7781; font-style: italic; }
-body:not(.dark-mode) .code-block .hljs-title,
-body:not(.dark-mode) .code-block .hljs-section,
-body:not(.dark-mode) .code-block .hljs-function { color: #8250df; }
-body:not(.dark-mode) .code-block .hljs-built_in,
-body:not(.dark-mode) .code-block .hljs-type,
-body:not(.dark-mode) .code-block .hljs-symbol,
-body:not(.dark-mode) .code-block .hljs-selector-class { color: #953800; }
+body .code-block pre code,
+body .code-block .hljs {
+  display: block;
+  padding: 0;
+  background: transparent;
+  color: var(--tm-code-ink);
+  font-family: var(--tm-code-font);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  white-space: pre;
+  tab-size: 4;
+}
+/* Purple = structure */
+body .code-block .hljs-keyword,
+body .code-block .hljs-selector-tag,
+body .code-block .hljs-doctag,
+body .code-block .hljs-template-tag,
+body .code-block .hljs-meta .hljs-keyword { color: var(--tm-code-keyword); font-weight: 600; }
+body .code-block .hljs-built_in,
+body .code-block .hljs-type,
+body .code-block .hljs-tag,
+body .code-block .hljs-name,
+body .code-block .hljs-selector-class,
+body .code-block .hljs-selector-id,
+body .code-block .hljs-selector-pseudo { color: var(--tm-code-builtin); }
+/* Amber = values */
+body .code-block .hljs-string,
+body .code-block .hljs-regexp,
+body .code-block .hljs-number,
+body .code-block .hljs-literal,
+body .code-block .hljs-symbol,
+body .code-block .hljs-link,
+body .code-block .hljs-template-variable,
+body .code-block .hljs-selector-attr,
+body .code-block .hljs-meta .hljs-string { color: var(--tm-code-literal); }
+/* Ink weight = names */
+body .code-block .hljs-title,
+body .code-block .hljs-section { color: var(--tm-code-ink); font-weight: 600; }
+body .code-block .hljs-attr,
+body .code-block .hljs-attribute,
+body .code-block .hljs-property,
+body .code-block .hljs-variable,
+body .code-block .hljs-params,
+body .code-block .hljs-subst { color: var(--tm-code-ink); }
+/* Quiet = everything the eye can skip */
+body .code-block .hljs-comment,
+body .code-block .hljs-quote { color: var(--tm-code-muted); font-style: italic; }
+body .code-block .hljs-meta,
+body .code-block .hljs-operator,
+body .code-block .hljs-punctuation,
+body .code-block .hljs-bullet { color: var(--tm-code-muted); }
+body .code-block .hljs-emphasis { font-style: italic; }
+body .code-block .hljs-strong { font-weight: 700; }
 
 /* Scroll-to-bottom: a standard icon button on the edge, not a round purple FAB.
    (No `display` — tutor_mysql.js shows/hides it via style.display.) */
@@ -817,19 +882,6 @@ body .combined-input-bar {
 /* Reply actions row */
 body .message-footer { display: flex; align-items: center; }
 body .message-footer button { display: flex; padding: 0; font-size: 0.9rem; }
-
-/* Code blocks */
-body .code-block .code-header { display: flex; justify-content: space-between; align-items: center; }
-body .code-block .copy-code-btn { display: flex; align-items: center; gap: 5px; }
-body .code-block pre { padding: 14px 18px; overflow-x: auto; }
-body .code-block pre code {
-  display: block;
-  padding: 0;
-  font-family: ui-monospace, 'Roboto Mono', Consolas, monospace;
-  font-size: 0.88rem;
-  line-height: 1.6;
-  white-space: pre;
-}
 
 @media (max-width: 768px) {
   body .combined-input-bar { margin: 0 12px; padding: 8px 10px; }
@@ -984,4 +1036,447 @@ body.dark-mode .tm-dialog-btn-confirm { --edge-color: #3b1580; }
 }
 @media (max-width: 480px) {
   .tm-remind__actions .tm-dialog-btn { flex: 1 1 100%; }
+}
+
+/* ---------- 11. Recall quiz (QuizManager in tutor_mysql.js) ----------
+   Took over from ui-overhaul.css's brutalist modal (ink border + offset
+   shadow, gradient brain icon, uppercase label, traffic-light score circle);
+   those rules were deleted. Same shell and buttons as the dialogs in §9.
+   The result is the bridge arch drawing itself to the score — the Bridge
+   Draw motion from tm-loader.css — and the amber keystone only lands on top
+   for strong recall: the score reads as how much of the bridge you rebuilt. */
+.tm-recall {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;   /* the modal tier (mobile.css z-index table) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(22, 18, 31, 0.45);   /* same scrim as .tm-dialog-overlay */
+  animation: tmOverlayIn 0.15s ease;
+}
+body.dark-mode .tm-recall { background: rgba(0, 0, 0, 0.6); }
+.tm-recall__card {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 24px 20px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-xl);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font-family: var(--ds-font-body);
+  box-shadow: var(--ds-lift-hi);
+  animation: tmBoxIn 0.2s var(--ds-ease);
+  outline: none;
+}
+
+.tm-recall__head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.tm-recall__mark {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ds-r-md);
+  background: var(--ds-tint);
+}
+.tm-recall__mark::before {
+  content: "";
+  position: absolute;
+  inset: 11px 9px;
+  background-color: var(--cta);
+  -webkit-mask: var(--tm-mark-arch) center / contain no-repeat;
+  mask: var(--tm-mark-arch) center / contain no-repeat;
+}
+.tm-recall__title {
+  margin: 0;
+  font: 700 1.3rem/1.15 var(--ds-font-display);
+  letter-spacing: -0.02em;
+  color: var(--ds-ink);
+}
+.tm-recall__mode { margin: 3px 0 0; font-size: 0.9rem; color: var(--ds-ink-2); }
+
+/* Question phase */
+.tm-recall__loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 96px;
+  color: var(--ds-ink-2);
+  font: 600 0.95rem var(--ds-font-display);
+}
+.tm-recall__loading .tm-loader-inline { width: 26px; height: 26px; color: var(--ds-accent-ink); }
+.tm-recall__question {
+  margin: 0 0 16px;
+  font: 700 1.15rem/1.4 var(--ds-font-display);
+  letter-spacing: -0.01em;
+  color: var(--ds-ink);
+}
+.tm-recall__options { display: grid; gap: 8px; margin-bottom: 20px; }
+.tm-recall__opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 500 0.95rem/1.4 var(--ds-font-body);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s var(--ds-ease), transform 0.12s var(--ds-ease);
+}
+.tm-recall__opt:hover { border-color: var(--primary-light); }
+.tm-recall__opt[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: var(--ds-tint);
+  box-shadow: 0 3px 0 var(--primary);
+  transform: translateY(-1px);
+}
+.tm-recall__key {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-sm);
+  color: var(--ds-ink-2);
+  font: 700 0.8rem var(--ds-font-display);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.tm-recall__opt[aria-pressed="true"] .tm-recall__key { border-color: var(--primary); background: var(--primary); color: #fff; }
+.tm-recall__answer { display: grid; gap: 8px; margin-bottom: 20px; }
+.tm-recall__hint { color: var(--ds-ink-2); font-size: 0.875rem; line-height: 1.5; }
+.tm-recall__input {
+  width: 100%;
+  min-height: 112px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-canvas);
+  color: var(--ds-ink);
+  font: 400 1rem/1.55 var(--ds-font-body);
+  resize: vertical;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tm-recall__input:focus { outline: none; border-color: var(--primary); box-shadow: 0 3px 0 var(--primary-light); }
+.tm-recall__actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.tm-recall__done { flex: 1 1 auto; }
+/* What appears when the question arrives eases in (options one after another) */
+.tm-recall__question,
+.tm-recall__answer,
+.tm-recall__opt,
+.tm-recall__phase { animation: tmBoxIn 0.25s var(--ds-ease) both; }
+.tm-recall__opt:nth-child(2) { animation-delay: 0.04s; }
+.tm-recall__opt:nth-child(3) { animation-delay: 0.08s; }
+.tm-recall__opt:nth-child(4) { animation-delay: 0.12s; }
+
+/* Result phase: the arch meter */
+.tm-recall__meter { position: relative; width: 200px; margin: 0 auto; }
+.tm-recall__meter svg { display: block; width: 100%; height: auto; overflow: visible; }
+.tm-recall__meter-track,
+.tm-recall__meter-fill { fill: none; stroke-width: 9; stroke-linecap: round; }
+.tm-recall__meter-track { stroke: var(--ds-tint); }
+.tm-recall__meter-fill {
+  stroke: var(--ds-accent-ink);
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;   /* QuizManager sets 100 - score */
+  transition: stroke-dashoffset 1.1s var(--ds-ease) 0.15s;
+}
+.tm-recall__meter-stone {
+  fill: var(--cta);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: translateY(-12px) scale(0.4);
+  transition: opacity 0.25s ease 1.15s, transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 1.15s;
+}
+.tm-recall__meter.is-strong .tm-recall__meter-stone { opacity: 1; transform: none; }
+.tm-recall__score {
+  position: absolute;
+  inset: auto 0 0;
+  text-align: center;
+  font: 700 2rem/1 var(--ds-font-display);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-ink);
+}
+.tm-recall__verdict { margin: 12px 0 4px; text-align: center; font: 700 1.1rem/1.3 var(--ds-font-display); color: var(--ds-ink); }
+.tm-recall__feedback { margin: 0 0 18px; text-align: center; color: var(--ds-ink-2); font-size: 0.95rem; line-height: 1.55; }
+.tm-recall__covered { margin: 0 0 20px; padding: 14px 16px; border-radius: var(--ds-r-lg); background: var(--ds-tint); }
+.tm-recall__covered h3 { margin: 0 0 4px; font: 700 0.95rem/1.3 var(--ds-font-display); color: var(--ds-ink); }
+.tm-recall__covered p { margin: 0; color: var(--ds-ink); font-size: 0.925rem; line-height: 1.55; }
+.tm-recall__covered:has(p:empty) { display: none; }
+
+/* While recalling, the answers in the chat behind stay out of sight */
+.recall-blurred {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.35s ease;
+}
+
+@media (max-width: 640px) {
+  /* Phones: a bottom sheet, like a question lifted into focus */
+  .tm-recall { align-items: flex-end; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .tm-recall__card { padding: 20px 18px 18px; max-height: calc(100dvh - 24px); }
+  /* The main action takes the room its label needs; "Not now" takes the rest */
+  .tm-recall__actions .tm-dialog-btn { flex: 1 1 auto; white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-recall, .tm-recall__card, .tm-recall__question, .tm-recall__answer,
+  .tm-recall__opt, .tm-recall__phase { animation: none; }
+  .tm-recall__meter-fill, .tm-recall__meter-stone { transition: none; }
+}
+
+/* ---------- 12. Voice mode (VoiceModeManager in tutor_mysql.js) ----------
+   Took over from ui-overhaul.css's always-dark overlay (near-black gradient,
+   glowing blue/purple orb, icon-font mic, green "speaking" state); those
+   rules were deleted. A full-screen stage that follows the theme (lavender
+   in light, deep purple in dark — the --ds-stage-* tokens). The centrepiece
+   is the logo itself, 5x (logo-bridge.svg geometry and gradient — the one
+   place the gradient belongs), acting out each state in the brand's own motion:
+     idle       the connection dot breathes
+     listening  arch-shaped echoes rise off the bridge (taking your words in)
+     processing the dot travels the arch — the Orbit Dot from tm-loader.css
+     speaking   a level meter pulses between the arch's legs
+   The overlay's data-state (set by VoiceModeManager.setState) picks one. */
+.tm-voice {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;   /* the modal tier (mobile.css z-index table) */
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  background: var(--ds-stage);
+  color: var(--ds-stage-ink);
+  font-family: var(--ds-font-body);
+  animation: tmOverlayIn 0.2s ease;
+}
+.tm-voice__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+}
+.tm-voice__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font: 700 1.05rem var(--ds-font-display);
+  letter-spacing: -0.01em;
+}
+.tm-voice__brand::before {
+  content: "";
+  width: 22px;
+  height: 16px;
+  background-color: var(--cta);
+  -webkit-mask: var(--tm-mark-arch) center / contain no-repeat;
+  mask: var(--tm-mark-arch) center / contain no-repeat;
+}
+.tm-voice__end {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  border: 1.5px solid var(--ds-stage-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-stage-surface);
+  color: var(--ds-stage-ink);
+  font: 600 0.9rem var(--ds-font-body);
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--ds-stage-line);
+  transition: color 0.15s, transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease);
+}
+.tm-voice__end svg { width: 16px; height: 16px; }
+.tm-voice__end:hover { color: var(--ds-stage-accent); }
+.tm-voice__end:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ds-stage-line); }
+
+.tm-voice__main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 0;
+  padding: 0 20px;
+  text-align: center;
+}
+.tm-voice__orb {
+  width: min(260px, 62vw, 34vh);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-r-xl);
+  background: none;
+  cursor: pointer;
+}
+.tm-voice__orb svg { display: block; width: 100%; height: auto; overflow: visible; }
+.tm-voice__orb:focus-visible { outline: 3px solid var(--cta); outline-offset: 6px; }
+.tm-voice__status {
+  margin: 0;
+  min-height: 1.25em;
+  font: 700 1.6rem/1.25 var(--ds-font-display);
+  letter-spacing: -0.02em;
+}
+/* What the mic is hearing, as you say it */
+.tm-voice__live {
+  max-width: 560px;
+  min-height: 3em;
+  margin: 0;
+  color: var(--ds-stage-ink-2);
+  font-size: 1.05rem;
+  line-height: 1.5;
+}
+
+/* The mark */
+.tm-voice__arch {
+  fill: none;
+  stroke: url(#tm-voice-gradient);
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  animation: tmVoiceDraw 0.9s cubic-bezier(0.65, 0, 0.35, 1) both;   /* Bridge Draw, on open */
+  transition: opacity 0.3s;
+}
+/* Logo base-dot colours (logo-bridge.svg); nth-of-type counts the svg's circles */
+.tm-voice__base:nth-of-type(1) { fill: #5E2EBF; }
+.tm-voice__base:nth-of-type(2) { fill: #9D6BF5; }
+.tm-voice__dot {
+  fill: var(--cta);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: opacity 0.2s;
+}
+.tm-voice__orbit {
+  fill: var(--cta);
+  opacity: 0;
+  offset-path: path("M30 150 C 30 100, 70 60, 100 60 C 130 60, 170 100, 170 150");
+  offset-distance: 50%;
+  transition: opacity 0.2s;
+}
+.tm-voice__echo {
+  fill: none;
+  stroke: var(--ds-stage-accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 100px 150px;
+}
+.tm-voice__bars rect {
+  fill: var(--ds-stage-accent);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: bottom;
+  transform: scaleY(0.15);
+  transition: opacity 0.2s;
+}
+@keyframes tmVoiceDraw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes tmVoiceBreathe { 50% { transform: scale(1.18); } }
+@keyframes tmVoiceEcho {
+  0%   { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes tmVoiceOrbit { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+@keyframes tmVoiceLevel {
+  0%, 100% { transform: scaleY(0.2); }
+  50%      { transform: scaleY(1); }
+}
+
+/* idle */
+.tm-voice[data-state="idle"] .tm-voice__dot { animation: tmVoiceBreathe 2.6s ease-in-out infinite; }
+/* listening */
+.tm-voice[data-state="listening"] .tm-voice__echo { animation: tmVoiceEcho 1.8s ease-out infinite; }
+.tm-voice[data-state="listening"] .tm-voice__echo:nth-child(2) { animation-delay: 0.6s; }
+.tm-voice[data-state="listening"] .tm-voice__echo:nth-child(3) { animation-delay: 1.2s; }
+.tm-voice[data-state="listening"] .tm-voice__dot { animation: tmVoiceBreathe 1.1s ease-in-out infinite; }
+/* processing */
+.tm-voice[data-state="processing"] .tm-voice__arch { opacity: 0.35; }
+.tm-voice[data-state="processing"] .tm-voice__dot { opacity: 0; }
+.tm-voice[data-state="processing"] .tm-voice__orbit {
+  opacity: 1;
+  animation: tmVoiceOrbit 1.6s ease-in-out infinite alternate;
+}
+/* speaking */
+.tm-voice[data-state="speaking"] .tm-voice__bars rect { opacity: 1; animation: tmVoiceLevel 0.9s ease-in-out infinite; }
+.tm-voice[data-state="speaking"] .tm-voice__bars rect:nth-child(2) { animation-duration: 0.7s; animation-delay: -0.2s; }
+.tm-voice[data-state="speaking"] .tm-voice__bars rect:nth-child(3) { animation-duration: 1.1s; animation-delay: -0.5s; }
+.tm-voice[data-state="speaking"] .tm-voice__bars rect:nth-child(4) { animation-duration: 0.8s; animation-delay: -0.1s; }
+.tm-voice[data-state="speaking"] .tm-voice__bars rect:nth-child(5) { animation-duration: 1s; animation-delay: -0.35s; }
+
+/* The conversation so far: your turns are the chat's purple student bubble,
+   the tutor's sit on the stage surface */
+.tm-voice__transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(640px, 100%);
+  max-height: 30vh;
+  margin: 0 auto;
+  padding: 16px 20px 4px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20px);
+  mask-image: linear-gradient(to bottom, transparent, #000 20px);   /* fade, not a colour */
+}
+.tm-voice__transcript:empty { display: none; }
+.tm-voice__turn {
+  max-width: 85%;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--ds-r-lg);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  animation: tmBoxIn 0.25s var(--ds-ease);
+}
+.tm-voice__turn.user {
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--primary-dark);
+}
+.tm-voice__turn.ai {
+  align-self: flex-start;
+  border: 1px solid var(--ds-stage-line);
+  border-bottom-left-radius: 4px;
+  background: var(--ds-stage-surface);
+  color: var(--ds-stage-ink);
+}
+.tm-voice__turn.note {
+  align-self: center;
+  padding: 2px 0;
+  color: var(--ds-stage-ink-2);
+  font-size: 0.875rem;
+}
+.tm-voice__foot {
+  padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+  text-align: center;
+  color: var(--ds-stage-ink-2);
+  font-size: 0.85rem;
+}
+.tm-voice__foot kbd {
+  padding: 1px 7px;
+  border: 1px solid var(--ds-stage-line);
+  border-radius: 6px;
+  background: var(--ds-stage-surface);
+  font: 600 0.8rem var(--ds-font-body);
+}
+@media (pointer: coarse) {
+  .tm-voice__keys { display: none; }   /* no Esc key on a phone */
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-voice, .tm-voice__arch, .tm-voice__turn { animation: none; }
+  .tm-voice__arch { stroke-dasharray: none; }
+  .tm-voice__dot, .tm-voice__echo, .tm-voice__orbit, .tm-voice__bars rect { animation: none !important; }
+  /* States still read without motion: a still echo, the dot mid-arch, level bars at half */
+  .tm-voice[data-state="listening"] .tm-voice__echo:first-child { opacity: 0.4; transform: scale(1.15); }
+  .tm-voice[data-state="speaking"] .tm-voice__bars rect { transform: scaleY(0.6); }
 }

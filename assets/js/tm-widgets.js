@@ -15,9 +15,16 @@
  *       answered correctly earlier in the conversation (re-render as locked/solved).
  *       opts.solvedChips: optional Map of tm-chips question -> chosen option text.
  *       opts.solvedTasks: optional Map of tm-task question -> submitted answer text.
- *       Same idea as solvedChecks — re-render those widgets already locked in.
+ *       opts.solvedExercises: optional Map of tm-order/cloze/path/code question ->
+ *       the echo detail. Same idea as solvedChecks — re-render those widgets
+ *       already locked in.
  *   extract(html) -> {html,specs}— pull blocks out before a typewriter pass.
  *   fill(container, specs)       — fill the placeholders extract() left behind.
+ *   focusFresh(container)        — lift the first unanswered question in a
+ *       freshly typed reply into the focus modal (see "Focus" below).
+ *   settle() -> Promise          — the tutor's reply is ready: fly a question in
+ *       focus back into its place in the chat. Resolves once it has landed.
+ *   dismiss() -> Promise         — dock it now, without the reading pause.
  *
  * Standalone: with no init() it still renders; onReply/onReveal simply no-op.
  */
@@ -86,6 +93,267 @@
         q.className = 'tm-widget-q';
         q.textContent = text || '';
         return q;
+    }
+
+    function tmVerdict() {
+        var v = document.createElement('div');
+        v.className = 'tm-verdict';
+        v.setAttribute('role', 'status');
+        v.style.display = 'none';
+        return v;
+    }
+
+    function showVerdict(verdict, good, title, text) {
+        verdict.className = 'tm-verdict ' + (good ? 'tm-v-good' : 'tm-v-bad');
+        verdict.innerHTML = '';
+        var t = document.createElement('div');
+        t.className = 'tm-verdict-title';
+        t.textContent = title;
+        verdict.appendChild(t);
+        if (text) verdict.appendChild(document.createTextNode(text));
+        verdict.style.display = 'block';
+    }
+
+    // The question an exercise echo is keyed by (see answered()). Falls back to
+    // the widget's own label so a question-less spec still round-trips.
+    function exerciseKey(data, fallback) {
+        return String((data && data.q) || fallback);
+    }
+
+    // ---- Focus: an answerable widget lifts into a modal ----
+    // A fresh question lifts out of the chat into a centred card — a FLIP from
+    // its inline spot at the same width, so no text re-wraps mid-flight — and
+    // becomes the one thing on screen. Once answered it shows its verdict and
+    // waits for the tutor; the chat calls settle() when the reply is ready and
+    // the card flies back into its place just before that reply types in.
+    // "Back to the lesson", Esc, or a tap on the backdrop docks it early (to
+    // reread the explanation); its lift button brings it back.
+    var ANSWERABLE = { check: true, task: true, order: true, cloze: true, path: true, code: true };
+    var FOCUS_MS = 460;
+    var focus = null;   // the one widget in focus: { root, scrim, stage, widget, ghost, … }
+
+    var ICON_LIFT = '<svg class="tm-i-lift" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5"/></svg>';
+    var ICON_DOCK = '<svg class="tm-i-dock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M10 14l-6.5 6.5M14 10l6.5-6.5"/></svg>';
+
+    function reducedMotion() {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    function setLiftLabel(btn, lifted) {
+        var label = lifted ? 'Back to the lesson' : 'Answer in focus';
+        btn.setAttribute('aria-label', label);
+        btn.title = label;
+    }
+
+    function makeLiftable(w) {
+        var kind = w.querySelector('.tm-widget-kind');
+        if (!kind) return;
+        w.setAttribute('data-tm-answerable', '');
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tm-widget-lift';
+        btn.innerHTML = ICON_LIFT + ICON_DOCK + '<span>Back to the lesson</span>';
+        setLiftLabel(btn, false);
+        btn.addEventListener('click', function () {
+            if (focus && focus.widget === w) dismiss(); else lift(w);
+        });
+        kind.appendChild(btn);
+    }
+
+    // Re-inserting an element restarts its CSS animations, so before the card
+    // moves, pin every animation that already played (a wrong option would
+    // otherwise shake again as the card lands). Hidden elements keep theirs —
+    // a verdict that hasn't appeared yet still pops in when it does.
+    function freezeAnimations(root) {
+        [root].concat(Array.prototype.slice.call(root.querySelectorAll('*'))).forEach(function (el) {
+            if (el.getClientRects().length && getComputedStyle(el).animationName !== 'none') {
+                el.style.animation = 'none';
+            }
+        });
+    }
+
+    function lift(w) {
+        if (focus || !w || !w.isConnected || w.classList.contains('tm-solved')) return;
+        var from = w.getBoundingClientRect();
+
+        // Hold its place in the chat, so nothing below jumps and the card has
+        // somewhere to land again.
+        var ghost = document.createElement('div');
+        ghost.className = 'tm-focus-ghost';
+        ghost.style.height = from.height + 'px';
+        w.classList.remove('tm-enter');
+        freezeAnimations(w);
+        w.parentNode.insertBefore(ghost, w);
+
+        var root = document.createElement('div');
+        root.className = 'tm-focus';
+        var scrim = document.createElement('div');
+        scrim.className = 'tm-focus-scrim';
+        var stage = document.createElement('div');
+        stage.className = 'tm-focus-stage';
+        stage.setAttribute('role', 'dialog');
+        stage.setAttribute('aria-modal', 'true');
+        stage.tabIndex = -1;
+        var label = w.querySelector('.tm-widget-kind > span:not(.tm-widget-icon)');
+        stage.setAttribute('aria-label', label ? label.textContent : 'Question');
+        stage.style.width = Math.min(from.width, window.innerWidth - 24) + 'px';
+        root.appendChild(scrim);
+        root.appendChild(stage);
+        w.classList.add('tm-lifted');
+        stage.appendChild(w);
+        document.body.appendChild(root);
+        document.documentElement.classList.add('tm-focus-open');
+
+        var f = { root: root, scrim: scrim, stage: stage, widget: w, ghost: ghost,
+                  answeredAt: 0, readMs: 0, wait: null, docked: null };
+        f.onKey = function (e) { onFocusKey(e, f); };
+        document.addEventListener('keydown', f.onKey, true);
+        scrim.addEventListener('click', function () { dock(f); });
+        focus = f;
+        var btn = w.querySelector('.tm-widget-lift');
+        if (btn) setLiftLabel(btn, true);
+
+        var to = stage.getBoundingClientRect();
+        if (!reducedMotion()) {
+            stage.animate([
+                { transform: 'translate(' + (from.left - to.left) + 'px, ' + (from.top - to.top) + 'px)' },
+                { transform: 'none' }
+            ], { duration: FOCUS_MS, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
+        }
+        scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reducedMotion() ? 120 : 320, easing: 'ease-out' });
+
+        // Focus the dialog itself, not the first option: no stray focus ring on
+        // option A, and no phone keyboard over a question not yet read. A task on
+        // a desktop is the exception — the box is the whole point.
+        var ta = w.querySelector('.tm-answer textarea:not([disabled])');
+        var fine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+        (ta && fine ? ta : stage).focus({ preventScroll: true });
+    }
+
+    function onFocusKey(e, f) {
+        if (focus !== f) return;
+        if (e.key === 'Escape') { e.preventDefault(); dock(f); return; }
+        if (e.key !== 'Tab') return;
+        var items = Array.prototype.filter.call(
+            f.stage.querySelectorAll('button, textarea, input, select, a[href], [tabindex]:not([tabindex="-1"])'),
+            function (el) { return !el.disabled && el.getClientRects().length; });
+        if (!items.length) { e.preventDefault(); return; }
+        var first = items[0], last = items[items.length - 1];
+        var active = document.activeElement;
+        if (!f.stage.contains(active) || active === f.stage) {
+            e.preventDefault();
+            (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && active === first) {
+            e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && active === last) {
+            e.preventDefault(); first.focus();
+        }
+    }
+
+    function showWaiting(f) {
+        var row = document.createElement('div');
+        row.className = 'tm-focus-wait';
+        row.setAttribute('role', 'status');
+        row.innerHTML = (typeof TmLoader !== 'undefined' ? TmLoader.inlineHTML() : '') +
+            '<span>Your tutor is reading your answer…</span>';
+        f.widget.appendChild(row);
+        f.wait = row;
+    }
+
+    // Fly the card back into the chat. Idempotent: every caller gets the same
+    // landing promise.
+    function dock(f) {
+        if (!f.docked) f.docked = new Promise(function (resolve) { runDock(f, resolve); });
+        return f.docked;
+    }
+
+    function runDock(f, resolve) {
+        var w = f.widget, ghost = f.ghost;
+        var btn = w.querySelector('.tm-widget-lift');
+        document.removeEventListener('keydown', f.onKey, true);
+        if (f.wait) { f.wait.remove(); f.wait = null; }
+        if (btn) setLiftLabel(btn, false);
+
+        function finish() {
+            f.root.remove();
+            document.documentElement.classList.remove('tm-focus-open');
+            if (focus === f) focus = null;
+            resolve();
+        }
+        function land() {
+            w.classList.remove('tm-lifted', 'tm-landing');
+            ghost.replaceWith(w);
+            // Moving the node dropped focus. A question put aside keeps it on its
+            // lift button; an answered one leaves it to the chat (the composer).
+            if (!w.classList.contains('tm-solved') && btn) btn.focus({ preventScroll: true });
+            finish();
+        }
+
+        // The chat moved on (new chat, another conversation): nowhere to land.
+        if (!ghost.isConnected) {
+            f.root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160 }).onfinish = finish;
+            return;
+        }
+
+        freezeAnimations(w);
+        f.stage.scrollTop = 0;
+        ghost.style.height = w.offsetHeight + 'px';   // same width, so the same height inline
+        ghost.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+
+        if (reducedMotion()) {
+            f.root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150 }).onfinish = land;
+            return;
+        }
+        var from = f.stage.getBoundingClientRect();
+        var to = ghost.getBoundingClientRect();
+        w.classList.add('tm-landing');
+        var move = f.stage.animate([
+            { transform: 'none' },
+            { transform: 'translate(' + (to.left - from.left) + 'px, ' + (to.top - from.top) + 'px)' }
+        ], { duration: FOCUS_MS, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
+        f.scrim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FOCUS_MS, easing: 'ease-in', fill: 'forwards' });
+        move.onfinish = land;
+    }
+
+    // The tutor's reply is ready. Hold long enough to take in the verdict (the
+    // reply often beats the reader), then dock.
+    function settle() {
+        var f = focus;
+        if (!f) return Promise.resolve();
+        var hold = f.answeredAt ? Math.max(0, f.answeredAt + f.readMs - Date.now()) : 0;
+        if (!hold) return dock(f);
+        return new Promise(function (resolve) {
+            setTimeout(function () { dock(f).then(resolve); }, hold);
+        });
+    }
+
+    function dismiss() {
+        return focus ? dock(focus) : Promise.resolve();
+    }
+
+    // Lift the first unanswered question in a freshly typed reply — a beat
+    // after it lands in the chat, so the eye sees where it lives.
+    function focusFresh(container) {
+        if (!container || focus) return;
+        var w = Array.prototype.find.call(container.querySelectorAll('.tm-widget[data-tm-answerable]'),
+            function (el) { return !el.classList.contains('tm-solved'); });
+        if (w) setTimeout(function () { lift(w); }, 500);
+    }
+
+    // A widget was answered (correctly, or submitted for the tutor to judge):
+    // lock it as solved and send the silent echo that tells the tutor, and that
+    // the chat later recognises to re-render it solved (tutor_mysql.js
+    // isSilentWidgetEcho). In focus, the card waits for the reply; readText
+    // (the verdict's explanation) buys reading time before it flies back.
+    function answered(w, echo, readText) {
+        w.classList.add('tm-solved');
+        var f = focus && focus.widget === w ? focus : null;
+        if (f) {
+            f.answeredAt = Date.now();
+            f.readMs = Math.min(5000, 1400 + (readText ? String(readText).length * 25 : 0));
+            if (onReply) showWaiting(f); else settle();   // standalone: nobody replies
+        }
+        reply(echo, { silent: true });
     }
 
     // ---- Individual widget builders. Each returns a DOM node. ----
@@ -171,8 +439,8 @@
                         reveal(verdict);
                         // Always ping the AI so the lesson continues after a correct tap
                         // instead of stalling until the student types something. The verdict
-                        // is already shown in the widget, so send it silently — no duplicate bubble.
-                        reply('For the check "' + data.q + '", I chose "' + opt + '" — the correct answer.', { silent: true });
+                        // is already shown in the widget, so the echo is silent — no duplicate bubble.
+                        answered(w, 'For the check "' + data.q + '", I chose "' + opt + '" — the correct answer.', explain[i]);
                     } else {
                         b.classList.add('tm-wrong');
                         b.setAttribute('disabled', '');
@@ -189,6 +457,7 @@
         w.appendChild(opts);
 
         if (solved) {
+            w.classList.add('tm-solved');
             verdict.className = 'tm-verdict tm-v-good';
             verdict.innerHTML = '<div class="tm-verdict-title">Correct!</div>';
             if (explain[answer]) verdict.appendChild(document.createTextNode(explain[answer]));
@@ -454,6 +723,7 @@
         btn.className = 'tm-check-btn';
         btn.textContent = 'Submit answer';
         if (data.__solvedAnswer) {
+            w.classList.add('tm-solved');
             ta.value = data.__solvedAnswer;
             ta.setAttribute('disabled', '');
             btn.setAttribute('disabled', '');
@@ -465,7 +735,7 @@
                 ta.setAttribute('disabled', '');
                 // Silent: the answer is already shown in the widget, so the AI is
                 // pinged in the background without a redundant chat bubble.
-                reply('For the task "' + data.q + '", I answered: ' + val, { silent: true });
+                answered(w, 'For the task "' + data.q + '", I answered: ' + val, '');
             });
         }
         box.appendChild(ta);
@@ -479,14 +749,16 @@
 
     // Sequence ordering — tap the items in the order they belong.
     // data.steps is authored in the CORRECT order; the widget shuffles for display.
-    function buildOrder(data) {
+    // solvedDetail (optional): the echo detail from an earlier turn — renders the
+    // steps already in order and locked.
+    function buildOrder(data, solvedDetail) {
         var w = tmShell('Put these in order', 'order');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
         var correct = data.steps || [];
         // Pair each step with its correct index, then shuffle for display.
         var items = correct.map(function (text, i) { return { text: text, correctIndex: i }; });
-        for (var i = items.length - 1; i > 0; i--) {
+        for (var i = items.length - 1; i > 0 && !solvedDetail; i--) {
             var j = Math.floor(Math.random() * (i + 1));
             var tmp = items[i]; items[i] = items[j]; items[j] = tmp;
         }
@@ -567,11 +839,13 @@
                 }
             });
             if (wrong === 0) {
-                verdict.className = 'tm-verdict tm-v-good';
-                verdict.innerHTML = '<div class="tm-verdict-title">Correct order!</div>';
-                if (data.explain) verdict.appendChild(document.createTextNode(data.explain));
+                showVerdict(verdict, true, 'Correct order!', data.explain);
                 checkBtn.setAttribute('hidden', '');
                 resetBtn.setAttribute('hidden', '');
+                reveal(verdict);
+                answered(w, 'For the exercise "' + exerciseKey(data, 'Put these in order') +
+                    '", I put the steps in the correct order.', data.explain);
+                return;
             } else {
                 verdict.className = 'tm-verdict tm-v-bad';
                 verdict.innerHTML = '<div class="tm-verdict-title">' + wrong +
@@ -603,6 +877,18 @@
         w.appendChild(list);
         w.appendChild(controls);
         w.appendChild(verdict);
+
+        if (solvedDetail) {
+            checked = true;
+            w.classList.add('tm-solved');
+            list.querySelectorAll('.tm-order-item').forEach(function (el, pos) {
+                el.classList.add('tm-correct');
+                el.querySelector('.tm-order-badge').textContent = String(pos + 1);
+            });
+            checkBtn.setAttribute('hidden', '');
+            resetBtn.setAttribute('hidden', '');
+            showVerdict(verdict, true, 'Correct order!', data.explain);
+        }
         return w;
     }
 
@@ -611,7 +897,7 @@
     // actual spatially/structurally connected graph — correctness is by
     // position in data.path (mirrors tm-order's _correctIndex check), not by
     // graph adjacency, so the graph's edges stay purely illustrative/contextual.
-    function buildPath(data) {
+    function buildPath(data, solvedDetail) {
         var w = tmShell('Guide it · tap the next checkpoint', 'path');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
@@ -629,11 +915,14 @@
         status.style.display = 'none';
         w.appendChild(status);
 
-        var verdict = document.createElement('div');
-        verdict.className = 'tm-verdict';
-        verdict.setAttribute('role', 'status');
-        verdict.style.display = 'none';
+        var verdict = tmVerdict();
         w.appendChild(verdict);
+
+        if (solvedDetail && path.length) {
+            idx = path.length - 1;
+            w.classList.add('tm-solved');
+            showVerdict(verdict, true, 'Done!', '');
+        }
 
         function redraw(wrongNodeId) {
             drawGraphOnCanvas(made.ctx, graph, {
@@ -679,10 +968,15 @@
                 }
 
                 if (idx === path.length - 1) {
-                    verdict.className = 'tm-verdict tm-v-good';
-                    verdict.innerHTML = '<div class="tm-verdict-title">Done!</div>';
-                    verdict.style.display = 'block';
+                    showVerdict(verdict, true, 'Done!', '');
                     reveal(verdict);
+                    var byId = {};
+                    (graph.nodes || []).forEach(function (n) { byId[n.id] = n; });
+                    var route = path.map(function (id) {
+                        return byId[id] && byId[id].label != null ? byId[id].label : id;
+                    }).join(' → ');
+                    answered(w, 'For the exercise "' + exerciseKey(data, 'Guide it') +
+                        '", I traced the whole path: ' + route + '.', status.textContent);
                 }
             } else {
                 clearTimeout(flashTimer);
@@ -696,7 +990,7 @@
 
     // Fill-in-the-blank code. data.code holds {{1}}, {{2}}… placeholders; each
     // entry in data.blanks gives that blank's options and correct option index.
-    function buildCloze(data) {
+    function buildCloze(data, solvedDetail) {
         var w = tmShell('Complete the code', 'cloze');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
@@ -773,10 +1067,13 @@
             });
             if (wrong === 0) {
                 checked = true;
-                verdict.className = 'tm-verdict tm-v-good';
-                verdict.innerHTML = '<div class="tm-verdict-title">That compiles!</div>';
-                if (data.explain) verdict.appendChild(document.createTextNode(data.explain));
+                showVerdict(verdict, true, 'That compiles!', data.explain);
                 checkBtn.setAttribute('hidden', '');
+                reveal(verdict);
+                answered(w, 'For the exercise "' + exerciseKey(data, 'Complete the code') +
+                    '", I filled in the blanks correctly: ' +
+                    blankEls.map(function (b) { return b.textContent; }).join(', ') + '.', data.explain);
+                return;
             } else {
                 verdict.className = 'tm-verdict tm-v-bad';
                 verdict.innerHTML = '<div class="tm-verdict-title">Not yet — ' + wrong +
@@ -801,6 +1098,20 @@
         controls.appendChild(checkBtn);
         w.appendChild(controls);
         w.appendChild(verdict);
+
+        if (solvedDetail) {
+            checked = true;
+            w.classList.add('tm-solved');
+            blankEls.forEach(function (b) {
+                var spec = blanks[b._blankIndex] || {};
+                var opts = spec.options || [];
+                b._choice = Number(spec.answer);
+                b.textContent = opts[b._choice] != null ? opts[b._choice] : '?';
+                b.classList.add('tm-filled', 'tm-correct');
+            });
+            checkBtn.setAttribute('hidden', '');
+            showVerdict(verdict, true, 'That compiles!', data.explain);
+        }
         return w;
     }
 
@@ -946,13 +1257,17 @@
     // Executes inside a Web Worker (assets/js/tm-code-worker.js) — no DOM/network
     // access from within a worker — with a hard wall-clock timeout that terminates
     // the worker on an infinite loop. See tm-code-worker.js for the sandboxed side.
-    function buildCode(data) {
+    // "Show my tutor" hands in the latest run (code + output) — the tutor judges
+    // it; `expected` stays a self-check, never auto-graded. solvedDetail restores
+    // the handed-in code from an earlier turn.
+    function buildCode(data, solvedDetail) {
         var w = tmShell('Run it · JavaScript', 'code');
         if (data.q) w.appendChild(tmQuestion(data.q));
 
         var starterText = Array.isArray(data.starter) ? data.starter.join('\n') : String(data.starter || '');
 
         if (data.language && data.language !== 'javascript') {
+            w.setAttribute('data-tm-static', '');
             var pre = document.createElement('div');
             pre.className = 'tm-code-editor';
             pre.style.whiteSpace = 'pre-wrap';
@@ -969,6 +1284,17 @@
         editor.className = 'tm-code-editor';
         editor.spellcheck = false;
         editor.value = starterText;
+        // Room to write: the starter plus four blank lines, never under nine.
+        var starterLines = starterText.split('\n').length;
+        editor.rows = Math.max(9, starterLines + 4);
+        // Grow with the code instead of scrolling inside a small box (CSS caps it
+        // at 60vh). Only ever grows past `rows` — shrinking back as they delete
+        // would make the controls below jump around while they type.
+        editor.addEventListener('input', function () {
+            if (editor.scrollHeight > editor.clientHeight) {
+                editor.style.height = (editor.scrollHeight + 2) + 'px';
+            }
+        });
         w.appendChild(editor);
 
         var controls = document.createElement('div');
@@ -978,6 +1304,13 @@
         runBtn.className = 'tm-check-btn';
         runBtn.textContent = 'Run';
         controls.appendChild(runBtn);
+        var sendBtn = document.createElement('button');
+        sendBtn.type = 'button';
+        sendBtn.className = 'tm-step-btn';
+        sendBtn.textContent = 'Show my tutor';
+        sendBtn.setAttribute('disabled', '');
+        sendBtn.title = 'Run your code first';
+        controls.appendChild(sendBtn);
         if (data.expected) {
             var expected = document.createElement('span');
             expected.className = 'tm-code-expected';
@@ -992,6 +1325,33 @@
         w.appendChild(output);
 
         var MAX_LINES = 200, MAX_CHARS = 20000, TIMEOUT_MS = 3000;
+        var lastRun = null;   // { code, output } of the latest finished run
+
+        function ran() {
+            lastRun = { code: editor.value, output: output.textContent };
+            if (!w.classList.contains('tm-solved')) {
+                sendBtn.removeAttribute('disabled');
+                sendBtn.removeAttribute('title');
+            }
+        }
+
+        sendBtn.addEventListener('click', function () {
+            if (!lastRun || w.classList.contains('tm-solved')) return;
+            sendBtn.setAttribute('disabled', '');
+            sendBtn.textContent = 'Sent to your tutor';
+            answered(w, 'For the exercise "' + exerciseKey(data, 'Run it') + '", I ran my code and it printed:\n' +
+                lastRun.output + '\n\nMy code:\n' + lastRun.code, '');
+        });
+
+        if (solvedDetail) {
+            w.classList.add('tm-solved');
+            var mine = /\n\nMy code:\n([\s\S]*)$/.exec(solvedDetail);
+            if (mine) {
+                editor.value = mine[1];
+                editor.rows = Math.max(editor.rows, mine[1].split('\n').length + 1);
+            }
+            sendBtn.textContent = 'Sent to your tutor';
+        }
 
         runBtn.addEventListener('click', function () {
             runBtn.setAttribute('disabled', '');
@@ -1009,6 +1369,7 @@
                 output.className = 'tm-code-output tm-v-bad';
                 output.textContent = 'Timed out after ' + (TIMEOUT_MS / 1000) + 's — check for an infinite loop.';
                 runBtn.removeAttribute('disabled');
+                ran();
             }, TIMEOUT_MS);
 
             worker.onmessage = function (e) {
@@ -1031,6 +1392,7 @@
                     output.className = 'tm-code-output tm-v-bad';
                     output.textContent = (text ? text + '\n' : '') + ((e.data && e.data.error) || 'Error running code.');
                 }
+                ran();
             };
 
             worker.onerror = function (err) {
@@ -1041,6 +1403,7 @@
                 runBtn.removeAttribute('disabled');
                 output.className = 'tm-code-output tm-v-bad';
                 output.textContent = 'Error: ' + (err && err.message ? err.message : 'could not run code.');
+                ran();
             };
 
             worker.postMessage(editor.value);
@@ -1049,14 +1412,21 @@
         return w;
     }
 
-    // solvedChecks (optional Set of question strings) marks tm-check widgets the
-    // student already answered correctly in an earlier turn — see buildCheck().
-    // solved: { checks: Set<question>, chips: Map<question, choice>, tasks: Map<question, answer> }
-    // — all optional, describing which widgets in this conversation were already
-    // answered in an earlier turn so they render straight into their locked state.
+    // solved: { checks: Set<question>, chips: Map<question, choice>, tasks: Map<question, answer>,
+    // exercises: Map<question, echo detail> } — all optional, describing which widgets in
+    // this conversation were already answered in an earlier turn so they render straight
+    // into their locked state. Answerable ones also get their lift-into-focus button.
     function buildTmWidget(spec, solved) {
+        var w = buildWidgetOfType(spec, solved || {});
+        if (w && ANSWERABLE[spec.type] && !w.hasAttribute('data-tm-static')) makeLiftable(w);
+        return w;
+    }
+
+    function buildWidgetOfType(spec, solved) {
         if (!spec || !spec.data) return null;
-        solved = solved || {};
+        var labels = { order: 'Put these in order', cloze: 'Complete the code', code: 'Run it', path: 'Guide it' };
+        var exercise = labels[spec.type] && solved.exercises
+            ? solved.exercises.get(exerciseKey(spec.data, labels[spec.type])) : null;
         switch (spec.type) {
             case 'chips': {
                 var solvedChoice = solved.chips && solved.chips.get(String(spec.data.q || ''));
@@ -1072,11 +1442,11 @@
                 var solvedAnswer = solved.tasks && solved.tasks.get(String(spec.data.q || ''));
                 return buildTask(solvedAnswer ? Object.assign({}, spec.data, { __solvedAnswer: solvedAnswer }) : spec.data);
             }
-            case 'order': return buildOrder(spec.data);
-            case 'cloze': return buildCloze(spec.data);
+            case 'order': return buildOrder(spec.data, exercise);
+            case 'cloze': return buildCloze(spec.data, exercise);
             case 'graph': return buildGraph(spec.data);
-            case 'code':  return buildCode(spec.data);
-            case 'path':  return buildPath(spec.data);
+            case 'code':  return buildCode(spec.data, exercise);
+            case 'path':  return buildPath(spec.data, exercise);
             default:      return null;
         }
     }
@@ -1090,7 +1460,8 @@
         var solved = {
             checks: opts && opts.solvedChecks,
             chips: opts && opts.solvedChips,
-            tasks: opts && opts.solvedTasks
+            tasks: opts && opts.solvedTasks,
+            exercises: opts && opts.solvedExercises
         };
         container.querySelectorAll('pre').forEach(function (pre) {
             var spec = parseTmSpec(pre);
@@ -1137,6 +1508,9 @@
         },
         render: renderInteractiveWidgets,
         extract: extractTmBlocks,
-        fill: fillTmSlots
+        fill: fillTmSlots,
+        focusFresh: focusFresh,
+        settle: settle,
+        dismiss: dismiss
     };
 })();

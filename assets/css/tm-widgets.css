@@ -486,18 +486,34 @@
 .tm-order-controls .tm-check-btn { align-self: auto; }
 .tm-order-controls [hidden] { display: none; }
 
-/* ---------- Fill-in-the-blank code (tm-cloze) ---------- */
-.tm-cloze-code {
-  background: #1e1e2e;
-  color: #e6e1ff;
-  font-family: "Roboto Mono", Consolas, monospace;
-  font-size: 0.84rem;
-  line-height: 1.7;
+/* ---------- Fill-in-the-blank code (tm-cloze) ----------
+   Same surface + ink as the chat's code blocks (tm-tokens.css --tm-code-*),
+   so it follows the theme instead of sitting in an always-dark box. A blank
+   is a value you type, so it takes the theme's value colour (amber).
+   Scoped under .tm-widget to out-rank ui-overhaul.css's .message-content
+   pre / code rules (Courier, red code text) — they only reach the widget
+   inside a reply, so without this it would change size lifting into focus. */
+.tm-widget .tm-cloze-code {
+  background: var(--tm-code-bg, #fff);
+  color: var(--tm-code-ink, var(--text-primary));
+  border: 1px solid var(--ds-line, var(--border));
+  font-family: var(--tm-code-font, "Roboto Mono", Consolas, monospace);
+  font-size: 0.86rem;
+  line-height: 1.8;
   padding: 0.85rem 1rem;
   border-radius: 10px;
   margin: 0.5rem 0 0;
   overflow-x: auto;
   white-space: pre;
+}
+.tm-widget .tm-cloze-code code {
+  display: inline;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  white-space: inherit;
 }
 .tm-cloze-blank {
   font-family: inherit;
@@ -508,23 +524,23 @@
   margin: 0 0.15rem;
   border: 1.5px dashed var(--cta, #f59e0b);
   border-radius: 6px;
-  background: rgba(245, 158, 11, 0.15);
-  color: #ffd479;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--tm-code-literal, #B45309);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
   vertical-align: baseline;
 }
-.tm-cloze-blank:hover { background: rgba(245, 158, 11, 0.3); }
+.tm-cloze-blank:hover { background: rgba(245, 158, 11, 0.24); }
 .tm-cloze-blank.tm-filled { border-style: solid; }
 .tm-cloze-blank.tm-correct {
   border-color: var(--tm-good);
-  background: rgba(16, 185, 129, 0.25);
-  color: #7ef0c4;
+  background: var(--tm-good-bg);
+  color: var(--tm-code-ink, var(--text-primary));
 }
 .tm-cloze-blank.tm-wrong {
   border-color: var(--tm-bad);
-  background: rgba(239, 68, 68, 0.25);
-  color: #ffb3b3;
+  background: var(--tm-bad-bg);
+  color: var(--tm-code-ink, var(--text-primary));
 }
 
 /* ---------- Step visuals (array/list highlighting) ---------- */
@@ -626,17 +642,21 @@
 }
 
 /* ---------- Code runner (tm-code) ---------- */
+/* Height comes from its `rows` (starter + writing room, set in buildCode) and
+   grows with what the student types, up to 60% of the screen before it scrolls. */
 .tm-code-editor {
+  display: block;
   width: 100%;
-  min-height: 110px;
-  font-family: "Roboto Mono", Consolas, monospace;
-  font-size: 0.84rem;
-  line-height: 1.6;
-  color: #e6e1ff;
-  background: #1e1e2e;
-  border: 1.5px solid var(--border);
+  max-height: 60vh;
+  font-family: var(--tm-code-font, "Roboto Mono", Consolas, monospace);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--tm-code-ink, var(--text-primary));
+  caret-color: var(--primary);
+  background: var(--tm-code-bg, #fff);
+  border: 1.5px solid var(--ds-line, var(--border));
   border-radius: 10px;
-  padding: 0.75rem 0.9rem;
+  padding: 0.85rem 1rem;
   resize: vertical;
   tab-size: 4;
   box-sizing: border-box;
@@ -656,13 +676,16 @@
   font-size: 0.78rem;
   color: var(--text-secondary);
 }
+.tm-code-controls .tm-step-btn { margin-top: 0; }
+.tm-code-controls [disabled] { opacity: 0.45; cursor: default; }
+.tm-code-controls .tm-step-btn[disabled]:hover { background: transparent; color: var(--primary); transform: none; }
 .tm-code-output {
   margin-top: 0.6rem;
   padding: 0.7rem 0.85rem;
   border-radius: 10px;
   border: 1.5px solid var(--border);
   background: var(--bg-main, rgba(124, 58, 237, 0.03));
-  font-family: "Roboto Mono", Consolas, monospace;
+  font-family: var(--tm-code-font, "Roboto Mono", Consolas, monospace);
   font-size: 0.82rem;
   white-space: pre-wrap;
   word-break: break-word;
@@ -679,6 +702,98 @@
   font-style: italic;
 }
 
+/* ---------- Focus: a question lifted into a modal (tm-widgets.js lift/dock) ----------
+   The widget node itself moves into .tm-focus-stage and back; a dashed
+   .tm-focus-ghost holds its place in the chat meanwhile. The flight is a
+   Web Animations transform on the stage, at the same width as in the chat,
+   so nothing re-wraps — anything here that changes the card's size in focus
+   would make it jump on landing. */
+.tm-widget-lift {
+  margin: -5px -7px -5px auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--ds-r-sm, 8px);
+  background: transparent;
+  color: var(--ds-ink-2, var(--text-secondary));
+  font: 600 0.8rem var(--ds-font-body, inherit);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.tm-widget-lift:hover { background: var(--ds-tint, rgba(124, 58, 237, 0.08)); color: var(--ds-ink, var(--text-primary)); }
+.tm-widget-lift svg { display: block; flex: none; width: 16px; height: 16px; }
+.tm-widget-lift .tm-i-dock,
+.tm-widget-lift span,
+.tm-widget.tm-lifted .tm-widget-lift .tm-i-lift { display: none; }
+.tm-widget.tm-lifted .tm-widget-lift .tm-i-dock { display: block; }
+.tm-widget.tm-lifted .tm-widget-lift span { display: inline; }
+/* Answered in the chat: nothing left to focus on */
+.tm-widget.tm-solved:not(.tm-lifted) .tm-widget-lift { display: none; }
+
+.tm-focus {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;   /* the modal tier (mobile.css z-index table); toasts and TmDialog sit above */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 12px;
+}
+.tm-focus-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(22, 18, 31, 0.45);   /* same scrim as .tm-dialog-overlay */
+}
+body.dark-mode .tm-focus-scrim { background: rgba(0, 0, 0, 0.6); }
+.tm-focus-stage {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--tm-widget-radius);
+  outline: none;
+}
+.tm-widget.tm-lifted,
+.tm-widget.tm-lifted:hover {
+  margin: 0;
+  box-shadow: var(--ds-lift-hi, 0 30px 50px -22px rgba(91, 33, 182, 0.4));
+}
+.tm-widget.tm-lifted.tm-landing {
+  box-shadow: var(--shadow-md, 0 10px 20px rgba(124, 58, 237, 0.1));
+  transition: box-shadow 0.46s ease;
+}
+.tm-focus-ghost {
+  box-sizing: border-box;
+  margin: 0.85rem 0;
+  border: 1.5px dashed var(--ds-line, var(--border));
+  border-radius: var(--tm-widget-radius);
+}
+.tm-focus-wait {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--ds-line, var(--border));
+  color: var(--ds-ink-2, var(--text-secondary));
+  font: 600 0.9rem var(--ds-font-display, inherit);
+  animation: tm-pop-in 0.3s ease-out 0.35s both;
+}
+.tm-focus-wait .tm-loader-inline {
+  width: 22px;
+  height: 22px;
+  color: var(--ds-accent-ink, var(--primary));
+}
+@media (max-width: 640px) {
+  /* Phones: a bottom sheet, within thumb reach. The lift button stays an
+     icon — its label would wrap the header and change the card's height. */
+  .tm-focus { align-items: flex-end; padding: 12px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .tm-widget.tm-lifted .tm-widget-lift span { display: none; }
+}
+
 /* ---------- Focus visibility (a11y) ---------- */
 .tm-chip:focus-visible,
 .tm-opt:focus-visible,
@@ -686,7 +801,8 @@
 .tm-step-btn:focus-visible,
 .tm-check-btn:focus-visible,
 .tm-order-item:focus-visible,
-.tm-cloze-blank:focus-visible {
+.tm-cloze-blank:focus-visible,
+.tm-widget-lift:focus-visible {
   outline: 3px solid var(--cta, #f59e0b);
   outline-offset: 2px;
 }
@@ -694,5 +810,5 @@
 @media (prefers-reduced-motion: reduce) {
   .tm-opt, .tm-chip, .tm-step-btn, .tm-check-btn,
   .tm-order-item, .tm-cloze-blank, .tm-widget { transition: none; }
-  .tm-opt.tm-wrong, .tm-widget.tm-enter, .tm-verdict, .tm-opt.tm-correct { animation: none; }
+  .tm-opt.tm-wrong, .tm-widget.tm-enter, .tm-verdict, .tm-opt.tm-correct, .tm-focus-wait { animation: none; }
 }

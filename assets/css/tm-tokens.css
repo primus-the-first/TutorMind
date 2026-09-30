@@ -44,6 +44,20 @@
   --ds-stage-rung: rgba(91, 33, 182, 0.3);
   --ds-paper: #ffffff;
 
+  /* Code — TutorMind's own syntax theme (chat code blocks, tm-cloze, tm-code).
+     Two hues only: purple for the language's structure (keywords, built-ins),
+     amber for the values you type (strings, numbers, booleans); names get ink
+     weight, comments go quiet. #B45309 is the text-safe amber on white
+     (--cta-hover is only 3.2:1). Redefined in full under body.dark-mode — a
+     var() here resolves on :root and would not follow the theme. */
+  --tm-code-bg: #ffffff;
+  --tm-code-ink: #1F2937;
+  --tm-code-muted: #6b7280;
+  --tm-code-keyword: #7C3AED;
+  --tm-code-builtin: #5B21B6;
+  --tm-code-literal: #B45309;
+  --tm-code-font: ui-monospace, 'Roboto Mono', Consolas, monospace;
+
   /* Type */
   --ds-font-display: 'Funnel Display', 'Outfit', system-ui, sans-serif;
   --ds-font-body: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -91,4 +105,11 @@ body.dark-mode {
   --ds-stage-spark: #EDE9F7;
   --ds-stage-rung: rgba(255, 255, 255, 0.22);
   --ds-paper: #EDE9F7;
+
+  --tm-code-bg: #1F1A2E;
+  --tm-code-ink: #EDE9F7;
+  --tm-code-muted: #9ca3af;
+  --tm-code-keyword: #A78BFA;
+  --tm-code-builtin: #C4B5FD;
+  --tm-code-literal: #F59E0B;
 }

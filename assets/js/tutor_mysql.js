@@ -145,12 +145,21 @@ class PomodoroManager {
 
 // ============================================================
 // QuizManager — fetch question from API, display modal, grade
+// Markup: #recall-modal in tutor_mysql.php. Styles: tm-chat.css §11.
 // ============================================================
+const RECALL_MODE_LABELS = {
+    gentle:    'Gentle recall · pick the answer',
+    standard:  'Standard recall · a short answer',
+    challenge: 'Challenge · explain it in your own words'
+};
+const RECALL_SUBMIT_LABEL = 'Check my answer';
+
 class QuizManager {
     constructor() {
         this.quizId       = null;
         this.questionType = null;
         this.selectedOpt  = null;
+        this.returnFocus  = null;
     }
 
     async start(mode) {
@@ -196,65 +205,81 @@ class QuizManager {
     }
 
     _showModal(mode) {
-        const modeLabels = { gentle: 'Gentle Recall', standard: 'Standard Recall', challenge: 'Challenge Mode' };
         const el = (id) => document.getElementById(id);
+        const modal = el('recall-modal');
+        if (!modal) return;
 
-        const lbl = el('recallQuizModeLabel');
-        if (lbl) lbl.textContent = modeLabels[mode] || '';
-        el('recallQuestionPhase')?.classList.remove('hidden');
-        el('recallResultPhase')?.classList.add('hidden');
-        el('recallLoading')?.classList.remove('hidden');
-        el('recallQuestionText')?.classList.add('hidden');
-        el('recallOptions')?.classList.add('hidden');
-        el('recallAnswerArea')?.classList.add('hidden');
-        el('recallSubmitBtn')?.classList.add('hidden');
+        el('recallQuizModeLabel').textContent = RECALL_MODE_LABELS[mode] || RECALL_MODE_LABELS.standard;
+        el('recallQuestionPhase').classList.remove('hidden');
+        el('recallResultPhase').classList.add('hidden');
+        el('recallLoading').classList.remove('hidden');
+        el('recallQuestionText').classList.add('hidden');
+        el('recallOptions').classList.add('hidden');
+        el('recallAnswerArea').classList.add('hidden');
+
+        // The branded Orbit Dot, not an icon-font spinner
+        const orbit = modal.querySelector('.tm-recall__orbit');
+        if (orbit && !orbit.firstChild && typeof TmLoader !== 'undefined') orbit.innerHTML = TmLoader.inlineHTML();
+
+        // Every quiz starts from a clean submit button (a previous grade used to
+        // leave it disabled, or as a bare spinner with no label)
         const submitBtn = el('recallSubmitBtn');
-        if (submitBtn) submitBtn.disabled = false;
+        submitBtn.disabled = true;
+        submitBtn.textContent = RECALL_SUBMIT_LABEL;
 
         this.selectedOpt = null;
-        el('recall-modal')?.classList.remove('hidden');
+        this.returnFocus = document.activeElement;
+        modal.classList.remove('hidden');
+        modal.querySelector('.tm-recall__card')?.focus({ preventScroll: true });
     }
 
     _displayQuestion(data) {
         const el = (id) => document.getElementById(id);
 
-        el('recallLoading')?.classList.add('hidden');
+        el('recallLoading').classList.add('hidden');
         const qt = el('recallQuestionText');
-        if (qt) { qt.textContent = data.question; qt.classList.remove('hidden'); }
+        qt.textContent = data.question;
+        qt.classList.remove('hidden');
 
         if (data.question_type === 'recognition' && Array.isArray(data.options)) {
             const container = el('recallOptions');
             container.innerHTML = '';
-            data.options.forEach((opt) => {
+            data.options.forEach((opt, i) => {
                 const btn = document.createElement('button');
-                btn.type      = 'button';
-                btn.className = 'recall-option-btn';
-                btn.textContent = opt;
+                btn.type = 'button';
+                btn.className = 'tm-recall__opt';
+                btn.setAttribute('aria-pressed', 'false');
+                const key = document.createElement('span');
+                key.className = 'tm-recall__key';
+                key.setAttribute('aria-hidden', 'true');
+                key.textContent = String.fromCharCode(65 + i);
+                const text = document.createElement('span');
+                text.textContent = opt;
+                btn.append(key, text);
                 btn.addEventListener('click', () => {
-                    container.querySelectorAll('.recall-option-btn').forEach(b => b.classList.remove('selected'));
-                    btn.classList.add('selected');
+                    container.querySelectorAll('.tm-recall__opt').forEach(b => b.setAttribute('aria-pressed', 'false'));
+                    btn.setAttribute('aria-pressed', 'true');
                     this.selectedOpt = opt;
-                    el('recallSubmitBtn')?.classList.remove('hidden');
+                    el('recallSubmitBtn').disabled = false;
                 });
                 container.appendChild(btn);
             });
             container.classList.remove('hidden');
         } else {
             const input = el('recallAnswerInput');
-            if (input) input.value = '';
-            el('recallAnswerArea')?.classList.remove('hidden');
-            el('recallAnswerInput')?.addEventListener('input', () => {
-                const btn = el('recallSubmitBtn');
-                if (!btn) return;
-                btn.classList.toggle('hidden', (el('recallAnswerInput')?.value.trim().length ?? 0) < 4);
-            });
+            input.value = '';
+            el('recallAnswerArea').classList.remove('hidden');
+            // Desktop: straight into the box. Phones: no keyboard over the question.
+            if (window.matchMedia('(pointer: fine)').matches) input.focus({ preventScroll: true });
         }
     }
 
     async _submitAnswer() {
         const el        = (id) => document.getElementById(id);
         const submitBtn = el('recallSubmitBtn');
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+        if (submitBtn.disabled) return;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Checking…';
 
         const answer = this.questionType === 'recognition'
             ? this.selectedOpt ?? ''
@@ -271,33 +296,68 @@ class QuizManager {
             this._showResult(data);
         } catch (err) {
             if (DEBUG) console.error('QuizManager._submitAnswer error:', err);
-            this._hideModal();
+            // Keep their answer on screen so they can try again (this used to
+            // close the modal without a word, losing what they'd written)
+            submitBtn.disabled = false;
+            submitBtn.textContent = RECALL_SUBMIT_LABEL;
+            window.showCopyToast("Couldn't check that answer — try again in a moment.", 'error');
         }
     }
 
     _showResult(data) {
         const el = (id) => document.getElementById(id);
 
-        el('recallQuestionPhase')?.classList.add('hidden');
-        el('recallResultPhase')?.classList.remove('hidden');
+        el('recallQuestionPhase').classList.add('hidden');
+        el('recallResultPhase').classList.remove('hidden');
 
-        const pct   = Math.round((data.score ?? 0) * 100);
-        const badge = el('recallScoreBadge');
-        if (badge) {
-            badge.className   = 'recall-score-badge ' + (pct >= 75 ? 'score-great' : pct >= 40 ? 'score-ok' : 'score-low');
-            badge.textContent = `${pct}%`;
+        const pct = Math.max(0, Math.min(100, Math.round((data.score ?? 0) * 100)));
+        el('recallVerdict').textContent = pct >= 75 ? 'Strong recall' : pct >= 40 ? 'Partly there' : 'Worth another pass';
+        el('recallFeedback').textContent = data.feedback ?? '';
+        el('recallContextSnippet').textContent = data.context_snippet ?? '';
+
+        // Draw the arch to the score (Bridge Draw); the keystone lands for strong recall
+        const meter = el('recallScoreBadge');
+        const fill  = el('recallMeterFill');
+        const value = el('recallScoreValue');
+        meter.classList.remove('is-strong');
+        fill.style.transition = 'none';
+        fill.style.strokeDashoffset = '100';
+        void fill.getBoundingClientRect();          // commit the empty arch before animating
+        fill.style.transition = '';
+        requestAnimationFrame(() => {
+            fill.style.strokeDashoffset = String(100 - pct);
+            meter.classList.toggle('is-strong', pct >= 75);
+        });
+        meter.setAttribute('role', 'img');
+        meter.setAttribute('aria-label', `Recall score: ${pct}%`);
+
+        // Count the number up alongside the arch
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduce) {
+            value.textContent = `${pct}%`;
+        } else {
+            const start = performance.now() + 150, dur = 1100;
+            const ease = (t) => 1 - Math.pow(1 - t, 3);
+            const tick = (now) => {
+                const t = Math.min(1, Math.max(0, (now - start) / dur));
+                value.textContent = `${Math.round(ease(t) * pct)}%`;
+                if (t < 1) requestAnimationFrame(tick);
+            };
+            value.textContent = '0%';
+            requestAnimationFrame(tick);
         }
-        const fb = el('recallFeedback');
-        if (fb) fb.textContent = data.feedback ?? '';
-        const cs = el('recallContextSnippet');
-        if (cs) cs.textContent = data.context_snippet ?? '';
 
         this._unblurMessages();
+        el('recallDoneBtn')?.focus({ preventScroll: true });
     }
 
     _hideModal() {
-        document.getElementById('recall-modal')?.classList.add('hidden');
+        const modal = document.getElementById('recall-modal');
+        if (!modal || modal.classList.contains('hidden')) return;
+        modal.classList.add('hidden');
         this._unblurMessages();
+        if (this.returnFocus && document.contains(this.returnFocus)) this.returnFocus.focus({ preventScroll: true });
+        this.returnFocus = null;
     }
 
     _blurMessages() {
@@ -313,6 +373,29 @@ class QuizManager {
         el('recallSkipBtn')?.addEventListener('click',  () => this._hideModal());
         el('recallDoneBtn')?.addEventListener('click',  () => this._hideModal());
         el('recallSubmitBtn')?.addEventListener('click', () => this._submitAnswer());
+
+        // Bound once here (it used to be re-added on every question)
+        const input = el('recallAnswerInput');
+        input?.addEventListener('input', () => {
+            el('recallSubmitBtn').disabled = input.value.trim().length < 4;
+        });
+        // Ctrl/Cmd+Enter sends a written answer
+        input?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this._submitAnswer(); }
+        });
+
+        // Esc puts the quiz away; Tab stays inside it
+        el('recall-modal')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { e.preventDefault(); this._hideModal(); return; }
+            if (e.key !== 'Tab') return;
+            const card = el('recall-modal').querySelector('.tm-recall__card');
+            const items = [...card.querySelectorAll('button, textarea')]
+                .filter(b => !b.disabled && b.getClientRects().length);
+            if (!items.length) return;
+            const first = items[0], last = items[items.length - 1];
+            if (e.shiftKey && (document.activeElement === first || document.activeElement === card)) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        });
     }
 }
 
@@ -366,6 +449,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         const m = /^For the task "([\s\S]+?)", I answered: ([\s\S]+)$/s.exec(text.trim());
         return m ? { question: m[1], answer: m[2] } : null;
     }
+    // tm-order / tm-cloze / tm-path / tm-code completions (question -> what the
+    // student did). One shared echo shape, sent by tm-widgets.js answered().
+    let solvedExercises = new Map();
+    function extractSolvedExercise(text) {
+        if (!text) return null;
+        const m = /^For the exercise "([\s\S]+?)", ([\s\S]+)$/s.exec(text.trim());
+        return m ? { question: m[1], detail: m[2] } : null;
+    }
+    function isSilentWidgetEcho(text) {
+        return !!(extractSolvedCheckQuestion(text) || extractSolvedChipChoice(text)
+            || extractSolvedTaskAnswer(text) || extractSolvedExercise(text));
+    }
+    // Code block header labels: the fence tag as a person would say it. Declared
+    // up here, not beside addCopyButtonsToCodeBlocks(): hydrateMessages() runs
+    // during setup below, and a const read before its line throws (TDZ) —
+    // which aborts the rest of setup (rename, etc.).
+    const CODE_LANGUAGE_NAMES = {
+        js: 'JavaScript', javascript: 'JavaScript', jsx: 'JSX', ts: 'TypeScript', typescript: 'TypeScript',
+        tsx: 'TSX', py: 'Python', python: 'Python', java: 'Java', c: 'C', cpp: 'C++', 'c++': 'C++',
+        cs: 'C#', csharp: 'C#', go: 'Go', rust: 'Rust', rs: 'Rust', rb: 'Ruby', ruby: 'Ruby', php: 'PHP',
+        swift: 'Swift', kotlin: 'Kotlin', kt: 'Kotlin', r: 'R', sql: 'SQL', html: 'HTML', xml: 'XML',
+        css: 'CSS', scss: 'SCSS', json: 'JSON', yaml: 'YAML', yml: 'YAML', md: 'Markdown', markdown: 'Markdown',
+        sh: 'Shell', bash: 'Bash', shell: 'Shell', zsh: 'Shell', powershell: 'PowerShell', ps1: 'PowerShell',
+        matlab: 'MATLAB', latex: 'LaTeX', tex: 'LaTeX', dart: 'Dart', scala: 'Scala', lua: 'Lua',
+        haskell: 'Haskell', text: 'Text', plaintext: 'Text', txt: 'Text'
+    };
+    // Monoline copy/check marks in the widget icon style (round caps, one weight)
+    const CODE_COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V6.5A2.5 2.5 0 0 0 13 4H6.5A2.5 2.5 0 0 0 4 6.5V13a2.5 2.5 0 0 0 2.5 2.5h2"/></svg>';
+    const CODE_COPIED_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13l5 5L20 6"/></svg>';
     const chatMessages = document.getElementById('chat-container');
     const conversationIdInput = document.getElementById('conversation_id');
     const submitBtn = document.getElementById('ai-submit-btn');
@@ -547,6 +659,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Callback after typing finishes
                 if (window.TMWidgets) window.TMWidgets.fill(messageBubble, extracted.specs);
                 finalizeMessage(messageBubble);
+                // A fresh question lifts into focus (history renders never do)
+                if (window.TMWidgets) window.TMWidgets.focusFresh(messageBubble);
                 if (onTyped) onTyped();
             });
         } else {
@@ -571,6 +685,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         solvedCheckQuestions = new Set(Array.isArray(window.__ssrSolvedChecks) ? window.__ssrSolvedChecks : []);
         solvedChipChoices = new Map(Object.entries(window.__ssrSolvedChips || {}));
         solvedTaskAnswers = new Map(Object.entries(window.__ssrSolvedTasks || {}));
+        solvedExercises = new Map(Object.entries(window.__ssrSolvedExercises || {}));
         const bubbles = chatMessages.querySelectorAll('.message-content');
         bubbles.forEach(bubble => {
             const wrapper = bubble.closest('.message');
@@ -616,7 +731,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (window.TMWidgets) window.TMWidgets.render(messageBubble, {
             solvedChecks: solvedCheckQuestions,
             solvedChips: solvedChipChoices,
-            solvedTasks: solvedTaskAnswers
+            solvedTasks: solvedTaskAnswers,
+            solvedExercises: solvedExercises
         });
 
         // Add copy buttons to code blocks and trigger syntax highlighting
@@ -686,6 +802,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             },
             onReveal: function (el) { finalizeMessage(el); }
         });
+    }
+    // A widget answered in focus waits in its modal for the tutor's reply; this
+    // flies it back into the chat first, so the reply types in beneath it.
+    function settleWidgetFocus() {
+        return window.TMWidgets ? window.TMWidgets.settle() : Promise.resolve();
     }
 
     // --- Handle edit submission (two-phase: update DB, then regenerate AI response) ---
@@ -1343,22 +1464,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.VoiceManager = VoiceManager;
 
     // --- Voice Mode Manager (ChatGPT-style full conversation mode) ---
+    // Markup: #voice-mode-overlay in tutor_mysql.php; styles: tm-chat.css §12.
+    // setState() writes the overlay's data-state, which picks what the arch acts out.
+    const VOICE_STATES = {
+        idle:       { status: 'Tap the bridge to talk', label: 'Start talking' },
+        listening:  { status: 'Listening…',             label: 'Stop listening' },
+        processing: { status: 'Thinking…',              label: 'Thinking' },
+        speaking:   { status: 'Speaking…',              label: 'Interrupt and talk' }
+    };
     const VoiceModeManager = {
         state: 'idle', // idle | listening | processing | speaking
         overlay: null,
         circle: null,
         statusEl: null,
+        liveEl: null,
         transcriptEl: null,
         recognition: null,
         currentTranscript: '',
         conversationHistory: [],
         isActive: false,
         silenceTimeout: null,
-        
+        returnFocus: null,
+
         init() {
             this.overlay = document.getElementById('voice-mode-overlay');
             this.circle = document.getElementById('voice-mode-circle');
             this.statusEl = document.getElementById('voice-mode-status');
+            this.liveEl = document.getElementById('voice-mode-live');
             this.transcriptEl = document.getElementById('voice-mode-transcript');
             
             // Set up trigger button
@@ -1373,10 +1505,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 closeBtn.addEventListener('click', () => this.close());
             }
             
-            // Escape key to close
+            // Escape ends voice mode; Tab stays on its two controls
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && this.isActive) {
-                    this.close();
+                if (!this.isActive) return;
+                if (e.key === 'Escape') { this.close(); return; }
+                if (e.key === 'Tab') {
+                    const items = [this.circle, closeBtn].filter(Boolean);
+                    const i = items.indexOf(document.activeElement);
+                    e.preventDefault();
+                    items[(i + (e.shiftKey ? items.length - 1 : 1)) % items.length].focus();
                 }
             });
             
@@ -1424,9 +1561,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
                 
-                // Show interim results
+                // Show what's being heard as a live caption under the status
                 this.currentTranscript = finalTranscript + interimTranscript;
-                this.statusEl.textContent = this.currentTranscript || 'Listening...';
+                if (this.liveEl) this.liveEl.textContent = this.currentTranscript;
                 
                 // Reset silence detection on any speech
                 this.resetSilenceTimeout();
@@ -1458,9 +1595,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             this.recognition.onerror = (event) => {
                 console.error('Voice Mode: Recognition error:', event.error);
-                if (event.error === 'not-allowed') {
-                    this.statusEl.textContent = 'Microphone access denied';
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                     this.setState('idle');
+                    this.statusEl.textContent = 'Microphone blocked';
+                    this.setLive('Allow microphone access for this site (the icon in the address bar), then tap the bridge.');
+                } else if (event.error === 'audio-capture') {
+                    this.setState('idle');
+                    this.statusEl.textContent = 'No microphone found';
+                    this.setLive('Plug in or enable a microphone, then tap the bridge.');
                 }
             };
         },
@@ -1482,47 +1624,58 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('Voice Mode: Final transcript:', text);
         },
         
+        setLive(text) {
+            if (this.liveEl) this.liveEl.textContent = text || '';
+        },
+
         open() {
             if (!this.overlay) return;
-            
+
             this.isActive = true;
+            this.returnFocus = document.activeElement;
             this.overlay.classList.remove('hidden');
             this.conversationHistory = [];
             this.transcriptEl.innerHTML = '';
+            this.setLive('');
             this.setState('idle');
-            this.statusEl.textContent = 'Tap to speak';
-            
-            // Auto-start listening after a brief delay
+            this.circle?.focus({ preventScroll: true });
+
+            // Auto-start listening once the arch has drawn itself in
             setTimeout(() => {
                 if (this.isActive) {
                     this.startListening();
                 }
-            }, 500);
+            }, 700);
         },
-        
+
         close() {
             if (!this.overlay) return;
-            
+
             this.isActive = false;
             this.overlay.classList.add('hidden');
             this.stopListening();
             VoiceManager.stopAudio();
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
             this.setState('idle');
             this.currentTranscript = '';
-            
+
             if (this.silenceTimeout) {
                 clearTimeout(this.silenceTimeout);
             }
+            if (this.returnFocus && document.contains(this.returnFocus)) this.returnFocus.focus({ preventScroll: true });
+            this.returnFocus = null;
         },
-        
+
         startListening() {
             if (!this.recognition) {
-                this.statusEl.textContent = 'Speech not supported';
+                this.setState('idle');
+                this.statusEl.textContent = 'Voice isn’t available here';
+                this.setLive('Voice mode needs Chrome or Edge on a computer, or Chrome on Android.');
                 return;
             }
-            
+
             this.currentTranscript = '';
-            this.statusEl.textContent = 'Listening...';
+            this.setLive('');
             
             try {
                 this.recognition.start();
@@ -1547,29 +1700,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         setState(newState) {
             this.state = newState;
-            
-            // Update circle state classes
-            if (this.circle) {
-                this.circle.className = 'voice-mode-circle ' + newState;
-            }
-            
-            // Update status text based on state
-            switch (newState) {
-                case 'idle':
-                    if (this.isActive) {
-                        this.statusEl.textContent = 'Tap to speak';
-                    }
-                    break;
-                case 'listening':
-                    this.statusEl.textContent = 'Listening...';
-                    break;
-                case 'processing':
-                    this.statusEl.textContent = 'Thinking...';
-                    break;
-                case 'speaking':
-                    this.statusEl.textContent = 'Speaking...';
-                    break;
-            }
+            const s = VOICE_STATES[newState] || VOICE_STATES.idle;
+            if (this.overlay) this.overlay.dataset.state = newState;   // the arch acts it out (tm-chat.css §12)
+            if (this.circle) this.circle.setAttribute('aria-label', s.label);
+            if (this.statusEl) this.statusEl.textContent = s.status;
         },
         
         async processInput() {
@@ -1584,6 +1718,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Stop listening during processing
             this.stopListening();
             this.setState('processing');
+            this.setLive('');
             
             // Add user message to transcript
             this.addTranscriptMessage(userMessage, 'user');
@@ -1611,10 +1746,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Extract plain text from answer (strip HTML)
+                    // Plain text to speak. Code blocks and widgets come out first:
+                    // textContent would otherwise hand the voice raw code and the
+                    // widgets' JSON specs to read aloud.
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = result.answer;
-                    const plainText = tempDiv.textContent || tempDiv.innerText;
+                    const hasExercise = !!tempDiv.querySelector('pre code[class*="language-tm-"]');
+                    const hasCode = [...tempDiv.querySelectorAll('pre code')].some(c => !/language-tm-/.test(c.className));
+                    tempDiv.querySelectorAll('pre').forEach(pre => pre.remove());
+                    const plainText = (tempDiv.textContent || '').replace(/\s+/g, ' ').trim();
                     
                     // Update conversation ID if new
                     if (result.conversation_id) {
@@ -1623,7 +1763,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     
                     // Add AI response to transcript
-                    this.addTranscriptMessage(plainText.substring(0, 200) + (plainText.length > 200 ? '...' : ''), 'ai');
+                    this.addTranscriptMessage(plainText.substring(0, 280) + (plainText.length > 280 ? '…' : ''), 'ai');
+                    if (hasExercise) this.addTranscriptMessage('There’s an exercise waiting for you in the chat.', 'note');
+                    else if (hasCode) this.addTranscriptMessage('The code from this answer is in the chat.', 'note');
                     
                     // Add to main chat (so it's not lost)
                     addMessage('user', userMessage);
@@ -1648,14 +1790,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Speak the response
                     await this.speakResponse(plainText);
                 } else {
-                    this.statusEl.textContent = 'Error: ' + (result.error || 'Unknown error');
-                    this.addTranscriptMessage('Error: ' + (result.error || 'Unknown error'), 'ai');
-                    setTimeout(() => this.startListening(), 2000);
+                    this.setState('idle');
+                    this.statusEl.textContent = 'That didn’t go through';
+                    this.addTranscriptMessage(result.error || 'Something went wrong — say it again in a moment.', 'note');
+                    setTimeout(() => { if (this.isActive) this.startListening(); }, 2000);
                 }
             } catch (error) {
                 console.error('Voice Mode: Fetch error:', error);
-                this.statusEl.textContent = 'Connection error';
-                setTimeout(() => this.startListening(), 2000);
+                this.setState('idle');
+                this.statusEl.textContent = 'Couldn’t reach TutorMind';
+                this.setLive('Check your connection — listening again in a moment.');
+                setTimeout(() => { if (this.isActive) this.startListening(); }, 2000);
             }
         },
         
@@ -1732,9 +1877,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         },
         
-        addTranscriptMessage(text, sender) {
-            const msg = document.createElement('div');
-            msg.className = `voice-mode-transcript-message ${sender}`;
+        addTranscriptMessage(text, sender) {   // sender: user | ai | note
+            const msg = document.createElement('p');
+            msg.className = `tm-voice__turn ${sender}`;
             msg.textContent = text;
             this.transcriptEl.appendChild(msg);
             this.transcriptEl.scrollTop = this.transcriptEl.scrollHeight;
@@ -1884,8 +2029,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Function to add copy buttons to code blocks ---
+    // (CODE_LANGUAGE_NAMES / CODE_COPY_ICON live near the top of this file:
+    // SSR hydration calls this long before this point is reached.)
     function addCopyButtonsToCodeBlocks(container) {
-        const codeBlocks = container.querySelectorAll('pre code');
+        // Widgets own their <pre>s (tm-cloze's blanks are live buttons that
+        // highlight.js would flatten to text) — leave them alone.
+        const notInWidget = el => !el.closest('.tm-widget');
+        const codeBlocks = Array.from(container.querySelectorAll('pre code')).filter(notInWidget);
 
         // Apply syntax highlighting
         if (codeBlocks.length > 0 && window.hljs) {
@@ -1897,7 +2047,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Wrap pre elements in code-block structure with header
-        container.querySelectorAll('pre').forEach(pre => {
+        Array.from(container.querySelectorAll('pre')).filter(notInWidget).forEach(pre => {
             // Don't process if already wrapped
             if (pre.parentElement?.classList.contains('code-block')) return;
 
@@ -1907,7 +2057,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (codeEl) {
                 const langClass = Array.from(codeEl.classList).find(c => c.startsWith('language-'));
                 if (langClass) {
-                    language = langClass.replace('language-', '').toUpperCase();
+                    const tag = langClass.replace('language-', '').toLowerCase();
+                    language = CODE_LANGUAGE_NAMES[tag] || (tag.charAt(0).toUpperCase() + tag.slice(1));
                 }
             }
 
@@ -1924,23 +2075,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             langSpan.textContent = language;
 
             const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
             copyBtn.className = 'copy-code-btn';
-            copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+            copyBtn.innerHTML = CODE_COPY_ICON + '<span>Copy</span>';
             copyBtn.addEventListener('click', () => {
                 const code = pre.querySelector('code') || pre;
                 const text = code.textContent;
 
                 navigator.clipboard.writeText(text).then(() => {
-                    copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    copyBtn.innerHTML = CODE_COPIED_ICON + '<span>Copied</span>';
                     copyBtn.classList.add('copied');
                     setTimeout(() => {
-                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                        copyBtn.innerHTML = CODE_COPY_ICON + '<span>Copy</span>';
                         copyBtn.classList.remove('copied');
                     }, 2000);
                 }).catch(() => {
-                    copyBtn.textContent = 'Failed';
+                    copyBtn.innerHTML = '<span>Couldn’t copy</span>';
                     setTimeout(() => {
-                        copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                        copyBtn.innerHTML = CODE_COPY_ICON + '<span>Copy</span>';
                     }, 2000);
                 });
             });
@@ -2579,6 +2731,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (response.status === 429) {
+                await settleWidgetFocus();
                 showTypingIndicator(false);
                 submitBtn.disabled = false;
                 questionInput.disabled = false;
@@ -2599,6 +2752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const result = await response.json();
+            await settleWidgetFocus();
 
             if (result.success) {
                 // Add the AI message with a "Read Aloud" button
@@ -2687,6 +2841,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             if (DEBUG) console.error('Fetch Error:', error);
+            await settleWidgetFocus();
             addMessage('ai', `<div class="error-message"><i class="fas fa-exclamation-circle"></i><span>Sorry, I couldn't connect to the server. Please try again.</span></div>`);
         } finally {
             showTypingIndicator(false);
@@ -2703,6 +2858,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Update URL to /chat
         const baseUrl = getBasePath();
         history.pushState({}, '', `${baseUrl}/chat`);
+        if (window.TMWidgets) window.TMWidgets.dismiss();
 
         // Clear old messages and show the welcome screen
         chatMessages.innerHTML = '';
@@ -2712,6 +2868,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         solvedCheckQuestions = new Set();
         solvedChipChoices = new Map();
         solvedTaskAnswers = new Map();
+        solvedExercises = new Map();
         highlightActiveConversation(null);
 
         // Reset conversation title to default and hide it
@@ -2888,6 +3045,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Function to load a specific conversation ---
     async function loadConversation(id) {
+        if (window.TMWidgets) window.TMWidgets.dismiss(); // a question in focus belongs to the old chat
         // Get base path for URL construction
         const basePath = getBasePath();
         // Update URL to /chat/{id}
@@ -2950,7 +3108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (item.role !== 'user') return;
                     const parts = Array.isArray(item.parts) ? item.parts : [item.parts];
                     const text = parts.map(p => (p && p.text) ? p.text : '').join('');
-                    if (extractSolvedCheckQuestion(text) || extractSolvedChipChoice(text) || extractSolvedTaskAnswer(text)) return; // silent echo — skip
+                    if (isSilentWidgetEcho(text)) return; // silent echo — skip
                     lastUserIndex = i;
                 });
 
@@ -2959,6 +3117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 solvedCheckQuestions = new Set();
                 solvedChipChoices = new Map();
                 solvedTaskAnswers = new Map();
+                solvedExercises = new Map();
                 result.conversation.chat_history.forEach((item) => {
                     if (item.role !== 'user') return;
                     const parts = Array.isArray(item.parts) ? item.parts : [item.parts];
@@ -2969,7 +3128,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const chip = extractSolvedChipChoice(part.text);
                         if (chip) { solvedChipChoices.set(chip.question, chip.choice); return; }
                         const task = extractSolvedTaskAnswer(part.text);
-                        if (task) { solvedTaskAnswers.set(task.question, task.answer); }
+                        if (task) { solvedTaskAnswers.set(task.question, task.answer); return; }
+                        const exercise = extractSolvedExercise(part.text);
+                        if (exercise) { solvedExercises.set(exercise.question, exercise.detail); }
                     });
                 });
 
@@ -3029,7 +3190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // A silent widget echo (see extractSolvedCheckQuestion /
                         // extractSolvedChipChoice / extractSolvedTaskAnswer) is already
                         // reflected in the widget itself — skip the duplicate bubble.
-                        if (extractSolvedCheckQuestion(userQuestion) || extractSolvedChipChoice(userQuestion) || extractSolvedTaskAnswer(userQuestion)) {
+                        if (isSilentWidgetEcho(userQuestion)) {
                             return;
                         }
 

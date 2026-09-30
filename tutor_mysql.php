@@ -117,6 +117,9 @@ $ssr_solved_checks = [];
 // associative rather than a plain list like $ssr_solved_checks.
 $ssr_solved_chips = [];
 $ssr_solved_tasks = [];
+// tm-order / tm-cloze / tm-path / tm-code share one echo shape
+// ('For the exercise "Q", <what they did>') — question => that detail.
+$ssr_solved_exercises = [];
 
 if (isset($_GET['conversation_id'])) {
     $convo_id = $_GET['conversation_id'];
@@ -177,6 +180,10 @@ if (isset($_GET['conversation_id'])) {
                         }
                         if (preg_match('/^For the task "([\s\S]+?)", I answered: ([\s\S]+)$/us', $text, $echoMatch)) {
                             $ssr_solved_tasks[$echoMatch[1]] = $echoMatch[2];
+                            continue 2;
+                        }
+                        if (preg_match('/^For the exercise "([\s\S]+?)", ([\s\S]+)$/us', $text, $echoMatch)) {
+                            $ssr_solved_exercises[$echoMatch[1]] = $echoMatch[2];
                             continue 2;
                         }
                     }
@@ -335,8 +342,7 @@ function tm_goal_icon($paths) {
 
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
-    <!-- Highlight.js for Syntax Highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <!-- Highlight.js for Syntax Highlighting (colours: tm-chat.css code blocks, not a hljs theme) -->
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <!-- Custom Styles -->
@@ -588,6 +594,7 @@ function tm_goal_icon($paths) {
             <script>window.__ssrSolvedChecks = <?= json_encode($ssr_solved_checks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
             <script>window.__ssrSolvedChips = <?= json_encode((object)$ssr_solved_chips, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
             <script>window.__ssrSolvedTasks = <?= json_encode((object)$ssr_solved_tasks, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+            <script>window.__ssrSolvedExercises = <?= json_encode((object)$ssr_solved_exercises, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
         </main>
 
         <footer class="input-bar-area">
@@ -676,34 +683,53 @@ function tm_goal_icon($paths) {
         
     </div>
 
-    <!-- Voice Mode Overlay -->
-    <div id="voice-mode-overlay" class="voice-mode-overlay hidden">
-        <button class="voice-mode-close" id="voice-mode-close" title="Exit Voice Mode">
-            <i class="fas fa-times"></i>
-        </button>
-        
-        <div class="voice-mode-content">
-            <!-- Animated Circle -->
-            <div class="voice-mode-circle-container">
-                <div class="voice-mode-circle" id="voice-mode-circle">
-                    <div class="voice-mode-circle-inner"></div>
-                    <div class="voice-mode-ripple"></div>
-                    <div class="voice-mode-ripple"></div>
-                    <div class="voice-mode-ripple"></div>
-                </div>
-            </div>
-            
-            <!-- Status Text -->
-            <div class="voice-mode-status" id="voice-mode-status">Tap to speak</div>
-            
-            <!-- Transcript Area -->
-            <div class="voice-mode-transcript" id="voice-mode-transcript">
-                <!-- Messages will be added here dynamically -->
-            </div>
-            
-            <!-- Hint Text -->
-            <div class="voice-mode-hint">Press <kbd>Esc</kbd> to exit</div>
+    <!-- Voice mode — styled in tm-chat.css §12, driven by VoiceModeManager in
+         tutor_mysql.js. The centrepiece is the logo's own bridge arch (logo-bridge.svg
+         scaled 5x); data-state on the overlay picks what it acts out. -->
+    <div id="voice-mode-overlay" class="tm-voice hidden" role="dialog" aria-modal="true" aria-label="Voice mode" data-state="idle">
+        <header class="tm-voice__bar">
+            <span class="tm-voice__brand">Voice mode</span>
+            <button type="button" class="tm-voice__end" id="voice-mode-close">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                End
+            </button>
+        </header>
+
+        <div class="tm-voice__main">
+            <button type="button" class="tm-voice__orb" id="voice-mode-circle" aria-label="Start talking">
+                <svg viewBox="0 0 200 180" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="tm-voice-gradient" x1="30" y1="0" x2="170" y2="0" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#5E2EBF"/>
+                            <stop offset="100%" stop-color="#9D6BF5"/>
+                        </linearGradient>
+                    </defs>
+                    <g class="tm-voice__echoes">
+                        <path class="tm-voice__echo" d="M30 150 C 30 100, 70 60, 100 60 C 130 60, 170 100, 170 150"/>
+                        <path class="tm-voice__echo" d="M30 150 C 30 100, 70 60, 100 60 C 130 60, 170 100, 170 150"/>
+                        <path class="tm-voice__echo" d="M30 150 C 30 100, 70 60, 100 60 C 130 60, 170 100, 170 150"/>
+                    </g>
+                    <g class="tm-voice__bars">
+                        <rect x="66" y="96" width="8" height="46" rx="4"/>
+                        <rect x="81" y="96" width="8" height="46" rx="4"/>
+                        <rect x="96" y="96" width="8" height="46" rx="4"/>
+                        <rect x="111" y="96" width="8" height="46" rx="4"/>
+                        <rect x="126" y="96" width="8" height="46" rx="4"/>
+                    </g>
+                    <path class="tm-voice__arch" pathLength="100" d="M30 150 C 30 100, 70 60, 100 60 C 130 60, 170 100, 170 150"/>
+                    <circle class="tm-voice__base" cx="30" cy="150" r="9"/>
+                    <circle class="tm-voice__base" cx="170" cy="150" r="9"/>
+                    <circle class="tm-voice__dot" cx="100" cy="36" r="12"/>
+                    <circle class="tm-voice__orbit" r="10"/>
+                </svg>
+            </button>
+            <p class="tm-voice__status" id="voice-mode-status" aria-live="polite">Tap the bridge to talk</p>
+            <p class="tm-voice__live" id="voice-mode-live"></p>
         </div>
+
+        <section class="tm-voice__transcript" id="voice-mode-transcript" aria-label="This conversation"></section>
+
+        <footer class="tm-voice__foot">Tap the bridge to pause or interrupt<span class="tm-voice__keys"> · <kbd>Esc</kbd> to end</span></footer>
     </div>
 
     <!-- Toast for copy feedback -->
@@ -712,40 +738,51 @@ function tm_goal_icon($paths) {
     <!-- ================================================================ -->
     <!-- Active Recall Quiz Modal                                          -->
     <!-- ================================================================ -->
-    <div id="recall-modal" class="recall-modal hidden" role="dialog" aria-modal="true" aria-labelledby="recallModalTitle">
-        <div class="recall-modal-content">
-            <div class="recall-modal-header">
-                <div class="recall-modal-icon"><i class="fas fa-brain"></i></div>
+    <!-- Styled in tm-chat.css §11; driven by QuizManager in tutor_mysql.js -->
+    <div id="recall-modal" class="tm-recall hidden" role="dialog" aria-modal="true" aria-labelledby="recallModalTitle" aria-describedby="recallQuizModeLabel">
+        <div class="tm-recall__card" tabindex="-1">
+            <header class="tm-recall__head">
+                <span class="tm-recall__mark" aria-hidden="true"></span>
                 <div>
-                    <h3 id="recallModalTitle">Let's see what stuck!</h3>
-                    <p id="recallQuizModeLabel" class="recall-mode-label">Standard Recall</p>
+                    <h2 id="recallModalTitle" class="tm-recall__title">Let's see what stuck</h2>
+                    <p id="recallQuizModeLabel" class="tm-recall__mode">Standard recall</p>
+                </div>
+            </header>
+
+            <div id="recallQuestionPhase" class="tm-recall__phase">
+                <div id="recallLoading" class="tm-recall__loading" role="status">
+                    <span class="tm-recall__orbit" aria-hidden="true"></span><!-- TmLoader Orbit Dot, filled by QuizManager -->
+                    <span>Reading back over your session…</span>
+                </div>
+                <p id="recallQuestionText" class="tm-recall__question hidden"></p>
+                <div id="recallOptions" class="tm-recall__options hidden" role="group" aria-labelledby="recallQuestionText"></div>
+                <div id="recallAnswerArea" class="tm-recall__answer hidden">
+                    <label for="recallAnswerInput" class="tm-recall__hint">Say it in your own words — pulling it back from memory is the exercise, not getting it word-perfect.</label>
+                    <textarea id="recallAnswerInput" class="tm-recall__input" placeholder="Type what you remember…" rows="4"></textarea>
+                </div>
+                <div class="tm-recall__actions">
+                    <button type="button" class="tm-dialog-btn tm-dialog-btn-cancel" id="recallSkipBtn">Not now</button>
+                    <button type="button" class="tm-dialog-btn tm-dialog-btn-confirm" id="recallSubmitBtn" disabled>Check my answer</button>
                 </div>
             </div>
-            <div id="recallQuestionPhase">
-                <div class="recall-question-card" id="recallQuestionCard">
-                    <div id="recallLoading" class="recall-loading">
-                        <i class="fas fa-spinner fa-spin"></i> Preparing your question&hellip;
-                    </div>
-                    <p id="recallQuestionText" class="recall-question-text hidden"></p>
-                    <div id="recallOptions" class="recall-options hidden"></div>
-                    <div id="recallAnswerArea" class="hidden">
-                        <textarea id="recallAnswerInput" class="recall-answer-input" placeholder="Type your answer here…" rows="4"></textarea>
-                    </div>
+
+            <div id="recallResultPhase" class="tm-recall__phase hidden">
+                <div class="tm-recall__meter" id="recallScoreBadge">
+                    <svg viewBox="0 0 120 72" aria-hidden="true">
+                        <path class="tm-recall__meter-track" pathLength="100" d="M12 64 C 12 36, 36 16, 60 16 C 84 16, 108 36, 108 64"/>
+                        <path class="tm-recall__meter-fill" id="recallMeterFill" pathLength="100" d="M12 64 C 12 36, 36 16, 60 16 C 84 16, 108 36, 108 64"/>
+                        <circle class="tm-recall__meter-stone" cx="60" cy="8" r="5"/>
+                    </svg>
+                    <span class="tm-recall__score" id="recallScoreValue">0%</span>
                 </div>
-                <div class="recall-actions">
-                    <button type="button" class="recall-skip-btn" id="recallSkipBtn">Skip for now</button>
-                    <button type="button" class="recall-submit-btn hidden" id="recallSubmitBtn">Submit Answer</button>
-                </div>
-            </div>
-            <div id="recallResultPhase" class="hidden">
-                <div id="recallScoreBadge" class="recall-score-badge"></div>
-                <p id="recallFeedback" class="recall-feedback"></p>
-                <div class="recall-context-box">
-                    <span class="recall-context-label">What was covered:</span>
-                    <p id="recallContextSnippet" class="recall-context-text"></p>
-                </div>
-                <div class="recall-actions">
-                    <button type="button" class="recall-done-btn" id="recallDoneBtn">Continue Studying</button>
+                <p class="tm-recall__verdict" id="recallVerdict"></p>
+                <p id="recallFeedback" class="tm-recall__feedback"></p>
+                <section class="tm-recall__covered">
+                    <h3>What you covered</h3>
+                    <p id="recallContextSnippet"></p>
+                </section>
+                <div class="tm-recall__actions">
+                    <button type="button" class="tm-dialog-btn tm-dialog-btn-confirm tm-recall__done" id="recallDoneBtn">Back to studying</button>
                 </div>
             </div>
         </div>
