@@ -181,19 +181,15 @@ Return ONLY valid JSON — no markdown, no commentary:
 }
 PROMPT;
 
-    $result = callGemini($geminiKey, $prompt, 12) ?? callGroqJson($groqKey, $prompt, 20) ?? callDeepSeekJson($deepseekKey, $prompt, 20);
+    $aiData = firstValidJson([
+        fn() => callGemini($geminiKey, $prompt, 12),
+        fn() => callGroqJson($groqKey, $prompt, 20),
+        fn() => callDeepSeekJson($deepseekKey, $prompt, 30),
+    ], fn($d) => !empty($d['question']));
 
-    if (!$result) {
+    if (!$aiData) {
         http_response_code(502);
         echo json_encode(['success' => false, 'error' => 'AI service unavailable']);
-        return;
-    }
-
-    // Parse AI response
-    $aiData = json_decode($result, true);
-    if (!$aiData || empty($aiData['question'])) {
-        http_response_code(502);
-        echo json_encode(['success' => false, 'error' => 'Invalid AI response']);
         return;
     }
 
@@ -315,8 +311,11 @@ Return ONLY valid JSON:
 }
 PROMPT;
 
-    $result    = callGemini($geminiKey, $prompt, 10) ?? callGroqJson($groqKey, $prompt, 20) ?? callDeepSeekJson($deepseekKey, $prompt, 20);
-    $gradeData = $result ? json_decode($result, true) : null;
+    $gradeData = firstValidJson([
+        fn() => callGemini($geminiKey, $prompt, 10),
+        fn() => callGroqJson($groqKey, $prompt, 20),
+        fn() => callDeepSeekJson($deepseekKey, $prompt, 30),
+    ], fn($d) => isset($d['score']));
 
     $score    = isset($gradeData['score'])    ? (float)$gradeData['score']    : 0.5;
     $feedback = isset($gradeData['feedback']) ? $gradeData['feedback']        : 'Answer recorded.';
@@ -366,6 +365,25 @@ function updateQuizResult($pdo, $quizId, $userAnswer, $feedback, $score) {
     $stmt->execute([$userAnswer, $feedback, $score, $quizId]);
 }
 
+// Try each provider in turn until one returns JSON that passes $isValid.
+// Falling through only on null (the old `a ?? b ?? c`) let a provider that
+// answered with truncated or malformed JSON fail the whole request with a 502
+// even though the next provider would have worked.
+function firstValidJson(array $calls, callable $isValid) {
+    foreach ($calls as $call) {
+        $text = $call();
+        if ($text === null) continue;
+        $data = json_decode($text, true);
+        if (is_array($data) && $isValid($data)) return $data;
+        error_log('quiz.php: provider returned unusable JSON: ' . substr($text, 0, 200));
+    }
+    return null;
+}
+
+// Token budgets: every provider here is a reasoning model, and the reasoning
+// counts against max_tokens. At 512, DeepSeek regularly spent the whole budget
+// thinking and returned empty content (finish_reason=length) on a real
+// conversation's context; 2048 leaves room (it used up to ~1.2k in testing).
 function callGroqJson($apiKey, $prompt, $timeoutSeconds = 20) {
     if (!$apiKey) return null;
 
@@ -378,7 +396,10 @@ function callGroqJson($apiKey, $prompt, $timeoutSeconds = 20) {
             ['role' => 'system', 'content' => 'You are a quiz generator. Respond with valid JSON only — no markdown, no commentary.'],
             ['role' => 'user',   'content' => $prompt],
         ],
-        'max_tokens'  => 512,
+        'max_tokens'  => 2048,
+        // One quiz question needs little deliberation; low effort halves the
+        // tokens spent, which matters against Groq's per-minute token limit.
+        'reasoning_effort' => 'low',
         'temperature' => 0.6,
         'stream'      => false,
     ]);
@@ -420,7 +441,7 @@ function callDeepSeekJson($apiKey, $prompt, $timeoutSeconds = 20) {
             ['role' => 'system', 'content' => 'You are a quiz generator. Respond with valid JSON only — no markdown, no commentary.'],
             ['role' => 'user',   'content' => $prompt],
         ],
-        'max_tokens'  => 512,
+        'max_tokens'  => 2048,
         'temperature' => 0.6,
         'stream'      => false,
     ]);
@@ -464,7 +485,7 @@ function callGemini($apiKey, $prompt, $timeoutSeconds = 10) {
         'generationConfig' => [
             'response_mime_type' => 'application/json',
             'temperature'      => 0.6,
-            'maxOutputTokens'  => 512,
+            'maxOutputTokens'  => 2048,   // includes Flash's thinking tokens
         ],
     ]);
 
