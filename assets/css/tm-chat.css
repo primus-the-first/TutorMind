@@ -857,6 +857,20 @@ body .edit-save-btn:active { transform: translateY(3px); box-shadow: 0 0 0 var(-
   body .copy-toast { bottom: 118px; }
 }
 
+/* Visually hidden, still read by screen readers. The markup used .sr-only
+   (dark-mode toggle, study timer) but no stylesheet ever defined it. */
+body .sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 /* ---------- 8. Layout taken over from the legacy sheets ----------
    These components' old rules (ui-overhaul.css / mobile.css) were deleted in
    the final pass; the layout they carried lives here now. */

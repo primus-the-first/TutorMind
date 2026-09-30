@@ -781,12 +781,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const label = document.getElementById('contactChipLabel');
         if (label) label.textContent = made === 3 ? 'Encoded' : made + ' / 3';
 
-        const tip = document.getElementById('contactChipTip');
-        if (tip) {
-            tip.textContent = made === 3
-                ? 'All three contacts made — you connected this to something you already knew, built with it, and predicted with it. That combination is what moves a concept into long-term memory.'
-                : 'Concepts stick after three kinds of contact: connecting them to something you know, building something with them, and predicting with them. ' + made + ' of 3 so far this session.';
-        }
+        // Tooltip text (tm-tips.js reads data-tip each time it opens); same wording as the SSR markup
+        chip.dataset.tip = made === 3
+            ? 'All three contacts made: you connected this to something you knew, built with it, and predicted with it. That combination is what moves an idea into long-term memory.'
+            : 'Ideas stick after three kinds of contact: connecting them to something you know, building with them, and predicting with them. ' + made + ' of 3 so far in this chat.';
     }
 
     // Interactive widgets live in assets/js/tm-widgets.js (window.TMWidgets).
@@ -3496,6 +3494,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             showGeneralFeedbackModal();
         });
+    }
+    // The help page's "Still stuck?" button lands on chat#feedback
+    if (location.hash === '#feedback') {
+        history.replaceState(null, '', location.pathname + location.search);
+        showGeneralFeedbackModal();
+    }
+    // Guided tour (tm-tour.js). The help page's "Take the tour" lands on chat#tour;
+    // otherwise it runs once for someone new, and its three-dots stop runs once on
+    // a later visit if they took the tour before having a conversation.
+    if (window.TmTour) {
+        if (location.hash === '#tour') {
+            history.replaceState(null, '', location.pathname + location.search);
+            window.TmTour.startWhenReady('chat');
+        } else if (!window.TmTour.startIfNew('chat')) {
+            window.TmTour.startIfNew('dots');
+        }
     }
 
     // --- General Feedback Modal ---

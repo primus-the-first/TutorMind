@@ -41,7 +41,9 @@
     // dashboard
     chevron: '<path d="M9 6l6 6-6 6"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-    retry: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/>'
+    retry: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/>',
+    // help
+    search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/>'
   };
 
   function injectSprite() {

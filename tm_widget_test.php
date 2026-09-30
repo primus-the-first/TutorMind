@@ -176,7 +176,6 @@ $pathHtml = formatResponse($pathResponse);
                 <span class="tm-contact-dot" data-contact="predict"></span>
             </span>
             <span class="tm-contact-label" id="contactChipLabel">0 / 3</span>
-            <span class="tm-contact-tip" id="contactChipTip"></span>
         </div>
         <button id="themeToggle" type="button">Toggle dark mode</button>
     </div>
@@ -221,7 +220,7 @@ $pathHtml = formatResponse($pathResponse);
             chip.classList.toggle('tm-complete', made === 3);
             chip.setAttribute('aria-label', 'Learning progress: ' + made + ' of 3 contacts made');
             document.getElementById('contactChipLabel').textContent = made === 3 ? 'Encoded' : made + ' / 3';
-            document.getElementById('contactChipTip').textContent = made === 3
+            chip.dataset.tip = made === 3
                 ? 'All three contacts made — you connected this to something you already knew, built with it, and predicted with it. That combination is what moves a concept into long-term memory.'
                 : 'Concepts stick after three kinds of contact: connecting them to something you know, building something with them, and predicting with them. ' + made + ' of 3 so far this session.';
         }

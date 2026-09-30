@@ -140,9 +140,16 @@
     }
 
     function setLiftLabel(btn, lifted) {
-        var label = lifted ? 'Back to the lesson' : 'Answer in focus';
-        btn.setAttribute('aria-label', label);
-        btn.title = label;
+        btn.setAttribute('aria-label', lifted ? 'Back to the lesson' : 'Answer in focus');
+        // In the chat, a TmTips tooltip explains focus mode (tm-tips.js); in focus
+        // the button already says "Back to the lesson", so no tip there.
+        if (lifted) {
+            btn.removeAttribute('data-tip');
+            if (window.TmTips) window.TmTips.hide();
+        } else {
+            btn.setAttribute('data-tip', 'Answer this in focus: the question opens in the middle of the screen, then drops back into the chat when your tutor replies.');
+            btn.setAttribute('data-tip-help', 'focus');
+        }
     }
 
     function makeLiftable(w) {

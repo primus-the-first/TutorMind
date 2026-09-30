@@ -1,0 +1,67 @@
+/* =============================================================
+   TmTips — explain-a-control tooltips (assets/js/tm-tips.js)
+   Tokens only (tm-tokens.css), so it works on any page that loads
+   them: a surface card with a caret pointing at the control, the
+   explanation, and "Learn more" into the help page. Replaces the
+   contact chip's old always-dark hover box.
+   ============================================================= */
+.tm-tip {
+  position: fixed;
+  z-index: 6000;   /* above the modal tier (5000): a control inside a dialog can have a tip too */
+  display: grid;
+  gap: 6px;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 10px 12px 11px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 400 0.875rem/1.45 var(--ds-font-body);
+  box-shadow: var(--ds-lift-hi);
+  opacity: 0;
+  transform: translateY(var(--tm-tip-from, 4px));
+  transition: opacity 0.14s ease, transform 0.18s var(--ds-ease);
+  pointer-events: auto;
+}
+.tm-tip[hidden] { display: none; }
+.tm-tip[data-side="below"] { --tm-tip-from: -4px; }
+.tm-tip.is-in { opacity: 1; transform: none; }
+
+/* Caret, pointing at the control (JS sets --tm-tip-x) */
+.tm-tip::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--tm-tip-x, 50%) - 6px);
+  width: 10px;
+  height: 10px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  transform: rotate(45deg);
+}
+.tm-tip[data-side="above"]::before { bottom: -6px; border-top: 0; border-left: 0; }
+.tm-tip[data-side="below"]::before { top: -6px; border-bottom: 0; border-right: 0; }
+
+.tm-tip__text { position: relative; }
+.tm-tip__more {
+  position: relative;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ds-accent-ink);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 4px;
+}
+.tm-tip__more[hidden] { display: none; }
+.tm-tip__more svg { width: 14px; height: 14px; transition: transform 0.15s var(--ds-ease); }
+.tm-tip__more:hover { text-decoration: underline; text-underline-offset: 3px; }
+.tm-tip__more:hover svg { transform: translateX(2px); }
+.tm-tip__more:focus-visible { outline: 2px solid var(--cta); outline-offset: 3px; }
+
+/* No iOS link/copy callout on a press-and-hold */
+[data-tip] { -webkit-touch-callout: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-tip { transition: none; transform: none; }
+}

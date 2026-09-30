@@ -355,6 +355,8 @@ function tm_goal_icon($paths) {
     <link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="assets/css/settings.css?v=<?= filemtime('assets/css/settings.css') ?>"></noscript>
     <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
+    <link rel="stylesheet" href="assets/css/tm-tips.css?v=<?= filemtime('assets/css/tm-tips.css') ?>">
+    <link rel="stylesheet" href="assets/css/tm-tour.css?v=<?= filemtime('assets/css/tm-tour.css') ?>">
     <!-- Chat on the design system — must stay the LAST stylesheet -->
     <link rel="stylesheet" href="assets/css/tm-chat.css?v=<?= filemtime('assets/css/tm-chat.css') ?>">
     <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
@@ -453,7 +455,7 @@ function tm_goal_icon($paths) {
                     <a href="#" id="open-personalization-btn"><i class="fas fa-user-edit"></i> Personalization</a>
                     <a href="#" id="open-settings-btn"><i class="fas fa-cog"></i> Settings</a>
                     <a href="#" id="open-feedback-btn"><i class="fas fa-comment-dots"></i> Send Feedback</a>
-                    <a href="#"><i class="fas fa-question-circle"></i> Help</a>
+                    <a href="help"><i class="fas fa-question-circle"></i> Help</a>
                     <a href="<?= rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') ?>/auth_mysql?action=logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Log out</a>
                     <div class="dark-mode-toggle">
                         <span><i class="fas fa-moon"></i> Dark Mode</span>
@@ -498,18 +500,24 @@ function tm_goal_icon($paths) {
                      style="<?= $ssr_chat_active ? '' : 'display:none' ?>"
                      tabindex="0"
                      role="img"
-                     aria-label="Learning progress: <?= $csMade ?> of 3 contacts made">
+                     aria-label="Learning progress: <?= $csMade ?> of 3 contacts made"
+                     data-tip-help="three-dots"
+                     data-tip="<?= $csMade === 3
+                        ? 'All three contacts made: you connected this to something you knew, built with it, and predicted with it. That combination is what moves an idea into long-term memory.'
+                        : 'Ideas stick after three kinds of contact: connecting them to something you know, building with them, and predicting with them. ' . $csMade . ' of 3 so far in this chat.' ?>">
                     <span class="tm-contact-dots">
                         <span class="tm-contact-dot<?= $csA ? ' tm-filled' : '' ?>" data-contact="analogy"></span>
                         <span class="tm-contact-dot<?= $csB ? ' tm-filled' : '' ?>" data-contact="build"></span>
                         <span class="tm-contact-dot<?= $csP ? ' tm-filled' : '' ?>" data-contact="predict"></span>
                     </span>
                     <span class="tm-contact-label" id="contactChipLabel"><?= $csMade === 3 ? 'Encoded' : $csMade . ' / 3' ?></span>
-                    <span class="tm-contact-tip" id="contactChipTip"></span>
                 </div>
                 <div class="pomodoro-widget" id="pomodoroWidget" style="margin-right: 1.5rem;">
-                    <button type="button" class="pomodoro-trigger-btn" id="pomodoroTrigger" title="Study Timer">
-                        <i class="fas fa-clock"></i>
+                    <button type="button" class="pomodoro-trigger-btn" id="pomodoroTrigger"
+                            data-tip="Study timer. When it runs out you get one quick question on what you covered, to help it stick."
+                            data-tip-help="recall-quiz">
+                        <i class="fas fa-clock" aria-hidden="true"></i>
+                        <span class="sr-only">Study timer,</span>
                         <span class="pomodoro-time-display" id="pomodoroDisplay">25:00</span>
                     </button>
                     <div class="pomodoro-panel hidden" id="pomodoroPanel">
@@ -541,7 +549,9 @@ function tm_goal_icon($paths) {
                             </div>
                             <div class="pomo-setting-row">
                                 <label for="pomodoroQuizMode">Quiz Mode</label>
-                                <select id="pomodoroQuizMode">
+                                <select id="pomodoroQuizMode"
+                                        data-tip="How the question at the end is asked: pick an answer (Gentle), give a short answer (Standard) or explain it yourself (Challenge)."
+                                        data-tip-help="recall-quiz">
                                     <option value="off">Off</option>
                                     <option value="gentle">Gentle</option>
                                     <option value="standard" selected>Standard</option>
@@ -637,7 +647,9 @@ function tm_goal_icon($paths) {
 
                     <!-- Input row: + | flowing text | mic / voice mode ⇄ send -->
                     <div class="input-pill-row" id="inputPillRow">
-                        <button type="button" id="attachTrigger" class="icon-btn attach-trigger" title="Add files or a quick start" aria-label="More options" aria-haspopup="true" aria-expanded="false">
+                        <button type="button" id="attachTrigger" class="icon-btn attach-trigger" aria-label="Add files or a quick start" aria-haspopup="true" aria-expanded="false"
+                                data-tip="Add notes, slides, PDFs or images to learn from, or pick a quick start."
+                                data-tip-help="uploads">
                             <i class="fas fa-plus" aria-hidden="true"></i>
                         </button>
 
@@ -645,7 +657,9 @@ function tm_goal_icon($paths) {
 
                         <div class="trailing-actions">
                             <span class="voice-cluster">
-                                <button type="button" class="icon-btn voice-mode-trigger-btn" title="Voice Mode" id="voice-mode-trigger">
+                                <button type="button" class="icon-btn voice-mode-trigger-btn" aria-label="Voice mode" id="voice-mode-trigger"
+                                        data-tip="Voice mode: talk with your tutor out loud, and hear the answers."
+                                        data-tip-help="voice-mode">
                                     <svg class="default-voice-icon" width="18" height="14" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
                                         <rect x="0"  y="4" width="2" height="6"  rx="1"/>
                                         <rect x="4"  y="1" width="2" height="12" rx="1"/>
@@ -812,6 +826,8 @@ function tm_goal_icon($paths) {
     <script src="assets/js/settings.js?v=<?= filemtime('assets/js/settings.js') ?>"></script>
     <script src="assets/js/session-context.js?v=<?= filemtime('assets/js/session-context.js') ?>"></script>
     <script src="assets/js/quick-start.js?v=<?= filemtime('assets/js/quick-start.js') ?>"></script>
+    <script src="assets/js/tm-tips.js?v=<?= filemtime('assets/js/tm-tips.js') ?>"></script>
+    <script src="assets/js/tm-tour.js?v=<?= filemtime('assets/js/tm-tour.js') ?>"></script>
     <script src="assets/js/tm-widgets.js?v=<?= filemtime('assets/js/tm-widgets.js') ?>"></script>
     <script src="assets/js/tutor_mysql.js?v=<?= filemtime('assets/js/tutor_mysql.js') ?>"></script>
     <script src="assets/js/review-handoff.js?v=<?= filemtime('assets/js/review-handoff.js') ?>"></script>
@@ -894,6 +910,10 @@ function tm_goal_icon($paths) {
             </a>
             <a href="group_study.php" class="profile-sheet-item">
                 <i class="fas fa-users"></i><span>Group Study</span>
+                <i class="fas fa-chevron-right profile-sheet-chevron"></i>
+            </a>
+            <a href="help" class="profile-sheet-item">
+                <i class="fas fa-question-circle"></i><span>Help</span>
                 <i class="fas fa-chevron-right profile-sheet-chevron"></i>
             </a>
             <div class="profile-sheet-item profile-sheet-toggle-row">
