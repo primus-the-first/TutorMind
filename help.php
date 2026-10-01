@@ -125,7 +125,9 @@ $helpTopics = [
         'your-learning' => ['What’s on the Your learning page?',
             '<p>Your streak and study days, the conversation to pick up where you left off, <strong>Worth another look</strong> (questions you missed, with one tap to go over them in the chat), <strong>How well it sticks</strong> (your recall scores) and <strong>Your subjects</strong>. Open it from the profile menu or the top bar.</p>'],
         'group-study' => ['How does group study work?',
-            '<p>Start a room on a topic and share its 6-character code or invite link. The room opens as soon as one more person joins. Q, the group’s tutor, guides the discussion and makes sure quieter people get asked too. Your past rooms are listed so you can revisit them.</p>'],
+            '<p>Start a room on a topic and share its 6-character code or invite link. The room opens as soon as one more person joins. Q, the group’s tutor, guides the discussion and makes sure quieter people get asked too. Your past rooms are listed so you can revisit them.</p>'
+            . '<p><strong>Huddle rounds:</strong> the host can start one any time. Q writes a question from what the room has been discussing, everyone locks in an answer, and nobody sees anyone else’s until the whole room is in. Then Q asks someone to talk through their thinking. Each round adds a stone to the <strong>room bridge</strong>, which the whole room builds together.</p>'
+            . '<p><strong>Focus sessions:</strong> the host can start a 10, 15 or 25-minute timer for the room. When it ends, everyone gets a recall round with the chat hidden, so you answer from memory.</p>'],
     ]],
     'account' => ['Account and settings', [
         'reminders' => ['Can TutorMind remind me to study?',

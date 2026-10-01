@@ -26,7 +26,11 @@
         sending: false,
         typingPingAt: 0,
         pickers: [],         // hand-off pickers, re-evaluated every poll
-        sendError: ''
+        sendError: '',
+        picks: {},           // round id -> option picked but not locked in yet
+        focusEndsAt: 0,      // local clock time the shared focus timer runs out
+        focusTick: null,
+        timerAskAt: 0        // last time this client asked the server to fire the timer
     };
 
     var $ = function (id) { return document.getElementById(id); };
@@ -46,8 +50,28 @@
         invite: $('gsInvite'), inviteCode: $('gsInviteCode'), copyCode: $('gsCopyCode'), copyLink: $('gsCopyLink'),
         transcript: $('gsTranscript'), status: $('gsStatus'), asked: $('gsAsked'),
         composer: $('gsComposer'), input: $('gsInput'), sendBtn: $('gsSendBtn'), micBtn: $('gsMicBtn'),
-        hint: $('gsHint'), ended: $('gsEnded'), backToLobby: $('gsBackToLobby')
+        hint: $('gsHint'), ended: $('gsEnded'), backToLobby: $('gsBackToLobby'),
+        bridge: $('gsBridge'), bridgeFill: $('gsBridgeFill'), bridgeLabel: $('gsBridgeLabel'),
+        focus: $('gsFocus'), focusTime: $('gsFocusTime'), focusStop: $('gsFocusStop'),
+        focusBtn: $('gsFocusBtn'), focusMenu: $('gsFocusMenu'), roundBtn: $('gsRoundBtn')
     };
+
+    // ---------------------------------------------------------------- Huddle rounds
+    // What the room calls a round. The server's GS_ROUND_NAME (Q's lines) matches.
+    var ROUND_NAME = 'Huddle round';
+    // Reactions are feedback on a message, never a score for the person
+    var REACTIONS = [
+        { kind: 'clicked', label: 'Clicked', icon: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M6.3 17.7l2.8-2.8M14.9 9.1l2.8-2.8"/>' },
+        { kind: 'wait', label: 'Wait what', icon: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01"/>' },
+        { kind: 'same', label: 'Same', icon: '<path d="M4 16a8 8 0 0 1 16 0"/><path d="M8 16a4 4 0 0 1 8 0"/>' },
+        { kind: 'cheer', label: 'You got this', icon: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>' }
+    ];
+    var LETTERS = ['A', 'B', 'C', 'D'];
+    function icon(paths, cls) {
+        return '<svg class="' + (cls || 'gs-ico') + '" viewBox="0 0 24 24" aria-hidden="true">' + paths + '</svg>';
+    }
+    var LOCK_ICON = '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>';
+    var CHECK_ICON = '<path d="M4 13l5 5L20 6"/>';
 
     // ---------------------------------------------------------------- API
     function api(action, data) {
@@ -231,6 +255,7 @@
     function showLobby(message) {
         stopPolling();
         stopVoice();
+        stopFocusTick();
         state.sessionId = null;
         storage(function () { sessionStorage.removeItem(ROOM_KEY); });
         els.room.hidden = true;
@@ -250,6 +275,8 @@
         state.room = null;
         state.pickers = [];
         state.sendError = '';
+        state.picks = {};
+        state.focusEndsAt = 0;
         storage(function () { sessionStorage.setItem(ROOM_KEY, String(sessionId)); });
         els.transcript.innerHTML = '';
         els.input.value = '';
@@ -360,6 +387,17 @@
         });
         state.pickers.forEach(function (p) { p.update(res); });
         markAddressed(res);
+        renderRounds(res, byId);
+        renderReactions(res);
+        renderBridge(res);
+        renderFocus(res);
+
+        // Host controls: one round at a time; the focus timer when none is running
+        var openRound = (res.rounds || []).some(function (r) { return r.status === 'open'; });
+        var isHost = me === res.host_user_id;
+        els.roundBtn.hidden = !active || !isHost || openRound;
+        els.focusBtn.hidden = !active || !isHost || !!res.focus;
+        if (els.focusBtn.hidden) closeFocusMenu();
 
         // Composer / ended
         var askedMe = active && res.open_ask && res.open_ask.user_id === me;
@@ -466,15 +504,32 @@
 
             var bubble = document.createElement('div');
             bubble.className = 'gs-msg__bubble';
-            // Tolerant on purpose: rows stored before the server normalised the
-            // block can still have it unfenced or labelled ```json.
-            var fence = isQ ? m.content.match(HANDOFF_RE) : null;
-            richText(bubble, fence ? m.content.replace(fence[0], '').trim() : m.content);
-            body.appendChild(bubble);
-            if (fence) {
-                var picker = handoffPicker(fence[1], m);
-                if (picker) body.appendChild(picker);
+            if (isQ && m.round_id) {
+                // A huddle round: Q's intro line, then the round's live card. (The
+                // question and options also sit in the text, for Q's own context.)
+                row.classList.add('has-round');
+                richText(bubble, m.content.split(/\n\nQuestion:/)[0]);
+                body.appendChild(bubble);
+                var card = document.createElement('section');
+                card.className = 'gs-round';
+                card.dataset.roundId = m.round_id;
+                card.setAttribute('aria-label', ROUND_NAME);
+                body.appendChild(card);
+            } else {
+                // Tolerant on purpose: rows stored before the server normalised the
+                // block can still have it unfenced or labelled ```json.
+                var fence = isQ ? m.content.match(HANDOFF_RE) : null;
+                richText(bubble, fence ? m.content.replace(fence[0], '').trim() : m.content);
+                body.appendChild(bubble);
+                if (fence) {
+                    var picker = handoffPicker(fence[1], m);
+                    if (picker) body.appendChild(picker);
+                }
             }
+            var reacts = document.createElement('div');
+            reacts.className = 'gs-reacts';
+            reacts.dataset.mine = mine ? '1' : '';
+            body.appendChild(reacts);
             row.appendChild(body);
         }
 
@@ -494,6 +549,325 @@
             row.classList.toggle('is-asking-me', !!open && uid === res.me);
         });
     }
+
+    // ---------------------------------------------------------------- Rounds
+    // Each card redraws only when something about it changed, so a pick or the
+    // keyboard focus isn't wiped by the 3-second poll.
+    function renderRounds(res, byId) {
+        var rounds = {};
+        (res.rounds || []).forEach(function (r) { rounds[r.id] = r; });
+        var here = (res.participants || []).filter(function (p) { return !p.left && p.online; }).length;
+        var recalling = false;
+        els.transcript.querySelectorAll('.gs-round').forEach(function (card) {
+            var r = rounds[Number(card.dataset.roundId)];
+            if (!r) return;
+            if (r.status === 'open' && r.source === 'timer' && r.my_choice === null) recalling = true;
+            var sig = JSON.stringify([r.status, r.locked, r.my_choice, state.picks[r.id], here,
+                res.me === res.host_user_id, res.status, Object.keys(byId).length]);
+            if (card.dataset.sig === sig) return;
+            card.dataset.sig = sig;
+            var focusKey = card.contains(document.activeElement) ? document.activeElement.dataset.key : null;
+            drawRound(card, r, res, byId, here);
+            if (focusKey) { var again = card.querySelector('[data-key="' + focusKey + '"]'); if (again && !again.disabled) again.focus(); }
+        });
+        // Recall rounds are from memory: the conversation stays hidden until you've locked in
+        els.transcript.classList.toggle('is-recalling', recalling && res.status === 'active');
+    }
+
+    function drawRound(card, r, res, byId, here) {
+        var me = res.me;
+        var open = r.status === 'open';
+        var mine = r.my_choice;
+        var pick = state.picks[r.id];
+        var canAnswer = open && mine === null && res.status === 'active';
+        card.innerHTML = '';
+        card.classList.toggle('is-revealed', !open);
+
+        var head = el('div', 'gs-round__head');
+        var kind = el('span', 'gs-round__kind');
+        kind.innerHTML = '<svg viewBox="0 0 40 30" width="18" height="14" aria-hidden="true"><path d="M5 27 C 5 16, 12 8, 20 8 C 28 8, 35 16, 35 27" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/><circle cx="20" cy="3.5" r="3.5" fill="currentColor"/></svg>';
+        kind.appendChild(document.createTextNode(r.source === 'timer' ? 'Recall round' : ROUND_NAME));
+        head.appendChild(kind);
+        var count = el('span', 'gs-round__count');
+        if (open) {
+            var total = Math.max(here, r.locked.length);
+            count.appendChild(document.createTextNode(r.locked.length + ' of ' + total + ' locked in'));
+            var dots = el('span', 'gs-round__dots');
+            dots.setAttribute('aria-hidden', 'true');
+            for (var i = 0; i < total; i++) dots.appendChild(el('span', i < r.locked.length ? 'is-on' : ''));
+            count.appendChild(dots);
+        } else {
+            count.textContent = 'Revealed';
+        }
+        head.appendChild(count);
+        card.appendChild(head);
+        card.appendChild(el('p', 'gs-round__q', r.question));
+
+        if (open) {
+            if (r.source === 'timer' && canAnswer) card.appendChild(el('p', 'gs-round__note', 'From memory: the chat is hidden until you lock in.'));
+            var opts = el('div', 'gs-round__opts');
+            opts.setAttribute('role', 'group');
+            opts.setAttribute('aria-label', 'Answers');
+            r.options.forEach(function (text, i) {
+                var chosen = mine !== null ? mine === i : pick === i;
+                var b = el('button', 'gs-round__opt' + (chosen ? ' is-chosen' : '') + (mine !== null && !chosen ? ' is-dim' : ''));
+                b.type = 'button';
+                b.dataset.key = 'opt' + i;
+                b.setAttribute('aria-pressed', String(chosen));
+                b.disabled = !canAnswer;
+                b.appendChild(el('span', 'gs-round__key', LETTERS[i]));
+                b.appendChild(el('span', 'gs-round__text', text));
+                if (mine !== null && chosen) b.insertAdjacentHTML('beforeend', icon(LOCK_ICON));
+                b.addEventListener('click', function () {
+                    state.picks[r.id] = i;
+                    renderRounds(state.room, peopleById(state.room));
+                });
+                opts.appendChild(b);
+            });
+            card.appendChild(opts);
+
+            var foot = el('div', 'gs-round__foot');
+            var waitingOn = Math.max(0, here - r.locked.length);
+            foot.appendChild(el('span', 'gs-round__hint', canAnswer
+                ? (pick == null ? 'Pick one. Nobody sees it until everyone’s in.' : 'Sure? Once you lock in, it’s in.')
+                : mine !== null ? (waitingOn ? 'Locked in. Waiting for ' + waitingOn + ' more…' : 'Everyone’s in. Revealing…')
+                : 'The round is waiting on the room.'));
+            var actions = el('span', 'gs-round__actions');
+            if (me === res.host_user_id && r.locked.length > 0 && res.status === 'active') {
+                var reveal = el('button', 'ds-btn ds-btn--tertiary ds-btn--sm', 'Reveal now');
+                reveal.type = 'button';
+                reveal.dataset.key = 'reveal';
+                reveal.addEventListener('click', function () { roundAction('round_reveal', { round_id: r.id }, reveal); });
+                actions.appendChild(reveal);
+            }
+            if (canAnswer) {
+                var lock = el('button', 'ds-btn ds-btn--cta ds-btn--sm');
+                lock.type = 'button';
+                lock.dataset.key = 'lock';
+                lock.innerHTML = icon(LOCK_ICON, 'gs-ico') + '<span>Lock in</span>';
+                lock.disabled = pick == null;
+                lock.addEventListener('click', function () {
+                    if (state.picks[r.id] == null) return;
+                    roundAction('round_answer', { round_id: r.id, choice: state.picks[r.id] }, lock);
+                });
+                actions.appendChild(lock);
+            }
+            foot.appendChild(actions);
+            card.appendChild(foot);
+            return;
+        }
+
+        // Revealed: everyone's answers at once
+        var votes = r.options.map(function () { return []; });
+        (r.answers || []).forEach(function (a) { if (votes[a.choice]) votes[a.choice].push(a.user_id); });
+        var answered = (r.answers || []).length;
+        var right = votes[r.correct] ? votes[r.correct].length : 0;
+        card.appendChild(el('p', 'gs-round__split', right === answered && answered > 1 ? 'Everyone got it.'
+            : right === 0 ? 'Nobody got this one. Good question, then.'
+            : right + ' of ' + answered + ' got it. ' + (answered - right) + ' went another way.'));
+        var results = el('div', 'gs-round__results');
+        r.options.forEach(function (text, i) {
+            var isRight = i === r.correct;
+            var row = el('div', 'gs-round__result' + (isRight ? ' is-right' : '') + (mine === i ? ' is-mine' : ''));
+            var line = el('div', 'gs-round__line');
+            line.appendChild(el('span', 'gs-round__key', LETTERS[i]));
+            line.appendChild(el('span', 'gs-round__text', text));
+            var who = el('span', 'gs-round__voters');
+            votes[i].slice(0, 6).forEach(function (uid) {
+                var p = byId[uid];
+                var a = el('span', 'gs-avatar gs-round__voter' + (uid === me ? ' is-me' : ''), p ? firstName(p.display_name).charAt(0).toUpperCase() : '?');
+                a.title = uid === me ? 'You' : (p ? p.display_name : 'Someone');
+                who.appendChild(a);
+            });
+            line.appendChild(who);
+            line.appendChild(el('span', 'gs-round__n', String(votes[i].length)));
+            if (isRight) line.insertAdjacentHTML('beforeend', icon(CHECK_ICON, 'gs-ico gs-round__check'));
+            row.appendChild(line);
+            var bar = el('div', 'gs-round__bar');
+            var fill = el('span');
+            bar.appendChild(fill);
+            row.appendChild(bar);
+            // Grow the bars in after the card lands (the reveal moment); a beat later
+            // than the first paint, or the browser skips the transition
+            setTimeout(function () { fill.style.width = (answered ? Math.round(votes[i].length / answered * 100) : 0) + '%'; }, 60);
+            row.setAttribute('aria-label', LETTERS[i] + ': ' + text + '. ' + votes[i].length + (votes[i].length === 1 ? ' answer' : ' answers') + (isRight ? '. Correct.' : ''));
+            results.appendChild(row);
+        });
+        card.appendChild(results);
+        if (r.explanation) {
+            var why = el('p', 'gs-round__why');
+            why.appendChild(el('strong', null, 'Why: '));
+            why.appendChild(document.createTextNode(r.explanation));
+            card.appendChild(why);
+        }
+    }
+
+    function peopleById(res) {
+        var byId = {};
+        ((res && res.participants) || []).forEach(function (p) { byId[p.user_id] = p; });
+        return byId;
+    }
+
+    function roundAction(action, data, btn) {
+        var sid = state.sessionId;
+        if (btn) btn.disabled = true;
+        api(action, Object.assign({ session_id: sid }, data)).then(function (res) {
+            if (!res.success) { state.sendError = res.error || 'That didn’t go through.'; renderStatus(); if (btn) btn.disabled = false; }
+            else if (action === 'round_answer') delete state.picks[data.round_id];
+        }).catch(function () {
+            state.sendError = 'Couldn’t reach TutorMind. Try again.'; renderStatus();
+            if (btn) btn.disabled = false;
+        }).then(function () { if (state.sessionId === sid) { stopPolling(); poll(); } });
+    }
+
+    els.roundBtn.addEventListener('click', function () {
+        var sid = state.sessionId;
+        var label = els.roundBtn.querySelector('span');
+        els.roundBtn.disabled = true;
+        label.textContent = 'Writing a question…';
+        setTimeout(function () { if (state.sessionId === sid) { stopPolling(); poll(); } }, 400); // shows "Q is thinking"
+        api('round_start', { session_id: sid, source: 'host' }).then(function (res) {
+            if (!res.success) { state.sendError = res.error || 'Couldn’t start a round.'; renderStatus(); }
+        }).catch(function () {
+            state.sendError = 'Couldn’t reach TutorMind. Try again.'; renderStatus();
+        }).then(function () {
+            els.roundBtn.disabled = false;
+            label.textContent = ROUND_NAME;
+            if (state.sessionId === sid) { stopPolling(); poll(); }
+        });
+    });
+
+    // ---------------------------------------------------------------- Reactions
+    function renderReactions(res) {
+        var all = res.reactions || {};
+        var ended = res.status === 'completed';
+        els.transcript.querySelectorAll('.gs-reacts').forEach(function (box) {
+            var id = Number(box.closest('.gs-msg').dataset.id);
+            var counts = all[id] || {};
+            var own = box.dataset.mine === '1';
+            var sig = JSON.stringify([counts, ended, box.classList.contains('is-picking')]);
+            if (box.dataset.sig === sig) return;
+            box.dataset.sig = sig;
+            box.innerHTML = '';
+            REACTIONS.forEach(function (rx) {
+                var c = counts[rx.kind];
+                if (!c || !c[0]) return;
+                var b = el('button', 'gs-react' + (c[1] ? ' is-mine' : ''));
+                b.type = 'button';
+                b.innerHTML = icon(rx.icon) + '<span>' + rx.label + ' · ' + c[0] + '</span>';
+                b.setAttribute('aria-pressed', String(!!c[1]));
+                b.setAttribute('aria-label', rx.label + ', ' + c[0] + (c[1] ? ', including you' : ''));
+                b.disabled = own || ended;
+                b.addEventListener('click', function () { react(id, rx.kind); });
+                box.appendChild(b);
+            });
+            if (own || ended) return;
+            // Add a reaction: a small button that opens the four
+            var add = el('button', 'gs-react gs-react--add');
+            add.type = 'button';
+            add.setAttribute('aria-label', 'React');
+            add.setAttribute('aria-expanded', String(box.classList.contains('is-picking')));
+            add.innerHTML = icon('<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/>');
+            add.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var wasOpen = box.classList.contains('is-picking');
+                els.transcript.querySelectorAll('.gs-reacts.is-picking').forEach(function (b) { b.classList.remove('is-picking'); b.dataset.sig = ''; });
+                if (!wasOpen) box.classList.add('is-picking');
+                renderReactions(state.room);
+            });
+            box.appendChild(add);
+            if (box.classList.contains('is-picking')) {
+                var pick = el('span', 'gs-reacts__picker');
+                REACTIONS.forEach(function (rx) {
+                    var b = el('button', 'gs-react');
+                    b.type = 'button';
+                    b.innerHTML = icon(rx.icon) + '<span>' + rx.label + '</span>';
+                    b.addEventListener('click', function () {
+                        box.classList.remove('is-picking');
+                        react(id, rx.kind);
+                    });
+                    pick.appendChild(b);
+                });
+                box.appendChild(pick);
+            }
+        });
+    }
+
+    function react(messageId, kind) {
+        var sid = state.sessionId;
+        api('react', { session_id: sid, message_id: messageId, kind: kind }).then(function (res) {
+            if (!res.success) { state.sendError = res.error || 'That didn’t go through.'; renderStatus(); }
+        }).catch(function () {}).then(function () { if (state.sessionId === sid) { stopPolling(); poll(); } });
+    }
+
+    // ---------------------------------------------------------------- Bridge
+    function renderBridge(res) {
+        var b = res.bridge;
+        els.bridge.hidden = !b || res.status === 'waiting';
+        if (!b) return;
+        var seg = 18, gap = 2.5, dash = [];
+        for (var i = 0; i < b.stones; i++) dash.push(seg, gap);
+        // pathLength 100 = 5 stones of 18 + 4 gaps of 2.5; the fill shows the laid ones
+        els.bridgeFill.style.strokeDasharray = b.stones ? dash.join(' ') + ' 100' : '0 100';
+        els.bridgeLabel.textContent = b.stones + ' of ' + b.per_bridge + ' stones' + (b.built ? ' · ' + b.built + (b.built === 1 ? ' bridge built' : ' bridges built') : '');
+        els.bridge.setAttribute('aria-label', 'Room bridge: ' + els.bridgeLabel.textContent + '. A stone for every round the room settles together.');
+        els.bridge.title = 'A stone for every round the room settles together';
+    }
+
+    // ---------------------------------------------------------------- Focus timer
+    function renderFocus(res) {
+        var f = res.status === 'active' ? res.focus : null;
+        els.focus.hidden = !f;
+        els.focusStop.hidden = !f || res.me !== res.host_user_id;
+        if (!f) { stopFocusTick(); return; }
+        // Re-sync from the server every poll (it owns the clock; seconds_left avoids timezone mix-ups)
+        state.focusEndsAt = Date.now() + f.seconds_left * 1000;
+        if (!state.focusTick) state.focusTick = setInterval(tickFocus, 1000);
+        tickFocus();
+    }
+    function tickFocus() {
+        var left = Math.max(0, Math.round((state.focusEndsAt - Date.now()) / 1000));
+        els.focusTime.textContent = left > 0 ? Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') : 'Time’s up';
+        els.focus.classList.toggle('is-due', left <= 0);
+        // Due: ask the server to fire it. Every client may ask; one claims it.
+        if (left <= 0 && Date.now() - state.timerAskAt > 8000 && state.sessionId) {
+            state.timerAskAt = Date.now();
+            var sid = state.sessionId;
+            api('round_start', { session_id: sid, source: 'timer' }).catch(function () {})
+                .then(function () { if (state.sessionId === sid) { stopPolling(); poll(); } });
+        }
+    }
+    function stopFocusTick() {
+        clearInterval(state.focusTick);
+        state.focusTick = null;
+    }
+    function closeFocusMenu() {
+        els.focusMenu.hidden = true;
+        els.focusBtn.setAttribute('aria-expanded', 'false');
+    }
+    els.focusBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = els.focusMenu.hidden;
+        closeMenus();
+        closeFocusMenu();
+        if (!open) return;
+        els.focusMenu.hidden = false;
+        els.focusBtn.setAttribute('aria-expanded', 'true');
+        els.focusMenu.querySelector('button').focus();
+    });
+    els.focusMenu.querySelectorAll('[data-minutes]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            closeFocusMenu();
+            var sid = state.sessionId;
+            api('focus_start', { session_id: sid, minutes: Number(b.dataset.minutes) }).then(function (res) {
+                if (!res.success) { state.sendError = res.error; renderStatus(); }
+            }).catch(function () {}).then(function () { if (state.sessionId === sid) { stopPolling(); poll(); } });
+        });
+    });
+    els.focusStop.addEventListener('click', function () {
+        var sid = state.sessionId;
+        api('focus_stop', { session_id: sid }).catch(function () {}).then(function () { if (state.sessionId === sid) { stopPolling(); poll(); } });
+    });
 
     // The facilitator's "who's teaching next" block → buttons only the current
     // teacher (or host) can use, and only while that turn is still open.
@@ -654,12 +1028,16 @@
         els.peopleToggle.setAttribute('aria-expanded', 'false');
     }
     document.addEventListener('click', function (e) {
-        if (!e.target.closest('.gs-menu-wrap')) closeMenus();
+        if (!e.target.closest('.gs-menu-wrap')) { closeMenus(); closeFocusMenu(); }
+        if (!e.target.closest('.gs-reacts')) {
+            var picking = els.transcript.querySelectorAll('.gs-reacts.is-picking');
+            if (picking.length) { picking.forEach(function (b) { b.classList.remove('is-picking'); b.dataset.sig = ''; }); if (state.room) renderReactions(state.room); }
+        }
         // The phone's people panel closes on a tap outside it
         if (els.room.classList.contains('is-people-open') && !e.target.closest('.gs-people, #gsPeopleToggle')) closePeople();
     });
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') { closeMenus(); closePeople(); els.endConfirm.hidden = true; }
+        if (e.key === 'Escape') { closeMenus(); closeFocusMenu(); closePeople(); els.endConfirm.hidden = true; }
     });
 
     els.endBtn.addEventListener('click', function () { els.endConfirm.hidden = false; els.endYes.focus(); });

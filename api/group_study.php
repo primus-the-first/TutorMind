@@ -23,6 +23,19 @@
  *   end        { session_id }                 host ends the session for everyone
  *   leave      { session_id }                 leave the room (rejoinable)
  *
+ * Huddle rounds (migration 020): a question the whole room answers at once.
+ * Answers stay hidden until everyone here has locked in (or the host reveals,
+ * or GS_ROUND_TIMEOUT_SECONDS pass), then show together, and Q calls on someone
+ * from the split. Every revealed round lays a stone on the room's bridge.
+ *   round_start   { session_id, source }        host starts one; source 'timer' = the
+ *                                               focus timer ran out (any client may ask;
+ *                                               one atomically claims it)
+ *   round_answer  { session_id, round_id, choice }   lock in (final)
+ *   round_reveal  { session_id, round_id }      host reveals with whoever's in
+ *   react         { session_id, message_id, kind }    toggle a reaction
+ *   focus_start   { session_id, minutes }       host starts the shared focus timer
+ *   focus_stop    { session_id }                host stops it
+ *
  * No WebSockets (see migration 015): clients poll. Presence, typing and
  * "Q is thinking" are all timestamps the poll reads (migrations 016/017).
  * Reuses the AI fallback chain from ai_service.php with its own prompt.
@@ -41,6 +54,11 @@ const GS_AI_LEASE_SECONDS = 90; // longest one facilitator reply may hold the ro
 const GS_STALE_HOURS = 6;       // untouched this long = ended
 const GS_HISTORY_MESSAGES = 40; // most recent lines sent to the AI
 const GS_MAX_MESSAGE = 2000;
+const GS_ROUND_NAME = 'Huddle round';      // what the room calls a round (shown in Q's lines)
+const GS_ROUND_TIMEOUT_SECONDS = 120;      // reveal with whoever's in, so one idle tab can't stall the room
+const GS_BRIDGE_STONES = 5;                // revealed rounds per finished bridge
+const GS_FOCUS_MINUTES = [10, 15, 25];
+const GS_REACTIONS = ['clicked', 'wait', 'same', 'cheer'];
 
 // --------------------------------------------------------------------------
 // Config + DB
@@ -87,6 +105,12 @@ try {
         case 'pass_turn': gsPassTurn($pdo, $user_id, $body); break;
         case 'end':       gsEnd($pdo, $user_id, $body); break;
         case 'leave':     gsLeave($pdo, $user_id, $body); break;
+        case 'round_start':  gsRoundStart($pdo, $user_id, $body, $AI_KEYS); break;
+        case 'round_answer': gsRoundAnswer($pdo, $user_id, $body); break;
+        case 'round_reveal': gsRoundRevealAction($pdo, $user_id, $body); break;
+        case 'react':        gsReact($pdo, $user_id, $body); break;
+        case 'focus_start':  gsFocusStart($pdo, $user_id, $body); break;
+        case 'focus_stop':   gsFocusStop($pdo, $user_id, $body); break;
         default:          gsFail(400, 'Unknown action');
     }
 } catch (Throwable $e) {
@@ -124,8 +148,11 @@ function gsSession(PDO $pdo, int $sessionId): ?array {
         UPDATE group_sessions SET status = 'completed', ended_at = updated_at, updated_at = updated_at
         WHERE id = ? AND status != 'completed' AND updated_at < NOW() - INTERVAL " . GS_STALE_HOURS . " HOUR
     ")->execute([$sessionId]);
+    // focus_left is worked out in SQL: PHP and MySQL don't share a timezone here
     $stmt = $pdo->prepare("SELECT id, host_user_id, topic, join_code, status, current_teacher_user_id,
-        (ai_busy_until IS NOT NULL AND ai_busy_until > NOW()) AS ai_thinking FROM group_sessions WHERE id = ?");
+        (ai_busy_until IS NOT NULL AND ai_busy_until > NOW()) AS ai_thinking,
+        focus_minutes, IF(focus_ends_at IS NULL, NULL, TIMESTAMPDIFF(SECOND, NOW(), focus_ends_at)) AS focus_left
+        FROM group_sessions WHERE id = ?");
     $stmt->execute([$sessionId]);
     $s = $stmt->fetch();
     return $s ?: null;
@@ -611,7 +638,17 @@ function gsPoll(PDO $pdo, int $userId, array $data): void {
         ->execute([$sessionId, $userId]);
     $participants = gsParticipants($pdo, $sessionId);
 
-    $stmt = $pdo->prepare("SELECT id, turn_id, sender_type, student_user_id, content, addressed_user_id
+    // A round nobody else is going to finish (an idle tab, someone who wandered
+    // off) reveals with whoever's in once it's been open long enough.
+    if ($session['status'] === 'active') {
+        $stmt = $pdo->prepare("SELECT id FROM group_rounds WHERE session_id = ? AND status = 'open'
+            AND created_at < NOW() - INTERVAL " . GS_ROUND_TIMEOUT_SECONDS . " SECOND
+            AND EXISTS (SELECT 1 FROM group_round_answers a WHERE a.round_id = group_rounds.id)");
+        $stmt->execute([$sessionId]);
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $rid) gsRoundReveal($pdo, $session, (int) $rid, $participants);
+    }
+
+    $stmt = $pdo->prepare("SELECT id, turn_id, sender_type, student_user_id, content, addressed_user_id, round_id
         FROM group_session_messages WHERE session_id = ? AND id > ? ORDER BY id ASC LIMIT 200");
     $stmt->execute([$sessionId, $sinceId]);
     $messages = [];
@@ -625,6 +662,7 @@ function gsPoll(PDO $pdo, int $userId, array $data): void {
             'content'   => $r['content'],
             'turn_id'   => $r['turn_id'] !== null ? (int) $r['turn_id'] : null,
             'addressed_user_id' => $r['addressed_user_id'] !== null ? (int) $r['addressed_user_id'] : null,
+            'round_id'  => $r['round_id'] !== null ? (int) $r['round_id'] : null,
         ];
     }
 
@@ -651,6 +689,13 @@ function gsPoll(PDO $pdo, int $userId, array $data): void {
         'participants' => array_values(array_map(fn($p) => array_diff_key($p, ['last_said_id' => 1]), $participants)),
         'typing'       => $typing,
         'messages'     => $messages,
+        'rounds'       => gsRoundsFor($pdo, $sessionId, $userId),
+        'reactions'    => gsReactionsFor($pdo, $sessionId, $userId),
+        'bridge'       => gsBridge($pdo, $sessionId),
+        // A positive number while the shared timer runs; 0 or less = it's due (any
+        // client then asks round_start{source:'timer'}, and one wins the claim)
+        'focus'        => $session['focus_left'] === null ? null
+            : ['seconds_left' => (int) $session['focus_left'], 'minutes' => (int) $session['focus_minutes']],
     ]);
 }
 
@@ -708,5 +753,404 @@ function gsLeave(PDO $pdo, int $userId, array $data): void {
         $next = reset($remaining);
         gsHandTurn($pdo, $session, $next['user_id'], gsFirstName($next['display_name']) . " is teaching now.");
     }
+    // They might have been the last one a round was waiting on
+    if ($remaining && $session['status'] === 'active') gsRevealIfEveryoneIn($pdo, $session, null);
+    echo json_encode(['success' => true]);
+}
+
+// --------------------------------------------------------------------------
+// Huddle rounds
+// --------------------------------------------------------------------------
+
+/** Ask the AI for one JSON object, falling through Gemini → Groq → DeepSeek until
+ *  one passes $valid. A provider that answers with broken or empty JSON moves on
+ *  to the next instead of failing the round (same lesson as api/quiz.php). */
+function gsAskJson(string $system, string $user, array $keys, callable $valid): ?array {
+    $history = [['role' => 'user', 'parts' => [['text' => $user]]]];
+    $calls = [
+        function () use ($history, $system, $keys) {
+            if (empty($keys['gemini'])) return null;
+            return callGeminiAPI(json_encode([
+                'contents' => $history,
+                'system_instruction' => ['role' => 'system', 'parts' => [['text' => $system]]],
+                // Flash's hidden thinking counts against this budget (see gsFacilitate)
+                'generationConfig' => ['response_mime_type' => 'application/json', 'maxOutputTokens' => 4096, 'temperature' => 0.6],
+            ]), $keys['gemini']);
+        },
+        fn() => empty($keys['groq']) ? null : callGroqAPI($history, $system, $keys['groq']),
+        fn() => empty($keys['deepseek']) ? null : callDeepSeekAPI($history, $system, $keys['deepseek']),
+    ];
+    foreach ($calls as $call) {
+        try {
+            $response = $call();
+        } catch (Throwable $e) {
+            error_log('group_study round: provider failed: ' . $e->getMessage());
+            continue;
+        }
+        $text = trim($response['candidates'][0]['content']['parts'][0]['text'] ?? '');
+        $start = strpos($text, '{');
+        $end = strrpos($text, '}');
+        if ($start === false || $end === false || $end < $start) continue;
+        $data = json_decode(substr($text, $start, $end - $start + 1), true);
+        if (is_array($data) && $valid($data)) return $data;
+        error_log('group_study round: unusable JSON: ' . substr($text, 0, 200));
+    }
+    return null;
+}
+
+/** One multiple-choice question built from what the room has actually said.
+ *  $kind 'predict' = about the idea in play right now; 'recall' = something the
+ *  room covered earlier, to answer from memory at the end of a focus session. */
+function gsWriteRound(PDO $pdo, array $session, array $participants, string $kind, array $keys): ?array {
+    $stmt = $pdo->prepare("SELECT * FROM (SELECT id, sender_type, student_user_id, content FROM group_session_messages
+        WHERE session_id = ? AND round_id IS NULL ORDER BY id DESC LIMIT " . GS_HISTORY_MESSAGES . ") t ORDER BY id ASC");
+    $stmt->execute([(int) $session['id']]);
+    $lines = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $who = $row['sender_type'] === 'ai' ? 'Q' : ($row['sender_type'] === 'system' ? 'Room'
+            : ($participants[(int) $row['student_user_id']]['display_name'] ?? 'A student'));
+        $lines[] = "[{$who}]: " . mb_substr($row['content'], 0, 600);
+    }
+    $transcript = $lines ? implode("\n", $lines) : '(nothing said yet)';
+
+    $focus = $kind === 'recall'
+        ? 'It closes a focus session, so ask about something the room covered EARLIER in the conversation, answerable from memory without scrolling back.'
+        : 'Ask about the idea the room is working on RIGHT NOW: have them predict an outcome or apply the idea to a new case, not recall wording.';
+    $system = <<<TXT
+You write ONE multiple-choice question for a live study round in a group chat on "{$session['topic']}". Everyone answers at once, then the answers are revealed together, so a question that splits the room is ideal.
+{$focus}
+Rules:
+- Base it on what the room actually discussed (below). If they've barely started, ask about the topic's core idea.
+- 3 or 4 short options, exactly one correct, each on a single line (write program output as "2, 1, Go!"). Wrong options should be real misconceptions: ideally ones that came up in the chat, otherwise common slips.
+- Plain text only: no markdown, LaTeX or code fences. Keep the question under 200 characters and each option under 80.
+- Never ask who said what in the chat.
+- "explanation": one sentence on why the correct answer is right.
+Reply with JSON only: {"question": "...", "options": ["...", "...", "..."], "answer": <0-based index of the correct option>, "explanation": "..."}
+TXT;
+    $valid = function ($d) {
+        if (!isset($d['question'], $d['options'], $d['answer']) || !is_string($d['question']) || !is_array($d['options'])) return false;
+        $opts = array_values(array_filter(array_map(fn($o) => is_string($o) ? trim($o) : '', $d['options']), 'strlen'));
+        return mb_strlen(trim($d['question'])) >= 5 && count($opts) >= 2 && count($opts) <= 4
+            && count($opts) === count($d['options']) && count(array_unique($opts)) === count($opts)
+            && is_numeric($d['answer']) && (int) $d['answer'] >= 0 && (int) $d['answer'] < count($opts);
+    };
+    $d = gsAskJson($system, "The room's conversation so far:\n" . $transcript, $keys, $valid);
+    if (!$d) return null;
+
+    // One line each: program output like "2\n1\nGo!" reads as "2 / 1 / Go!" on a card and in Q's follow-up
+    $flat = fn($s) => trim(preg_replace('/\s*\R\s*/u', ' / ', trim($s)));
+    // Shuffle so the right answer isn't always where the model tends to put it
+    $options = array_map(fn($o) => mb_substr($flat($o), 0, 120), array_values($d['options']));
+    $correctText = $options[(int) $d['answer']];
+    shuffle($options);
+    return [
+        'question'    => mb_substr($flat($d['question']), 0, 300),
+        'options'     => $options,
+        'correct'     => array_search($correctText, $options, true),
+        'explanation' => isset($d['explanation']) && is_string($d['explanation']) ? mb_substr(trim($d['explanation']), 0, 300) : null,
+    ];
+}
+
+function gsOpenRound(PDO $pdo, int $sessionId): ?array {
+    $stmt = $pdo->prepare("SELECT * FROM group_rounds WHERE session_id = ? AND status = 'open' ORDER BY id DESC LIMIT 1");
+    $stmt->execute([$sessionId]);
+    $r = $stmt->fetch();
+    return $r ?: null;
+}
+
+function gsRoundStart(PDO $pdo, int $userId, array $data, array $keys): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    $source = ($data['source'] ?? '') === 'timer' ? 'timer' : 'host';
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId, true))) return;
+    [$session, $participants] = $m;
+    if ($source === 'host' && $userId !== (int) $session['host_user_id']) { gsFail(403, 'Only the host can start a round.'); return; }
+    if (gsOpenRound($pdo, $sessionId)) {
+        // The timer waits for the round in play; it'll fire on a later poll
+        echo json_encode(['success' => true, 'started' => false, 'reason' => 'round_open']);
+        return;
+    }
+
+    // One AI job per room at a time (the same lease as Q's replies), so the room
+    // shows "Q is thinking" while the question is written
+    $lease = $pdo->prepare("UPDATE group_sessions SET ai_busy_until = NOW() + INTERVAL " . GS_AI_LEASE_SECONDS . " SECOND
+        WHERE id = ? AND (ai_busy_until IS NULL OR ai_busy_until < NOW())");
+    $lease->execute([$sessionId]);
+    if ($lease->rowCount() === 0) {
+        if ($source === 'host') { gsFail(409, 'Q is in the middle of something. Try again in a moment.'); return; }
+        echo json_encode(['success' => true, 'started' => false, 'reason' => 'busy']);
+        return;
+    }
+    try {
+        if ($source === 'timer') {
+            // Every client sees the timer run out; exactly one gets to fire it
+            $claim = $pdo->prepare("UPDATE group_sessions SET focus_ends_at = NULL
+                WHERE id = ? AND focus_ends_at IS NOT NULL AND focus_ends_at <= NOW()");
+            $claim->execute([$sessionId]);
+            if ($claim->rowCount() === 0) { echo json_encode(['success' => true, 'started' => false, 'reason' => 'not_due']); return; }
+        }
+
+        $round = gsWriteRound($pdo, $session, $participants, $source === 'timer' ? 'recall' : 'predict', $keys);
+        if (!$round) {
+            if ($source === 'timer') gsSystem($pdo, $sessionId, "Focus session done. Q couldn't put a recall question together this time.");
+            gsFail(502, "Q couldn't put a question together just now. Try again in a moment.");
+            return;
+        }
+
+        $pdo->beginTransaction();
+        $pdo->prepare("INSERT INTO group_rounds (session_id, source, started_by_user_id, question, options, correct_index, explanation)
+            VALUES (?, ?, ?, ?, ?, ?, ?)")
+            ->execute([$sessionId, $source, $source === 'host' ? $userId : null, $round['question'],
+                json_encode($round['options'], JSON_UNESCAPED_UNICODE), $round['correct'], $round['explanation']]);
+        $roundId = (int) $pdo->lastInsertId();
+        // Q's line carries the round (the room renders its card). The question and
+        // options travel in the text too, so Q's later replies know what was asked.
+        $intro = $source === 'timer'
+            ? "Time's up! **Recall round:** answer from memory, no scrolling back. Answers stay hidden until everyone locks in."
+            : "**" . GS_ROUND_NAME . "!** Everyone answer. Answers stay hidden until the whole room locks in.";
+        $letters = ['A', 'B', 'C', 'D'];
+        $listing = implode("\n", array_map(fn($o, $i) => "{$letters[$i]}) {$o}", $round['options'], array_keys($round['options'])));
+        $stmt = $pdo->prepare("SELECT id FROM group_session_turns WHERE session_id = ? AND status != 'completed' ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$sessionId]);
+        $pdo->prepare("INSERT INTO group_session_messages (session_id, turn_id, sender_type, content, round_id) VALUES (?, ?, 'ai', ?, ?)")
+            ->execute([$sessionId, $stmt->fetchColumn() ?: null, "{$intro}\n\nQuestion: {$round['question']}\n{$listing}", $roundId]);
+        gsTouch($pdo, $sessionId);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    } finally {
+        $pdo->prepare("UPDATE group_sessions SET ai_busy_until = NULL WHERE id = ?")->execute([$sessionId]);
+    }
+    echo json_encode(['success' => true, 'started' => true, 'round_id' => $roundId]);
+}
+
+function gsRoundAnswer(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    $roundId = (int) ($data['round_id'] ?? 0);
+    $choice = (int) ($data['choice'] ?? -1);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId, true))) return;
+    [$session, $participants] = $m;
+    if ($participants[$userId]['left']) { gsFail(409, 'Rejoin the room to answer.'); return; }
+
+    $stmt = $pdo->prepare("SELECT id, options, status FROM group_rounds WHERE id = ? AND session_id = ?");
+    $stmt->execute([$roundId, $sessionId]);
+    $round = $stmt->fetch();
+    if (!$round) { gsFail(404, 'That round is gone.'); return; }
+    if ($round['status'] !== 'open') { gsFail(409, 'Too late, that round has been revealed.'); return; }
+    if ($choice < 0 || $choice >= count(json_decode($round['options'], true) ?: [])) { gsFail(400, 'Pick one of the answers.'); return; }
+
+    // Locked means locked: a second answer from the same person is ignored
+    $pdo->prepare("INSERT IGNORE INTO group_round_answers (round_id, user_id, choice) VALUES (?, ?, ?)")
+        ->execute([$roundId, $userId, $choice]);
+    $pdo->prepare("UPDATE group_session_participants SET last_seen_at = NOW() WHERE session_id = ? AND user_id = ?")
+        ->execute([$sessionId, $userId]);
+    gsTouch($pdo, $sessionId);
+    gsRevealIfEveryoneIn($pdo, $session, $roundId);
+    echo json_encode(['success' => true]);
+}
+
+/** Reveal the open round once everyone who's here has locked in. */
+function gsRevealIfEveryoneIn(PDO $pdo, array $session, ?int $roundId): void {
+    $round = gsOpenRound($pdo, (int) $session['id']);
+    if (!$round || ($roundId !== null && (int) $round['id'] !== $roundId)) return;
+    $participants = gsParticipants($pdo, (int) $session['id']);
+    $stmt = $pdo->prepare("SELECT user_id FROM group_round_answers WHERE round_id = ?");
+    $stmt->execute([(int) $round['id']]);
+    $answered = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    if (!$answered) return;
+    $here = array_keys(array_filter($participants, fn($p) => !$p['left'] && $p['online']));
+    if (array_diff($here, $answered)) return;
+    gsRoundReveal($pdo, $session, (int) $round['id'], $participants);
+}
+
+function gsRoundRevealAction(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    $roundId = (int) ($data['round_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId, true))) return;
+    [$session, $participants] = $m;
+    if ($userId !== (int) $session['host_user_id']) { gsFail(403, 'Only the host can reveal early.'); return; }
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM group_round_answers WHERE round_id = ?");
+    $stmt->execute([$roundId]);
+    if ((int) $stmt->fetchColumn() === 0) { gsFail(409, 'Wait for at least one answer.'); return; }
+    gsRoundReveal($pdo, $session, $roundId, $participants);
+    echo json_encode(['success' => true]);
+}
+
+/** Flip a round over (once, whoever gets there first), then Q picks up the split:
+ *  it calls on someone who went with the most popular wrong answer (the quietest
+ *  of them) to talk through their thinking. A wrong answer is the most useful
+ *  thing in the room, so that's who gets asked. Lays a stone on the room's bridge. */
+function gsRoundReveal(PDO $pdo, array $session, int $roundId, array $participants): void {
+    $sessionId = (int) $session['id'];
+    $flip = $pdo->prepare("UPDATE group_rounds SET status = 'revealed', revealed_at = NOW() WHERE id = ? AND session_id = ? AND status = 'open'");
+    $flip->execute([$roundId, $sessionId]);
+    if ($flip->rowCount() === 0) return;
+
+    $stmt = $pdo->prepare("SELECT source, options, correct_index FROM group_rounds WHERE id = ?");
+    $stmt->execute([$roundId]);
+    $round = $stmt->fetch();
+    $options = json_decode($round['options'], true) ?: [];
+    $correct = (int) $round['correct_index'];
+    $stmt = $pdo->prepare("SELECT user_id, choice FROM group_round_answers WHERE round_id = ?");
+    $stmt->execute([$roundId]);
+    $answers = $stmt->fetchAll();
+
+    $total = count($answers);
+    $right = count(array_filter($answers, fn($a) => (int) $a['choice'] === $correct));
+    $rightText = $options[$correct] ?? '';
+    $quietest = function (array $userIds) use ($participants) {
+        $pool = array_values(array_filter(array_map(fn($id) => $participants[$id] ?? null, $userIds),
+            fn($p) => $p && !$p['left']));
+        if (!$pool) return null;
+        usort($pool, fn($a, $b) => [!$a['online'], $a['said'], $a['last_said_id']] <=> [!$b['online'], $b['said'], $b['last_said_id']]);
+        return $pool[0];
+    };
+
+    $wrong = array_filter($answers, fn($a) => (int) $a['choice'] !== $correct);
+    $callOn = null;
+    if ($wrong) {
+        $byChoice = [];
+        foreach ($wrong as $a) $byChoice[(int) $a['choice']][] = (int) $a['user_id'];
+        uasort($byChoice, fn($a, $b) => count($b) <=> count($a));
+        $popular = array_key_first($byChoice);
+        $callOn = $quietest($byChoice[$popular]);
+        $split = $right === 0 ? "Tricky one."
+            : ($right === 1 && $total > 1 ? "1 of {$total} got it." : "{$right} of {$total} got it.");
+        $text = "{$split} The answer is **{$rightText}**."
+            . ($callOn ? " " . gsFirstName($callOn['display_name']) . ", you went with \"{$options[$popular]}\". Talk us through how you got there?" : '');
+    } else {
+        $callOn = $total > 1 ? $quietest(array_map(fn($a) => (int) $a['user_id'], $answers)) : null;
+        $text = ($total > 1 ? "Everyone got it: **{$rightText}**." : "Got it: **{$rightText}**.")
+            . ($callOn ? " " . gsFirstName($callOn['display_name']) . ", in one line, why is that the answer?" : '');
+    }
+
+    $stmt = $pdo->prepare("SELECT id FROM group_session_turns WHERE session_id = ? AND status != 'completed' ORDER BY id DESC LIMIT 1");
+    $stmt->execute([$sessionId]);
+    $pdo->prepare("INSERT INTO group_session_messages (session_id, turn_id, sender_type, content, addressed_user_id) VALUES (?, ?, 'ai', ?, ?)")
+        ->execute([$sessionId, $stmt->fetchColumn() ?: null, $text, $callOn['user_id'] ?? null]);
+
+    $bridge = gsBridge($pdo, $sessionId);
+    if ($bridge['stones'] === 0 && $bridge['built'] > 0) {
+        gsSystem($pdo, $sessionId, "The room finished a bridge: " . GS_BRIDGE_STONES . " rounds settled together.");
+    }
+    if ($round['source'] === 'timer') {
+        gsSystem($pdo, $sessionId, "Focus session done. Take a 5-minute break if you need one. The room will be here.");
+    }
+    gsTouch($pdo, $sessionId);
+}
+
+/** The room's bridge: one stone per revealed round, GS_BRIDGE_STONES to a bridge. */
+function gsBridge(PDO $pdo, int $sessionId): array {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM group_rounds WHERE session_id = ? AND status = 'revealed'");
+    $stmt->execute([$sessionId]);
+    $n = (int) $stmt->fetchColumn();
+    return ['stones' => $n % GS_BRIDGE_STONES, 'built' => intdiv($n, GS_BRIDGE_STONES), 'per_bridge' => GS_BRIDGE_STONES];
+}
+
+/** Every round in the room, as this user may see it: while a round is open you
+ *  see WHO has locked in and your own answer, never anyone else's or the right
+ *  one. After the reveal, everything. */
+function gsRoundsFor(PDO $pdo, int $sessionId, int $userId): array {
+    $stmt = $pdo->prepare("SELECT id, source, question, options, correct_index, explanation, status,
+        TIMESTAMPDIFF(SECOND, created_at, NOW()) AS age FROM group_rounds WHERE session_id = ? ORDER BY id");
+    $stmt->execute([$sessionId]);
+    $rounds = $stmt->fetchAll();
+    if (!$rounds) return [];
+    $ids = array_map(fn($r) => (int) $r['id'], $rounds);
+    $stmt = $pdo->prepare("SELECT round_id, user_id, choice FROM group_round_answers WHERE round_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ") ORDER BY locked_at");
+    $stmt->execute($ids);
+    $answers = [];
+    foreach ($stmt->fetchAll() as $a) $answers[(int) $a['round_id']][] = ['user_id' => (int) $a['user_id'], 'choice' => (int) $a['choice']];
+
+    return array_map(function ($r) use ($answers, $userId) {
+        $a = $answers[(int) $r['id']] ?? [];
+        $mine = array_values(array_filter($a, fn($x) => $x['user_id'] === $userId));
+        $out = [
+            'id'        => (int) $r['id'],
+            'source'    => $r['source'],
+            'question'  => $r['question'],
+            'options'   => json_decode($r['options'], true) ?: [],
+            'status'    => $r['status'],
+            'age'       => max(0, (int) $r['age']),
+            'timeout'   => GS_ROUND_TIMEOUT_SECONDS,
+            'locked'    => array_map(fn($x) => $x['user_id'], $a),
+            'my_choice' => $mine ? $mine[0]['choice'] : null,
+        ];
+        if ($r['status'] === 'revealed') {
+            $out['answers'] = $a;
+            $out['correct'] = (int) $r['correct_index'];
+            $out['explanation'] = $r['explanation'];
+        }
+        return $out;
+    }, $rounds);
+}
+
+// --------------------------------------------------------------------------
+// Reactions
+// --------------------------------------------------------------------------
+
+/** { message_id: { kind: [count, reacted_by_me] } } for the whole room. */
+function gsReactionsFor(PDO $pdo, int $sessionId, int $userId): object {
+    $stmt = $pdo->prepare("SELECT r.message_id, r.kind, COUNT(*) AS n, MAX(r.user_id = ?) AS mine
+        FROM group_message_reactions r JOIN group_session_messages m ON m.id = r.message_id
+        WHERE m.session_id = ? GROUP BY r.message_id, r.kind");
+    $stmt->execute([$userId, $sessionId]);
+    $out = [];
+    foreach ($stmt->fetchAll() as $r) $out[(int) $r['message_id']][$r['kind']] = [(int) $r['n'], (bool) $r['mine']];
+    return (object) $out;   // JSON object even when empty
+}
+
+function gsReact(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    $messageId = (int) ($data['message_id'] ?? 0);
+    $kind = (string) ($data['kind'] ?? '');
+    if (!in_array($kind, GS_REACTIONS, true)) { gsFail(400, 'Unknown reaction.'); return; }
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId))) return;
+    if ($m[0]['status'] === 'completed') { gsFail(409, 'This session has ended.'); return; }
+
+    $stmt = $pdo->prepare("SELECT sender_type, student_user_id FROM group_session_messages WHERE id = ? AND session_id = ?");
+    $stmt->execute([$messageId, $sessionId]);
+    $msg = $stmt->fetch();
+    if (!$msg || $msg['sender_type'] === 'system') { gsFail(404, 'Nothing to react to.'); return; }
+    if ($msg['sender_type'] === 'student' && (int) $msg['student_user_id'] === $userId) { gsFail(400, "You can't react to your own message."); return; }
+
+    // Toggle
+    $del = $pdo->prepare("DELETE FROM group_message_reactions WHERE message_id = ? AND user_id = ? AND kind = ?");
+    $del->execute([$messageId, $userId, $kind]);
+    if ($del->rowCount() === 0) {
+        $pdo->prepare("INSERT IGNORE INTO group_message_reactions (message_id, user_id, kind) VALUES (?, ?, ?)")
+            ->execute([$messageId, $userId, $kind]);
+    }
+    echo json_encode(['success' => true, 'on' => $del->rowCount() === 0]);
+}
+
+// --------------------------------------------------------------------------
+// Focus sessions
+// --------------------------------------------------------------------------
+
+function gsFocusStart(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    $minutes = (int) ($data['minutes'] ?? 0);
+    if (!in_array($minutes, GS_FOCUS_MINUTES, true)) { gsFail(400, 'Pick a focus length.'); return; }
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId, true))) return;
+    [$session, $participants] = $m;
+    if ($userId !== (int) $session['host_user_id']) { gsFail(403, 'Only the host can start a focus session.'); return; }
+    if ($session['focus_left'] !== null) { gsFail(409, 'A focus session is already running.'); return; }
+
+    $pdo->prepare("UPDATE group_sessions SET focus_ends_at = NOW() + INTERVAL ? MINUTE, focus_minutes = ? WHERE id = ?")
+        ->execute([$minutes, $minutes, $sessionId]);
+    gsSystem($pdo, $sessionId, gsFirstName($participants[$userId]['display_name'])
+        . " started a {$minutes}-minute focus session. When it ends, everyone gets a recall round.");
+    echo json_encode(['success' => true]);
+}
+
+function gsFocusStop(PDO $pdo, int $userId, array $data): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId, true))) return;
+    [$session, $participants] = $m;
+    if ($userId !== (int) $session['host_user_id']) { gsFail(403, 'Only the host can stop the focus session.'); return; }
+    $stop = $pdo->prepare("UPDATE group_sessions SET focus_ends_at = NULL WHERE id = ? AND focus_ends_at IS NOT NULL");
+    $stop->execute([$sessionId]);
+    if ($stop->rowCount() > 0) gsSystem($pdo, $sessionId, gsFirstName($participants[$userId]['display_name']) . " stopped the focus session.");
     echo json_encode(['success' => true]);
 }

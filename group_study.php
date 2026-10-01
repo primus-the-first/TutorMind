@@ -105,7 +105,33 @@ $v = fn($f) => filemtime($f);
                 <h1 id="gsTopic" class="gs-room__topic"></h1>
                 <p id="gsTeaching" class="gs-room__teaching"></p>
             </div>
+            <!-- The room's bridge: a stone for every huddle round the room settles together -->
+            <div class="gs-bridge" id="gsBridge" role="img" aria-label="Room bridge" hidden>
+                <svg viewBox="0 0 42 26" aria-hidden="true">
+                    <path class="gs-bridge__track" pathLength="100" d="M4 23 C 4 12, 12 5, 21 5 C 30 5, 38 12, 38 23"/>
+                    <path class="gs-bridge__fill" id="gsBridgeFill" pathLength="100" d="M4 23 C 4 12, 12 5, 21 5 C 30 5, 38 12, 38 23"/>
+                </svg>
+                <span class="gs-bridge__text"><strong>Room bridge</strong><span id="gsBridgeLabel"></span></span>
+            </div>
             <div class="gs-room__actions">
+                <span class="gs-focus" id="gsFocus" hidden>
+                    <svg class="ds-i" aria-hidden="true"><use href="#i-clock"/></svg>
+                    <span class="gs-focus__time" id="gsFocusTime" role="timer" aria-label="Focus session time left"></span>
+                    <button type="button" class="gs-focus__stop" id="gsFocusStop" aria-label="Stop the focus session" hidden><svg class="ds-i" aria-hidden="true"><use href="#i-close"/></svg></button>
+                </span>
+                <div class="gs-menu-wrap">
+                    <button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" id="gsFocusBtn" aria-haspopup="true" aria-expanded="false" aria-label="Focus session: study together, then a recall round" hidden><svg class="ds-i" aria-hidden="true"><use href="#i-clock"/></svg><span>Focus</span></button>
+                    <div class="gs-menu" id="gsFocusMenu" role="menu" hidden>
+                        <p class="gs-menu__note">Everyone studies together. When it ends, the room gets a recall round.</p>
+                        <button type="button" class="gs-menu__item" role="menuitem" data-minutes="10">10 minutes<span>a quick one</span></button>
+                        <button type="button" class="gs-menu__item" role="menuitem" data-minutes="15">15 minutes</button>
+                        <button type="button" class="gs-menu__item" role="menuitem" data-minutes="25">25 minutes<span>a full focus block</span></button>
+                    </div>
+                </div>
+                <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm gs-round-btn" id="gsRoundBtn" aria-label="Start a huddle round: everyone answers, then it reveals" hidden>
+                    <svg viewBox="0 0 40 30" width="18" height="14" aria-hidden="true"><path d="M5 27 C 5 16, 12 8, 20 8 C 28 8, 35 16, 35 27" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/><circle cx="20" cy="3.5" r="3.5" fill="currentColor"/></svg>
+                    <span>Huddle round</span>
+                </button>
                 <button type="button" class="ds-icon-btn gs-people-toggle" id="gsPeopleToggle" aria-controls="gsPeople" aria-expanded="false" aria-label="People in the room">
                     <svg class="ds-i"><use href="#i-users"/></svg><span id="gsPeopleCount"></span>
                 </button>

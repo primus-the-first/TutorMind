@@ -87,6 +87,7 @@ $migrations = [
     '017_group_study_chat_room.php' => ['type' => 'column', 'table' => 'group_session_messages', 'name' => 'addressed_user_id'],
     '018_password_resets.php' => ['type' => 'table', 'table' => 'password_resets'],
     '019_email_reminders.php' => ['type' => 'multi_column', 'table' => 'users', 'columns' => ['email_reminders', 'email_token']],
+    '020_group_study_rounds.php' => ['type' => 'multi_table', 'tables' => ['group_rounds', 'group_round_answers', 'group_message_reactions']],
     'add_message_edit.php' => ['type' => 'column', 'table' => 'messages', 'name' => 'is_edited'],
     'add_profile_column.php' => ['type' => 'column', 'table' => 'users', 'name' => 'profile_data'],
     'add_session_context.php' => ['type' => 'column', 'table' => 'conversations', 'name' => 'session_goal'],

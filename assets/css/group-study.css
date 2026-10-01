@@ -513,6 +513,201 @@ body.dark-mode .gs-msg--me .gs-msg__bubble { box-shadow: 0 3px 0 #3b1580; }
   cursor: pointer;
 }
 
+/* ---------- Huddle rounds (group-study.js drawRound) ----------
+   Everyone answers at once; answers stay hidden until the room's in, then
+   flip over together. Locked = a lock and a dimmed rest; the reveal grows
+   bars and shows who picked what. --tm-good marks the right answer only. */
+.gs-ico { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.gs-msg.has-round { max-width: min(720px, 100%); width: 100%; }
+.gs-msg.has-round .gs-msg__body { flex: 1; }
+.gs-round {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-lift);
+}
+.gs-round__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gs-round__kind { display: inline-flex; align-items: center; gap: 8px; font: 700 0.9rem var(--ds-font-display); color: var(--ds-accent-ink); }
+.gs-round__kind svg { color: var(--cta); }
+.gs-round__count { display: inline-flex; align-items: center; gap: 8px; color: var(--ds-ink-2); font-size: 0.85rem; }
+.gs-round__dots { display: inline-flex; gap: 4px; }
+.gs-round__dots span { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--ds-accent-ink); transition: background-color 0.3s; }
+.gs-round__dots span.is-on { background: var(--ds-accent-ink); }
+.gs-round__q { margin: 0; font: 700 1.1rem/1.35 var(--ds-font-display); letter-spacing: -0.01em; color: var(--ds-ink); overflow-wrap: anywhere; }
+.gs-round__note { margin: -4px 0 0; color: var(--ds-ink-2); font-size: 0.875rem; }
+.gs-round__opts { display: grid; gap: 8px; }
+@media (min-width: 640px) { .gs-round__opts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.gs-round__opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+  color: var(--ds-ink);
+  font: 600 0.95rem/1.35 var(--ds-font-body);
+  text-align: left;
+  box-shadow: 0 3px 0 var(--ds-line);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s, opacity 0.2s, transform 0.12s var(--ds-ease);
+}
+.gs-round__opt:hover:not(:disabled) { border-color: var(--primary-light); }
+.gs-round__opt:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--ds-line); }
+.gs-round__opt.is-chosen { border-color: var(--primary); background: var(--ds-tint); box-shadow: 0 3px 0 var(--primary); }
+.gs-round__opt.is-chosen .gs-ico { color: var(--ds-accent-ink); margin-left: auto; }
+.gs-round__opt:disabled { cursor: default; }
+.gs-round__opt.is-dim { opacity: 0.5; }
+.gs-round__key {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-sm);
+  color: var(--ds-ink-2);
+  font: 700 0.8rem var(--ds-font-display);
+}
+.is-chosen .gs-round__key { border-color: var(--primary); background: var(--primary); color: #fff; }
+.gs-round__text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gs-round__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gs-round__hint { color: var(--ds-ink-2); font-size: 0.875rem; }
+.gs-round__actions { display: inline-flex; gap: 8px; margin-left: auto; }
+.gs-round__actions .ds-btn { gap: 6px; }
+.gs-round__actions .ds-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The reveal */
+.gs-round__split { margin: 0; font: 700 1rem var(--ds-font-display); color: var(--ds-ink); }
+.gs-round__results { display: grid; gap: 8px; }
+.gs-round__result {
+  padding: 9px 12px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+  background: var(--ds-surface);
+}
+.gs-round__result.is-right { border-color: var(--tm-good); background: var(--tm-good-bg); }
+.gs-round__result.is-right .gs-round__key { border-color: var(--tm-good); background: var(--tm-good); color: #fff; }
+.gs-round__line { display: flex; align-items: center; gap: 12px; font-weight: 600; color: var(--ds-ink); }
+.gs-round__voters { display: inline-flex; }
+.gs-round__voter { width: 24px; height: 24px; font-size: 0.7rem; box-shadow: 0 0 0 2px var(--ds-surface); }
+.gs-round__voter + .gs-round__voter { margin-left: -6px; }
+.gs-round__voter.is-me { background: var(--primary); color: #fff; }
+.gs-round__n { min-width: 1.2em; text-align: right; font: 700 0.95rem var(--ds-font-display); }
+.gs-round__check { color: var(--tm-good); stroke-width: 2.6; }
+.gs-round__bar { height: 6px; margin-top: 7px; border-radius: 6px; background: var(--ds-tint); overflow: hidden; }
+.gs-round__bar span { display: block; height: 100%; width: 0; border-radius: 6px; background: var(--primary-light); transition: width 0.8s var(--ds-ease); }
+.is-right .gs-round__bar span { background: var(--tm-good); }
+.gs-round__why { margin: 0; color: var(--ds-ink-2); font-size: 0.925rem; line-height: 1.5; }
+.gs-round__why strong { color: var(--ds-ink); }
+.gs-round.is-revealed { animation: gsReveal 0.35s var(--ds-ease); }
+@keyframes gsReveal { from { transform: scale(0.98); opacity: 0.6; } }
+
+/* A recall round is from memory: the conversation blurs until you lock in */
+.gs-transcript.is-recalling .gs-msg:not(.has-round) {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.3s;
+}
+
+/* ---------- The room's bridge ---------- */
+.gs-bridge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 12px 5px 9px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-md);
+  background: var(--ds-surface);
+}
+.gs-bridge svg { width: 38px; height: 24px; flex: none; }
+.gs-bridge__track,
+.gs-bridge__fill { fill: none; stroke-width: 5; }
+.gs-bridge__track { stroke: var(--ds-tint); stroke-dasharray: 18 2.5; }
+body.dark-mode .gs-bridge__track { stroke: var(--ds-line); }
+.gs-bridge__fill { stroke: var(--primary); stroke-dasharray: 0 100; transition: stroke-dasharray 0.6s var(--ds-ease); }
+.gs-bridge__text { display: grid; line-height: 1.2; }
+.gs-bridge__text strong { font: 700 0.85rem var(--ds-font-display); color: var(--ds-ink); }
+.gs-bridge__text span { font-size: 0.75rem; color: var(--ds-ink-2); white-space: nowrap; }
+
+/* ---------- Focus timer ---------- */
+.gs-focus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 4px 0 10px;
+  border-radius: var(--ds-r-md);
+  background: var(--ds-tint);
+  color: var(--ds-accent-ink);
+  font: 700 0.95rem var(--ds-font-display);
+  font-variant-numeric: tabular-nums;
+}
+.gs-focus .ds-i { width: 17px; height: 17px; }
+.gs-focus__time { min-width: 3.2em; padding-right: 6px; }
+.gs-focus.is-due { background: var(--cta); color: var(--ds-ink-on-cta); }
+.gs-focus__stop {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--ds-r-sm);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+.gs-focus__stop:hover { background: var(--ds-surface); }
+.gs-focus__stop .ds-i { width: 15px; height: 15px; }
+.gs-menu__note { margin: 4px 8px 6px; color: var(--ds-ink-2); font-size: 0.85rem; line-height: 1.45; max-width: 26ch; }
+.gs-round-btn .ds-i, .gs-round-btn svg { color: var(--cta); }
+
+/* ---------- Reactions ---------- */
+.gs-reacts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.gs-reacts:empty { display: none; }
+.gs-msg--me .gs-reacts { justify-content: flex-end; }
+.gs-react {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 9px;
+  border: 1.5px solid transparent;
+  border-radius: var(--ds-r-sm);
+  background: var(--ds-tint);
+  color: var(--ds-accent-ink);
+  font: 600 0.8rem var(--ds-font-body);
+  cursor: pointer;
+}
+.gs-react .gs-ico { width: 14px; height: 14px; }
+.gs-react.is-mine { border-color: var(--primary); }
+.gs-react:hover:not(:disabled) { border-color: var(--primary-light); }
+.gs-react:disabled { cursor: default; }
+/* The add button stays quiet until the message is hovered or focused (always visible on touch) */
+.gs-react--add { padding: 3px 6px; background: none; color: var(--ds-ink-2); }
+@media (hover: hover) {
+  .gs-msg:not(:hover):not(:focus-within) .gs-react--add[aria-expanded="false"] { opacity: 0; }
+}
+.gs-reacts__picker { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.gs-reacts__picker .gs-react { background: var(--ds-surface); border-color: var(--ds-line); color: var(--ds-ink); box-shadow: 0 2px 0 var(--ds-line); }
+.gs-reacts__picker .gs-react:hover { border-color: var(--primary-light); color: var(--ds-accent-ink); }
+
+@media (max-width: 600px) {
+  .gs-bridge__text span { display: none; }
+  .gs-bridge { padding: 5px 9px; }
+  .gs-round-btn span,
+  #gsFocusBtn span { display: none; }   /* icon-only on phones; both carry an aria-label */
+  /* The host has up to seven controls here: let them wrap instead of pushing the page sideways */
+  .gs-room__actions { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
+  .gs-room__actions .ds-btn { white-space: nowrap; }
+  #gsFocusMenu { left: 0; right: auto; }   /* its button sits at the row's start once wrapped */
+}
+
 /* ---------- Narrow: people become a slide-in panel ---------- */
 @media (min-width: 961px) { .gs-people-toggle { display: none; } }
 @media (max-width: 960px) {
@@ -542,4 +737,6 @@ body.dark-mode .gs-msg--me .gs-msg__bubble { box-shadow: 0 3px 0 #3b1580; }
 }
 @media (prefers-reduced-motion: reduce) {
   .gs-people { transition: none; }
+  .gs-round.is-revealed { animation: none; }
+  .gs-round__bar span, .gs-bridge__fill, .gs-round__opt { transition: none; }
 }
