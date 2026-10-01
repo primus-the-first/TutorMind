@@ -1,26 +1,31 @@
 <!DOCTYPE html>
 <html lang="en" class="no-js">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>TutorMind — Stuck? Ask TutorMind.</title>
-    <meta name="description" content="TutorMind is your AI tutor for homework, revision and exams. Ask anything — type it, snap it, upload it or say it — and work it out step by step.">
+    <meta name="description"
+        content="TutorMind is your AI tutor for homework, revision and exams. Ask anything — type it, snap it, upload it or say it — and work it out step by step.">
     <link rel="icon" type="image/svg+xml" href="assets/favicon-new.svg">
     <link rel="icon" type="image/png" href="assets/icons/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-512.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@600;700&family=Outfit:wght@400;500;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="assets/css/tm-tokens.css?v=2026092803">
     <link rel="stylesheet" href="assets/css/tm-ds.css?v=2026092803">
 </head>
+
 <body class="ds-page">
     <script>
         (function () {
             var q = new URLSearchParams(location.search).get('theme');
             var saved = null;
-            try { saved = localStorage.getItem('tutormind-theme'); } catch (e) {}
+            try { saved = localStorage.getItem('tutormind-theme'); } catch (e) { }
             if ((q || saved) === 'dark') document.body.classList.add('dark-mode');
         })();
     </script>
@@ -36,19 +41,35 @@
                 <a class="ds-nav__link" href="login">Log in</a>
             </div>
             <button class="ds-icon-btn" type="button" data-ds-theme aria-label="Dark mode">
-                <svg class="ds-i"><use href="#i-moon"/></svg>
+                <svg class="ds-i">
+                    <use href="#i-moon" />
+                </svg>
             </button>
-            <a href="register" class="ds-btn ds-btn--cta ds-btn--sm ds-nav__cta">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a>
-            <button class="ds-icon-btn ds-nav__menu-btn" type="button" data-ds-menu-btn aria-controls="ds-menu" aria-expanded="false" aria-label="Open menu">
-                <svg class="ds-i"><use href="#i-menu"/></svg>
+            <a href="register" class="ds-btn ds-btn--cta ds-btn--sm ds-nav__cta">Start learning <svg
+                    class="ds-i ds-i-arrow">
+                    <use href="#i-arrow" />
+                </svg></a>
+            <button class="ds-icon-btn ds-nav__menu-btn" type="button" data-ds-menu-btn aria-controls="ds-menu"
+                aria-expanded="false" aria-label="Open menu">
+                <svg class="ds-i">
+                    <use href="#i-menu" />
+                </svg>
             </button>
         </nav>
         <div class="ds-menu" id="ds-menu" hidden>
-            <a class="ds-menu__link" href="#features">Features <svg class="ds-i"><use href="#i-arrow"/></svg></a>
-            <a class="ds-menu__link" href="#how-it-works">How it works <svg class="ds-i"><use href="#i-arrow"/></svg></a>
-            <a class="ds-menu__link" href="#subjects">Subjects <svg class="ds-i"><use href="#i-arrow"/></svg></a>
+            <a class="ds-menu__link" href="#features">Features <svg class="ds-i">
+                    <use href="#i-arrow" />
+                </svg></a>
+            <a class="ds-menu__link" href="#how-it-works">How it works <svg class="ds-i">
+                    <use href="#i-arrow" />
+                </svg></a>
+            <a class="ds-menu__link" href="#subjects">Subjects <svg class="ds-i">
+                    <use href="#i-arrow" />
+                </svg></a>
             <div class="ds-menu__actions">
-                <a href="register" class="ds-btn ds-btn--cta ds-btn--block">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a>
+                <a href="register" class="ds-btn ds-btn--cta ds-btn--block">Start learning <svg class="ds-i ds-i-arrow">
+                        <use href="#i-arrow" />
+                    </svg></a>
                 <a href="login" class="ds-btn ds-btn--tertiary ds-btn--block">Log in</a>
             </div>
         </div>
@@ -59,27 +80,41 @@
         <section class="ds-hero">
             <div class="ds-wrap ds-hero__grid">
                 <div class="ds-hero__copy">
-                    <span class="ds-kicker">AI-powered learning</span>
+                    <!--<span class="ds-kicker">AI-powered learning</span>-->
                     <h1 class="ds-h1">Stuck?<br>Ask <span class="ds-accent">TutorMind.</span></h1>
-                    <p class="ds-lede">Your AI tutor for homework, revision and exams. It walks you through the problem until it clicks, instead of just handing you the answer.</p>
+                    <p class="ds-lede">Your AI tutor for homework, revision and exams. It walks you through the problem
+                        until it clicks, instead of just handing you the answer.</p>
                     <form class="ds-ask" action="register" method="get" data-ds-ask>
-                        <button type="button" class="ds-ask__tool" aria-label="Ask with your voice"><svg class="ds-i"><use href="#i-mic"/></svg></button>
+                        <button type="button" class="ds-ask__tool" aria-label="Ask with your voice"><svg class="ds-i">
+                                <use href="#i-mic" />
+                            </svg></button>
                         <label class="ds-visually-hidden" for="hero-q">Your question</label>
-                        <input class="ds-ask__input" id="hero-q" name="q" type="text" placeholder="Ask TutorMind anything..." autocomplete="off">
-                        <button type="button" class="ds-ask__tool" aria-label="Attach a photo or file"><svg class="ds-i"><use href="#i-plus"/></svg></button>
-                        <button type="submit" class="ds-ask__send" aria-label="Ask"><svg class="ds-i"><use href="#i-send"/></svg></button>
+                        <input class="ds-ask__input" id="hero-q" name="q" type="text"
+                            placeholder="Ask TutorMind anything..." autocomplete="off">
+                        <button type="button" class="ds-ask__tool" aria-label="Attach a photo or file"><svg
+                                class="ds-i">
+                                <use href="#i-plus" />
+                            </svg></button>
+                        <button type="submit" class="ds-ask__send" aria-label="Ask"><svg class="ds-i">
+                                <use href="#i-send" />
+                            </svg></button>
                     </form>
                     <div class="ds-chip-row" aria-label="Try asking">
-                        <button type="button" class="ds-chip" aria-pressed="false" data-fill="Help me solve 3x − 7 = 11">Solve an equation</button>
-                        <button type="button" class="ds-chip" aria-pressed="false" data-fill="Explain photosynthesis simply">Explain science</button>
-                        <button type="button" class="ds-chip" aria-pressed="false" data-fill="Help me revise for my biology test">Help me revise</button>
+                        <button type="button" class="ds-chip" aria-pressed="false"
+                            data-fill="Help me solve 3x − 7 = 11">Solve an equation</button>
+                        <button type="button" class="ds-chip" aria-pressed="false"
+                            data-fill="Explain photosynthesis simply">Explain science</button>
+                        <button type="button" class="ds-chip" aria-pressed="false"
+                            data-fill="Help me revise for my biology test">Help me revise</button>
                     </div>
                 </div>
 
                 <div class="ds-hero__visual" data-ds-bridge>
                     <div class="ds-hero__fallback"><img src="assets/logo-bridge.svg" alt=""></div>
-                    <div class="ds-float ds-float--a"><span class="ds-float__tag">You asked</span><b>Why is x² + 5x + 6 = (x + 2)(x + 3)?</b></div>
-                    <div class="ds-float ds-float--b"><span class="ds-float__tag">Step 2 of 3</span><b>Find two numbers that add to 5…</b></div>
+                    <div class="ds-float ds-float--a"><span class="ds-float__tag">You asked</span><b>Why is x² + 5x + 6
+                            = (x + 2)(x + 3)?</b></div>
+                    <div class="ds-float ds-float--b"><span class="ds-float__tag">Step 2 of 3</span><b>Find two numbers
+                            that add to 5…</b></div>
                 </div>
             </div>
         </section>
@@ -87,7 +122,8 @@
         <!-- ================= Tagline band ================= -->
         <section class="ds-band" aria-label="What TutorMind helps with">
             <div class="ds-wrap ds-band__inner">
-                <p class="ds-band__title">Homework. Revision. Exams.<br><span class="ds-accent">TutorMind’s got you.</span></p>
+                <p class="ds-band__title">Homework. Revision. Exams.<br><span class="ds-accent">TutorMind’s got
+                        you.</span></p>
                 <div class="ds-chip-row">
                     <span class="ds-chip ds-chip--static">Maths</span>
                     <span class="ds-chip ds-chip--static">Science</span>
@@ -107,9 +143,12 @@
                 <div class="ds-modes">
                     <article class="ds-mode ds-mode--type ds-reveal">
                         <div>
-                            <div class="ds-mode__icon"><svg class="ds-i"><use href="#i-keyboard"/></svg></div>
+                            <div class="ds-mode__icon"><svg class="ds-i">
+                                    <use href="#i-keyboard" />
+                                </svg></div>
                             <h3 class="ds-mode__title" style="margin-top:14px">Type it.</h3>
-                            <p style="margin-top:10px">Ask a normal question, paste a problem, or explain what you’re stuck on in your own words.</p>
+                            <p style="margin-top:10px">Ask a normal question, paste a problem, or explain what you’re
+                                stuck on in your own words.</p>
                         </div>
                         <div class="ds-keys" aria-hidden="true">
                             <span class="ds-key" style="--i:0">W</span>
@@ -121,17 +160,22 @@
                     <article class="ds-mode ds-mode--snap ds-reveal" data-tilt="6">
                         <div class="ds-mode__side">
                             <div>
-                                <div class="ds-mode__icon"><svg class="ds-i"><use href="#i-camera"/></svg></div>
+                                <div class="ds-mode__icon"><svg class="ds-i">
+                                        <use href="#i-camera" />
+                                    </svg></div>
                                 <h3 class="ds-mode__title" style="margin-top:14px">Snap it.</h3>
                                 <p style="margin-top:8px">Take a photo of the question.</p>
                             </div>
-                            <div class="ds-viewfinder ds-depth" aria-hidden="true"><i></i><i></i><i></i><i></i>3x − 7 = 11<span class="ds-viewfinder__scan"></span></div>
+                            <div class="ds-viewfinder ds-depth" aria-hidden="true"><i></i><i></i><i></i><i></i>3x − 7 =
+                                11<span class="ds-viewfinder__scan"></span></div>
                         </div>
                     </article>
                     <article class="ds-mode ds-mode--upload ds-reveal" data-tilt="6">
                         <div class="ds-mode__side">
                             <div>
-                                <div class="ds-mode__icon"><svg class="ds-i"><use href="#i-upload"/></svg></div>
+                                <div class="ds-mode__icon"><svg class="ds-i">
+                                        <use href="#i-upload" />
+                                    </svg></div>
                                 <h3 class="ds-mode__title" style="margin-top:14px">Upload it.</h3>
                                 <p style="margin-top:8px">Notes, worksheets, PDFs.</p>
                             </div>
@@ -139,14 +183,19 @@
                         </div>
                     </article>
                     <article class="ds-mode ds-mode--say ds-reveal">
-                        <div class="ds-mode__icon"><svg class="ds-i"><use href="#i-mic"/></svg></div>
+                        <div class="ds-mode__icon"><svg class="ds-i">
+                                <use href="#i-mic" />
+                            </svg></div>
                         <div>
                             <h3 class="ds-mode__title">Say it.</h3>
-                            <p style="margin-top:8px">Talk a concept through out loud with your AI tutor, like you would with a real one.</p>
+                            <p style="margin-top:8px">Talk a concept through out loud with your AI tutor, like you would
+                                with a real one.</p>
                         </div>
                         <div class="ds-voice">
                             <div class="ds-wavebars" data-count="16" aria-hidden="true"></div>
-                            <a class="ds-mic" href="register" aria-label="Try the voice tutor"><svg class="ds-i"><use href="#i-mic"/></svg></a>
+                            <a class="ds-mic" href="register" aria-label="Try the voice tutor"><svg class="ds-i">
+                                    <use href="#i-mic" />
+                                </svg></a>
                         </div>
                     </article>
                 </div>
@@ -163,49 +212,74 @@
                 <div class="ds-steps">
                     <div class="ds-step">
                         <div class="ds-step__copy">
-                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true"><path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30"/><circle class="ds-step__dot" cx="20" cy="8" r="3.5"/></svg>1 · Ask</span>
+                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true">
+                                    <path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30" />
+                                    <circle class="ds-step__dot" cx="20" cy="8" r="3.5" />
+                                </svg>1 · Ask</span>
                             <h3 class="ds-step__title">Start with whatever’s confusing you.</h3>
-                            <p>Half a question is fine. “I don’t get this” is fine. TutorMind asks what you need to know first.</p>
+                            <p>Half a question is fine. “I don’t get this” is fine. TutorMind asks what you need to know
+                                first.</p>
                         </div>
                         <div class="ds-mock" aria-hidden="true">
                             <div class="ds-mock__screen">
-                                <div class="ds-bubble ds-bubble--me">Why does ice float if it’s literally solid water??</div>
-                                <div class="ds-mock__meta"><img src="assets/logo-bridge.svg" alt="">TutorMind is thinking…</div>
-                                <div class="ds-bubble ds-bubble--tutor">Good question. Quick check first: what do you think happens to water molecules when it freezes? Do they get closer or further apart?</div>
+                                <div class="ds-bubble ds-bubble--me">Why does ice float if it’s literally solid water??
+                                </div>
+                                <div class="ds-mock__meta"><img src="assets/logo-bridge.svg" alt="">TutorMind is
+                                    thinking…</div>
+                                <div class="ds-bubble ds-bubble--tutor">Good question. Quick check first: what do you
+                                    think happens to water molecules when it freezes? Do they get closer or further
+                                    apart?</div>
                             </div>
                         </div>
                     </div>
                     <div class="ds-step">
                         <div class="ds-step__copy">
-                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true"><path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30"/><circle class="ds-step__dot" cx="20" cy="8" r="3.5"/></svg>2 · Understand</span>
+                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true">
+                                    <path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30" />
+                                    <circle class="ds-step__dot" cx="20" cy="8" r="3.5" />
+                                </svg>2 · Understand</span>
                             <h3 class="ds-step__title">It breaks it down, one step at a time.</h3>
-                            <p>Each step builds on the one before, and TutorMind checks you’re with it before moving on.</p>
+                            <p>Each step builds on the one before, and TutorMind checks you’re with it before moving on.
+                            </p>
                         </div>
                         <div class="ds-mock" aria-hidden="true">
                             <div class="ds-mock__screen">
                                 <ol class="ds-mock__steps">
-                                    <li class="is-done"><span>1</span><span>Freezing locks molecules into a hexagonal lattice.</span></li>
-                                    <li class="is-now"><span>2</span><span>The lattice holds them <b>further apart</b> than in liquid water.</span></li>
+                                    <li class="is-done"><span>1</span><span>Freezing locks molecules into a hexagonal
+                                            lattice.</span></li>
+                                    <li class="is-now"><span>2</span><span>The lattice holds them <b>further apart</b>
+                                            than in liquid water.</span></li>
                                     <li><span>3</span><span>Same mass, more volume → lower density.</span></li>
                                 </ol>
                                 <div class="ds-ask" style="margin-top:6px">
-                                    <span class="ds-ask__input" style="color:var(--ds-stage-ink-2)">So it’s less dense because…</span>
-                                    <span class="ds-ask__send"><svg class="ds-i"><use href="#i-send"/></svg></span>
+                                    <span class="ds-ask__input" style="color:var(--ds-stage-ink-2)">So it’s less dense
+                                        because…</span>
+                                    <span class="ds-ask__send"><svg class="ds-i">
+                                            <use href="#i-send" />
+                                        </svg></span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="ds-step">
                         <div class="ds-step__copy">
-                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true"><path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30"/><circle class="ds-step__dot" cx="20" cy="8" r="3.5"/></svg>3 · Practice</span>
+                            <span class="ds-step__label"><svg viewBox="0 0 40 40" aria-hidden="true">
+                                    <path class="ds-step__arch" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30" />
+                                    <circle class="ds-step__dot" cx="20" cy="8" r="3.5" />
+                                </svg>3 · Practice</span>
                             <h3 class="ds-step__title">Test yourself until it actually sticks.</h3>
-                            <p>Quick checks and practice questions, shaped around exactly what you just got stuck on.</p>
+                            <p>Quick checks and practice questions, shaped around exactly what you just got stuck on.
+                            </p>
                         </div>
                         <div class="ds-mock" aria-hidden="true">
                             <div class="ds-mock__screen">
-                                <div class="ds-progress"><span>Question 3 of 5</span><span class="ds-progress__track"><span class="ds-progress__fill" style="display:block"></span></span></div>
+                                <div class="ds-progress"><span>Question 3 of 5</span><span
+                                        class="ds-progress__track"><span class="ds-progress__fill"
+                                            style="display:block"></span></span></div>
                                 <p class="ds-quiz__q">Which is denser at 0 °C?</p>
-                                <div class="ds-quiz__opt is-correct">Liquid water <svg class="ds-i"><use href="#i-check"/></svg></div>
+                                <div class="ds-quiz__opt is-correct">Liquid water <svg class="ds-i">
+                                        <use href="#i-check" />
+                                    </svg></div>
                                 <div class="ds-quiz__opt">Ice</div>
                                 <div class="ds-quiz__opt">They’re the same</div>
                             </div>
@@ -223,36 +297,58 @@
                         <h2 class="ds-h2">Learn almost anything.</h2>
                         <p class="ds-lede">Pick a subject, or just ask. TutorMind figures out the rest.</p>
                     </div>
-                    <a class="ds-link" href="register">Explore all subjects <svg class="ds-i"><use href="#i-arrow"/></svg></a>
+                    <a class="ds-link" href="register">Explore all subjects <svg class="ds-i">
+                            <use href="#i-arrow" />
+                        </svg></a>
                 </div>
                 <div class="ds-subjects">
                     <a class="ds-card ds-subject" href="register" data-tilt="7">
-                        <div class="ds-art"><div class="ds-obj ds-cube"><span>x²</span><span>π</span><span>√</span><span>∑</span><span>∫</span><span>÷</span></div></div>
+                        <div class="ds-art">
+                            <div class="ds-obj ds-cube">
+                                <span>x²</span><span>π</span><span>√</span><span>∑</span><span>∫</span><span>÷</span>
+                            </div>
+                        </div>
                         <h3 class="ds-card__title">Mathematics</h3>
                         <p class="ds-subject__topics">Algebra · Calculus · Geometry</p>
                     </a>
                     <a class="ds-card ds-subject" href="register" data-tilt="7">
-                        <div class="ds-art"><div class="ds-obj ds-wave"></div></div>
+                        <div class="ds-art">
+                            <div class="ds-obj ds-wave"></div>
+                        </div>
                         <h3 class="ds-card__title">Physics</h3>
                         <p class="ds-subject__topics">Mechanics · Waves · Electricity</p>
                     </a>
                     <a class="ds-card ds-subject" href="register" data-tilt="7">
-                        <div class="ds-art"><div class="ds-obj ds-atom"><span class="ds-atom__core"></span><span class="ds-atom__orbit"><i></i></span><span class="ds-atom__orbit"><i></i></span><span class="ds-atom__orbit"><i></i></span></div></div>
+                        <div class="ds-art">
+                            <div class="ds-obj ds-atom"><span class="ds-atom__core"></span><span
+                                    class="ds-atom__orbit"><i></i></span><span
+                                    class="ds-atom__orbit"><i></i></span><span class="ds-atom__orbit"><i></i></span>
+                            </div>
+                        </div>
                         <h3 class="ds-card__title">Chemistry</h3>
                         <p class="ds-subject__topics">Organic · Atoms · Reactions</p>
                     </a>
                     <a class="ds-card ds-subject" href="register" data-tilt="7">
-                        <div class="ds-art"><div class="ds-obj ds-helix"></div></div>
+                        <div class="ds-art">
+                            <div class="ds-obj ds-helix"></div>
+                        </div>
                         <h3 class="ds-card__title">Biology</h3>
                         <p class="ds-subject__topics">Cells · Genetics · Ecology</p>
                     </a>
                     <a class="ds-card ds-subject" href="register" data-tilt="7">
-                        <div class="ds-art"><div class="ds-obj ds-stack"><i></i><i></i><i>&lt;/&gt;</i></div></div>
+                        <div class="ds-art">
+                            <div class="ds-obj ds-stack"><i></i><i></i><i>&lt;/&gt;</i></div>
+                        </div>
                         <h3 class="ds-card__title">Computer Science</h3>
                         <p class="ds-subject__topics">Programming · Logic · Data</p>
                     </a>
                     <a class="ds-card ds-subject" href="register" data-tilt="7">
-                        <div class="ds-art"><div class="ds-obj ds-book"><span class="ds-book__cover"></span><span class="ds-book__half ds-book__half--l"></span><span class="ds-book__half ds-book__half--r"></span><span class="ds-book__page"></span></div></div>
+                        <div class="ds-art">
+                            <div class="ds-obj ds-book"><span class="ds-book__cover"></span><span
+                                    class="ds-book__half ds-book__half--l"></span><span
+                                    class="ds-book__half ds-book__half--r"></span><span class="ds-book__page"></span>
+                            </div>
+                        </div>
                         <h3 class="ds-card__title">English</h3>
                         <p class="ds-subject__topics">Writing · Grammar · Literature</p>
                     </a>
@@ -268,12 +364,43 @@
                     <h2 class="ds-h2">Everything you need<br>to study better.</h2>
                 </div>
                 <div class="ds-features">
-                    <article class="ds-card ds-card--featured ds-reveal" data-tilt="6"><span class="ds-card__kind">01</span><div class="ds-depth-sm"><h3 class="ds-card__title">Ask anything</h3><p class="ds-card__body">Any subject, any level, in your own words.</p></div></article>
-                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">02</span><div class="ds-depth-sm"><h3 class="ds-card__title">Step-by-step</h3><p class="ds-card__body">Guided walkthroughs, not answer dumps.</p></div></article>
-                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">03</span><div class="ds-depth-sm"><h3 class="ds-card__title">Voice tutor</h3><p class="ds-card__body">Talk it through, hands-free.</p></div></article>
-                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">04</span><div class="ds-depth-sm"><h3 class="ds-card__title">Upload notes</h3><p class="ds-card__body">Turn your own notes into lessons and quizzes.</p></div></article>
-                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">05</span><div class="ds-depth-sm"><h3 class="ds-card__title">Practice mode</h3><p class="ds-card__body">Quick checks that adapt as you improve.</p></div></article>
-                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">06</span><div class="ds-depth-sm"><h3 class="ds-card__title">Saved study</h3><p class="ds-card__body">Pick up exactly where you left off.</p></div></article>
+                    <article class="ds-card ds-card--featured ds-reveal" data-tilt="6"><span
+                            class="ds-card__kind">01</span>
+                        <div class="ds-depth-sm">
+                            <h3 class="ds-card__title">Ask anything</h3>
+                            <p class="ds-card__body">Any subject, any level, in your own words.</p>
+                        </div>
+                    </article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">02</span>
+                        <div class="ds-depth-sm">
+                            <h3 class="ds-card__title">Step-by-step</h3>
+                            <p class="ds-card__body">Guided walkthroughs, not answer dumps.</p>
+                        </div>
+                    </article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">03</span>
+                        <div class="ds-depth-sm">
+                            <h3 class="ds-card__title">Voice tutor</h3>
+                            <p class="ds-card__body">Talk it through, hands-free.</p>
+                        </div>
+                    </article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">04</span>
+                        <div class="ds-depth-sm">
+                            <h3 class="ds-card__title">Upload notes</h3>
+                            <p class="ds-card__body">Turn your own notes into lessons and quizzes.</p>
+                        </div>
+                    </article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">05</span>
+                        <div class="ds-depth-sm">
+                            <h3 class="ds-card__title">Practice mode</h3>
+                            <p class="ds-card__body">Quick checks that adapt as you improve.</p>
+                        </div>
+                    </article>
+                    <article class="ds-card ds-reveal" data-tilt="6"><span class="ds-card__kind">06</span>
+                        <div class="ds-depth-sm">
+                            <h3 class="ds-card__title">Saved study</h3>
+                            <p class="ds-card__body">Pick up exactly where you left off.</p>
+                        </div>
+                    </article>
                 </div>
             </div>
         </section>
@@ -300,8 +427,12 @@
                 <div class="ds-section__head ds-reveal" style="margin:0">
                     <span class="ds-kicker">Personalized learning</span>
                     <h2 class="ds-h2">TutorMind adapts to how you learn.</h2>
-                    <p class="ds-lede">It remembers what trips you up, how you like things explained, and how fast you want to go, then adjusts every session.</p>
-                    <div><a href="register" class="ds-btn ds-btn--secondary">Build your profile <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a></div>
+                    <p class="ds-lede">It remembers what trips you up, how you like things explained, and how fast you
+                        want to go, then adjusts every session.</p>
+                    <div><a href="register" class="ds-btn ds-btn--secondary">Build your profile <svg
+                                class="ds-i ds-i-arrow">
+                                <use href="#i-arrow" />
+                            </svg></a></div>
                 </div>
             </div>
         </section>
@@ -320,14 +451,18 @@
                     </details>
                     <details class="ds-faq__item">
                         <summary>Can I upload homework?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
-                        <p>Yes. Snap a photo or upload a PDF or document, and TutorMind will work through it with you.</p>
+                        <p>Yes. Snap a photo or upload a PDF or document, and TutorMind will work through it with you.
+                        </p>
                     </details>
                     <details class="ds-faq__item">
-                        <summary>Will it just give me the answers?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
-                        <p>No, on purpose. TutorMind guides you to work it out yourself, because that’s what makes it stick on exam day.</p>
+                        <summary>Will it just give me the answers?<span class="ds-faq__plus" aria-hidden="true"></span>
+                        </summary>
+                        <p>No, on purpose. TutorMind guides you to work it out yourself, because that’s what makes it
+                            stick on exam day.</p>
                     </details>
                     <details class="ds-faq__item">
-                        <summary>Can I talk to it instead of typing?<span class="ds-faq__plus" aria-hidden="true"></span></summary>
+                        <summary>Can I talk to it instead of typing?<span class="ds-faq__plus"
+                                aria-hidden="true"></span></summary>
                         <p>Yes. The voice tutor lets you ask questions and talk ideas through out loud.</p>
                     </details>
                 </div>
@@ -339,7 +474,9 @@
             <div class="ds-cta ds-reveal">
                 <h2 class="ds-h2">Ready to learn differently?</h2>
                 <p class="ds-lede">Learning starts with one question.</p>
-                <a href="register" class="ds-btn ds-btn--cta">Start learning <svg class="ds-i ds-i-arrow"><use href="#i-arrow"/></svg></a>
+                <a href="register" class="ds-btn ds-btn--cta">Start learning <svg class="ds-i ds-i-arrow">
+                        <use href="#i-arrow" />
+                    </svg></a>
             </div>
         </section>
     </main>
@@ -359,4 +496,5 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
     <script src="assets/js/tm-ds.js?v=2026092803"></script>
 </body>
+
 </html>
