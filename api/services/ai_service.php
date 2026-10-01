@@ -241,13 +241,18 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
 
     $data = json_decode($response, true);
 
-    if (isset($data['choices'][0]['message']['content'])) {
+    // deepseek-flash reasons before answering, and the reasoning counts toward
+    // max_tokens — it can spend the whole budget thinking and return "" with
+    // finish_reason=length. Throw so the caller falls through to the next provider
+    // instead of treating an empty reply as an answer.
+    $content = $data['choices'][0]['message']['content'] ?? null;
+    if (is_string($content) && trim($content) !== '') {
         return [
             'candidates' => [
                 [
                     'content' => [
                         'parts' => [
-                            ['text' => $data['choices'][0]['message']['content']]
+                            ['text' => $content]
                         ]
                     ]
                 ]
@@ -256,7 +261,7 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
         ];
     }
 
-    throw new Exception('DeepSeek returned unexpected response structure.');
+    throw new Exception('DeepSeek returned no answer (finish_reason: ' . ($data['choices'][0]['finish_reason'] ?? 'unknown') . ').');
 }
 
 function callGeminiAPI($payload, $apiKey) {

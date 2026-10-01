@@ -611,7 +611,13 @@ function gsFacilitate(PDO $pdo, array $session, array $participants, int $sender
         try {
             $response = callGroqAPI($merged, $systemPrompt, $keys['groq']);
         } catch (Exception $e2) {
-            $response = callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek']);
+            // callDeepSeekAPI throws on an empty reply; here that just means Q stays quiet
+            try {
+                $response = callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek']);
+            } catch (Exception $e3) {
+                error_log('group_study facilitate: all providers failed: ' . $e3->getMessage());
+                return null;
+            }
         }
     }
     $text = trim($response['candidates'][0]['content']['parts'][0]['text'] ?? '');

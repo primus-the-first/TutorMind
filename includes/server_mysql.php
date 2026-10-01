@@ -26,6 +26,11 @@ register_shutdown_function(function () {
 // Set to false in production to disable debug logging (saves disk I/O)
 define('DEBUG_MODE', false);
 
+// Which AI writes chat answers first: 'gemini' (the usual order: Gemini → DeepSeek →
+// Groq) or 'deepseek' (DeepSeek → Gemini → Groq). TESTING DeepSeek as of 2026-10-01 —
+// set back to 'gemini' when done. Turns that need an image always go to Gemini first.
+define('CHAT_PRIMARY_PROVIDER', 'deepseek');
+
 require_once 'check_auth.php'; // Secure all API endpoints
 require_once __DIR__ . '/../api/services/document_service.php';
 require_once __DIR__ . '/../api/services/ai_service.php';
@@ -69,6 +74,23 @@ function checkChatRateLimit($pdo, $user_id) {
         error_log("Rate limit check failed: " . $e->getMessage());
         return true; // fail-open: allow request if rate limit logic fails
     }
+}
+
+// --- CHAT STEP TIMINGS ---
+// A chat reply runs several network calls back to back (knowledge lookup and web
+// seeding, the AI, outline, title, resource lookup). The total alone can't say which
+// one made a reply take 40s, so slow replies report each step to the log and Pulse.
+function chatLap(string $step, float $since): void {
+    $GLOBALS['chatTimings'][$step] = ($GLOBALS['chatTimings'][$step] ?? 0) + (microtime(true) - $since);
+}
+function reportSlowChat(float $thresholdSeconds = 10): void {
+    $timings = $GLOBALS['chatTimings'] ?? [];
+    if (array_sum($timings) < $thresholdSeconds) return;
+    $parts = [];
+    foreach ($timings as $step => $s) $parts[] = "$step " . round($s, 1) . 's';
+    $summary = 'slow chat: ' . implode(' · ', $parts);
+    error_log("[chat timing] $summary");
+    if (function_exists('pulse_note')) pulse_note($summary);
 }
 
 // --- ALWAYS require the autoloader first ---
@@ -978,6 +1000,8 @@ EOT;
     // --- RAG Knowledge Retrieval ---
     // Retrieve relevant knowledge from the knowledge base
     $knowledge_context = "";
+    $lapStart = microtime(true);
+    $kbSeeded = false;
     try {
         $knowledgeService = getKnowledgeService();
         // Get the user's question text for retrieval
@@ -994,6 +1018,7 @@ EOT;
 
             // If nothing found, proactively seed the knowledge base then retry
             if (empty($relevantKnowledge) && strlen($userQuestionText) > 20) {
+                $kbSeeded = true;
                 $knowledgeService->searchAndStore($userQuestionText);
                 $relevantKnowledge = $knowledgeService->retrieveRelevant($userQuestionText, 3);
             }
@@ -1011,7 +1036,8 @@ EOT;
     } catch (Exception $e) {
         error_log("Knowledge retrieval error: " . $e->getMessage());
     }
-    
+    chatLap($kbSeeded ? 'knowledge+web seed' : 'knowledge', $lapStart);
+
     // Append knowledge context to personalization
     $personalization_context .= $knowledge_context;
 
@@ -1068,69 +1094,52 @@ EOT;
         }
     }
 
-    // Cascade fallback: Gemini → DeepSeek (paid, reliable, credits available) → Groq
-    // (free, but its 8000 TPM cap fails on this app's prompt size almost every time —
-    // see the stripWidgetSectionForGroq() note in ai_service.php — so it's the last
-    // resort, not the first).
-    $usedFallback = false;
-    $fallbackProvider = null;
+    // Provider order: CHAT_PRIMARY_PROVIDER goes first. DeepSeek only reads text, though,
+    // so Gemini goes first whenever this turn needs what only Gemini has: an attached
+    // image (inline_data — documents and PDFs already arrive as text) or the
+    // generate_image tool. Groq is always last: its 8000 TPM cap fails on this app's
+    // prompt size almost every time (see stripWidgetSectionForGroq()).
+    $turnHasImage = false;
+    foreach ($user_message_parts as $part) {
+        if (!empty($part['inline_data']['data'])) { $turnHasImage = true; break; }
+    }
+    $wantsGeneratedImage = (bool)preg_match(
+        '/\b(draw|generate|create|make|paint|sketch|design|render)\b.{0,40}\b(image|picture|pic|drawing|illustration|photo|poster|logo|artwork)\b/i',
+        $question
+    );
+    $hasDeepSeek = defined('DEEPSEEK_API_KEY') && DEEPSEEK_API_KEY;
+    $hasGroq     = defined('GROQ_API_KEY') && GROQ_API_KEY;
 
-    try {
-        $responseData = callGeminiAPI($payload, $activeApiKey);
-    } catch (Exception $geminiError) {
-        $isFallbackEligible = strpos($geminiError->getMessage(), 'rate limit') !== false ||
-                           strpos($geminiError->getMessage(), '429') !== false ||
-                           strpos($geminiError->getMessage(), '400') !== false ||
-                           strpos($geminiError->getMessage(), '401') !== false ||
-                           strpos($geminiError->getMessage(), '403') !== false ||
-                           strpos($geminiError->getMessage(), '500') !== false ||
-                           strpos($geminiError->getMessage(), '503') !== false;
+    $providers = [
+        'gemini'   => fn() => callGeminiAPI($payload, $activeApiKey),
+        'deepseek' => fn() => callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY),
+        'groq'     => fn() => callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY),
+    ];
+    if (CHAT_PRIMARY_PROVIDER === 'deepseek' && !$turnHasImage && !$wantsGeneratedImage) {
+        $providers = ['deepseek' => $providers['deepseek']] + $providers;
+    }
+    if (!$hasDeepSeek) unset($providers['deepseek']);
+    if (!$hasGroq)     unset($providers['groq']);
 
-        if (!$isFallbackEligible) {
-            throw $geminiError;
+    // Any failure (quota, timeout, empty reply) moves on to the next provider.
+    $lapStart = microtime(true);
+    $answeredBy = null;
+    $providerErrors = [];
+    foreach ($providers as $name => $call) {
+        try {
+            $responseData = $call();
+            $answeredBy = $name;
+            break;
+        } catch (Exception $e) {
+            $providerErrors[] = "$name: " . $e->getMessage();
+            error_log("Chat provider $name failed, trying next: " . $e->getMessage());
         }
-
-        error_log("Gemini error, trying fallbacks: " . $geminiError->getMessage());
-
-        // Try DeepSeek first (paid, reliable)
-        if (defined('DEEPSEEK_API_KEY')) {
-            try {
-                error_log("Attempting DeepSeek fallback...");
-                $responseData = callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY);
-                $usedFallback = true;
-                $fallbackProvider = 'deepseek';
-            } catch (Exception $deepseekError) {
-                error_log("DeepSeek fallback failed: " . $deepseekError->getMessage());
-
-                // Try Groq as last resort (free, but TPM-capped)
-                if (defined('GROQ_API_KEY')) {
-                    try {
-                        error_log("Attempting Groq fallback...");
-                        $responseData = callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY);
-                        $usedFallback = true;
-                        $fallbackProvider = 'groq';
-                    } catch (Exception $groqError) {
-                        error_log("Groq fallback failed: " . $groqError->getMessage());
-                        throw new Exception("All AI providers failed. Gemini: {$geminiError->getMessage()}");
-                    }
-                } else {
-                    throw new Exception("DeepSeek fallback failed and Groq not configured. Error: " . $deepseekError->getMessage());
-                }
-            }
-        } elseif (defined('GROQ_API_KEY')) {
-            // No DeepSeek, try Groq directly
-            try {
-                error_log("Attempting Groq fallback (no DeepSeek configured)...");
-                $responseData = callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY);
-                $usedFallback = true;
-                $fallbackProvider = 'groq';
-            } catch (Exception $groqError) {
-                error_log("Groq fallback failed: " . $groqError->getMessage());
-                throw new Exception("All AI providers failed. Error: " . $geminiError->getMessage());
-            }
-        } else {
-            throw $geminiError; // No fallbacks configured
-        }
+    }
+    $tried = array_keys($providers);
+    $triedCount = $answeredBy === null ? count($tried) : array_search($answeredBy, $tried) + 1;
+    chatLap('ai(' . implode('→', array_slice($tried, 0, $triedCount)) . ($answeredBy === null ? ' all failed' : '') . ')', $lapStart);
+    if ($answeredBy === null) {
+        throw new Exception('All AI providers failed. ' . implode(' | ', $providerErrors));
     }
 
     $responseParts = $responseData['candidates'][0]['content']['parts'] ?? [];
@@ -1196,7 +1205,9 @@ EOT;
                 // scarce free-tier request budget — see generateLearningOutline()).
                 // Falls back to Gemini internally if DeepSeek isn't configured.
                 $outlineApiKey = defined('DEEPSEEK_API_KEY') ? DEEPSEEK_API_KEY : null;
+                $lapStart = microtime(true);
                 $outline = generateLearningOutline($detectedTopic, $currentSessionGoal, $educationLevel, $outlineApiKey);
+                chatLap('outline', $lapStart);
 
                 if ($outline) {
                     $contextData['outline'] = $outline;
@@ -1234,7 +1245,9 @@ EOT;
         $generated_title = null;
         if (count($chat_history) === 1) {
             $titleApiKey = defined('DEEPSEEK_API_KEY') ? DEEPSEEK_API_KEY : null;
+            $lapStart = microtime(true);
             $generated_title = generateConversationTitle($question, $titleApiKey);
+            chatLap('title', $lapStart);
             if ($generated_title === null) {
                 $generated_title = "New Chat";
             }
@@ -1301,7 +1314,9 @@ EOT;
                     // Process in background (PHP doesn't have true async, but we can spawn a request)
                     // For now, process synchronously but quickly (just search, don't extract)
                     if ($processCount < 1) { // Limit to 1 to avoid slowing down response
+                        $lapStart = microtime(true);
                         $knowledgeService->processResourceMention($resource['name'], $resource['author']);
+                        chatLap('resource lookup', $lapStart);
                         $processCount++;
                     }
                 }
@@ -1349,6 +1364,7 @@ EOT;
                 ))
             ];
         }
+        reportSlowChat();
         if (empty($backgrounded)) {
             echo json_encode($response_payload);
             exit();

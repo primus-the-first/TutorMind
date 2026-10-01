@@ -66,8 +66,24 @@ function requireCSRFToken() {
     }
     
     if (!validateCSRFToken($token)) {
+        // Say why, so a failure we can't reproduce can be told apart in the log:
+        // no cookie = the browser isn't keeping our session cookie at all (in-app
+        // browsers, data-saver proxies); no session token = session expired or
+        // never got one; mismatch = a token from an older session (stale tab).
+        $hasCookie = isset($_COOKIE[session_name()]);
+        $reason = !$hasCookie ? 'no_session_cookie'
+            : (empty($_SESSION['csrf_token']) ? 'no_session_token'
+            : (empty($token) ? 'no_submitted_token' : 'mismatch'));
+        error_log("[csrf] rejected {$_SERVER['REQUEST_URI']} reason=$reason action=" . ($_POST['action'] ?? '-')
+            . ' ua=' . substr($_SERVER['HTTP_USER_AGENT'] ?? '-', 0, 200));
+        if (function_exists('pulse_note')) {
+            pulse_note("CSRF $reason · " . substr($_SERVER['HTTP_USER_AGENT'] ?? '-', 0, 120));
+        }
+
         http_response_code(403);
-        echo json_encode(['success' => false, 'error' => 'Invalid or missing security token. Please refresh and try again.']);
+        echo json_encode(['success' => false, 'error' => $hasCookie
+            ? 'Invalid or missing security token. Please refresh and try again.'
+            : 'Your browser isn’t keeping cookies for TutorMind, so we can’t keep you signed in. If you opened this link inside another app, open it in Chrome or Safari instead, or allow cookies for this site.']);
         exit;
     }
 }
