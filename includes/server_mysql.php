@@ -79,17 +79,22 @@ function checkChatRateLimit($pdo, $user_id) {
 // --- CHAT STEP TIMINGS ---
 // A chat reply runs several network calls back to back (knowledge lookup and web
 // seeding, the AI, outline, title, resource lookup). The total alone can't say which
-// one made a reply take 40s, so slow replies report each step to the log and Pulse.
+// one made a reply take 40s, so every reply sends its steps to Pulse (a P99 needs the
+// fast replies too, not just the slow ones) and slow ones also go to the error log.
+// The AI step carries the model's token counts: reasoning tokens are time spent
+// thinking before the first visible word.
 function chatLap(string $step, float $since): void {
     $GLOBALS['chatTimings'][$step] = ($GLOBALS['chatTimings'][$step] ?? 0) + (microtime(true) - $since);
 }
-function reportSlowChat(float $thresholdSeconds = 10): void {
+function reportChatTimings(float $slowSeconds = 10): void {
     $timings = $GLOBALS['chatTimings'] ?? [];
-    if (array_sum($timings) < $thresholdSeconds) return;
+    if (!$timings) return;
     $parts = [];
     foreach ($timings as $step => $s) $parts[] = "$step " . round($s, 1) . 's';
-    $summary = 'slow chat: ' . implode(' · ', $parts);
-    error_log("[chat timing] $summary");
+    if (!empty($GLOBALS['chatAiUsage'])) $parts[] = $GLOBALS['chatAiUsage'];
+    $slow = array_sum($timings) >= $slowSeconds;
+    $summary = ($slow ? 'slow chat: ' : 'chat: ') . implode(' · ', $parts);
+    if ($slow) error_log("[chat timing] $summary");
     if (function_exists('pulse_note')) pulse_note($summary);
 }
 
@@ -109,6 +114,8 @@ require_once __DIR__ . '/../api/services/widget_library_service.php';
 header('Content-Type: application/json');
 
 $action = $_REQUEST['action'] ?? null; // Use $_REQUEST to handle GET and POST actions
+// No action means a chat reply. Own lane in Pulse, so its P99 isn't mixed with history loads.
+if (function_exists('pulse_label')) pulse_label($action ?: 'chat');
 
 // Add a special case for logout to be handled by auth.php
 if ($action === 'logout') {
@@ -1364,7 +1371,7 @@ EOT;
                 ))
             ];
         }
-        reportSlowChat();
+        reportChatTimings();
         if (empty($backgrounded)) {
             echo json_encode($response_payload);
             exit();

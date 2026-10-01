@@ -241,6 +241,14 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
 
     $data = json_decode($response, true);
 
+    // For the chat's timing note: how many tokens the reply took, and how many of them
+    // were hidden reasoning (see reportChatTimings() in server_mysql.php).
+    $usage = $data['usage'] ?? [];
+    if (isset($usage['completion_tokens'])) {
+        $GLOBALS['chatAiUsage'] = $usage['completion_tokens'] . ' tokens (' .
+            ($usage['completion_tokens_details']['reasoning_tokens'] ?? 0) . ' reasoning)';
+    }
+
     // deepseek-flash reasons before answering, and the reasoning counts toward
     // max_tokens — it can spend the whole budget thinking and return "" with
     // finish_reason=length. Throw so the caller falls through to the next provider

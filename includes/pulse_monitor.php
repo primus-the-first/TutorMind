@@ -59,6 +59,15 @@ function pulse_note(string $message): void {
     $GLOBALS['pulse_note'] = $message;
 }
 
+// One PHP file can serve many unrelated actions (server_mysql.php runs chat replies,
+// history loads and renames), which made them share a single lane: its P99 was the
+// slowest AI call and its health blended 2ms reads with 40s replies. A request that
+// knows which action it is names it, and the lane becomes "<path>#<action>".
+function pulse_label(string $label): void {
+    $label = preg_replace('/[^a-z0-9_-]/', '', strtolower($label));
+    if ($label !== '') $GLOBALS['pulse_label'] = substr($label, 0, 32);
+}
+
 function pulse_register(): void {
     if (!PULSE_ENABLED) return;
 
@@ -84,7 +93,7 @@ function pulse_register(): void {
             'traceId'      => $traceId,
             'spanId'       => $spanId,
             'service'      => PULSE_SERVICE,
-            'endpoint'     => $endpoint,
+            'endpoint'     => $endpoint . (isset($GLOBALS['pulse_label']) ? '#' . $GLOBALS['pulse_label'] : ''),
             'method'       => $method,
             'statusCode'   => $statusCode,
             'duration'     => $duration,
