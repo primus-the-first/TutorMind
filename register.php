@@ -269,12 +269,6 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
             });
             termsCheckbox.addEventListener('change', checkFormValidity);
 
-            // Fetch CSRF token on page load (as before)
-            fetch('includes/csrf.php?action=get_token')
-                .then(function (res) { return res.json(); })
-                .then(function (data) { if (data.token) document.getElementById('csrf_token').value = data.token; })
-                .catch(function (err) { console.error('CSRF token fetch error:', err); });
-
             registerForm.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 authError.hidden = true;
@@ -299,7 +293,6 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                 formData.append('username', usernameInput.value);
                 formData.append('email', emailInput.value);
                 formData.append('password', passwordInput.value);
-                formData.append('csrf_token', document.getElementById('csrf_token').value);
 
                 var isDarkLocal = false;
                 var themeLocal = localStorage.getItem('tutormind-theme');
@@ -315,6 +308,14 @@ $google_login_uri = "$protocol://$host$scriptDir/auth_mysql.php";
                 archScene('attempt');
 
                 try {
+                    // Fetch the token at submit time (same as login): a token fetched on page
+                    // load goes stale when a phone restores the tab after the session expired.
+                    var tokenResponse = await fetch('includes/csrf.php?action=get_token');
+                    var tokenData = await tokenResponse.json();
+                    if (!tokenData.token) throw new Error('Couldn’t reach the server. Check your connection and try again.');
+                    document.getElementById('csrf_token').value = tokenData.token;
+                    formData.append('csrf_token', tokenData.token);
+
                     var response = await fetch('auth_mysql', { method: 'POST', body: formData });
                     var data = await response.json();
                     if (data.success && data.redirect) {
