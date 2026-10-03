@@ -90,6 +90,26 @@ session_write_close();
 
 $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $body['action'] ?? $_GET['action'] ?? '';
+// Own Pulse lane per action: the 3s poll and a 40s AI reply must not share one P99.
+if (function_exists('pulse_label')) pulse_label($action ?: 'none');
+
+/** Run one AI provider call, noting provider, time and outcome on the Pulse event
+ *  ("ai: gemini 429 4.1s → groq 1.2s"), so a slow or failing reply says which
+ *  provider ate the time. Rethrows, so the caller's fallback logic is unchanged. */
+function gsTimedAi(string $provider, callable $fn) {
+    $t0 = microtime(true);
+    try {
+        $result = $fn();
+        $outcome = '';
+    } catch (Throwable $e) {
+        $outcome = ' failed (' . substr(preg_replace('/\s+/', ' ', $e->getMessage()), 0, 40) . ')';
+        throw $e;
+    } finally {
+        $GLOBALS['gsAiTrail'][] = $provider . ($outcome ?? '') . ' ' . round(microtime(true) - $t0, 1) . 's';
+        if (function_exists('pulse_note')) pulse_note('ai: ' . implode(' → ', $GLOBALS['gsAiTrail']));
+    }
+    return $result;
+}
 
 try {
     switch ($action) {
@@ -606,14 +626,14 @@ function gsFacilitate(PDO $pdo, array $session, array $participants, int $sender
         'generationConfig' => ['maxOutputTokens' => 4096, 'temperature' => 0.7],
     ]);
     try {
-        $response = callGeminiAPI($payload, $keys['gemini']);
+        $response = gsTimedAi('gemini', fn() => callGeminiAPI($payload, $keys['gemini']));
     } catch (Exception $e) {
         try {
-            $response = callGroqAPI($merged, $systemPrompt, $keys['groq']);
+            $response = gsTimedAi('groq', fn() => callGroqAPI($merged, $systemPrompt, $keys['groq']));
         } catch (Exception $e2) {
             // callDeepSeekAPI throws on an empty reply; here that just means Q stays quiet
             try {
-                $response = callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek']);
+                $response = gsTimedAi('deepseek', fn() => callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek']));
             } catch (Exception $e3) {
                 error_log('group_study facilitate: all providers failed: ' . $e3->getMessage());
                 return null;
@@ -774,7 +794,7 @@ function gsLeave(PDO $pdo, int $userId, array $data): void {
 function gsAskJson(string $system, string $user, array $keys, callable $valid): ?array {
     $history = [['role' => 'user', 'parts' => [['text' => $user]]]];
     $calls = [
-        function () use ($history, $system, $keys) {
+        'gemini' => function () use ($history, $system, $keys) {
             if (empty($keys['gemini'])) return null;
             return callGeminiAPI(json_encode([
                 'contents' => $history,
@@ -783,12 +803,12 @@ function gsAskJson(string $system, string $user, array $keys, callable $valid): 
                 'generationConfig' => ['response_mime_type' => 'application/json', 'maxOutputTokens' => 4096, 'temperature' => 0.6],
             ]), $keys['gemini']);
         },
-        fn() => empty($keys['groq']) ? null : callGroqAPI($history, $system, $keys['groq']),
-        fn() => empty($keys['deepseek']) ? null : callDeepSeekAPI($history, $system, $keys['deepseek']),
+        'groq' => fn() => empty($keys['groq']) ? null : callGroqAPI($history, $system, $keys['groq']),
+        'deepseek' => fn() => empty($keys['deepseek']) ? null : callDeepSeekAPI($history, $system, $keys['deepseek']),
     ];
-    foreach ($calls as $call) {
+    foreach ($calls as $provider => $call) {
         try {
-            $response = $call();
+            $response = gsTimedAi($provider, $call);
         } catch (Throwable $e) {
             error_log('group_study round: provider failed: ' . $e->getMessage());
             continue;
