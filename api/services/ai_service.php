@@ -542,3 +542,79 @@ function generateImageWithImagen($prompt, $apiKey)
 
     throw new Exception("No image data found in response.");
 }
+
+// ---------------------------------------------------------------------------
+// Provider chain — the ONE place that decides who answers and what happens when
+// they don't. Chat, group study and quiz each used to carry their own copy of
+// "try Gemini, then ... " with its own order and its own idea of failure; a
+// change (a retired model, a provider to skip, a breaker) had to be made in
+// four places. Callers now say WHAT to ask (a closure per provider holding that
+// provider's payload shape) and which task they are; this decides the rest.
+// ---------------------------------------------------------------------------
+
+// Order per task. Chat keeps Groq last: its 8000 TPM cap fails on the chat
+// prompt almost every time (see stripWidgetSectionForGroq()).
+const AI_PROVIDER_ORDER = [
+    'chat'  => ['gemini', 'deepseek', 'groq'],
+    'group' => ['gemini', 'groq', 'deepseek'],
+    'quiz'  => ['gemini', 'groq', 'deepseek'],
+];
+
+class AiProvidersFailed extends RuntimeException {}
+
+/**
+ * Ask the providers for $task in order until one answers acceptably.
+ *
+ * @param array<string,callable> $calls  provider name => closure returning that
+ *        provider's response. A provider with no closure is skipped (caller leaves
+ *        out the ones it has no key for). A closure returning null counts as
+ *        "nothing from this provider" and moves on, the same as a throw.
+ * @param callable|null $accept  response => usable value, or null/false to reject
+ *        it (truncated or malformed JSON) and fall through to the next provider.
+ * @param string|null $first  provider to try ahead of the task's usual order.
+ * @return array{provider:string,response:mixed,value:mixed,trail:string}
+ * @throws AiProvidersFailed when none answered; the message lists why, per provider.
+ */
+function aiComplete(string $task, array $calls, ?callable $accept = null, ?string $first = null): array {
+    $order = AI_PROVIDER_ORDER[$task] ?? array_keys($calls);
+    if ($first !== null && in_array($first, $order, true)) {
+        $order = array_merge([$first], array_diff($order, [$first]));
+    }
+
+    $trail = [];
+    $errors = [];
+    foreach ($order as $provider) {
+        if (!isset($calls[$provider])) continue;
+        $t0 = microtime(true);
+        $note = '';
+        try {
+            $response = $calls[$provider]();
+            if ($response === null) {
+                $note = ' empty';
+                $errors[] = "$provider: no response";
+            } elseif ($accept !== null && (($value = $accept($response)) === null || $value === false)) {
+                $note = ' unusable';
+                $errors[] = "$provider: unusable reply";
+            } else {
+                $trail[] = $provider . ' ' . round(microtime(true) - $t0, 1) . 's';
+                $trailText = implode(' → ', $trail);
+                aiNote($task, $trailText);
+                return ['provider' => $provider, 'response' => $response, 'value' => $value ?? $response, 'trail' => $trailText];
+            }
+        } catch (Throwable $e) {
+            $note = ' failed (' . substr(preg_replace('/\s+/', ' ', $e->getMessage()), 0, 40) . ')';
+            $errors[] = "$provider: " . $e->getMessage();
+            error_log("AI [$task] $provider failed, trying next: " . $e->getMessage());
+        }
+        $trail[] = $provider . $note . ' ' . round(microtime(true) - $t0, 1) . 's';
+    }
+
+    aiNote($task, implode(' → ', $trail) . ' → none');
+    throw new AiProvidersFailed('All AI providers failed. ' . implode(' | ', $errors));
+}
+
+// Puts the trail on this request's Pulse event ("ai[group]: gemini failed (429…)
+// 4.1s → groq 1.2s"), so a slow or failing reply says which provider ate the time.
+function aiNote(string $task, string $trail): void {
+    if (function_exists('pulse_note')) pulse_note("ai[$task]: $trail");
+}

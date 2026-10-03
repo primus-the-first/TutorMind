@@ -10,6 +10,7 @@
 
 require_once __DIR__ . '/../includes/check_auth.php';
 require_once __DIR__ . '/../includes/db_mysql.php';
+require_once __DIR__ . '/services/ai_service.php';
 
 header('Content-Type: application/json');
 
@@ -182,9 +183,9 @@ Return ONLY valid JSON — no markdown, no commentary:
 PROMPT;
 
     $aiData = firstValidJson([
-        fn() => callGemini($geminiKey, $prompt, 12),
-        fn() => callGroqJson($groqKey, $prompt, 20),
-        fn() => callDeepSeekJson($deepseekKey, $prompt, 30),
+        'gemini'   => fn() => callGemini($geminiKey, $prompt, 12),
+        'groq'     => fn() => callGroqJson($groqKey, $prompt, 20),
+        'deepseek' => fn() => callDeepSeekJson($deepseekKey, $prompt, 30),
     ], fn($d) => !empty($d['question']));
 
     if (!$aiData) {
@@ -312,9 +313,9 @@ Return ONLY valid JSON:
 PROMPT;
 
     $gradeData = firstValidJson([
-        fn() => callGemini($geminiKey, $prompt, 10),
-        fn() => callGroqJson($groqKey, $prompt, 20),
-        fn() => callDeepSeekJson($deepseekKey, $prompt, 30),
+        'gemini'   => fn() => callGemini($geminiKey, $prompt, 10),
+        'groq'     => fn() => callGroqJson($groqKey, $prompt, 20),
+        'deepseek' => fn() => callDeepSeekJson($deepseekKey, $prompt, 30),
     ], fn($d) => isset($d['score']));
 
     $score    = isset($gradeData['score'])    ? (float)$gradeData['score']    : 0.5;
@@ -365,19 +366,22 @@ function updateQuizResult($pdo, $quizId, $userAnswer, $feedback, $score) {
     $stmt->execute([$userAnswer, $feedback, $score, $quizId]);
 }
 
-// Try each provider in turn until one returns JSON that passes $isValid.
-// Falling through only on null (the old `a ?? b ?? c`) let a provider that
-// answered with truncated or malformed JSON fail the whole request with a 502
-// even though the next provider would have worked.
+// Ask the providers (keyed gemini/groq/deepseek) until one returns JSON that passes
+// $isValid. Falling through only on null (the old `a ?? b ?? c`) let a provider that
+// answered with truncated or malformed JSON fail the whole request with a 502 even
+// though the next provider would have worked. Order and fallback: aiComplete().
 function firstValidJson(array $calls, callable $isValid) {
-    foreach ($calls as $call) {
-        $text = $call();
-        if ($text === null) continue;
+    $accept = function ($text) use ($isValid) {
         $data = json_decode($text, true);
         if (is_array($data) && $isValid($data)) return $data;
         error_log('quiz.php: provider returned unusable JSON: ' . substr($text, 0, 200));
+        return null;
+    };
+    try {
+        return aiComplete('quiz', $calls, $accept)['value'];
+    } catch (AiProvidersFailed $e) {
+        return null;
     }
-    return null;
 }
 
 // Token budgets: every provider here is a reasoning model, and the reasoning

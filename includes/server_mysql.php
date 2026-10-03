@@ -1122,31 +1122,20 @@ EOT;
         'deepseek' => fn() => callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY),
         'groq'     => fn() => callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY),
     ];
-    if (CHAT_PRIMARY_PROVIDER === 'deepseek' && !$turnHasImage && !$wantsGeneratedImage) {
-        $providers = ['deepseek' => $providers['deepseek']] + $providers;
-    }
     if (!$hasDeepSeek) unset($providers['deepseek']);
     if (!$hasGroq)     unset($providers['groq']);
+    $tryFirst = (CHAT_PRIMARY_PROVIDER === 'deepseek' && !$turnHasImage && !$wantsGeneratedImage) ? 'deepseek' : null;
 
-    // Any failure (quota, timeout, empty reply) moves on to the next provider.
+    // Order, fallback and the per-provider timing note live in aiComplete(); any
+    // failure (quota, timeout, empty reply) moves on to the next provider.
     $lapStart = microtime(true);
-    $answeredBy = null;
-    $providerErrors = [];
-    foreach ($providers as $name => $call) {
-        try {
-            $responseData = $call();
-            $answeredBy = $name;
-            break;
-        } catch (Exception $e) {
-            $providerErrors[] = "$name: " . $e->getMessage();
-            error_log("Chat provider $name failed, trying next: " . $e->getMessage());
-        }
-    }
-    $tried = array_keys($providers);
-    $triedCount = $answeredBy === null ? count($tried) : array_search($answeredBy, $tried) + 1;
-    chatLap('ai(' . implode('→', array_slice($tried, 0, $triedCount)) . ($answeredBy === null ? ' all failed' : '') . ')', $lapStart);
-    if ($answeredBy === null) {
-        throw new Exception('All AI providers failed. ' . implode(' | ', $providerErrors));
+    try {
+        $ai = aiComplete('chat', $providers, null, $tryFirst);
+        $responseData = $ai['response'];
+        chatLap('ai(' . $ai['trail'] . ')', $lapStart);
+    } catch (AiProvidersFailed $e) {
+        chatLap('ai(all failed)', $lapStart);
+        throw new Exception($e->getMessage());
     }
 
     $responseParts = $responseData['candidates'][0]['content']['parts'] ?? [];

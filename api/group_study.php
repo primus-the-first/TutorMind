@@ -93,24 +93,6 @@ $action = $body['action'] ?? $_GET['action'] ?? '';
 // Own Pulse lane per action: the 3s poll and a 40s AI reply must not share one P99.
 if (function_exists('pulse_label')) pulse_label($action ?: 'none');
 
-/** Run one AI provider call, noting provider, time and outcome on the Pulse event
- *  ("ai: gemini 429 4.1s → groq 1.2s"), so a slow or failing reply says which
- *  provider ate the time. Rethrows, so the caller's fallback logic is unchanged. */
-function gsTimedAi(string $provider, callable $fn) {
-    $t0 = microtime(true);
-    try {
-        $result = $fn();
-        $outcome = '';
-    } catch (Throwable $e) {
-        $outcome = ' failed (' . substr(preg_replace('/\s+/', ' ', $e->getMessage()), 0, 40) . ')';
-        throw $e;
-    } finally {
-        $GLOBALS['gsAiTrail'][] = $provider . ($outcome ?? '') . ' ' . round(microtime(true) - $t0, 1) . 's';
-        if (function_exists('pulse_note')) pulse_note('ai: ' . implode(' → ', $GLOBALS['gsAiTrail']));
-    }
-    return $result;
-}
-
 try {
     switch ($action) {
         case 'create':    gsCreate($pdo, $user_id, $displayName, $body); break;
@@ -625,20 +607,16 @@ function gsFacilitate(PDO $pdo, array $session, array $participants, int $sender
         // tokens count against this budget: at 1024 replies got cut mid-sentence
         'generationConfig' => ['maxOutputTokens' => 4096, 'temperature' => 0.7],
     ]);
+    // callDeepSeekAPI throws on an empty reply; all providers failing just means Q stays quiet
     try {
-        $response = gsTimedAi('gemini', fn() => callGeminiAPI($payload, $keys['gemini']));
-    } catch (Exception $e) {
-        try {
-            $response = gsTimedAi('groq', fn() => callGroqAPI($merged, $systemPrompt, $keys['groq']));
-        } catch (Exception $e2) {
-            // callDeepSeekAPI throws on an empty reply; here that just means Q stays quiet
-            try {
-                $response = gsTimedAi('deepseek', fn() => callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek']));
-            } catch (Exception $e3) {
-                error_log('group_study facilitate: all providers failed: ' . $e3->getMessage());
-                return null;
-            }
-        }
+        $response = aiComplete('group', gsProviderCalls($keys, [
+            'gemini'   => fn() => callGeminiAPI($payload, $keys['gemini']),
+            'groq'     => fn() => callGroqAPI($merged, $systemPrompt, $keys['groq']),
+            'deepseek' => fn() => callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek']),
+        ]))['response'];
+    } catch (AiProvidersFailed $e) {
+        error_log('group_study facilitate: ' . $e->getMessage());
+        return null;
     }
     $text = trim($response['candidates'][0]['content']['parts'][0]['text'] ?? '');
     $text = gsNormalizeHandoff($text);
@@ -788,40 +766,43 @@ function gsLeave(PDO $pdo, int $userId, array $data): void {
 // Huddle rounds
 // --------------------------------------------------------------------------
 
-/** Ask the AI for one JSON object, falling through Gemini → Groq → DeepSeek until
- *  one passes $valid. A provider that answers with broken or empty JSON moves on
- *  to the next instead of failing the round (same lesson as api/quiz.php). */
+/** Keep only the providers this install has a key for, so aiComplete never wastes
+ *  a try on one it can't call. Closures are keyed by provider name. */
+function gsProviderCalls(array $keys, array $calls): array {
+    return array_filter($calls, fn($name) => !empty($keys[$name]), ARRAY_FILTER_USE_KEY);
+}
+
+/** Ask the AI for one JSON object. A provider that answers with broken or empty
+ *  JSON is rejected and the next one is tried instead of failing the round (same
+ *  lesson as api/quiz.php); the order and fallback live in aiComplete(). */
 function gsAskJson(string $system, string $user, array $keys, callable $valid): ?array {
     $history = [['role' => 'user', 'parts' => [['text' => $user]]]];
-    $calls = [
-        'gemini' => function () use ($history, $system, $keys) {
-            if (empty($keys['gemini'])) return null;
-            return callGeminiAPI(json_encode([
-                'contents' => $history,
-                'system_instruction' => ['role' => 'system', 'parts' => [['text' => $system]]],
-                // Flash's hidden thinking counts against this budget (see gsFacilitate)
-                'generationConfig' => ['response_mime_type' => 'application/json', 'maxOutputTokens' => 4096, 'temperature' => 0.6],
-            ]), $keys['gemini']);
-        },
-        'groq' => fn() => empty($keys['groq']) ? null : callGroqAPI($history, $system, $keys['groq']),
-        'deepseek' => fn() => empty($keys['deepseek']) ? null : callDeepSeekAPI($history, $system, $keys['deepseek']),
-    ];
-    foreach ($calls as $provider => $call) {
-        try {
-            $response = gsTimedAi($provider, $call);
-        } catch (Throwable $e) {
-            error_log('group_study round: provider failed: ' . $e->getMessage());
-            continue;
-        }
+    $calls = gsProviderCalls($keys, [
+        'gemini' => fn() => callGeminiAPI(json_encode([
+            'contents' => $history,
+            'system_instruction' => ['role' => 'system', 'parts' => [['text' => $system]]],
+            // Flash's hidden thinking counts against this budget (see gsFacilitate)
+            'generationConfig' => ['response_mime_type' => 'application/json', 'maxOutputTokens' => 4096, 'temperature' => 0.6],
+        ]), $keys['gemini']),
+        'groq'     => fn() => callGroqAPI($history, $system, $keys['groq']),
+        'deepseek' => fn() => callDeepSeekAPI($history, $system, $keys['deepseek']),
+    ]);
+    $accept = function ($response) use ($valid) {
         $text = trim($response['candidates'][0]['content']['parts'][0]['text'] ?? '');
         $start = strpos($text, '{');
         $end = strrpos($text, '}');
-        if ($start === false || $end === false || $end < $start) continue;
+        if ($start === false || $end === false || $end < $start) return null;
         $data = json_decode(substr($text, $start, $end - $start + 1), true);
         if (is_array($data) && $valid($data)) return $data;
         error_log('group_study round: unusable JSON: ' . substr($text, 0, 200));
+        return null;
+    };
+    try {
+        return aiComplete('group', $calls, $accept)['value'];
+    } catch (AiProvidersFailed $e) {
+        error_log('group_study round: ' . $e->getMessage());
+        return null;
     }
-    return null;
 }
 
 /** One multiple-choice question built from what the room has actually said.
