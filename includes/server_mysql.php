@@ -29,7 +29,8 @@ define('DEBUG_MODE', false);
 // Which AI writes chat answers first: 'deepseek' (DeepSeek → Gemini → Groq) or 'gemini'
 // (Gemini → DeepSeek → Groq). DeepSeek is the chosen default since 2026-10-19, after a
 // trial from 2026-10-01; its thinking budget is set per turn by chooseThinkingMode().
-// Turns that need an image always go to Gemini first: DeepSeek only reads text.
+// DeepSeek reads attached photos too; only a request to draw an image goes to Gemini
+// first (its generate_image tool).
 define('CHAT_PRIMARY_PROVIDER', 'deepseek');
 
 require_once 'check_auth.php'; // Secure all API endpoints
@@ -1154,15 +1155,11 @@ EOT;
         }
     }
 
-    // Provider order: CHAT_PRIMARY_PROVIDER goes first. DeepSeek only reads text, though,
-    // so Gemini goes first whenever this turn needs what only Gemini has: an attached
-    // image (inline_data — documents and PDFs already arrive as text) or the
-    // generate_image tool. Groq is always last: its 8000 TPM cap fails on this app's
-    // prompt size almost every time (see stripWidgetSectionForGroq()).
-    $turnHasImage = false;
-    foreach ($user_message_parts as $part) {
-        if (!empty($part['inline_data']['data'])) { $turnHasImage = true; break; }
-    }
+    // Provider order: CHAT_PRIMARY_PROVIDER goes first. DeepSeek reads attached images too
+    // (since 2026-10-19; it used to be text-only, and photo turns went to Gemini first),
+    // so Gemini only goes first when the turn wants its generate_image tool. Groq is
+    // always last: its 8000 TPM cap fails on this app's prompt size almost every time
+    // (see stripWidgetSectionForGroq()).
     $wantsGeneratedImage = (bool)preg_match(
         '/\b(draw|generate|create|make|paint|sketch|design|render)\b.{0,40}\b(image|picture|pic|drawing|illustration|photo|poster|logo|artwork)\b/i',
         $question
@@ -1177,7 +1174,7 @@ EOT;
     ];
     if (!$hasDeepSeek) unset($providers['deepseek']);
     if (!$hasGroq)     unset($providers['groq']);
-    $tryFirst = (CHAT_PRIMARY_PROVIDER === 'deepseek' && !$turnHasImage && !$wantsGeneratedImage) ? 'deepseek' : null;
+    $tryFirst = (CHAT_PRIMARY_PROVIDER === 'deepseek' && !$wantsGeneratedImage) ? 'deepseek' : null;
 
     // Order, fallback and the per-provider timing note live in aiComplete(); any
     // failure (quota, timeout, empty reply) moves on to the next provider.

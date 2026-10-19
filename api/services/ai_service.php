@@ -78,6 +78,7 @@ function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'openai/gpt-
         if (isset($msg['parts'])) {
             foreach ($msg['parts'] as $part) {
                 if (isset($part['text'])) $content .= $part['text'] . "\n";
+                elseif (isset($part['inline_data'])) $content .= AI_UNSEEN_IMAGE_NOTE . "\n";
             }
         }
         if (!empty(trim($content))) {
@@ -182,6 +183,16 @@ function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'openai/gpt-
 //   'low'  - reasoning_effort low
 //   'high' - the API default; everything that isn't asked for is left as it was
 // chooseThinkingMode() picks one per chat turn; other callers keep 'high'.
+// What a text-only model (Groq) reads where the student attached an image. Without it
+// the image just vanished and the model answered from the surrounding text (a slide
+// deck's file name, once) as if it had seen the content.
+const AI_UNSEEN_IMAGE_NOTE = "[An image was attached here, but you can't see images. If the student is asking about it, say plainly that you couldn't view it this time and ask them to try again, describe it, or paste its text. Never guess what it shows, from a file name or anything else.]";
+// deepseek-flash reads images (it became DeepSeek-V4.1-Flash; its /models entry lists
+// image input, checked 2026-10-19). Each one costs ~900 input tokens on every later
+// turn too, so only the most recent few are re-sent; older ones get this note.
+const DEEPSEEK_MAX_IMAGES = 4;
+const AI_EARLIER_IMAGE_NOTE = "[An earlier image was attached here; it isn't included any more. If the student asks about it, ask them to attach it again. Never guess what it showed.]";
+
 function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey, string $thinking = 'high') {
     $apiUrl = "https://api.deepseek.com/v1/chat/completions";
 
@@ -189,19 +200,37 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey, string $thinking 
         ['role' => 'system', 'content' => $systemPrompt]
     ];
 
-    foreach ($chatHistory as $msg) {
+    // Which images to send: the newest DEEPSEEK_MAX_IMAGES, counting back from the end
+    $imageKeys = [];
+    foreach ($chatHistory as $m => $msg) {
+        foreach ($msg['parts'] ?? [] as $p => $part) {
+            if (!empty($part['inline_data']['data'])) $imageKeys[] = "$m:$p";
+        }
+    }
+    $sendImages = array_flip(array_slice($imageKeys, -DEEPSEEK_MAX_IMAGES));
+
+    foreach ($chatHistory as $m => $msg) {
         $role = $msg['role'] === 'model' ? 'assistant' : 'user';
         $content = '';
+        $images = [];
 
-        if (isset($msg['parts'])) {
-            foreach ($msg['parts'] as $part) {
-                if (isset($part['text'])) {
-                    $content .= $part['text'] . "\n";
+        foreach ($msg['parts'] ?? [] as $p => $part) {
+            if (isset($part['text'])) {
+                $content .= $part['text'] . "\n";
+            } elseif (isset($part['inline_data'])) {
+                if ($role === 'user' && isset($sendImages["$m:$p"])) {
+                    $images[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . ($part['inline_data']['mime_type'] ?? 'image/jpeg') . ';base64,' . $part['inline_data']['data']]];
+                } else {
+                    $content .= AI_EARLIER_IMAGE_NOTE . "\n";
                 }
             }
         }
 
-        if (!empty(trim($content))) {
+        if ($images) {
+            // OpenAI-style multi-part content: the text, then the images
+            $parts = trim($content) !== '' ? [['type' => 'text', 'text' => trim($content)]] : [];
+            $messages[] = ['role' => $role, 'content' => array_merge($parts, $images)];
+        } elseif (!empty(trim($content))) {
             $messages[] = ['role' => $role, 'content' => trim($content)];
         }
     }
@@ -318,12 +347,12 @@ function chooseThinkingMode(string $question, string $learningLevel = 'Understan
 
 // $timeout / $maxRetries: a fallback caller passes a short timeout and 1 (no 503
 // backoff), so a struggling Gemini costs seconds, not a minute, before the next provider.
-function callGeminiAPI($payload, $apiKey, int $timeout = 60, int $maxRetries = 5) {
+function callGeminiAPI($payload, $apiKey, int $timeout = 60, int $maxRetries = 5, ?string $model = null) {
     // Rolling alias (confirmed live via GET /v1beta/models) instead of a pinned version:
     // gemini-2.5-flash deprecates 2026-10-16, and pinning just recreates this same
     // migration the next time Google retires whatever's current. Google moves this
     // alias forward on its own schedule instead.
-    $model = 'gemini-flash-latest';
+    $model = $model ?? 'gemini-flash-latest';
 
     $payloadArr = json_decode($payload, true);
     $payloadArr['tools'] = [

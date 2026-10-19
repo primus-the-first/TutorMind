@@ -333,14 +333,24 @@ function extractPdfWithParser(string $pdfPath): string
     }
 }
 
-function ocrImageBasedPdf($pdfPath, $originalName) {
-    $config = null;
+/** Every key from both config files; the first file that sets a key to something wins.
+ *  Stopping at the first file found hid keys that only live in the other one (the OCR
+ *  keys sat in config.ini while config-sql.ini was read, so OCR never ran). */
+function documentConfig(): array {
+    static $config = null;
+    if ($config !== null) return $config;
+    $config = [];
     foreach ([__DIR__ . '/../../includes/config-sql.ini', __DIR__ . '/../../includes/config.ini'] as $configFile) {
-        if (file_exists($configFile)) {
-            $config = parse_ini_file($configFile);
-            if ($config !== false) break;
+        if (!file_exists($configFile) || ($c = parse_ini_file($configFile)) === false) continue;
+        foreach ($c as $k => $v) {
+            if (!isset($config[$k]) || trim((string) $config[$k]) === '') $config[$k] = $v;
         }
     }
+    return $config;
+}
+
+function ocrImageBasedPdf($pdfPath, $originalName) {
+    $config = documentConfig();
 
     // 1. Try Google Cloud Vision API (primary)
     if (!empty($config['GOOGLE_CLOUD_VISION_API_KEY'])) {
@@ -612,7 +622,7 @@ function ocrWithTesseract($pdfPath) {
  * - When GD is unavailable the original bytes are returned with the provided MIME.
  * - When the image is already within the limit it is still re-encoded as JPEG.
  */
-function resizeImageData(string $raw, string $originalMime = 'image/jpeg'): ?array
+function resizeImageData(string $raw, string $originalMime = 'image/jpeg', int $max = 600): ?array
 {
     if (!extension_loaded('gd')) {
         // No GD — pass through as-is, preserving the original MIME type
@@ -624,7 +634,6 @@ function resizeImageData(string $raw, string $originalMime = 'image/jpeg'): ?arr
 
     $ow = imagesx($src);
     $oh = imagesy($src);
-    $max = 600;
 
     if ($ow <= $max && $oh <= $max) {
         // Already small enough — just re-encode as JPEG to normalise format
@@ -651,78 +660,272 @@ function resizeImageData(string $raw, string $originalMime = 'image/jpeg'): ?arr
 }
 
 /**
- * Pull all raster images out of a PPTX (which is a ZIP) from its ppt/media/ folder.
- * Returns an array of ['mime' => ..., 'data' => base64] entries, one per image.
+ * The images on each slide, in the order the deck shows them (presentation.xml's slide
+ * list, not ppt/media, whose order is arbitrary). An image reused on several slides (a
+ * logo) is only taken the first time. $maxSide 600 suits a chat request; OCR wants more.
+ * Returns [['slide' => 1-based number, 'mime' => ..., 'data' => base64], ...].
  */
-function extractImagesFromPptx(string $filePath): array
+function extractImagesFromPptx(string $filePath, int $maxSide = 600): array
 {
     if (!class_exists('ZipArchive')) return [];
-
     $zip = new ZipArchive();
     if ($zip->open($filePath) !== true) return [];
 
     $mimeMap = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'bmp' => 'image/bmp', 'webp' => 'image/webp'];
-    $images = [];
+    $rels = function (string $relsPath) use ($zip): array {
+        $xml = $zip->getFromName($relsPath);
+        if ($xml === false) return [];
+        preg_match_all('/<Relationship\b[^>]*>/i', $xml, $m);
+        $out = [];
+        foreach ($m[0] as $tag) {
+            if (preg_match('/\bId="([^"]+)"/', $tag, $id) && preg_match('/\bTarget="([^"]+)"/', $tag, $t)) {
+                $out[$id[1]] = ['target' => $t[1], 'image' => (bool) preg_match('#/image"#', $tag)];
+            }
+        }
+        return $out;
+    };
+    $resolve = function (string $base, string $target): string {
+        $parts = explode('/', dirname($base) . '/' . $target);
+        $stack = [];
+        foreach ($parts as $p) {
+            if ($p === '..') array_pop($stack);
+            elseif ($p !== '.' && $p !== '') $stack[] = $p;
+        }
+        return implode('/', $stack);
+    };
 
-    for ($i = 0; $i < $zip->numFiles; $i++) {
-        $name = $zip->getNameIndex($i);
-        if (!preg_match('#^ppt/media/.+\.(' . implode('|', array_keys($mimeMap)) . ')$#i', $name, $m)) continue;
-        $raw = $zip->getFromIndex($i);
-        if ($raw === false || strlen($raw) < 100) continue;
-
-        // Resize to max 600px to keep token usage low; preserve the effective MIME type
-        $ext        = strtolower($m[1]);
-        $origMime   = $mimeMap[$ext] ?? 'image/jpeg';
-        $resized    = resizeImageData($raw, $origMime);
-        if ($resized === null) continue;
-
-        $images[] = ['mime' => $resized['mime'], 'data' => base64_encode($resized['bytes'])];
+    // Slide files in display order
+    $slides = [];
+    $presRels = $rels('ppt/_rels/presentation.xml.rels');
+    $pres = $zip->getFromName('ppt/presentation.xml');
+    if ($pres !== false && preg_match_all('/<p:sldId\b[^>]*\br:id="([^"]+)"/', $pres, $ids)) {
+        foreach ($ids[1] as $rid) {
+            if (isset($presRels[$rid])) $slides[] = $resolve('ppt/presentation.xml', $presRels[$rid]['target']);
+        }
+    }
+    if (!$slides) {
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            if (preg_match('#^ppt/slides/slide(\d+)\.xml$#', $zip->getNameIndex($i), $m)) $slides[(int) $m[1]] = $m[0];
+        }
+        ksort($slides);
+        $slides = array_values($slides);
     }
 
+    $images = [];
+    $seen = [];
+    foreach ($slides as $n => $slidePath) {
+        $relsPath = dirname($slidePath) . '/_rels/' . basename($slidePath) . '.rels';
+        foreach ($rels($relsPath) as $rel) {
+            if (!$rel['image']) continue;
+            $media = $resolve($slidePath, $rel['target']);
+            if (isset($seen[$media]) || !preg_match('/\.(' . implode('|', array_keys($mimeMap)) . ')$/i', $media, $ext)) continue;
+            $seen[$media] = true;
+            $raw = $zip->getFromName($media);
+            if ($raw === false || strlen($raw) < 100) continue;
+            $resized = resizeImageData($raw, $mimeMap[strtolower($ext[1])] ?? 'image/jpeg', $maxSide);
+            if ($resized === null) continue;
+            $images[] = ['slide' => $n + 1, 'mime' => $resized['mime'], 'data' => base64_encode($resized['bytes'])];
+        }
+    }
     $zip->close();
     return $images;
 }
 
 /**
- * Send slide images to Gemini Vision and return the extracted text.
+ * Text from a deck whose slides are pictures (exported from Canva, scanned, pasted as
+ * screenshots), as "## Slide N" sections. Tried in order: DeepSeek (deepseek-flash reads
+ * images; on the paid balance, not Gemini's free tier), Gemini Flash-Lite (both can also
+ * say what a diagram shows), then Google Cloud Vision and OCR.space, plain OCR that
+ * depends on neither. Returns '' when nothing worked.
  */
-function ocrPptxWithGemini(array $images, string $apiKey): string
+// Reading a slide is transcription, not reasoning, so the smallest model does it:
+// Flash-Lite reads printed text as well as Flash at a fraction of the price.
+const SLIDE_READER_MODEL = 'gemini-3.1-flash-lite';
+const SLIDE_MAX_IMAGES = 60;     // one lecture deck; beyond this the student is told what was left out
+const SLIDE_GEMINI_BATCH = 10;   // images per DeepSeek / Gemini request
+const SLIDE_OCR_PARALLEL = 5;    // OCR.space requests in flight at once
+const SLIDE_READER_PROMPT = 'These are the images from a slide deck, labelled with their slide numbers. For each slide, write a heading "## Slide N" and then every piece of text visible on it, keeping headings, bullet points, labels and captions. If a diagram, chart or photo carries meaning, add one line starting "Visual:" saying what it shows. Transcribe only; don\'t add explanations.';
+
+function transcribeSlideImages(array $images, string $originalName): string
 {
-    if (empty($images) || !$apiKey) return '';
-
-    $parts = [];
-    foreach (array_slice($images, 0, 6) as $img) {
-        $parts[] = ['inline_data' => ['mime_type' => $img['mime'], 'data' => $img['data']]];
+    if (!$images) return '';
+    $skipped = array_slice($images, SLIDE_MAX_IMAGES);
+    $images = array_slice($images, 0, SLIDE_MAX_IMAGES);
+    // Said in the text itself, so the tutor tells the student instead of answering as if it saw everything
+    $coverage = $skipped
+        ? "\n\n(Only slides 1-" . end($images)['slide'] . " were read. Slides " . $skipped[0]['slide'] . '-' . end($skipped)['slide']
+          . " were not; if the student asks about them, say so and suggest uploading them separately.)"
+        : '';
+    $config = documentConfig();
+    $attempts = [
+        'deepseek'     => !empty($config['DEEPSEEK_API_KEY'])            ? fn() => slideTextWithDeepSeek($images, $config['DEEPSEEK_API_KEY']) : null,
+        'gemini'       => !empty($config['GEMINI_API_KEY'])              ? fn() => slideTextWithGemini($images, $config['GEMINI_API_KEY']) : null,
+        'cloud vision' => !empty($config['GOOGLE_CLOUD_VISION_API_KEY']) ? fn() => slideTextWithCloudVision($images, $config['GOOGLE_CLOUD_VISION_API_KEY']) : null,
+        'ocr.space'    => !empty($config['OCR_SPACE_API_KEY'])           ? fn() => slideTextWithOcrSpace($images, $config['OCR_SPACE_API_KEY']) : null,
+    ];
+    foreach (array_filter($attempts) as $name => $attempt) {
+        $t0 = microtime(true);
+        try {
+            $text = trim($attempt());
+            $secs = round(microtime(true) - $t0, 1);
+            if ($text !== '') {
+                error_log("Slide text [{$originalName}]: {$name} read " . count($images) . " images in {$secs}s");
+                return $text . $coverage;
+            }
+            error_log("Slide text [{$originalName}]: {$name} found no text ({$secs}s)");
+        } catch (Throwable $e) {
+            error_log("Slide text [{$originalName}]: {$name} failed: " . $e->getMessage());
+        }
     }
-    $parts[] = ['text' => 'These are slides from a presentation. Extract ALL text visible in each slide, organized by slide. Preserve headings, bullet points, and any labels or captions. Return only the extracted text content.'];
+    return '';
+}
 
-    $payload  = json_encode(['contents' => [['parts' => $parts]]]);
-    $apiUrl   = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $apiKey;
+/** Group per-image text into "## Slide N" sections. */
+function slideSections(array $images, array $texts): string
+{
+    $bySlide = [];
+    foreach ($images as $i => $img) {
+        $t = trim($texts[$i] ?? '');
+        if ($t !== '') $bySlide[$img['slide'] ?? ($i + 1)][] = $t;
+    }
+    $out = [];
+    foreach ($bySlide as $n => $parts) $out[] = "## Slide {$n}\n" . implode("\n", $parts);
+    return implode("\n\n", $out);
+}
 
-    $ch = curl_init($apiUrl);
+function slideTextWithDeepSeek(array $images, string $apiKey): string
+{
+    $out = [];
+    foreach (array_chunk($images, SLIDE_GEMINI_BATCH) as $batch) {
+        $content = [['type' => 'text', 'text' => SLIDE_READER_PROMPT]];
+        foreach ($batch as $img) {
+            $content[] = ['type' => 'text', 'text' => 'Slide ' . ($img['slide'] ?? '?') . ':'];
+            $content[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $img['mime'] . ';base64,' . $img['data']]];
+        }
+        $ch = curl_init('https://api.deepseek.com/v1/chat/completions');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $apiKey],
+            CURLOPT_POSTFIELDS => json_encode([
+                'model' => 'deepseek-flash',
+                'messages' => [['role' => 'user', 'content' => $content]],
+                'max_tokens' => 8192,
+                'thinking' => ['type' => 'disabled'],  // transcription needs no reasoning
+            ]),
+        ]);
+        $response = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        if ($code !== 200) throw new Exception("HTTP {$code} {$err} " . substr((string) $response, 0, 200));
+        $text = trim(json_decode($response, true)['choices'][0]['message']['content'] ?? '');
+        if ($text === '') throw new Exception('a batch came back empty');
+        $out[] = $text;
+    }
+    return implode("\n\n", $out);
+}
+
+function slideTextWithGemini(array $images, string $apiKey): string
+{
+    $out = [];
+    foreach (array_chunk($images, SLIDE_GEMINI_BATCH) as $batch) {
+        $parts = [];
+        foreach ($batch as $img) {
+            $parts[] = ['text' => 'Slide ' . ($img['slide'] ?? '?') . ':'];
+            $parts[] = ['inline_data' => ['mime_type' => $img['mime'], 'data' => $img['data']]];
+        }
+        $parts[] = ['text' => SLIDE_READER_PROMPT];
+        // One short try per batch: if Gemini is overloaded, the OCR services take over the whole deck
+        $response = callGeminiAPI(json_encode([
+            'contents' => [['role' => 'user', 'parts' => $parts]],
+            'generationConfig' => ['maxOutputTokens' => 8192, 'temperature' => 0.1],
+        ]), $apiKey, 40, 1, SLIDE_READER_MODEL);
+        $text = '';
+        foreach ($response['candidates'][0]['content']['parts'] ?? [] as $p) $text .= $p['text'] ?? '';
+        if (trim($text) === '') throw new Exception('a batch came back empty');
+        $out[] = trim($text);
+    }
+    return implode("\n\n", $out);
+}
+
+function slideTextWithCloudVision(array $images, string $apiKey): string
+{
+    $texts = [];
+    foreach (array_chunk($images, 16) as $batch) {  // the API takes at most 16 images per request
+        foreach (cloudVisionBatch($batch, $apiKey) as $t) $texts[] = $t;
+    }
+    return slideSections($images, $texts);
+}
+
+function cloudVisionBatch(array $images, string $apiKey): array
+{
+    $requests = array_map(fn($img) => [
+        'image' => ['content' => $img['data']],
+        'features' => [['type' => 'DOCUMENT_TEXT_DETECTION']],
+    ], $images);
+    $ch = curl_init('https://vision.googleapis.com/v1/images:annotate?key=' . urlencode($apiKey));
     curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $payload,
-        CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode(['requests' => $requests]),
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 60,
+        CURLOPT_TIMEOUT => 40,
     ]);
     $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
     curl_close($ch);
-
-    if ($httpCode !== 200) {
-        error_log("ocrPptxWithGemini: HTTP {$httpCode} — " . substr($response, 0, 300));
-        return '';
-    }
-
+    if ($code !== 200) throw new Exception("HTTP {$code} {$err} " . substr((string) $response, 0, 200));
     $data = json_decode($response, true);
-    $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
-    if (empty($text)) {
-        $finishReason = $data['candidates'][0]['finishReason'] ?? 'unknown';
-        error_log("ocrPptxWithGemini: empty text, finishReason={$finishReason} — " . substr($response, 0, 500));
+    return array_map(fn($r) => $r['fullTextAnnotation']['text'] ?? '', $data['responses'] ?? []);
+}
+
+function slideTextWithOcrSpace(array $images, string $apiKey): string
+{
+    $texts = [];
+    foreach (array_chunk($images, SLIDE_OCR_PARALLEL, true) as $batch) {
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach ($batch as $i => $img) {
+            // The free plan rejects files over 1 MB; a photo-heavy slide gets one smaller retry
+            if (strlen($img['data']) * 3 / 4 > 1000 * 1024) {
+                $small = resizeImageData(base64_decode($img['data']), $img['mime'], 1000);
+                if ($small) $img = ['mime' => $small['mime'], 'data' => base64_encode($small['bytes'])] + $img;
+            }
+            $ch = curl_init('https://api.ocr.space/parse/image');
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => [
+                    'apikey' => $apiKey,
+                    'base64Image' => 'data:' . $img['mime'] . ';base64,' . $img['data'],
+                    'language' => 'eng',
+                    'OCREngine' => '2',
+                    'scale' => 'true',
+                ],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 30,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$i] = $ch;
+        }
+        do {
+            $status = curl_multi_exec($mh, $running);
+            if ($running) curl_multi_select($mh, 1.0);
+        } while ($running && $status === CURLM_OK);
+        foreach ($handles as $i => $ch) {
+            $data = json_decode((string) curl_multi_getcontent($ch), true);
+            $texts[$i] = $data['ParsedResults'][0]['ParsedText'] ?? '';
+            if (!empty($data['IsErroredOnProcessing'])) {
+                error_log('OCR.space slide ' . ($images[$i]['slide'] ?? $i) . ': ' . json_encode($data['ErrorMessage'] ?? 'error'));
+            }
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+        }
+        curl_multi_close($mh);
     }
-    return $text;
+    return slideSections($images, $texts);
 }
 
 function prepareFileParts($file, $user_question)
@@ -901,11 +1104,19 @@ function prepareFileParts($file, $user_question)
             // Strip markdown image refs and HTML comments to detect truly text-free decks
             $strippedText = trim(preg_replace(['/<!--.*?-->/s', '/!\[.*?\]\(.*?\)/'], '', $text));
             if (empty($strippedText)) {
-                // Image-only deck — pass slide images directly into the Gemini chat request
-                $slideImages = extractImagesFromPptx($filePath);
-                error_log("MarkItDown pptx [{$originalName}]: image-only, returning " . count($slideImages) . " slide images as inline_data");
+                // Image-only deck (slides are pictures). Read them into text once, here, so
+                // every provider can answer, on this message and on every follow-up: a
+                // text-only model can't see images, and follow-ups go to DeepSeek.
+                $slideImages = extractImagesFromPptx($filePath, 1600);
+                $slideText = transcribeSlideImages($slideImages, $originalName);
+                error_log("MarkItDown pptx [{$originalName}]: image-only, " . count($slideImages) . " images, " . strlen($slideText) . " chars read from them");
+                if ($slideText !== '') {
+                    $text = "(This deck has no typed text. The text below was read from its slide images.)\n\n" . $slideText;
+                    break;
+                }
                 if (!empty($slideImages)) {
-                    $parts = [['text' => "The following images are slides from the uploaded presentation '{$originalName}'. Analyse their content to answer the user's question."]];
+                    // Nothing could read them: hand the images to the chat (only Gemini sees them)
+                    $parts = [['text' => "The following images are slides from the uploaded presentation '{$originalName}'. Analyse their content to answer the user's question. If you can't see any images here, tell the student plainly that the slides couldn't be read this time, and suggest trying again or uploading the deck as a PDF. Don't guess the content from the file name."]];
                     foreach (array_slice($slideImages, 0, 6) as $img) {
                         $parts[] = ['inline_data' => ['mime_type' => $img['mime'], 'data' => $img['data']]];
                     }
