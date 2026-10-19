@@ -3,6 +3,16 @@ CLI wrapper for MarkItDown extraction, with dedicated YouTube transcript support
 Usage: python markitdown_extract.py <file_path_or_url>
 Outputs JSON to stdout: {"success": true, "text": "..."} or {"success": false, "error": "..."}
 """
+import os
+
+# Must run before anything imports numpy. Its OpenBLAS starts one thread per CPU (48 on
+# the shared host), and under the web server's per-account thread limit that died with
+# "pthread_create failed ... Resource temporarily unavailable" before any JSON was
+# printed, so every upload got '' back (seen in prod error_log from 2026-07 to 2026-10).
+# Extracting text does no heavy maths, so one thread costs nothing.
+for _var in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'NUMEXPR_NUM_THREADS'):
+    os.environ.setdefault(_var, '1')
+
 import sys
 import json
 import re
