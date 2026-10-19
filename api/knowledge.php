@@ -14,6 +14,7 @@ require_once __DIR__ . '/../includes/db_mysql.php';
 class KnowledgeService {
     private $pdo;
     private $serpApiKey;
+    private $deepseekApiKey;
     private $geminiApiKey;
     
     public function __construct() {
@@ -32,19 +33,77 @@ class KnowledgeService {
         }
         
         $this->serpApiKey = $config['SERP_API_KEY'] ?? null;
+        $this->deepseekApiKey = $config['DEEPSEEK_API_KEY'] ?? null;
         // Allow using QUIZ_API_KEY for embeddings if GEMINI_API_KEY is not set or if specifically requested (future)
         // For now, continue to use GEMINI_API_KEY as primary for knowledge base, but be aware of others
         $this->geminiApiKey = $config['GEMINI_API_KEY'] ?? ($config['QUIZ_API_KEY'] ?? null);
     }
     
+    /** How many trusted results a search should bring before SerpAPI is asked too. */
+    const SEARCH_TRUSTED_TARGET = 3;
+
     /**
-     * Search the web using SerpAPI
-     * 
-     * @param string $query Search query
-     * @param int $numResults Number of results to return
-     * @return array Search results
+     * Search the web: DeepSeek Search first, topped up with SerpAPI (Google) only when
+     * DeepSeek brings fewer than SEARCH_TRUSTED_TARGET results that pass the trusted-
+     * source gate. Measured 2026-10-19 on four study questions: DeepSeek returns a
+     * ~2,500-4,000 char summary per result (SerpAPI: a ~150 char snippet, so the page
+     * then had to be scraped) and found trusted sources where Google found none, but it
+     * leans academic, so Google's Khan Academy / Wikipedia results still fill the gaps.
+     *
+     * @return array [['title', 'url', 'snippet', 'type'], ...], DeepSeek's first
      */
     public function searchWeb($query, $numResults = 5, $timeout = 15) {   // 15s: a student may be waiting; cron jobs pass more
+        $results = $this->searchWithDeepSeek($query, $numResults, $timeout);
+        $trusted = count(array_filter($results, fn($r) => self::isTrustedSource($r['url'])));
+        if ($trusted >= min(self::SEARCH_TRUSTED_TARGET, $numResults)) return $results;
+
+        $key = fn($url) => strtolower(rtrim(strtok($url, '#'), '/'));
+        $seen = array_flip(array_map(fn($r) => $key($r['url']), $results));
+        foreach ($this->searchWithSerpApi($query, $numResults, $timeout) as $r) {
+            if (!isset($seen[$key($r['url'])])) { $results[] = $r; $seen[$key($r['url'])] = true; }
+        }
+        return $results;
+    }
+
+    /** DeepSeek's web Search API ($0.75 per 1,000 successful searches, on the DeepSeek balance). */
+    private function searchWithDeepSeek($query, $numResults, $timeout) {
+        if (!$this->deepseekApiKey) return [];
+        $ch = curl_init('https://api.deepseek.com/v1/tools/search');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $this->deepseekApiKey],
+            CURLOPT_POSTFIELDS => json_encode(['query' => $query, 'count' => max(1, min(20, (int) $numResults))]),
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        if ($httpCode !== 200) {
+            error_log("DeepSeek search error: HTTP $httpCode" . ($curlError ? " ($curlError)" : ''));
+            return [];
+        }
+        $results = [];
+        foreach (json_decode($response, true)['results'] ?? [] as $r) {
+            // DeepSeek appends its own section anchors ("#12#8"); without them the same page
+            // reads as the same URL to urlExists(). A PDF's "#page=2" is kept.
+            $url = preg_replace('/(#\d+)+$/', '', $r['url'] ?? '');
+            if ($url === '') continue;
+            // summary is the long, model-facing text; it can carry stray HTML tags
+            $text = trim(preg_replace('/\s+/', ' ', strip_tags(html_entity_decode(($r['summary'] ?? '') ?: ($r['snippet'] ?? ''), ENT_QUOTES, 'UTF-8'))));
+            $results[] = [
+                'title' => ($r['title'] ?? '') ?: ($r['site_name'] ?? ''),
+                'url' => $url,
+                'snippet' => $text,
+                'type' => $this->detectSourceType($url),
+            ];
+        }
+        return $results;
+    }
+
+    /** SerpAPI (Google results), for the gaps DeepSeek leaves. */
+    private function searchWithSerpApi($query, $numResults, $timeout) {
         if (!$this->serpApiKey) {
             error_log("KnowledgeService: SERP_API_KEY not configured");
             return [];
