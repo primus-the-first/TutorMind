@@ -659,48 +659,41 @@ function resizeImageData(string $raw, string $originalMime = 'image/jpeg', int $
     return ['bytes' => $jpeg, 'mime' => 'image/jpeg'];
 }
 
-/**
- * The images on each slide, in the order the deck shows them (presentation.xml's slide
- * list, not ppt/media, whose order is arbitrary). An image reused on several slides (a
- * logo) is only taken the first time. $maxSide 600 suits a chat request; OCR wants more.
- * Returns [['slide' => 1-based number, 'mime' => ..., 'data' => base64], ...].
- */
-function extractImagesFromPptx(string $filePath, int $maxSide = 600): array
+/** A part's relationships: [rId => ['target' => ..., 'type' => last segment of its Type]]. */
+function pptxRels(ZipArchive $zip, string $relsPath): array
 {
-    if (!class_exists('ZipArchive')) return [];
-    $zip = new ZipArchive();
-    if ($zip->open($filePath) !== true) return [];
-
-    $mimeMap = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'bmp' => 'image/bmp', 'webp' => 'image/webp'];
-    $rels = function (string $relsPath) use ($zip): array {
-        $xml = $zip->getFromName($relsPath);
-        if ($xml === false) return [];
-        preg_match_all('/<Relationship\b[^>]*>/i', $xml, $m);
-        $out = [];
-        foreach ($m[0] as $tag) {
-            if (preg_match('/\bId="([^"]+)"/', $tag, $id) && preg_match('/\bTarget="([^"]+)"/', $tag, $t)) {
-                $out[$id[1]] = ['target' => $t[1], 'image' => (bool) preg_match('#/image"#', $tag)];
-            }
+    $xml = $zip->getFromName($relsPath);
+    if ($xml === false) return [];
+    preg_match_all('/<Relationship\b[^>]*>/i', $xml, $m);
+    $out = [];
+    foreach ($m[0] as $tag) {
+        if (preg_match('/\bId="([^"]+)"/', $tag, $id) && preg_match('/\bTarget="([^"]+)"/', $tag, $t)) {
+            $out[$id[1]] = ['target' => $t[1], 'type' => preg_match('#\bType="[^"]*/([^"/]+)"#', $tag, $ty) ? $ty[1] : ''];
         }
-        return $out;
-    };
-    $resolve = function (string $base, string $target): string {
-        $parts = explode('/', dirname($base) . '/' . $target);
-        $stack = [];
-        foreach ($parts as $p) {
-            if ($p === '..') array_pop($stack);
-            elseif ($p !== '.' && $p !== '') $stack[] = $p;
-        }
-        return implode('/', $stack);
-    };
+    }
+    return $out;
+}
 
-    // Slide files in display order
+/** A relationship target resolved against the part that points at it ("../media/x.png"). */
+function pptxResolve(string $base, string $target): string
+{
+    $stack = [];
+    foreach (explode('/', dirname($base) . '/' . $target) as $part) {
+        if ($part === '..') array_pop($stack);
+        elseif ($part !== '.' && $part !== '') $stack[] = $part;
+    }
+    return implode('/', $stack);
+}
+
+/** The deck's slide parts in the order it shows them (presentation.xml's slide list). */
+function pptxSlidePaths(ZipArchive $zip): array
+{
     $slides = [];
-    $presRels = $rels('ppt/_rels/presentation.xml.rels');
+    $presRels = pptxRels($zip, 'ppt/_rels/presentation.xml.rels');
     $pres = $zip->getFromName('ppt/presentation.xml');
     if ($pres !== false && preg_match_all('/<p:sldId\b[^>]*\br:id="([^"]+)"/', $pres, $ids)) {
         foreach ($ids[1] as $rid) {
-            if (isset($presRels[$rid])) $slides[] = $resolve('ppt/presentation.xml', $presRels[$rid]['target']);
+            if (isset($presRels[$rid])) $slides[] = pptxResolve('ppt/presentation.xml', $presRels[$rid]['target']);
         }
     }
     if (!$slides) {
@@ -710,18 +703,75 @@ function extractImagesFromPptx(string $filePath, int $maxSide = 600): array
         ksort($slides);
         $slides = array_values($slides);
     }
+    return $slides;
+}
 
+/** The paragraphs of a DrawingML part, one string each, skipping field codes (slide numbers). */
+function pptxParagraphs(string $xml): array
+{
+    $xml = preg_replace('#<a:fld\b.*?</a:fld>#s', '', $xml);
+    preg_match_all('#<a:p\b[^>]*>(.*?)</a:p>#s', $xml, $paras);
+    $out = [];
+    foreach ($paras[1] as $p) {
+        preg_match_all('#<a:t>([^<]*)</a:t>#', $p, $runs);
+        $line = trim(html_entity_decode(implode('', $runs[1]), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+        if ($line !== '') $out[] = $line;
+    }
+    return $out;
+}
+
+/**
+ * A deck's typed text read straight from its XML, in slide order, with speaker notes:
+ * the same "<!-- Slide number: N -->" layout MarkItDown writes. MarkItDown runs Python,
+ * and when that fails on the server it returns '' quietly; without this, a deck full of
+ * typed text was then treated as "pictures only" and read from its decorations.
+ */
+function extractPptxTextWithPhp(string $filePath): string
+{
+    if (!class_exists('ZipArchive')) return '';
+    $zip = new ZipArchive();
+    if ($zip->open($filePath) !== true) return '';
+    $out = [];
+    foreach (pptxSlidePaths($zip) as $n => $slidePath) {
+        $xml = $zip->getFromName($slidePath);
+        if ($xml === false) continue;
+        $section = "<!-- Slide number: " . ($n + 1) . " -->\n" . implode("\n", pptxParagraphs($xml));
+        foreach (pptxRels($zip, dirname($slidePath) . '/_rels/' . basename($slidePath) . '.rels') as $rel) {
+            if ($rel['type'] !== 'notesSlide') continue;
+            $notes = $zip->getFromName(pptxResolve($slidePath, $rel['target']));
+            $lines = $notes !== false ? pptxParagraphs($notes) : [];
+            if ($lines) $section .= "\n\n### Notes:\n" . implode("\n", $lines);
+        }
+        $out[] = $section;
+    }
+    $zip->close();
+    return implode("\n\n", $out);
+}
+
+/**
+ * The images on each slide, in the order the deck shows them (presentation.xml's slide
+ * list, not ppt/media, whose order is arbitrary). An image reused on several slides (a
+ * logo) is only taken the first time, and tiny ones (icons, bullets, under 4 KB) are
+ * skipped: they hold no text and only cost a reading. $maxSide 600 suits a chat
+ * request; OCR wants more. Returns [['slide' => 1-based number, 'mime' => ..., 'data' => base64], ...].
+ */
+function extractImagesFromPptx(string $filePath, int $maxSide = 600): array
+{
+    if (!class_exists('ZipArchive')) return [];
+    $zip = new ZipArchive();
+    if ($zip->open($filePath) !== true) return [];
+
+    $mimeMap = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'bmp' => 'image/bmp', 'webp' => 'image/webp'];
     $images = [];
     $seen = [];
-    foreach ($slides as $n => $slidePath) {
-        $relsPath = dirname($slidePath) . '/_rels/' . basename($slidePath) . '.rels';
-        foreach ($rels($relsPath) as $rel) {
-            if (!$rel['image']) continue;
-            $media = $resolve($slidePath, $rel['target']);
+    foreach (pptxSlidePaths($zip) as $n => $slidePath) {
+        foreach (pptxRels($zip, dirname($slidePath) . '/_rels/' . basename($slidePath) . '.rels') as $rel) {
+            if ($rel['type'] !== 'image') continue;
+            $media = pptxResolve($slidePath, $rel['target']);
             if (isset($seen[$media]) || !preg_match('/\.(' . implode('|', array_keys($mimeMap)) . ')$/i', $media, $ext)) continue;
             $seen[$media] = true;
             $raw = $zip->getFromName($media);
-            if ($raw === false || strlen($raw) < 100) continue;
+            if ($raw === false || strlen($raw) < 4096) continue;
             $resized = resizeImageData($raw, $mimeMap[strtolower($ext[1])] ?? 'image/jpeg', $maxSide);
             if ($resized === null) continue;
             $images[] = ['slide' => $n + 1, 'mime' => $resized['mime'], 'data' => base64_encode($resized['bytes'])];
@@ -1103,6 +1153,12 @@ function prepareFileParts($file, $user_question)
             error_log("MarkItDown pptx [{$originalName}]: " . strlen($text) . " chars extracted");
             // Strip markdown image refs and HTML comments to detect truly text-free decks
             $strippedText = trim(preg_replace(['/<!--.*?-->/s', '/!\[.*?\]\(.*?\)/'], '', $text));
+            if ($strippedText === '') {
+                // MarkItDown (Python) can fail quietly on the server; read the XML directly
+                $text = extractPptxTextWithPhp($filePath);
+                $strippedText = trim(preg_replace('/<!--.*?-->/s', '', $text));
+                error_log("PHP pptx reader [{$originalName}]: " . strlen($strippedText) . " chars of typed text");
+            }
             if (empty($strippedText)) {
                 // Image-only deck (slides are pictures). Read them into text once, here, so
                 // every provider can answer, on this message and on every follow-up: a
