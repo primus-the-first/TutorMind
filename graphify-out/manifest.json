@@ -1,0 +1,622 @@
+{
+  "C:\\xampp\\htdocs\\TutorMind\\auth.php": {
+    "mtime": 1776817880.640504,
+    "hash": "296af70ec8b80e24991f9403fa564c07"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\auth_mysql.php": {
+    "mtime": 1786391719.3451443,
+    "hash": "8a29490e5ffc364c4e2dbe8475bfb151"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat-new.php": {
+    "mtime": 1776988618.0727336,
+    "hash": "6e0e846e3a890539e6a5ec3051a68224"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\dashboard.php": {
+    "mtime": 1777327324.0564806,
+    "hash": "7f40672e1ea04c2ee5e259fa89ead6bf"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\deploy.php": {
+    "mtime": 1762524939.0906796,
+    "hash": "802308ed15dcb9725e8305b0f6d792c9"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\entry.php": {
+    "mtime": 1776817880.6553066,
+    "hash": "6da5e7836c26380e425438cc760f1d35"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\list_models.php": {
+    "mtime": 1776818374.4574077,
+    "hash": "4d9fd432ce82f42338133d9c403ce792"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\login.php": {
+    "mtime": 1776990003.148857,
+    "hash": "ca00ac6547e2efdcd9c11d22d36908eb"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\onboarding-new.php": {
+    "mtime": 1785172693.884353,
+    "hash": "b3f6780329dbd7131396f62554945c08"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\onboarding.php": {
+    "mtime": 1786395208.1224961,
+    "hash": "4f765b4659e793cbb1628debecc13a9e"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\register.php": {
+    "mtime": 1777045681.3187406,
+    "hash": "c41f0f7d11e2a45b162927541a898ab1"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\temp_check.js": {
+    "mtime": 1776896351.8563852,
+    "hash": "1a165e05c1e29a037541ef5dbca37eb2"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\test_log.php": {
+    "mtime": 1776950029.820556,
+    "hash": "6a30da996877e915a2af67b05d42dbde"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\test_markitdown.py": {
+    "mtime": 1780493655.3863087,
+    "hash": "c80127cd3c65fe38b57c5c5f0d2f38e6"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\tm_guardrail_test.php": {
+    "mtime": 1786395227.1402962,
+    "hash": "dfc962319eb1310e4fc2adb7b4dd6412"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\tm_widget_test.php": {
+    "mtime": 1784651104.8608644,
+    "hash": "5bdbbfea7bfa2d044c721dfb1c56cb8c"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\tutor_mysql.php": {
+    "mtime": 1786408993.153661,
+    "hash": "fbb0839a5a47d021fbf0624643bd89c0"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\admin\\feedback.php": {
+    "mtime": 1776988569.9215288,
+    "hash": "3bb7b58866cee64fe1ca8d2ace9285ab"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\analytics.php": {
+    "mtime": 1786391601.5986037,
+    "hash": "4ea026cdd131d408fb6c73d602e231c7"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\clear_history.php": {
+    "mtime": 1776817880.7039175,
+    "hash": "e898b33bcccfa8200fe7c58851a11e48"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\delete_account.php": {
+    "mtime": 1776817880.7048914,
+    "hash": "550eff56624fc771ab6e401ee57b9abb"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\image.php": {
+    "mtime": 1786391595.9163852,
+    "hash": "469b51bd1327da759aea220a1b44d2f3"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\knowledge.php": {
+    "mtime": 1776817880.708693,
+    "hash": "96779d631d29ced8a784f95f9feeea7a"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\learning_strategies.php": {
+    "mtime": 1774347430.509083,
+    "hash": "e6ad5e56c658430406e374570f3e3990"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\quiz.php": {
+    "mtime": 1786394669.080723,
+    "hash": "2a5cdcbd275e51047dec531e52157d78"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\session_context.php": {
+    "mtime": 1786391608.719809,
+    "hash": "a84f5195a02ccc71de104300047f307c"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\tts.php": {
+    "mtime": 1776817880.716171,
+    "hash": "2eaaad1dab03d34e0a903e71210dd430"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\user_onboarding.php": {
+    "mtime": 1786394863.3742943,
+    "hash": "ca8f74411b99efec3cec0900e2577a3f"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\user_settings.php": {
+    "mtime": 1786391620.9176507,
+    "hash": "1c565bc99b6c1b3936bfaffb5b23622c"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\services\\ai_service.php": {
+    "mtime": 1776939833.9378736,
+    "hash": "e29992d116ab86bcdc05aad50d8b0de6"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\services\\comprehension_service.php": {
+    "mtime": 1786365070.7716057,
+    "hash": "da01383a67c5f54baa94332a1e2176e9"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\services\\document_service.php": {
+    "mtime": 1786394742.0610085,
+    "hash": "cc7322cb259c75e3386da753173c4b7d"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\services\\image_service.php": {
+    "mtime": 1786394760.3525956,
+    "hash": "782c86fc0cbdd0ef0b09174e18ff6e4f"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\services\\markitdown_extract.py": {
+    "mtime": 1786394780.424176,
+    "hash": "b3bc20fc145de6a987511b90e805a63f"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\services\\response_formatter.php": {
+    "mtime": 1786394810.5380757,
+    "hash": "3489376ced9a34f8b945d90d9e39ff91"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\services\\tutor_service.php": {
+    "mtime": 1786394833.159716,
+    "hash": "93d510496980319320f3816e2ec51789"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\chat-interface.js": {
+    "mtime": 1786395066.6910994,
+    "hash": "025707bfc66b4b36064cc549371ebf58"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\landing.js": {
+    "mtime": 1786395078.6894436,
+    "hash": "cc890279096b905360e1cd6ff77343e6"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-animations.js": {
+    "mtime": 1765400720.0186691,
+    "hash": "a253158b7cdfeb534d2d928df24d7b5a"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-bundle.js": {
+    "mtime": 1786395129.2199972,
+    "hash": "78089f88f04bbe09180e014ac88c140f"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-screen2.js": {
+    "mtime": 1765669033.5028076,
+    "hash": "d12ff79ef38df96f50eb1d9655996829"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-screen3.js": {
+    "mtime": 1765671840.6082144,
+    "hash": "e6446c7bb0f283abdbfa4ddfcaa097be"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-screen4.js": {
+    "mtime": 1765668685.2082672,
+    "hash": "4fa77d9ffb666c4221c99df98c8ae99d"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-screen5.js": {
+    "mtime": 1765406108.834589,
+    "hash": "50ba48a7ae66c444435e614878124ab1"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-screen6.js": {
+    "mtime": 1765578278.7532072,
+    "hash": "a462a7af12c9a404c3a1059baf807d7e"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-screen7.js": {
+    "mtime": 1765578806.0186248,
+    "hash": "ed95002caf824c6fde69cdaaecb713e6"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-screen8.js": {
+    "mtime": 1765579444.7871568,
+    "hash": "e3badf2eab23c37f4b53ad60656a43b6"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-screen9.js": {
+    "mtime": 1765672251.2616346,
+    "hash": "27562ed6be6ae05b63596410a98c2bff"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-universities.js": {
+    "mtime": 1765668600.4120388,
+    "hash": "8e8c07eb850cdddbb169482fa61adc1d"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding-wizard.js": {
+    "mtime": 1765672080.5129962,
+    "hash": "aa518e1dcaa0c7257fc2bab490c15104"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\onboarding.js": {
+    "mtime": 1764240287.9785297,
+    "hash": "54353acd7582e9056e843433325e8682"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\quick-start.js": {
+    "mtime": 1768937612.9280143,
+    "hash": "d9bfd70261626440abbc6efbfcb1b930"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\script.js": {
+    "mtime": 1763301597.4202669,
+    "hash": "49f901b2abb73d54faa251538ed02d52"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\session-context.js": {
+    "mtime": 1776818556.2120295,
+    "hash": "9b202a279f9130151863d22e53d8ff5b"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\settings.js": {
+    "mtime": 1776986525.41235,
+    "hash": "348858236ce867521f69372dbd281a8a"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\syntax-highlighter.js": {
+    "mtime": 1764712428.4315524,
+    "hash": "f821d5b3ae5d57f929931a49d03e894e"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\tm-dialog.js": {
+    "mtime": 1776530109.9894238,
+    "hash": "4c88ff03c06de85afad5b332f3227156"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\tm-widgets.js": {
+    "mtime": 1786394958.7590544,
+    "hash": "f9cfadbc8c3cb7670aac2416f8ab8375"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\js\\tutor_mysql.js": {
+    "mtime": 1786409001.8638752,
+    "hash": "ba14cfa0bf1f9c558313fa9ecbb2b776"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\chat-interface.js": {
+    "mtime": 1776374776.2392695,
+    "hash": "74d605e055d35e6e459c827a4fabf110"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\chat-new.php": {
+    "mtime": 1776817944.3848565,
+    "hash": "e864d7316557980327a08f84a61f978d"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\check_auth.php": {
+    "mtime": 1774213654.4113612,
+    "hash": "d0528b0b2e2b3ab749d6b492bde15ba7"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\dashboard.php": {
+    "mtime": 1776817880.735456,
+    "hash": "ec48886faf19bb4f428dab2a93d8aa55"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\db_mysql.php": {
+    "mtime": 1776817880.736475,
+    "hash": "95de859b128389628de3317d457b36fe"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\server_mysql.php": {
+    "mtime": 1786395178.410967,
+    "hash": "f8be8bf094a6aff5545d2a1f47e4e532"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\tutor_mysql.js": {
+    "mtime": 1776290142.9133513,
+    "hash": "2456b23a33fbd9857dbc0df02f486d6f"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\tutor_mysql.php": {
+    "mtime": 1776817944.4007201,
+    "hash": "14cde8a1b4ba43915f2af5677bb2a7d7"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\api\\analytics.php": {
+    "mtime": 1776817880.7709947,
+    "hash": "539e6032b013a55ea6183d786c4fc4fb"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\api\\knowledge.php": {
+    "mtime": 1776817880.7741559,
+    "hash": "c0ba915cc8092f4b922b919961fd47e0"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\api\\learning_strategies.php": {
+    "mtime": 1774347430.509083,
+    "hash": "e6ad5e56c658430406e374570f3e3990"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\chat_area_bundle\\api\\quiz.php": {
+    "mtime": 1776817880.7787645,
+    "hash": "d75f4b2ac34437a7968b29d2f41431b9"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\includes\\check_auth.php": {
+    "mtime": 1774213654.4113612,
+    "hash": "d0528b0b2e2b3ab749d6b492bde15ba7"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\includes\\check_session.php": {
+    "mtime": 1764249793.2771218,
+    "hash": "693295dc6a60916f5a6ec3942ba1894f"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\includes\\csrf.php": {
+    "mtime": 1769097688.414232,
+    "hash": "38fc4baf339210c308381fb0ac209909"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\includes\\db_mysql.php": {
+    "mtime": 1780848005.6911485,
+    "hash": "ababa33d0b00a55f0bb97172a74545dd"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\includes\\pulse_monitor.php": {
+    "mtime": 1777848694.4331093,
+    "hash": "455cfe3bc449ea98ca291c635caf38d7"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\includes\\rate_limiter.php": {
+    "mtime": 1769097695.8575952,
+    "hash": "6f15b603a8502a022489c478a25368db"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\includes\\server_mysql.php": {
+    "mtime": 1786392179.6250954,
+    "hash": "f802d8017977075a6e522573e1cdc204"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\001_add_user_settings_and_personalization.sql": {
+    "mtime": 1763653934.3218746,
+    "hash": "f6618932c632166641ab5a6cc5367308"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\002_split_user_names.sql": {
+    "mtime": 1763805355.0458453,
+    "hash": "8c458d283db9e8f36e6ebf7974f172fc"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\003_add_chat_rate_limits.sql": {
+    "mtime": 1774210357.9327254,
+    "hash": "280ad8a57d2cb42ad4a2423924bedc61"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\003_add_comprehensive_learning_profile.php": {
+    "mtime": 1765396136.8875954,
+    "hash": "39c997ad187529052fd6917eaadf5a78"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\004_add_feedback_table.php": {
+    "mtime": 1767791232.0448978,
+    "hash": "7077ad9f5fa060b83987132384d11894"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\004_add_topic_to_knowledge_base.sql": {
+    "mtime": 1774347420.489914,
+    "hash": "743427b926cceb183d569894af46193a"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\005_add_legibility_column.php": {
+    "mtime": 1767792289.8615267,
+    "hash": "d677624c731d7fccabbdcaf700b900ea"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\005_add_pomodoro_recall_tables.sql": {
+    "mtime": 1776289852.9541712,
+    "hash": "a6275b97a846bcf7ec28b8415bd29c16"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\006_add_knowledge_base.php": {
+    "mtime": 1767821196.6027987,
+    "hash": "f2f4406d3ec029956cdb2e9b781ecfd8"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\007_add_login_attempts_table.php": {
+    "mtime": 1768475384.6810415,
+    "hash": "a25dfc981ab7f3438289ca4770550e97"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\008_add_performance_indexes.php": {
+    "mtime": 1768735986.9804604,
+    "hash": "f14132d595c5b6b1ae486200a03df9fd"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\009_add_message_cache.php": {
+    "mtime": 1768736073.8204768,
+    "hash": "733e3d7cfd8ce1ea423080f203b98511"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\010_add_knowledge_level.php": {
+    "mtime": 1774208267.8297904,
+    "hash": "1b8015836d55176c688144377c0a6661"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\011_add_interests.php": {
+    "mtime": 1783343850.3729503,
+    "hash": "eb1458b7605aa0b25b6b86ba3dba318a"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\add_message_edit.php": {
+    "mtime": 1771623616.5846417,
+    "hash": "ba5aa2a7e4d0cc032fd961d80505f6ea"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\add_profile_column.php": {
+    "mtime": 1765579625.0261219,
+    "hash": "8b5e19f9ec10182e48f1168c0b930f67"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\add_session_context.php": {
+    "mtime": 1765747431.1100903,
+    "hash": "656fd8c16128071ad698ff01c92ccf54"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\alter_users_table.sql": {
+    "mtime": 1763459000.5750408,
+    "hash": "f31aeb8cf57a94c495c2d86907997207"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\scripts\\add_google_auth_columns.php": {
+    "mtime": 1764255172.4917579,
+    "hash": "123e8c7487fa5be1d837b7becc161e0c"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\scripts\\ci-check-dom-ids.js": {
+    "mtime": 1785149544.9697053,
+    "hash": "2e03ecd05d98bddb92e901a70523af61"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\scripts\\test_rag_pipeline.php": {
+    "mtime": 1769910627.3860905,
+    "hash": "0e2c06c2405f63200bb2879b6f495277"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\scripts\\tutodtoo_tutordb.sql": {
+    "mtime": 1763653126.9104998,
+    "hash": "c8429f5bb9d4bd60a3cffbe1925fc455"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\scripts\\update_css.py": {
+    "mtime": 1774226925.8607643,
+    "hash": "b20cd09e66d3fcb4b9c7bd0516d83e06"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\scripts\\update_php_js.py": {
+    "mtime": 1774227178.352455,
+    "hash": "908bab8f956e957b54bfcf6fb4e5b352"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\403.html": {
+    "mtime": 1786366271.9348578,
+    "hash": "7bad6054ecf360c7c4fda4e0e112cb59"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\404.html": {
+    "mtime": 1786366235.1445618,
+    "hash": "979c689590deaf0b6e547130142b3abb"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\features.html": {
+    "mtime": 1776817880.6620862,
+    "hash": "ed86f83f73404a77a772b6bc40b110f4"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\fix.md": {
+    "mtime": 1779154680.9770207,
+    "hash": "0d5978dc8b3d275e3ca1974a8bd5bab3"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\index.html": {
+    "mtime": 1779895410.3038356,
+    "hash": "55359b46be5feb3e774084b6fc48fb25"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\landing-new.html": {
+    "mtime": 1776817880.6704552,
+    "hash": "bbbabcad79e2aec4190530ea3641e224"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\login.html": {
+    "mtime": 1776817944.3537323,
+    "hash": "ea635678fe7ef4c88bf999652eee9dfa"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\nhp_extracted.md": {
+    "mtime": 1780493671.816666,
+    "hash": "93674bc9f0df011e326478a0ea70e818"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\README.md": {
+    "mtime": 1769360299.3723524,
+    "hash": "20c56ce208fb7212044e76895216bcf0"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\register.html": {
+    "mtime": 1776817944.3656373,
+    "hash": "886a5d6022a34d650f5a37630dc4b38d"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\robot.html": {
+    "mtime": 1776524428.5332847,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\SKILL.md": {
+    "mtime": 1776949402.0462599,
+    "hash": "52a6ae8521c45e799d8549331991ef70"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\THREE_CONTACT_PLAN.md": {
+    "mtime": 1778969990.4925523,
+    "hash": "957c3550006f5d033281bba9a51140bf"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\youtube_transcript.md": {
+    "mtime": 1780493675.9031212,
+    "hash": "692765f84826dd18dfb61e6a6c4db3af"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\api\\README.txt": {
+    "mtime": 1764711804.6261044,
+    "hash": "e4dbae3d5d97edf1debd9cd07231b569"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\docs\\API_DOCUMENTATION.md": {
+    "mtime": 1769368001.2808182,
+    "hash": "4b9c33c21b10e0b08f99a0c75a2127aa"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\docs\\CLAUDE.md": {
+    "mtime": 1786410377.8245552,
+    "hash": "eb684eb2f0e430416e43432ee646aba4"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\docs\\context.md": {
+    "mtime": 1786410348.7678869,
+    "hash": "118685f960eb8efae48ca0d079a17931"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\docs\\CONTRIBUTING.md": {
+    "mtime": 1769368614.4291553,
+    "hash": "8d0cdc4073522d7d439f93e1482afbd2"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\docs\\DEPLOYMENT_GUIDE.md": {
+    "mtime": 1776678284.196592,
+    "hash": "de9e53dfc8cf73991f979a29f0e01a65"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\docs\\models.txt": {
+    "mtime": 1764681487.581345,
+    "hash": "445d3901ec4ba702011e5dbca4df3580"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\docs\\PERFORMANCE_OPTIMIZATION.txt": {
+    "mtime": 1764712484.671861,
+    "hash": "5e8380158c5cb666e13e1d32d70fa1f5"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\docs\\PERFORMANCE_QUICK_WINS.md": {
+    "mtime": 1768736234.1205025,
+    "hash": "7113a989b60a374c9c37cfbe2e56155e"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\CODE_CHANGES_GUIDE.md": {
+    "mtime": 1763807122.3752952,
+    "hash": "f472a9766d52bc741ca93e7c5a33174c"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\MIGRATION_COMPLETE.md": {
+    "mtime": 1763807532.9232044,
+    "hash": "f6d2210ff331800e34cf6994275ab286"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\migrations\\NAME_ATOMIZATION_GUIDE.md": {
+    "mtime": 1763805414.931557,
+    "hash": "efadcc85589959f49a7c8c22b6e0e62b"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Authentication\\Login.request.yaml": {
+    "mtime": 1777508772.266296,
+    "hash": "3ffeda0a9b44c75884702a55f5b50bab"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Authentication\\Logout.request.yaml": {
+    "mtime": 1777508984.0227907,
+    "hash": "2469de20e6bf9142c97d6d88ea222469"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Authentication\\Register - Validation Errors.request.yaml": {
+    "mtime": 1777508955.46711,
+    "hash": "a5783cda2d05987814adbb64ce071483"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Authentication\\Register.request.yaml": {
+    "mtime": 1777508692.2584531,
+    "hash": "059594ef0a895a660967574ee6b1359e"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Onboarding\\Complete Onboarding - Invalid Knowledge Level.request.yaml": {
+    "mtime": 1777509113.7091577,
+    "hash": "9826b0c7c181ce323c63b8ce6bf80535"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Onboarding\\Complete Onboarding.request.yaml": {
+    "mtime": 1777509040.9069965,
+    "hash": "b3910bc03cec901df14bc5d77641e85a"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Session Context\\Create Session.request.yaml": {
+    "mtime": 1777509128.5906825,
+    "hash": "0eb2c8ac2eb5a48c775d8922ff22af57"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Session Context\\Get Recent Activity.request.yaml": {
+    "mtime": 1777509120.1364868,
+    "hash": "a50791135f103fb63cf1855c811ab1d9"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Session Context\\Update Context.request.yaml": {
+    "mtime": 1777509142.2118688,
+    "hash": "367eac972636b345965b55c881548956"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Session Context\\Update Progress - Missing Session ID.request.yaml": {
+    "mtime": 1777509150.6744032,
+    "hash": "fabf9bf59eaadc4b88380304a4cd5f4a"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\Session Context\\Update Progress.request.yaml": {
+    "mtime": 1777509135.1061435,
+    "hash": "231ff4b2742aa924b1f3dedfdde9d0b4"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\User Settings\\Get User Settings.request.yaml": {
+    "mtime": 1777509000.234845,
+    "hash": "1f7a165f99f53259d374079be78d6c35"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\User Settings\\Update Settings - Invalid Email.request.yaml": {
+    "mtime": 1777509019.9070866,
+    "hash": "316d528bb5dee118fc85c2f774b69e80"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\User Settings\\Update Settings - No Valid Fields.request.yaml": {
+    "mtime": 1777509028.5433896,
+    "hash": "df538caba563639aaa8c40759f342a47"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\collections\\TutorMind API\\User Settings\\Update User Settings.request.yaml": {
+    "mtime": 1777509008.5171576,
+    "hash": "9c19c745e9c4b3bb667dad2d7ad75b93"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\environments\\TutorMind - Development.yaml": {
+    "mtime": 1777507908.9584382,
+    "hash": "652f0db7e911ae10d4fe0023baa5758e"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\environments\\TutorMind - Production.yaml": {
+    "mtime": 1777507909.0709035,
+    "hash": "3a5f1dc19afe8a03f76830ed5e43e2cb"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\postman\\globals\\workspace.globals.yaml": {
+    "mtime": 1777507705.8217902,
+    "hash": "a255bf3fa7e8762ed256d17832966a3f"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\404_illustration.png": {
+    "mtime": 1769814029.8152342,
+    "hash": "c105173c92e57c7ef6f1aaab46e9d022"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\ai_tutor_bot.png": {
+    "mtime": 1768293828.3347096,
+    "hash": "5413fd4d5e11ebd35fa55d877a0cedc6"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\favicon-new.svg": {
+    "mtime": 1769905396.8156235,
+    "hash": "c73321de21587ce97eac9ee9da0c67fc"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\favicon.png": {
+    "mtime": 1768737845.1095517,
+    "hash": "964f6247a375e2cc653f28e4c63daa18"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\login_illustration.png": {
+    "mtime": 1768761439.7551622,
+    "hash": "d76b67dd14d2e165a1b470dd5bf2a0a8"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\logo-bridge.svg": {
+    "mtime": 1769905390.5736027,
+    "hash": "b0b8fe0092cc6d1e8f56182cb9058aaf"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\logo.png": {
+    "mtime": 1763808869.6292233,
+    "hash": "fd54a0df86cb694804630ee986f77e00"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\register_illustration.png": {
+    "mtime": 1768761453.9853392,
+    "hash": "ed25a74d5edf6356d99715aca8109cec"
+  },
+  "C:\\xampp\\htdocs\\TutorMind\\assets\\student_studying.png": {
+    "mtime": 1768293849.062535,
+    "hash": "5b22cefe381c1d22db6bc23323a4cf52"
+  }
+}
