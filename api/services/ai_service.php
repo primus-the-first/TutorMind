@@ -316,7 +316,9 @@ function chooseThinkingMode(string $question, string $learningLevel = 'Understan
     return 'low';
 }
 
-function callGeminiAPI($payload, $apiKey) {
+// $timeout / $maxRetries: a fallback caller passes a short timeout and 1 (no 503
+// backoff), so a struggling Gemini costs seconds, not a minute, before the next provider.
+function callGeminiAPI($payload, $apiKey, int $timeout = 60, int $maxRetries = 5) {
     // Rolling alias (confirmed live via GET /v1beta/models) instead of a pinned version:
     // gemini-2.5-flash deprecates 2026-10-16, and pinning just recreates this same
     // migration the next time Google retires whatever's current. Google moves this
@@ -354,14 +356,14 @@ function callGeminiAPI($payload, $apiKey) {
     $apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key=" . $apiKey;
 
     $retries = 0;
-    $max_retries = 5;
+    $max_retries = max(1, $maxRetries);
     $delay = 2;
     // Separate, smaller budget for cURL-level failures (timeout, connection
     // reset) — each attempt can itself take up to CURLOPT_TIMEOUT seconds,
     // unlike a 429/503 which fails fast, so this can't share $max_retries
     // without risking the 300s set_time_limit() in server_mysql.php.
     $curl_retries = 0;
-    $max_curl_retries = 2;
+    $max_curl_retries = $max_retries > 1 ? 2 : 1;
 
     while ($retries < $max_retries) {
         if (!function_exists('curl_init')) {
@@ -374,7 +376,7 @@ function callGeminiAPI($payload, $apiKey) {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-            CURLOPT_TIMEOUT => 60
+            CURLOPT_TIMEOUT => $timeout
         ]);
 
         $attemptStart = microtime(true);
@@ -408,7 +410,7 @@ function callGeminiAPI($payload, $apiKey) {
             $retries++;
 
             if ($retries >= $max_retries)
-                throw new Exception('AI service rate limit exceeded. Please try again in a moment.');
+                throw new Exception('AI service is overloaded (HTTP 503). Please try again in a moment.');
             sleep($delay);
             $delay *= 2;
             continue;
@@ -600,8 +602,10 @@ function generateImageWithImagen($prompt, $apiKey)
 // prompt almost every time (see stripWidgetSectionForGroq()).
 const AI_PROVIDER_ORDER = [
     'chat'  => ['gemini', 'deepseek', 'groq'],
-    'group' => ['gemini', 'groq', 'deepseek'],
-    'quiz'  => ['gemini', 'groq', 'deepseek'],
+    // DeepSeek first since 2026-10-19: Gemini's free tier kept failing these slowly
+    // (503 retries ate 9-70s before the fallback started). Callers pass a thinking level.
+    'group' => ['deepseek', 'gemini', 'groq'],
+    'quiz'  => ['deepseek', 'gemini', 'groq'],
 ];
 
 class AiProvidersFailed extends RuntimeException {}

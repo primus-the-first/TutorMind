@@ -64,6 +64,7 @@ const GS_ROUND_TIMEOUT_SECONDS = 120;      // reveal with whoever's in, so one i
 const GS_BRIDGE_STONES = 5;                // revealed rounds per finished bridge
 const GS_FOCUS_MINUTES = [10, 15, 25];
 const GS_REACTIONS = ['clicked', 'wait', 'same', 'cheer'];
+const GS_GEMINI_FALLBACK_TIMEOUT = 25; // Gemini is a fallback here: one try, no 503 backoff
 const GS_RECAP_MIN_SAID = 3;     // fewer student messages and no rounds = nothing to sum up
 const GS_RECAP_MAX_AGE_DAYS = 7; // rooms that ended before recaps existed aren't written retroactively
 const GS_RECAP_LINES = 120;      // transcript lines the recap reads (a room's whole hour, usually)
@@ -620,9 +621,10 @@ function gsFacilitate(PDO $pdo, array $session, array $participants, int $sender
     // callDeepSeekAPI throws on an empty reply; all providers failing just means Q stays quiet
     try {
         $response = aiComplete('group', gsProviderCalls($keys, [
-            'gemini'   => fn() => callGeminiAPI($payload, $keys['gemini']),
+            'gemini'   => fn() => callGeminiAPI($payload, $keys['gemini'], GS_GEMINI_FALLBACK_TIMEOUT, 1),
             'groq'     => fn() => callGroqAPI($merged, $systemPrompt, $keys['groq']),
-            'deepseek' => fn() => callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek']),
+            // Low: spotting the gap in an explanation needs some thought, not a long think
+            'deepseek' => fn() => callDeepSeekAPI($merged, $systemPrompt, $keys['deepseek'], 'low'),
         ]))['response'];
     } catch (AiProvidersFailed $e) {
         error_log('group_study facilitate: ' . $e->getMessage());
@@ -785,7 +787,7 @@ function gsProviderCalls(array $keys, array $calls): array {
 /** Ask the AI for one JSON object. A provider that answers with broken or empty
  *  JSON is rejected and the next one is tried instead of failing the round (same
  *  lesson as api/quiz.php); the order and fallback live in aiComplete(). */
-function gsAskJson(string $system, string $user, array $keys, callable $valid): ?array {
+function gsAskJson(string $system, string $user, array $keys, callable $valid, string $thinking = 'low'): ?array {
     $history = [['role' => 'user', 'parts' => [['text' => $user]]]];
     $calls = gsProviderCalls($keys, [
         'gemini' => fn() => callGeminiAPI(json_encode([
@@ -793,9 +795,9 @@ function gsAskJson(string $system, string $user, array $keys, callable $valid): 
             'system_instruction' => ['role' => 'system', 'parts' => [['text' => $system]]],
             // Flash's hidden thinking counts against this budget (see gsFacilitate)
             'generationConfig' => ['response_mime_type' => 'application/json', 'maxOutputTokens' => 4096, 'temperature' => 0.6],
-        ]), $keys['gemini']),
+        ]), $keys['gemini'], GS_GEMINI_FALLBACK_TIMEOUT, 1),
         'groq'     => fn() => callGroqAPI($history, $system, $keys['groq']),
-        'deepseek' => fn() => callDeepSeekAPI($history, $system, $keys['deepseek']),
+        'deepseek' => fn() => callDeepSeekAPI($history, $system, $keys['deepseek'], $thinking),
     ]);
     $accept = function ($response) use ($valid) {
         $text = trim($response['candidates'][0]['content']['parts'][0]['text'] ?? '');

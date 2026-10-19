@@ -185,7 +185,8 @@ PROMPT;
     $aiData = firstValidJson([
         'gemini'   => fn() => callGemini($geminiKey, $prompt, 12),
         'groq'     => fn() => callGroqJson($groqKey, $prompt, 20),
-        'deepseek' => fn() => callDeepSeekJson($deepseekKey, $prompt, 30),
+        // Low: a good question and plausible wrong options take a little thought
+        'deepseek' => fn() => callDeepSeekJson($deepseekKey, $prompt, 30, 'low'),
     ], fn($d) => !empty($d['question']));
 
     if (!$aiData) {
@@ -315,7 +316,8 @@ PROMPT;
     $gradeData = firstValidJson([
         'gemini'   => fn() => callGemini($geminiKey, $prompt, 10),
         'groq'     => fn() => callGroqJson($groqKey, $prompt, 20),
-        'deepseek' => fn() => callDeepSeekJson($deepseekKey, $prompt, 30),
+        // Off: grading against key points the quiz already wrote needs no long think
+        'deepseek' => fn() => callDeepSeekJson($deepseekKey, $prompt, 30, 'off'),
     ], fn($d) => isset($d['score']));
 
     $score    = isset($gradeData['score'])    ? (float)$gradeData['score']    : 0.5;
@@ -436,10 +438,11 @@ function callGroqJson($apiKey, $prompt, $timeoutSeconds = 20) {
     return $text;
 }
 
-function callDeepSeekJson($apiKey, $prompt, $timeoutSeconds = 20) {
+// $thinking: 'off' | 'low' | 'high' (the API default), as in callDeepSeekAPI().
+function callDeepSeekJson($apiKey, $prompt, $timeoutSeconds = 20, string $thinking = 'high') {
     if (!$apiKey) return null;
 
-    $payload = json_encode([
+    $body = [
         'model'       => 'deepseek-flash',
         'messages'    => [
             ['role' => 'system', 'content' => 'You are a quiz generator. Respond with valid JSON only — no markdown, no commentary.'],
@@ -448,7 +451,10 @@ function callDeepSeekJson($apiKey, $prompt, $timeoutSeconds = 20) {
         'max_tokens'  => 2048,
         'temperature' => 0.6,
         'stream'      => false,
-    ]);
+    ];
+    if ($thinking === 'off')     $body['thinking'] = ['type' => 'disabled'];
+    elseif ($thinking === 'low') $body['reasoning_effort'] = 'low';
+    $payload = json_encode($body);
 
     $ch = curl_init('https://api.deepseek.com/v1/chat/completions');
     curl_setopt_array($ch, [
