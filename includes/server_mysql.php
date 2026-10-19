@@ -201,6 +201,11 @@ if ($action) {
                             $part['inline_data']['data'] = null; // Remove the heavy base64 string
                             $part['inline_data']['_removed'] = true; // Flag for frontend
                         }
+                        // An uploaded document's text (up to DOC_MAX_CHARS) is for the AI; the page
+                        // only needs its first line to draw the file pill with the name
+                        if (isset($part['text']) && str_starts_with($part['text'], 'Context from uploaded file')) {
+                            $part['text'] = strtok($part['text'], "\n");
+                        }
                     }
 
                     if ($message['role'] === 'model') {

@@ -1006,6 +1006,10 @@ function slideTextWithOcrSpace(array $images, string $apiKey): string
     return slideSections($images, $texts);
 }
 
+// Characters of an uploaded document the tutor sees: ~75k tokens, a long thesis or a short
+// book. Everything below this reaches the model whole.
+const DOC_MAX_CHARS = 300000;
+
 function prepareFileParts($file, $user_question)
 {
     $filePath = $file['tmp_name'];
@@ -1227,21 +1231,19 @@ function prepareFileParts($file, $user_question)
         throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based, or use fonts that cannot be parsed.");
     }
 
-    // A long document used to go through extractTableOfContents() and compactDocumentText()
-    // first: two Gemini calls on gemini-2.0-flash, which Google retired (HTTP 404, checked
-    // 2026-10-19). Both failed every time, costing ~1s each before falling back to this same
-    // cut, so they're no longer called; the result is unchanged, just ~2s faster.
-    $toc = "";
-    $maxLength = 15000;
-    if (strlen($text) > $maxLength) {
-        $text = substr($text, 0, $maxLength) . "\n\n... [File content truncated] ...\n\n";
+    // The tutor gets the whole document. It used to get the first 15,000 chars (a thesis's
+    // first chapter and a half), after two Gemini "table of contents" / "compaction" calls on
+    // gemini-2.0-flash that Google had retired (404), so they always failed. DeepSeek reads
+    // up to 1M tokens and caches the repeated prefix, so the full text costs little on later
+    // turns. The cap only stops a pathological file (a book) from filling the context.
+    $complete = strlen($text) <= DOC_MAX_CHARS;
+    if (!$complete) {
+        $text = mb_strcut($text, 0, DOC_MAX_CHARS, 'UTF-8');
     }
-
-    $combined_text = "Context from uploaded file '{$originalName}':\n";
-    if (!empty($toc)) {
-        $combined_text .= "### DOCUMENT STRUCTURE / TABLE OF CONTENTS\n{$toc}\n---\n";
-    }
-    $combined_text .= "### CONTENT PREVIEW / SUMMARY\n{$text}\n---\n";
+    $combined_text = "Context from uploaded file '{$originalName}':\n"
+        . ($complete
+            ? "### FULL TEXT\n{$text}\n---\n"
+            : "### TEXT (the first " . number_format(DOC_MAX_CHARS) . " characters; the rest of this long file was not included, so if the student asks about a later part, say so)\n{$text}\n---\n");
 
     return [['text' => $combined_text]];
 }
