@@ -91,6 +91,7 @@ function reportChatTimings(float $slowSeconds = 10): void {
     if (!$timings) return;
     $parts = [];
     foreach ($timings as $step => $s) $parts[] = "$step " . round($s, 1) . 's';
+    if (!empty($GLOBALS['chatAiTrail'])) $parts[] = $GLOBALS['chatAiTrail'];
     if (!empty($GLOBALS['chatAiUsage'])) $parts[] = $GLOBALS['chatAiUsage'];
     $slow = array_sum($timings) >= $slowSeconds;
     $summary = ($slow ? 'slow chat: ' : 'chat: ') . implode(' · ', $parts);
@@ -273,6 +274,57 @@ if ($action) {
                 error_log("rename_conversation error [convo_id=$convo_id]: " . $e->getMessage());
                 http_response_code(500);
                 echo json_encode(['success' => false, 'error' => 'Could not rename the conversation.']);
+            }
+            break;
+
+        case 'generate_title':
+            // Names a new chat after its first message. Runs as its own request so the
+            // first answer never waits on it. Only touches a title still on the
+            // placeholder, so a rename the student made in the meantime always wins.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
+                break;
+            }
+            $convo_id = (int) ($_POST['id'] ?? 0);
+            try {
+                $pdo = getDbConnection();
+                $stmt = $pdo->prepare("SELECT title FROM conversations WHERE id = ? AND user_id = ?");
+                $stmt->execute([$convo_id, $_SESSION['user_id']]);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!$row) {
+                    http_response_code(404);
+                    echo json_encode(['success' => false, 'error' => 'Conversation not found.']);
+                    break;
+                }
+                if (strpos($row['title'], 'New Chat on ') !== 0) {
+                    echo json_encode(['success' => true, 'title' => $row['title']]); // already named
+                    break;
+                }
+                $stmt = $pdo->prepare("SELECT content FROM messages WHERE conversation_id = ? AND role = 'user' ORDER BY id ASC LIMIT 1");
+                $stmt->execute([$convo_id]);
+                $firstText = '';
+                foreach (json_decode((string) $stmt->fetchColumn(), true) ?: [] as $part) {
+                    if (isset($part['text'])) $firstText .= $part['text'] . ' ';
+                }
+                $firstText = trim(mb_substr($firstText, 0, 600));
+                // Actions run before the API keys are defined further down, so read them
+                // here. GEMINI_API_KEY is generateConversationTitle()'s own fallback.
+                $titleConfig = [];
+                foreach ([__DIR__ . '/config-sql.ini', __DIR__ . '/config.ini'] as $f) {
+                    if (file_exists($f) && ($titleConfig = parse_ini_file($f)) !== false) break;
+                }
+                if (!defined('GEMINI_API_KEY') && !empty($titleConfig['GEMINI_API_KEY'])) define('GEMINI_API_KEY', $titleConfig['GEMINI_API_KEY']);
+                $title = $firstText === '' ? null
+                    : generateConversationTitle($firstText, $titleConfig['DEEPSEEK_API_KEY'] ?? null);
+                $title = $title ?: 'New Chat';
+                $pdo->prepare("UPDATE conversations SET title = ? WHERE id = ? AND user_id = ? AND title LIKE 'New Chat on %'")
+                    ->execute([$title, $convo_id, $_SESSION['user_id']]);
+                echo json_encode(['success' => true, 'title' => $title]);
+            } catch (Exception $e) {
+                error_log("generate_title error [convo_id=$convo_id]: " . $e->getMessage());
+                http_response_code(500);
+                echo json_encode(['success' => false, 'error' => 'Could not name the conversation.']);
             }
             break;
 
@@ -1119,7 +1171,7 @@ EOT;
 
     $providers = [
         'gemini'   => fn() => callGeminiAPI($payload, $activeApiKey),
-        'deepseek' => fn() => callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY),
+        'deepseek' => fn() => callDeepSeekAPI($chat_history, $system_prompt, DEEPSEEK_API_KEY, chooseThinkingMode($question, $learningLevel)),
         'groq'     => fn() => callGroqAPI($chat_history, $system_prompt, GROQ_API_KEY),
     ];
     if (!$hasDeepSeek) unset($providers['deepseek']);
@@ -1132,9 +1184,11 @@ EOT;
     try {
         $ai = aiComplete('chat', $providers, null, $tryFirst);
         $responseData = $ai['response'];
-        chatLap('ai(' . $ai['trail'] . ')', $lapStart);
+        chatLap('ai', $lapStart);
+        $GLOBALS['chatAiTrail'] = $ai['trail'];
     } catch (AiProvidersFailed $e) {
-        chatLap('ai(all failed)', $lapStart);
+        chatLap('ai', $lapStart);
+        $GLOBALS['chatAiTrail'] = 'all providers failed';
         throw new Exception($e->getMessage());
     }
 
@@ -1234,20 +1288,11 @@ EOT;
         $hybridProgress = calculateHybridProgress($contextData);
         $contextData['calculatedProgress'] = $hybridProgress;
 
-        // For new chats, generate an AI title before the single conversation UPDATE.
-        // DeepSeek is primary (see generateConversationTitle() in tutor_service.php)
-        // to keep this off Gemini's scarce free-tier request budget, same as outline
-        // generation — falls back to Gemini internally if DeepSeek isn't configured.
-        $generated_title = null;
-        if (count($chat_history) === 1) {
-            $titleApiKey = defined('DEEPSEEK_API_KEY') ? DEEPSEEK_API_KEY : null;
-            $lapStart = microtime(true);
-            $generated_title = generateConversationTitle($question, $titleApiKey);
-            chatLap('title', $lapStart);
-            if ($generated_title === null) {
-                $generated_title = "New Chat";
-            }
-        }
+        // A new chat's title is NOT generated here: it was a second AI call (~2.5s) the
+        // student waited through before seeing the answer. The reply flags needs_title
+        // and the page asks for it separately (action=generate_title) once the answer
+        // is on screen.
+        $needsTitle = count($chat_history) === 1;
 
         // Single UPDATE covers context_data, progress, session_goal, title, updated_at —
         // merging what were 3 separate UPDATE statements to minimise lock contention on the
@@ -1259,11 +1304,6 @@ EOT;
             $setClauses[] = "session_goal = ?";
             $updateParams[] = $session_goal;
         }
-        if ($generated_title !== null) {
-            $setClauses[] = "title = ?";
-            $updateParams[] = $generated_title;
-        }
-
         $updateParams[] = $conversation_id;
         $updateParams[] = $_SESSION['user_id'];
         $sql = "UPDATE conversations SET " . implode(', ', $setClauses) . " WHERE id = ? AND user_id = ?";
@@ -1335,8 +1375,8 @@ EOT;
                 'predict' => (bool)($contactState['predict'] ?? false),
             ],
         ];
-        if ($generated_title) {
-            $response_payload['generated_title'] = $generated_title;
+        if ($needsTitle) {
+            $response_payload['needs_title'] = true;
         }
 
         // Include milestone progress in response for frontend

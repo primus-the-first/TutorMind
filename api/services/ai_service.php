@@ -174,7 +174,15 @@ function callGroqAPI($chatHistory, $systemPrompt, $apiKey, $model = 'openai/gpt-
 // deprecated and started hard-erroring on 2026-07-24 (confirmed against
 // DeepSeek's live /api/list-models docs) — this path was silently dead code
 // the whole time it went unconfigured. Current model ID is 'deepseek-flash'.
-function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
+//
+// deepseek-flash thinks before it answers and bills that thinking as generated tokens;
+// measured on 30 chat replies, 84% of tokens were reasoning, so a reply's wait followed
+// how much it thought, not how much it said. $thinking picks how much to allow:
+//   'off'  - no reasoning (a direct factual answer needs none)
+//   'low'  - reasoning_effort low
+//   'high' - the API default; everything that isn't asked for is left as it was
+// chooseThinkingMode() picks one per chat turn; other callers keep 'high'.
+function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey, string $thinking = 'high') {
     $apiUrl = "https://api.deepseek.com/v1/chat/completions";
 
     $messages = [
@@ -198,13 +206,16 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
         }
     }
 
-    $payload = json_encode([
+    $body = [
         'model' => 'deepseek-flash',
         'messages' => $messages,
         'max_tokens' => 8192,
-        'temperature' => 0.7,
+        'temperature' => 0.7, // ignored while thinking is on
         'stream' => false
-    ]);
+    ];
+    if ($thinking === 'off')     $body['thinking'] = ['type' => 'disabled'];
+    elseif ($thinking === 'low') $body['reasoning_effort'] = 'low';
+    $payload = json_encode($body);
 
     $ch = curl_init($apiUrl);
     curl_setopt_array($ch, [
@@ -246,7 +257,7 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
     $usage = $data['usage'] ?? [];
     if (isset($usage['completion_tokens'])) {
         $GLOBALS['chatAiUsage'] = $usage['completion_tokens'] . ' tokens (' .
-            ($usage['completion_tokens_details']['reasoning_tokens'] ?? 0) . ' reasoning)';
+            ($usage['completion_tokens_details']['reasoning_tokens'] ?? 0) . ' reasoning) · thinking ' . $thinking;
     }
 
     // deepseek-flash reasons before answering, and the reasoning counts toward
@@ -270,6 +281,39 @@ function callDeepSeekAPI($chatHistory, $systemPrompt, $apiKey) {
     }
 
     throw new Exception('DeepSeek returned no answer (finish_reason: ' . ($data['choices'][0]['finish_reason'] ?? 'unknown') . ').');
+}
+
+/**
+ * How much should the tutor think before answering this chat turn? A plain heuristic,
+ * not a model call: a classifier would add its own round trip to the wait it is meant
+ * to cut. When unsure it errs toward more thinking, since a wrong 'off' costs answer
+ * quality and a wrong 'high' only costs seconds.
+ *   'off'  - a short, direct factual question, or an acknowledgement
+ *   'low'  - an ordinary explanation (the default)
+ *   'high' - proofs, derivations, code, maths, comparisons, multi-part questions,
+ *            long questions, and the upper Bloom levels (Analyze, Evaluate, Create)
+ */
+function chooseThinkingMode(string $question, string $learningLevel = 'Understand'): string {
+    $q   = trim($question);
+    $len = mb_strlen($q);
+
+    if (in_array($learningLevel, ['Analyze', 'Evaluate', 'Create'], true)) return 'high';
+    if ($len > 220 || substr_count($q, '?') > 1) return 'high';
+    if (preg_match('/```|\bdef \w+\(|\bfunction\s*\w*\(|=>|[=+*\/^]\s*\d|\d\s*[=+*\/^]/', $q)) return 'high';
+    if (preg_match('/\b(prove|proof|derive|derivation|walk me through|step[- ]by[- ]step|work through|compare|contrast|analy[sz]e|evaluate|critique|argue|trade-?offs?|debug|bug|error|exception|optimi[sz]e|complexity|essay|rank|implement|solve|calculate)\b/i', $q)) return 'high';
+
+    $wantsExplaining = (bool)preg_match('/\b(explain|teach|show|help|understand|why|how|describe|tell me about|differ\w*|versus|vs)\b/i', $q);
+
+    // "ok", "thanks", "got it" - nothing to reason about.
+    if ($len <= 25 && strpos($q, '?') === false && !$wantsExplaining) return 'off';
+
+    // A short question that asks for a fact, not an explanation.
+    if ($len <= 70 && !$wantsExplaining
+        && preg_match('/^(what\'?s|what is|what are|what was|what were|who|when|where|which|define|name|how many|how much|is|are|does|do)\b/i', $q)) {
+        return 'off';
+    }
+
+    return 'low';
 }
 
 function callGeminiAPI($payload, $apiKey) {

@@ -2797,15 +2797,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         history.pushState({}, '', `${baseUrl}/chat/${result.conversation_id}`);
                     }
 
-                    // If server generated a title, update the header and sidebar
-                    if (result.generated_title) {
-                        if (DEBUG) console.log('AI generated title:', result.generated_title);
-                        if (conversationTitleEl) {
-                            conversationTitleEl.textContent = result.generated_title;
-                        }
-                        // Refresh chat history to show the new conversation with AI-generated title
+                    // A new chat is listed under its placeholder name right away; the
+                    // real title is fetched separately so the answer never waited on it.
+                    if (result.needs_title) {
                         await loadChatHistory();
                         highlightActiveConversation(result.conversation_id);
+                        requestConversationTitle(result.conversation_id);
                     } else {
                         // Not a new chat, just highlight if needed
                         const existingLink = chatHistoryContainer.querySelector(`[data-conversation-id="${result.conversation_id}"]`);
@@ -2940,6 +2937,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         typeChar();
+    }
+
+
+    // Names a new chat in the background (action=generate_title) and swaps the
+    // placeholder in the header and sidebar once it arrives. Failure is harmless:
+    // the chat just keeps its placeholder name.
+    async function requestConversationTitle(conversationId) {
+        try {
+            const formData = new FormData();
+            formData.append('action', 'generate_title');
+            formData.append('id', conversationId);
+            const response = await fetch(getBasePath() + '/includes/server_mysql.php', { method: 'POST', body: formData });
+            const data = await response.json();
+            if (!data.success || !data.title) return;
+            if (conversationTitleEl && String(conversationIdInput.value) === String(conversationId)) {
+                conversationTitleEl.textContent = data.title;
+            }
+            await loadChatHistory();
+            if (String(conversationIdInput.value) === String(conversationId)) highlightActiveConversation(conversationId);
+        } catch (e) {
+            if (DEBUG) console.log('Title request failed:', e);
+        }
     }
 
     async function loadPersonalizedSuggestions() {
