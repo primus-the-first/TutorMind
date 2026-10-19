@@ -659,6 +659,34 @@ function resizeImageData(string $raw, string $originalMime = 'image/jpeg', int $
     return ['bytes' => $jpeg, 'mime' => 'image/jpeg'];
 }
 
+/**
+ * A Word document's text read straight from word/document.xml: one line per paragraph,
+ * tabs and line breaks kept, table cells separated by " | ". No Python, no object model,
+ * so it stays light on a large file (an 8 MB thesis) where MarkItDown or PhpWord can
+ * run out of time or memory on shared hosting.
+ */
+function extractDocxTextWithPhp(string $filePath): string
+{
+    if (!class_exists('ZipArchive')) return '';
+    $zip = new ZipArchive();
+    if ($zip->open($filePath) !== true) return '';
+    $xml = $zip->getFromName('word/document.xml');
+    $zip->close();
+    if ($xml === false) return '';
+
+    $xml = preg_replace(['#<w:tab/>#', '#<w:br\b[^>]*/>#', '#</w:tc>#'], ["\t", "\n", ' | '], $xml);
+    preg_match_all('#<w:p\b[^>]*>(.*?)</w:p>#s', $xml, $paras);
+    $lines = [];
+    foreach ($paras[1] as $p) {
+        preg_match_all('#<w:t(?:\s[^>]*)?>([^<]*)</w:t>|(\t|\n| \| )#', $p, $m, PREG_SET_ORDER);
+        $line = '';
+        foreach ($m as $part) $line .= ($part[1] ?? '') !== '' ? $part[1] : ($part[2] ?? '');
+        $line = trim(html_entity_decode($line, ENT_QUOTES | ENT_XML1, 'UTF-8'), " \t|");
+        if ($line !== '') $lines[] = $line;
+    }
+    return implode("\n", $lines);
+}
+
 /** A part's relationships: [rId => ['target' => ..., 'type' => last segment of its Type]]. */
 function pptxRels(ZipArchive $zip, string $relsPath): array
 {
@@ -1116,11 +1144,17 @@ function prepareFileParts($file, $user_question)
             }
             break;
         case 'docx':
-            try {
-                $text = extractWithMarkItDown($filePath);
-                error_log("MarkItDown docx [{$originalName}]: " . strlen($text) . " chars extracted");
-            } catch (Exception $e) {
-                error_log("MarkItDown docx [{$originalName}] failed ({$e->getMessage()}), falling back to PhpWord");
+            // extractWithMarkItDown() returns '' on any failure rather than throwing, so the
+            // PhpWord fallback below used to be unreachable: a quiet MarkItDown failure on prod
+            // became "Could not extract any text" (a thesis, 2026-10-19). Each step now runs
+            // when the one before it comes back empty.
+            $text = extractWithMarkItDown($filePath);
+            error_log("MarkItDown docx [{$originalName}]: " . strlen($text) . " chars extracted");
+            if (trim($text) === '') {
+                $text = extractDocxTextWithPhp($filePath);
+                error_log("PHP docx reader [{$originalName}]: " . strlen($text) . " chars extracted");
+            }
+            if (trim($text) === '') {
                 try {
                     $phpWord = \PhpOffice\PhpWord\IOFactory::load($filePath);
                     $textParts = [];
@@ -1137,8 +1171,8 @@ function prepareFileParts($file, $user_question)
                     }
                     $text = implode("\n", array_filter($textParts));
                     error_log("PhpWord docx [{$originalName}]: " . strlen($text) . " chars extracted");
-                } catch (Exception $e2) {
-                    error_log("PhpWord docx [{$originalName}] also failed: " . $e2->getMessage());
+                } catch (Throwable $e2) {
+                    error_log("PhpWord docx [{$originalName}] failed too: " . $e2->getMessage());
                     $text = '';
                 }
             }
