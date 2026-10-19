@@ -26,9 +26,10 @@ register_shutdown_function(function () {
 // Set to false in production to disable debug logging (saves disk I/O)
 define('DEBUG_MODE', false);
 
-// Which AI writes chat answers first: 'gemini' (the usual order: Gemini → DeepSeek →
-// Groq) or 'deepseek' (DeepSeek → Gemini → Groq). TESTING DeepSeek as of 2026-10-01 —
-// set back to 'gemini' when done. Turns that need an image always go to Gemini first.
+// Which AI writes chat answers first: 'deepseek' (DeepSeek → Gemini → Groq) or 'gemini'
+// (Gemini → DeepSeek → Groq). DeepSeek is the chosen default since 2026-10-19, after a
+// trial from 2026-10-01; its thinking budget is set per turn by chooseThinkingMode().
+// Turns that need an image always go to Gemini first: DeepSeek only reads text.
 define('CHAT_PRIMARY_PROVIDER', 'deepseek');
 
 require_once 'check_auth.php'; // Secure all API endpoints
