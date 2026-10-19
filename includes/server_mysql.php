@@ -761,7 +761,8 @@ try {
             file_put_contents('debug_log.txt', "Processed Files Array: " . print_r($files, true) . "\n", FILE_APPEND);
         }
 
-        // Process each file
+        // Process each file (its own lap in the chat timing note: big uploads spend real time here)
+        $fileLapStart = microtime(true);
         foreach ($files as $file) {
             try {
                 $parts = prepareFileParts($file, $question);
@@ -769,16 +770,19 @@ try {
                     $user_message_parts[] = $part;
                 }
             } catch (Exception $e) {
+                // DEBUG_MODE is off on prod, so without this line the cause never reached any log
+                error_log("Upload failed [{$file['name']}]: " . $e->getMessage());
                 if (DEBUG_MODE) {
                     file_put_contents('debug_log.txt', "Error processing file: " . $e->getMessage() . "\n", FILE_APPEND);
                 }
                 // Instead of failing the whole request, let's add a system message to the parts
                 // so the AI (and the user) knows something went wrong with this specific file.
-                // The real exception stays in the debug log above — never in conversation content.
+                // The real exception stays in the logs above — never in conversation content.
                 $errorMsg = "System Error: Could not process file '{$file['name']}'.";
                 $user_message_parts[] = ['text' => $errorMsg];
             }
         }
+        if ($files) chatLap('file', $fileLapStart);
     }
 
     // If the question contains a YouTube URL, fetch the transcript and inject it as context.

@@ -1144,15 +1144,18 @@ function prepareFileParts($file, $user_question)
             }
             break;
         case 'docx':
-            // extractWithMarkItDown() returns '' on any failure rather than throwing, so the
-            // PhpWord fallback below used to be unreachable: a quiet MarkItDown failure on prod
-            // became "Could not extract any text" (a thesis, 2026-10-19). Each step now runs
-            // when the one before it comes back empty.
-            $text = extractWithMarkItDown($filePath);
-            error_log("MarkItDown docx [{$originalName}]: " . strlen($text) . " chars extracted");
-            if (trim($text) === '') {
-                $text = extractDocxTextWithPhp($filePath);
-                error_log("PHP docx reader [{$originalName}]: " . strlen($text) . " chars extracted");
+            // The PHP reader goes first: an 8.4 MB thesis took it 0.01s, against ~5-6s for
+            // MarkItDown (a Python start-up per upload). MarkItDown's extra is markdown (bold,
+            // headings, tidy tables), which the tutor doesn't need. MarkItDown runs only when
+            // the PHP reader finds next to nothing (text the regex can't reach, like text
+            // boxes), then PhpWord. extractWithMarkItDown() returns '' on failure rather than
+            // throwing, so every step checks for empty text instead of catching.
+            $text = extractDocxTextWithPhp($filePath);
+            error_log("PHP docx reader [{$originalName}]: " . strlen($text) . " chars extracted");
+            if (strlen(trim($text)) < 200) {
+                $markItDown = extractWithMarkItDown($filePath);
+                error_log("MarkItDown docx [{$originalName}]: " . strlen($markItDown) . " chars extracted");
+                if (strlen(trim($markItDown)) > strlen(trim($text))) $text = $markItDown;
             }
             if (trim($text) === '') {
                 try {
@@ -1224,20 +1227,14 @@ function prepareFileParts($file, $user_question)
         throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based, or use fonts that cannot be parsed.");
     }
 
+    // A long document used to go through extractTableOfContents() and compactDocumentText()
+    // first: two Gemini calls on gemini-2.0-flash, which Google retired (HTTP 404, checked
+    // 2026-10-19). Both failed every time, costing ~1s each before falling back to this same
+    // cut, so they're no longer called; the result is unchanged, just ~2s faster.
     $toc = "";
-    if ($apiKey && ($extension === 'pdf' || $extension === 'docx')) {
-        if (strlen($text) > 8000) {
-            $toc = extractTableOfContents($filePath, $extension, $apiKey);
-        }
-    }
-
-    if ($apiKey && strlen($text) > 12000) {
-        $text = compactDocumentText($text, $apiKey);
-    } else {
-        $maxLength = 15000;
-        if (strlen($text) > $maxLength) {
-            $text = substr($text, 0, $maxLength) . "\n\n... [File content truncated] ...\n\n";
-        }
+    $maxLength = 15000;
+    if (strlen($text) > $maxLength) {
+        $text = substr($text, 0, $maxLength) . "\n\n... [File content truncated] ...\n\n";
     }
 
     $combined_text = "Context from uploaded file '{$originalName}':\n";
