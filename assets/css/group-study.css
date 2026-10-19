@@ -518,8 +518,8 @@ body.dark-mode .gs-msg--me .gs-msg__bubble { box-shadow: 0 3px 0 #3b1580; }
    flip over together. Locked = a lock and a dimmed rest; the reveal grows
    bars and shows who picked what. --tm-good marks the right answer only. */
 .gs-ico { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.gs-msg.has-round { max-width: min(720px, 100%); width: 100%; }
-.gs-msg.has-round .gs-msg__body { flex: 1; }
+.gs-msg.has-round, .gs-msg--recap { max-width: min(720px, 100%); width: 100%; }
+.gs-msg.has-round .gs-msg__body, .gs-msg--recap .gs-msg__body { flex: 1; }
 .gs-round {
   display: grid;
   gap: 10px;
@@ -690,6 +690,27 @@ body.dark-mode .gs-bridge__track { stroke: var(--ds-line); }
 .gs-react:disabled { cursor: default; }
 /* The add button stays quiet until the message is hovered or focused (always visible on touch) */
 .gs-react--add { padding: 3px 6px; background: none; color: var(--ds-ink-2); }
+/* ---------- Recap: Q's closing card, built on the round card ---------- */
+.gs-recap { gap: 14px; }
+.gs-recap__wait { margin: 0; color: var(--ds-ink-2); font-size: 0.9rem; }
+.gs-recap__part { display: grid; gap: 6px; }
+.gs-recap__part.is-you { padding: 10px 12px; border-radius: var(--ds-r-md); background: var(--ds-tint); }
+.gs-recap__title { margin: 0; font: 700 0.95rem var(--ds-font-display); color: var(--ds-accent-ink); }
+.gs-recap__text { margin: 0; color: var(--ds-ink); overflow-wrap: anywhere; }
+.gs-recap__q { margin: 0; font: 700 1.05rem/1.35 var(--ds-font-display); color: var(--ds-ink); overflow-wrap: anywhere; }
+.gs-recap__list { display: grid; gap: 4px; margin: 0; padding-left: 1.2em; color: var(--ds-ink); }
+.gs-recap__missed { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.gs-recap__miss {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1.5px solid var(--ds-line);
+  border-radius: var(--ds-r-lg);
+}
+.gs-recap__miss .gs-recap__text { flex: 1; min-width: 0; }
+.gs-recap__miss .ds-btn { flex: none; }
+
 @media (hover: hover) {
   .gs-msg:not(:hover):not(:focus-within) .gs-react--add[aria-expanded="false"] { opacity: 0; }
 }

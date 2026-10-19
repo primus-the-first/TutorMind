@@ -30,7 +30,9 @@
         picks: {},           // round id -> option picked but not locked in yet
         focusEndsAt: 0,      // local clock time the shared focus timer runs out
         focusTick: null,
-        timerAskAt: 0        // last time this client asked the server to fire the timer
+        timerAskAt: 0,       // last time this client asked the server to fire the timer
+        recapFor: null,      // room id whose recap is loaded (or loading)
+        recapTimer: null
     };
 
     var $ = function (id) { return document.getElementById(id); };
@@ -256,6 +258,7 @@
         stopPolling();
         stopVoice();
         stopFocusTick();
+        clearTimeout(state.recapTimer);
         state.sessionId = null;
         storage(function () { sessionStorage.removeItem(ROOM_KEY); });
         els.room.hidden = true;
@@ -277,6 +280,8 @@
         state.sendError = '';
         state.picks = {};
         state.focusEndsAt = 0;
+        state.recapFor = null;
+        clearTimeout(state.recapTimer);
         storage(function () { sessionStorage.setItem(ROOM_KEY, String(sessionId)); });
         els.transcript.innerHTML = '';
         els.input.value = '';
@@ -391,6 +396,8 @@
         renderReactions(res);
         renderBridge(res);
         renderFocus(res);
+        // Once the whole transcript is in, so the recap stays the last thing in it
+        if (ended && !state.more && state.recapFor !== state.sessionId) loadRecap(state.sessionId, 0);
 
         // Host controls: one round at a time; the focus timer when none is running
         var openRound = (res.rounds || []).some(function (r) { return r.status === 'open'; });
@@ -1059,6 +1066,125 @@
         els.room.classList.toggle('is-people-open', open);
         els.peopleToggle.setAttribute('aria-expanded', String(open));
     });
+
+    // ---------------------------------------------------------------- Recap
+    // Q's closing card. The first member to open the ended room writes it (the
+    // server claims that atomically); everyone else waits on `pending`.
+    var RECAP_WAIT_MS = 5000;
+    var RECAP_WAIT_TRIES = 24; // ~2 minutes: longer than the server's AI lease
+
+    function recapRow() {
+        var row = els.transcript.querySelector('.gs-msg--recap');
+        if (!row) {
+            row = el('div', 'gs-msg gs-msg--q gs-msg--recap');
+            row.appendChild(avatar('Q', true));
+            var body = el('div', 'gs-msg__body');
+            var head = el('div', 'gs-msg__head');
+            head.appendChild(el('span', 'gs-msg__name', 'Q'));
+            body.appendChild(head);
+            body.appendChild(el('section', 'gs-round gs-recap'));
+            row.appendChild(body);
+            els.transcript.appendChild(row);
+        }
+        return row.querySelector('.gs-recap');
+    }
+
+    function loadRecap(sid, tries) {
+        state.recapFor = sid;
+        clearTimeout(state.recapTimer);
+        var card = recapRow();
+        if (!card.childElementCount) card.appendChild(el('p', 'gs-recap__wait', 'Q is writing the room’s recap…'));
+        var stick = function () { els.transcript.scrollTop = els.transcript.scrollHeight; };
+        stick();
+        api('recap', { session_id: sid }).then(function (res) {
+            if (state.sessionId !== sid) return;
+            if (!res.success) throw new Error(res.error);
+            if (res.pending && tries < RECAP_WAIT_TRIES) {
+                state.recapTimer = setTimeout(function () { loadRecap(sid, tries + 1); }, RECAP_WAIT_MS);
+                return;
+            }
+            renderRecap(card, res);
+            stick();
+        }).catch(function (err) {
+            if (state.sessionId !== sid) return;
+            card.innerHTML = '';
+            card.appendChild(el('p', 'gs-recap__wait', (err && err.message) || 'Q couldn’t write the recap just now.'));
+            var again = el('button', 'ds-btn ds-btn--secondary ds-btn--sm', 'Try again');
+            again.type = 'button';
+            again.addEventListener('click', function () { card.innerHTML = ''; loadRecap(sid, 0); });
+            card.appendChild(again);
+        });
+    }
+
+    // Same hand-off the dashboard uses: review-handoff.js prefills a fresh chat
+    // with the prompt (never sends it), so the student asks for themselves.
+    function toChat(prompt) {
+        storage(function () { sessionStorage.setItem('tm_review_prompt', JSON.stringify({ conversationId: null, prompt: prompt })); });
+        location.href = 'chat';
+    }
+
+    function renderRecap(card, res) {
+        var r = res.recap || { skipped: true };
+        var missed = res.missed || [];
+        var topic = state.room ? state.room.topic : '';
+        card.innerHTML = '';
+        // Nothing to sum up and nothing missed: the "session ended" panel says enough
+        if (r.skipped && !missed.length) { card.closest('.gs-msg--recap').remove(); return; }
+
+        var kind = el('span', 'gs-round__kind');
+        kind.innerHTML = '<svg viewBox="0 0 40 30" width="18" height="14" aria-hidden="true"><path d="M5 27 C 5 16, 12 8, 20 8 C 28 8, 35 16, 35 27" stroke="currentColor" stroke-width="5" stroke-linecap="round" fill="none"/><circle cx="20" cy="3.5" r="3.5" fill="currentColor"/></svg>';
+        kind.appendChild(document.createTextNode('Recap'));
+        var head = el('div', 'gs-round__head');
+        head.appendChild(kind);
+        card.appendChild(head);
+        card.setAttribute('aria-label', 'Recap');
+
+        function section(title, node, cls) {
+            var part = el('div', 'gs-recap__part' + (cls ? ' ' + cls : ''));
+            part.appendChild(el('h3', 'gs-recap__title', title));
+            part.appendChild(node);
+            card.appendChild(part);
+        }
+        if (!r.skipped) {
+            if (r.covered && r.covered.length) {
+                var ul = el('ul', 'gs-recap__list');
+                r.covered.forEach(function (c) { ul.appendChild(el('li', null, c)); });
+                section('What the room worked through', ul);
+            }
+            if (r.stuck) section('Where it got stuck', el('p', 'gs-recap__text', r.stuck));
+            if (r.mine) section('For you', el('p', 'gs-recap__text', r.mine), 'is-you');
+            if (r.next) section('Before next time', el('p', 'gs-recap__q', r.next));
+        }
+        if (missed.length) {
+            var list = el('ul', 'gs-recap__missed');
+            missed.forEach(function (m) {
+                var li = el('li', 'gs-recap__miss');
+                li.appendChild(el('span', 'gs-recap__text', m.question));
+                var btn = el('button', 'ds-btn ds-btn--secondary ds-btn--sm', 'Try again');
+                btn.type = 'button';
+                btn.addEventListener('click', function () {
+                    toChat('In my group study session on ' + topic + ' I got this one wrong: "' + m.question + '" Ask me it again so I can have another go.');
+                });
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+            section(missed.length === 1 ? 'The round you missed' : 'Rounds you missed', list);
+        }
+
+        var foot = el('div', 'gs-round__foot');
+        foot.appendChild(el('span', 'gs-round__hint', missed.length ? 'These also wait for you on your dashboard.' : 'Keep going on your own with the tutor.'));
+        var go = el('button', 'ds-btn ds-btn--primary ds-btn--sm', 'Keep going in chat');
+        go.type = 'button';
+        go.addEventListener('click', function () {
+            toChat('I just finished a group study session on ' + topic + '.'
+                + (r.stuck ? ' This is where we got stuck: ' + r.stuck : '')
+                + ' Can you help me work through it?');
+        });
+        var actions = el('div', 'gs-round__actions');
+        actions.appendChild(go);
+        foot.appendChild(actions);
+        card.appendChild(foot);
+    }
 
     // ---------------------------------------------------------------- Invite
     function copy(text, btn, done) {

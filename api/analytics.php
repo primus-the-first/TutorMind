@@ -176,9 +176,9 @@ try {
     $subjects = array_values($subjects);
 
     // -------------------------------------------------------------------------
-    // Worth another look: missed quiz questions (last 14 days), then subjects
-    // gone quiet (7+ days, unfinished). The client drops ones this browser
-    // already retried and shows the first three.
+    // Worth another look: missed quiz questions and group study rounds (last
+    // 14 days, newest first), then subjects gone quiet (7+ days, unfinished).
+    // The client drops ones this browser already retried and shows the first three.
     // -------------------------------------------------------------------------
     $stmt = $pdo->prepare("
         SELECT id, conversation_id, question, score, answered_at
@@ -205,6 +205,30 @@ try {
         ];
         if (count($review) >= 5) break;
     }
+
+    // A round the student locked a wrong answer on, straight from their answer (not the AI)
+    $stmt = $pdo->prepare("
+        SELECT r.id, r.question, s.topic, r.revealed_at
+        FROM group_round_answers a
+        JOIN group_rounds r ON r.id = a.round_id
+        JOIN group_sessions s ON s.id = r.session_id
+        WHERE a.user_id = ? AND r.status = 'revealed' AND a.choice != r.correct_index
+          AND r.revealed_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY r.revealed_at DESC
+        LIMIT 10
+    ");
+    $stmt->execute([$user_id]);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $g) {
+        $k = strtolower(trim($g['question']));
+        if (isset($seenQuestions[$k])) continue;
+        $seenQuestions[$k] = true;
+        $review[] = [
+            'kind' => 'group', 'roundId' => (int)$g['id'], 'topic' => $g['topic'],
+            'question' => $g['question'], 'answeredAt' => $g['revealed_at'],
+        ];
+    }
+    usort($review, fn($a, $b) => strcmp($b['answeredAt'], $a['answeredAt']));
+    $review = array_slice($review, 0, 5);
     $quiet = array_filter($subjects, fn($s) =>
         (strtotime($dbNow) - strtotime($s['lastStudied'])) >= 7 * 86400
         && ($s['milestonesTotal'] === 0 || $s['milestonesDone'] < $s['milestonesTotal']));

@@ -53,6 +53,10 @@
         : '';
     const covered = (done, total) => total > 0 ? `${done} of ${total} milestones covered` : 'No milestones yet';
 
+    // What marks a retried item in REVIEWED_KEY: quiz ids stay bare numbers (what
+    // this browser already stored); group rounds get a prefix so ids can't collide.
+    const reviewKey = r => r.kind === 'quiz' ? r.quizId : r.kind === 'group' ? `g${r.roundId}` : null;
+
     function handoff(conversationId, prompt) {
         try { sessionStorage.setItem('tm_review_prompt', JSON.stringify({ conversationId, prompt })); } catch (e) {}
         location.href = conversationId ? `chat/${conversationId}` : 'chat';
@@ -152,13 +156,21 @@
 
     function reviewHTML() {
         const done = new Set(read(REVIEWED_KEY, []));
-        const items = data.review.filter(r => r.kind !== 'quiz' || !done.has(r.quizId)).slice(0, 3);
+        const items = data.review.filter(r => !reviewKey(r) || !done.has(reviewKey(r))).slice(0, 3);
         const list = items.map((r, i) => r.kind === 'quiz' ? `
             <li class="db-review__item">
                 <div class="db-review__text">
                     <span class="db-review__kind">Missed question${r.topic ? ` · ${esc(r.topic)}` : ''}</span>
                     <span class="db-review__q">${esc(r.question)}</span>
                     <span class="db-review__meta">Scored ${r.score}% · ${ago(r.answeredAt)}</span>
+                </div>
+                <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-review="${i}">${icon('retry')}Try again</button>
+            </li>` : r.kind === 'group' ? `
+            <li class="db-review__item">
+                <div class="db-review__text">
+                    <span class="db-review__kind">Missed in group study · ${esc(r.topic)}</span>
+                    <span class="db-review__q">${esc(r.question)}</span>
+                    <span class="db-review__meta">Huddle round · ${ago(r.answeredAt)}</span>
                 </div>
                 <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-review="${i}">${icon('retry')}Try again</button>
             </li>` : `
@@ -175,7 +187,7 @@
             <h2 class="db-card__title">Worth another look</h2>
             ${items.length
                 ? `<p class="db-muted">Picked from questions you missed and subjects you have not opened lately.</p><ul class="db-review__list">${list}</ul>`
-                : `<p class="db-muted">Nothing to catch up on. Quiz questions you miss come back here, ready to try again.</p>`}`;
+                : `<p class="db-muted">Nothing to catch up on. Questions you miss in quizzes and group study come back here, ready to try again.</p>`}`;
     }
 
     function recallHTML() {
@@ -281,7 +293,9 @@
         const sub = document.getElementById('dbHelloSub');
         if (!data.continue) {
             sub.textContent = 'This page shows what to pick up next, what to review and how well things are sticking. It fills in as you learn.';
-            content.innerHTML = firstVisitHTML();
+            // No 1:1 sessions yet, but group study rounds they missed still belong here
+            const review = data.review.length ? `<section class="db-card db-review db-first-review" aria-label="Worth another look">${reviewHTML()}</section>` : '';
+            content.innerHTML = firstVisitHTML().replace('<section class="db-preview"', review + '<section class="db-preview"');
             return;
         }
         const st = data.streak;
@@ -318,9 +332,14 @@
         if (btn) {
             const r = reviewItems[Number(btn.dataset.review)];
             if (!r) return;
+            if (reviewKey(r)) {
+                const key = reviewKey(r);
+                write(REVIEWED_KEY, [key, ...read(REVIEWED_KEY, []).filter(id => id !== key)].slice(0, 50));
+            }
             if (r.kind === 'quiz') {
-                write(REVIEWED_KEY, [r.quizId, ...read(REVIEWED_KEY, []).filter(id => id !== r.quizId)].slice(0, 50));
                 handoff(r.conversationId, `Ask me this again so I can have another go: "${r.question}"`);
+            } else if (r.kind === 'group') {
+                handoff(null, `In my group study session on ${r.topic} I got this one wrong: "${r.question}" Ask me it again so I can have another go.`);
             } else {
                 handoff(r.conversationId, `Can we pick up ${r.topic} where we left off?`);
             }

@@ -36,6 +36,11 @@
  *   focus_start   { session_id, minutes }       host starts the shared focus timer
  *   focus_stop    { session_id }                host stops it
  *
+ * Recap (migration 021): once a room has ended, the first member to see it asks
+ * for the recap and writes it (an atomic claim, like the focus timer); everyone
+ * else gets `pending` until it lands. Each person's own line is only sent to them.
+ *   recap         { session_id }                the room's recap + rounds you missed
+ *
  * No WebSockets (see migration 015): clients poll. Presence, typing and
  * "Q is thinking" are all timestamps the poll reads (migrations 016/017).
  * Reuses the AI fallback chain from ai_service.php with its own prompt.
@@ -59,6 +64,9 @@ const GS_ROUND_TIMEOUT_SECONDS = 120;      // reveal with whoever's in, so one i
 const GS_BRIDGE_STONES = 5;                // revealed rounds per finished bridge
 const GS_FOCUS_MINUTES = [10, 15, 25];
 const GS_REACTIONS = ['clicked', 'wait', 'same', 'cheer'];
+const GS_RECAP_MIN_SAID = 3;     // fewer student messages and no rounds = nothing to sum up
+const GS_RECAP_MAX_AGE_DAYS = 7; // rooms that ended before recaps existed aren't written retroactively
+const GS_RECAP_LINES = 120;      // transcript lines the recap reads (a room's whole hour, usually)
 
 // --------------------------------------------------------------------------
 // Config + DB
@@ -113,6 +121,7 @@ try {
         case 'react':        gsReact($pdo, $user_id, $body); break;
         case 'focus_start':  gsFocusStart($pdo, $user_id, $body); break;
         case 'focus_stop':   gsFocusStop($pdo, $user_id, $body); break;
+        case 'recap':        gsRecap($pdo, $user_id, $body, $AI_KEYS); break;
         default:          gsFail(400, 'Unknown action');
     }
 } catch (Throwable $e) {
@@ -153,7 +162,8 @@ function gsSession(PDO $pdo, int $sessionId): ?array {
     // focus_left is worked out in SQL: PHP and MySQL don't share a timezone here
     $stmt = $pdo->prepare("SELECT id, host_user_id, topic, join_code, status, current_teacher_user_id,
         (ai_busy_until IS NOT NULL AND ai_busy_until > NOW()) AS ai_thinking,
-        focus_minutes, IF(focus_ends_at IS NULL, NULL, TIMESTAMPDIFF(SECOND, NOW(), focus_ends_at)) AS focus_left
+        focus_minutes, IF(focus_ends_at IS NULL, NULL, TIMESTAMPDIFF(SECOND, NOW(), focus_ends_at)) AS focus_left,
+        recap, TIMESTAMPDIFF(DAY, COALESCE(ended_at, updated_at), NOW()) AS ended_days_ago
         FROM group_sessions WHERE id = ?");
     $stmt->execute([$sessionId]);
     $s = $stmt->fetch();
@@ -1160,4 +1170,168 @@ function gsFocusStop(PDO $pdo, int $userId, array $data): void {
     $stop->execute([$sessionId]);
     if ($stop->rowCount() > 0) gsSystem($pdo, $sessionId, gsFirstName($participants[$userId]['display_name']) . " stopped the focus session.");
     echo json_encode(['success' => true]);
+}
+
+// --------------------------------------------------------------------------
+// Recap
+// --------------------------------------------------------------------------
+
+/** The recap as $userId may see it: the room's part, plus only their own line. */
+function gsRecapFor(?string $json, int $userId): ?array {
+    $r = $json !== null ? json_decode($json, true) : null;
+    if (!is_array($r)) return null;
+    if (!empty($r['skipped'])) return ['skipped' => true];
+    return [
+        'covered' => $r['covered'] ?? [],
+        'stuck'   => $r['stuck'] ?? null,
+        'next'    => $r['next'] ?? null,
+        'mine'    => $r['people'][(string) $userId] ?? null,
+    ];
+}
+
+/** Rounds $userId locked in a wrong answer on — read from the answers, not the AI. */
+function gsMissedRounds(PDO $pdo, int $sessionId, int $userId): array {
+    $stmt = $pdo->prepare("SELECT r.id, r.question FROM group_rounds r
+        JOIN group_round_answers a ON a.round_id = r.id AND a.user_id = ?
+        WHERE r.session_id = ? AND r.status = 'revealed' AND a.choice != r.correct_index ORDER BY r.id");
+    $stmt->execute([$userId, $sessionId]);
+    return array_map(fn($r) => ['id' => (int) $r['id'], 'question' => $r['question']], $stmt->fetchAll());
+}
+
+function gsRecap(PDO $pdo, int $userId, array $data, array $keys): void {
+    $sessionId = (int) ($data['session_id'] ?? 0);
+    if (!($m = gsRequireMember($pdo, $userId, $sessionId))) return;
+    [$session, $participants] = $m;
+    if ($session['status'] !== 'completed') { gsFail(409, 'The recap is written once the session ends.'); return; }
+
+    $respond = function (?string $json, bool $pending = false) use ($pdo, $sessionId, $userId) {
+        echo json_encode([
+            'success' => true,
+            'pending' => $pending,
+            'recap'   => gsRecapFor($json, $userId),
+            'missed'  => gsMissedRounds($pdo, $sessionId, $userId),
+        ]);
+    };
+    if ($session['recap'] !== null) { $respond($session['recap']); return; }
+
+    // Whoever gets here first writes it; a claim older than the AI lease is up for grabs
+    // (that writer crashed or timed out). updated_at = updated_at: history sorts by it.
+    $claim = $pdo->prepare("UPDATE group_sessions SET recap_claimed_at = NOW(), updated_at = updated_at
+        WHERE id = ? AND recap IS NULL
+          AND (recap_claimed_at IS NULL OR recap_claimed_at < NOW() - INTERVAL " . GS_AI_LEASE_SECONDS . " SECOND)");
+    $claim->execute([$sessionId]);
+    if ($claim->rowCount() === 0) { $respond(null, true); return; }
+
+    $recap = (int) $session['ended_days_ago'] > GS_RECAP_MAX_AGE_DAYS
+        ? ['skipped' => true]
+        : gsWriteRecap($pdo, $session, $participants, $keys);
+    if (!$recap) {
+        $pdo->prepare("UPDATE group_sessions SET recap_claimed_at = NULL, updated_at = updated_at WHERE id = ?")->execute([$sessionId]);
+        gsFail(502, "Q couldn't write the recap just now. Try again in a moment.");
+        return;
+    }
+    $json = json_encode($recap, JSON_UNESCAPED_UNICODE);
+    $pdo->prepare("UPDATE group_sessions SET recap = ?, updated_at = updated_at WHERE id = ?")->execute([$json, $sessionId]);
+    $respond($json);
+}
+
+/** Q's recap of the whole room, or ['skipped' => true] when there's too little to sum
+ *  up. Same rule as the rest of Q: it names gaps, it never fills them. */
+function gsWriteRecap(PDO $pdo, array $session, array $participants, array $keys): ?array {
+    $sessionId = (int) $session['id'];
+    $stmt = $pdo->prepare("SELECT * FROM (SELECT id, sender_type, student_user_id, content FROM group_session_messages
+        WHERE session_id = ? AND round_id IS NULL ORDER BY id DESC LIMIT " . GS_RECAP_LINES . ") t ORDER BY id ASC");
+    $stmt->execute([$sessionId]);
+    $lines = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $who = $row['sender_type'] === 'ai' ? 'Q' : ($row['sender_type'] === 'system' ? 'Room'
+            : ($participants[(int) $row['student_user_id']]['display_name'] ?? 'A student'));
+        $lines[] = "[{$who}]: " . mb_substr($row['content'], 0, 400);
+    }
+
+    // Rounds as facts (who got which), so what the recap says matches the cards
+    $stmt = $pdo->prepare("SELECT r.id, r.question, r.options, r.correct_index, a.user_id, a.choice
+        FROM group_rounds r LEFT JOIN group_round_answers a ON a.round_id = r.id
+        WHERE r.session_id = ? AND r.status = 'revealed' ORDER BY r.id");
+    $stmt->execute([$sessionId]);
+    $rounds = [];
+    $answered = [];  // user_id => [right, total]
+    foreach ($stmt->fetchAll() as $r) {
+        $rid = (int) $r['id'];
+        $options = json_decode($r['options'], true) ?: [];
+        $rounds[$rid] ??= ['question' => $r['question'], 'answer' => $options[(int) $r['correct_index']] ?? '',
+            'others' => implode(' ', array_diff_key($options, [(int) $r['correct_index'] => 1])), 'right' => [], 'wrong' => []];
+        if ($r['user_id'] === null) continue;
+        $uid = (int) $r['user_id'];
+        $ok = (int) $r['choice'] === (int) $r['correct_index'];
+        $rounds[$rid][$ok ? 'right' : 'wrong'][] = $participants[$uid]['display_name'] ?? 'Someone who left';
+        $answered[$uid] = [($answered[$uid][0] ?? 0) + ($ok ? 1 : 0), ($answered[$uid][1] ?? 0) + 1];
+    }
+
+    $said = array_sum(array_column($participants, 'said'));
+    if ($said < GS_RECAP_MIN_SAID && !$rounds) return ['skipped' => true];
+
+    // Only people who took part get a line: there's nothing honest to say to a lurker
+    $people = array_filter($participants, fn($p) => $p['said'] > 0 || isset($answered[$p['user_id']]));
+    if (!$people) return ['skipped' => true];
+    $peopleLines = array_map(function ($p) use ($answered) {
+        $bits = [$p['said'] === 1 ? '1 message' : "{$p['said']} messages"];
+        if ($p['has_taught']) $bits[] = 'taught';
+        if (isset($answered[$p['user_id']])) $bits[] = "got {$answered[$p['user_id']][0]} of {$answered[$p['user_id']][1]} rounds";
+        return "- {$p['display_name']} (" . implode(', ', $bits) . ')';
+    }, $people);
+    $roundLines = array_map(fn($r) => "- \"{$r['question']}\" (answer: {$r['answer']}). Got it: "
+        . ($r['right'] ? implode(', ', $r['right']) : 'nobody') . '. Missed: ' . ($r['wrong'] ? implode(', ', $r['wrong']) : 'nobody'), $rounds);
+
+    $system = <<<TXT
+You are Q, the facilitator of a group study room on "{$session['topic']}" that has just ended. The students taught each other; you only pointed at gaps. Write the room's recap. It helps each person see what they built and what to look at next. It must NOT teach or give answers, not even now: a gap you fill is one they don't get to close themselves.
+Reply with JSON only: {"covered": ["..."], "stuck": "..." or null, "next": "...", "people": {"<exact name>": "..."}}
+- "covered": 2 to 4 short phrases naming what this room actually worked through, taken from the conversation, not the topic in general. Example: ["What the light reactions produce", "Why the Calvin cycle needs ATP"]
+- "stuck": one sentence naming where the room got stuck or split, WITHOUT resolving it, or null if it never did. Example: "The room split on where the Calvin cycle happens, so that's the one to settle together." Never: "The Calvin cycle happens in the stroma."
+- "next": ONE question for everyone to think about before next time, pointed at that gap, and not answered, not even inside the question. Example: "If a plant had light but no CO₂, which stage would stop first, and why?" Never: "How does the Calvin cycle's location in the stroma help it get ATP?" (that question tells them where it happens).
+- "people": one entry for each person listed below, keyed by their exact name. One warm sentence spoken to them ("you"): one thing they did well in this room, then one thing to revisit, named as something to look at, never its answer. Example: "You explained the inputs and outputs clearly, so next, check where in the cell each stage happens." Never: "...remember that the Calvin cycle is in the stroma." Base it on what they said and how their rounds went. If they said little, be kind and still name one thing to revisit.
+"covered", "stuck" and "next" are shown to the whole room, so they name no one: say "the room", never "Ben was unsure".
+Plain text only: no markdown or LaTeX. Phrases under 80 characters, sentences under 220.
+TXT;
+    $user = "People:\n" . implode("\n", $peopleLines)
+        . ($roundLines ? "\n\nRounds:\n" . implode("\n", $roundLines) : '')
+        . "\n\nThe conversation:\n" . ($lines ? implode("\n", $lines) : '(nothing said)');
+
+    $valid = fn($d) => isset($d['covered'], $d['people']) && is_array($d['covered']) && is_array($d['people'])
+        && count(array_filter($d['covered'], 'is_string')) >= 1;
+    $d = gsAskJson($system, $user, $keys, $valid);
+    if (!$d) return null;
+
+    // The prompt says never give the answer, and models still slip it into a "next"
+    // question. A round's answer is known, so any word only its correct option has
+    // (not the question, not the wrong options) drops the line that says it.
+    $words = fn($t) => array_filter(preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($t)), fn($w) => mb_strlen($w) >= 5);
+    $giveaways = [];
+    foreach ($rounds as $r) {
+        $giveaways = array_merge($giveaways, array_diff($words($r['answer']), $words($r['question']), $words($r['others'])));
+    }
+    $giveaways = array_unique($giveaways);
+    $clean = function ($s, $max) use ($giveaways) {
+        if (!is_string($s) || trim($s) === '') return null;
+        $s = mb_substr(trim(preg_replace('/\s+/u', ' ', $s)), 0, $max);
+        foreach ($giveaways as $w) if (mb_strpos(mb_strtolower($s), $w) !== false) return null;
+        return $s;
+    };
+    $names = [];
+    foreach ($people as $p) $names[$p['display_name']] = $p['user_id'];
+    $mine = [];
+    foreach ($d['people'] as $name => $line) {
+        // Exact name first; models sometimes key by first name only
+        $uid = $names[$name] ?? null;
+        if ($uid === null) {
+            foreach ($names as $full => $id) if (gsFirstName($full) === trim((string) $name)) { $uid = $id; break; }
+        }
+        if ($uid !== null && ($l = $clean($line, 300))) $mine[(string) $uid] = $l;
+    }
+    return [
+        'covered' => array_slice(array_values(array_filter(array_map(fn($c) => $clean($c, 120), $d['covered']))), 0, 4),
+        'stuck'   => $clean($d['stuck'] ?? null, 300),
+        'next'    => $clean($d['next'] ?? null, 300),
+        'people'  => (object) $mine,
+    ];
 }
