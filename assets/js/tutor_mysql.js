@@ -485,6 +485,70 @@ document.addEventListener('DOMContentLoaded', async () => {
     const attachmentPreviewArea = document.getElementById('attachment-preview-area');
     const newChatBtn = document.getElementById('newChatBtn');
     const chatHistoryContainer = document.getElementById('chat-history-container');
+
+    // --- Opening chats fast ---
+    // The server answers get_conversation in ~2 ms; the wait is the network (a fresh
+    // HTTPS connection to the host measured 3-4 s, a warm one ~0.35 s). So a chat's data
+    // is fetched when the pointer rests on it in the list, and kept for this visit.
+    // Staying correct needs one rule, not a hook on every way a chat can change: a chat
+    // only changes while it's open, so leaving it (another chat or a new one) forgets it,
+    // as do rename, delete and five minutes' age.
+    const convoCache = new Map(); // String(id) -> { at, promise }
+    const CONVO_CACHE_MS = 5 * 60 * 1000;
+    let convoLoadSeq = 0;         // the latest open request; an older answer arriving late is dropped
+
+    function forgetConversation(id) {
+        if (id) convoCache.delete(String(id));
+    }
+
+    function fetchConversation(id) {
+        const key = String(id);
+        const hit = convoCache.get(key);
+        if (hit && Date.now() - hit.at < CONVO_CACHE_MS) return hit.promise;
+        const promise = (async () => {
+            const response = await fetch(`${getBasePath()}/includes/server_mysql.php?action=get_conversation&id=${encodeURIComponent(key)}`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Accept': 'application/json' }
+            });
+            const text = await response.text();
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch (e) {
+                console.error('Failed to parse JSON:', response.status, text.substring(0, 300));
+                throw new Error(response.ok ? 'Invalid server response' : `Server error: ${response.status}`);
+            }
+            if (!response.ok || !result.success) {
+                throw new Error(`Server error: ${response.status} - ${result.error || result.debug || response.statusText}`);
+            }
+            return result;
+        })();
+        convoCache.set(key, { at: Date.now(), promise });
+        promise.catch(() => convoCache.delete(key)); // never keep a failure
+        return promise;
+    }
+
+    // Preload a chat when the pointer rests on it (or a finger touches it) in either list
+    let convoHoverTimer = null;
+    const historyLinkFrom = (target) => target && target.closest ? target.closest('.history-item a[data-conversation-id]') : null;
+    const preloadConversation = (link) => {
+        const id = link.dataset.conversationId;
+        if (id && String(id) !== String(conversationIdInput.value)) fetchConversation(id).catch(() => {});
+    };
+    document.addEventListener('pointerover', (e) => {
+        const link = historyLinkFrom(e.target);
+        if (!link) return;
+        clearTimeout(convoHoverTimer);
+        convoHoverTimer = setTimeout(() => preloadConversation(link), 120);
+    });
+    document.addEventListener('pointerout', (e) => {
+        if (historyLinkFrom(e.target)) clearTimeout(convoHoverTimer);
+    });
+    document.addEventListener('touchstart', (e) => {
+        const link = historyLinkFrom(e.target);
+        if (link) preloadConversation(link);
+    }, { passive: true });
     const menuToggle = document.getElementById('menu-toggle');
     const sidebar = document.getElementById('sidebar');
     const userAccountTrigger = document.getElementById('user-account-trigger');
@@ -2850,6 +2914,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Handle "New Chat" button ---
     newChatBtn.addEventListener('click', () => {
+        convoLoadSeq++;                                  // a chat still loading must not draw over this
+        forgetConversation(conversationIdInput.value);   // the chat being left may have changed
         // Update URL to /chat
         const baseUrl = getBasePath();
         history.pushState({}, '', `${baseUrl}/chat`);
@@ -3063,50 +3129,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Function to load a specific conversation ---
     async function loadConversation(id) {
         if (window.TMWidgets) window.TMWidgets.dismiss(); // a question in focus belongs to the old chat
-        // Get base path for URL construction
-        const basePath = getBasePath();
+        const seq = ++convoLoadSeq;
+        // The chat being left may have changed while open: its remembered copy is stale
+        const leaving = conversationIdInput.value;
+        if (leaving && String(leaving) !== String(id)) forgetConversation(leaving);
+
         // Update URL to /chat/{id}
-        history.pushState({}, '', `${basePath}/chat/${id}`);
+        history.pushState({}, '', `${getBasePath()}/chat/${id}`);
+
+        // Answer the click at once: the chat is marked, titled and shown as loading before
+        // the network replies (it used to leave the old chat on screen until then)
+        highlightActiveConversation(id);
+        const listLink = document.querySelector(`#chat-history-container a[data-conversation-id="${CSS.escape(String(id))}"]`);
+        if (conversationTitleEl && listLink) {
+            conversationTitleEl.textContent = listLink.textContent;
+            conversationTitleEl.style.display = 'block';
+        }
+        welcomeScreen.style.display = 'none';
+        document.body.classList.remove('chat-empty');
+        conversationIdInput.value = id;
+        chatMessages.innerHTML = `<div class="chat-loading" role="status" aria-live="polite" style="display:flex; align-items:center; justify-content:center; padding:3rem 0;">${typeof TmLoader !== 'undefined' ? TmLoader.inlineHTML() : 'Loading chat…'}</div>`;
 
         try {
-            // Use absolute path for fetch
-            const fetchUrl = basePath + '/includes/server_mysql.php';
-            const response = await fetch(`${fetchUrl}?action=get_conversation&id=${id}`, {
-                method: 'GET',
-                credentials: 'include', // Ensure cookies are sent
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-
-            // Check if response is OK
-            if (!response.ok) {
-                console.error('Server returned error:', response.status, response.statusText);
-                // Try to get the error details from the response body
-                try {
-                    const errorBody = await response.text();
-                    console.error('Error response body:', errorBody);
-                    const errorJson = JSON.parse(errorBody);
-                    if (errorJson.debug) {
-                        console.error('Server debug info:', errorJson.debug);
-                    }
-                    throw new Error(`Server error: ${response.status} - ${errorJson.error || errorJson.debug || response.statusText}`);
-                } catch (parseErr) {
-                    if (parseErr.message.startsWith('Server error:')) throw parseErr;
-                    throw new Error(`Server error: ${response.status}`);
-                }
-            }
-
-            const text = await response.text();
-            console.log('Raw response:', text.substring(0, 200)); // Debug log
-
-            let result;
-            try {
-                result = JSON.parse(text);
-            } catch (e) {
-                console.error('Failed to parse JSON:', text);
-                throw new Error('Invalid server response');
-            }
+            const result = await fetchConversation(id);
+            if (seq !== convoLoadSeq) return; // another chat (or a new one) was opened meanwhile
 
             if (result.success) {
                 // Hide welcome screen and clear any existing messages
@@ -3264,7 +3310,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             }
         } catch (error) {
+            if (seq !== convoLoadSeq) return; // the student has moved on; this failure isn't theirs to see
             console.error('Error loading conversation:', error);
+            chatMessages.innerHTML = '';
+            const failed = document.createElement('div');
+            failed.className = 'chat-load-failed';
+            failed.setAttribute('role', 'alert');
+            failed.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:0.75rem; padding:3rem 0; color:var(--text-secondary);';
+            failed.innerHTML = '<p>This chat didn’t load.</p>';
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'retry-load-btn';
+            retry.textContent = 'Try again';
+            retry.addEventListener('click', () => loadConversation(id));
+            failed.appendChild(retry);
+            chatMessages.appendChild(failed);
             showCopyToast('Could not load this conversation. Please try again.', 'error');
         }
     }
@@ -3286,6 +3346,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         if (!confirmed) return;
 
+        forgetConversation(id);
         if (String(conversationIdInput.value) === String(id)) {
             newChatBtn.click(); // the open chat was deleted: go straight to a new one
         }
@@ -3346,6 +3407,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         body: formData
                     });
                     const result = await response.json();
+                    forgetConversation(id); // its remembered copy carries the old title
                     if (!result.success) {
                         await TmDialog.alert({ title: 'Rename Failed', message: 'Error renaming conversation: ' + result.error, type: 'alert' });
                         link.textContent = currentTitle;
