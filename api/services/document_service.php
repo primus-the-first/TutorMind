@@ -687,6 +687,25 @@ function extractDocxTextWithPhp(string $filePath): string
     return implode("\n", $lines);
 }
 
+/**
+ * Extracted text as valid UTF-8. pdfparser writes characters outside the Basic Multilingual
+ * Plane as CESU-8 (each half of a UTF-16 surrogate pair encoded on its own, ED A0-AF xx
+ * ED B0-BF xx), e.g. the italic maths letters in a formula. That isn't valid UTF-8, so
+ * json_encode() returned false and the whole chat message, question included, was saved
+ * empty: the tutor answered as if nothing was sent (a nursing project's Cochran formula,
+ * 2026-10-20). Pairs are joined back into the real character; any other bad byte becomes U+FFFD.
+ */
+function toValidUtf8(string $text): string
+{
+    if (mb_check_encoding($text, 'UTF-8')) return $text;
+    $text = preg_replace_callback('/\xED([\xA0-\xAF])([\x80-\xBF])\xED([\xB0-\xBF])([\x80-\xBF])/', function ($m) {
+        $high = 0xD000 | ((ord($m[1]) & 0x3F) << 6) | (ord($m[2]) & 0x3F);
+        $low  = 0xD000 | ((ord($m[3]) & 0x3F) << 6) | (ord($m[4]) & 0x3F);
+        return mb_chr(0x10000 + (($high - 0xD800) << 10) + ($low - 0xDC00), 'UTF-8');
+    }, $text);
+    return mb_scrub($text, 'UTF-8');
+}
+
 /** Whether a Word file holds text extractDocxTextWithPhp() may not reach: text boxes or
  *  embedded (altChunk) content. Pictures don't count: MarkItDown can't read those either. */
 function docxMayHideText(string $filePath): bool
@@ -1240,7 +1259,7 @@ function prepareFileParts($file, $user_question)
             break;
     }
 
-    $text = trim($text);
+    $text = trim(toValidUtf8($text));
     if (empty($text)) {
         error_log("Empty text extraction for [{$originalName}], extension: {$extension}");
         throw new Exception("Could not extract any text from the file '{$originalName}'. It might be empty, image-based, or use fonts that cannot be parsed.");

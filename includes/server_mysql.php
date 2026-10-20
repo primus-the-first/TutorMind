@@ -846,7 +846,9 @@ try {
     if (!$is_edit_resubmit) {
         // Save user message to the database
         $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content) VALUES (?, 'user', ?)");
-        $stmt->execute([$conversation_id, json_encode($user_message_parts)]);
+        // A stray invalid UTF-8 byte used to make json_encode() return false, saving the whole
+        // message (question and attachments) as empty; substitute the byte instead
+        $stmt->execute([$conversation_id, json_encode($user_message_parts, JSON_INVALID_UTF8_SUBSTITUTE)]);
         $user_message_id = $pdo->lastInsertId();
     } else {
         // For edit resubmit, get the last user message ID
@@ -1213,7 +1215,7 @@ EOT;
 
         // Save AI response to the database with cached HTML
         $stmt = $pdo->prepare("INSERT INTO messages (conversation_id, role, content, content_html) VALUES (?, 'model', ?, ?)");
-        $stmt->execute([$conversation_id, json_encode([['text' => $answer]]), $formattedAnswer]);
+        $stmt->execute([$conversation_id, json_encode([['text' => $answer]], JSON_INVALID_UTF8_SUBSTITUTE), $formattedAnswer]);
 
         // --- HYBRID PROGRESS TRACKING ---
         // Fetch and update context_data for this conversation
