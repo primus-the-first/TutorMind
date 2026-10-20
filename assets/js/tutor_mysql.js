@@ -3034,7 +3034,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     deleteBtn.classList.add('text-gray-400', 'hover:text-white', 'ml-2');
                     deleteBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        deleteConversation(convo.id);
+                        deleteConversation(convo.id, historyItem);
                     });
 
                     const editBtn = document.createElement('button');
@@ -3270,7 +3270,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Function to delete a conversation ---
-    async function deleteConversation(id) {
+    // The screen changes first and the server catches up: the item leaves the list and an
+    // open chat gives way to a new one the moment the student confirms. It used to wait for
+    // the delete, then rebuild the whole list behind a skeleton; and the open-chat check
+    // compared the input's string value to a numeric id with ===, so it never matched and
+    // the deleted chat stayed on screen. If the server refuses, the list is reloaded so the
+    // chat comes back rather than vanishing only on this screen.
+    async function deleteConversation(id, historyItem) {
         const confirmed = await TmDialog.confirm({
             title: 'Delete this chat?',
             message: 'This conversation will be permanently removed. This action cannot be undone.',
@@ -3280,22 +3286,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         if (!confirmed) return;
 
+        if (String(conversationIdInput.value) === String(id)) {
+            newChatBtn.click(); // the open chat was deleted: go straight to a new one
+        }
+        // Every list showing it: the sidebar and the mobile history tray (server-rendered,
+        // so nothing else would ever take it out of there)
+        historyItem?.remove();
+        document.querySelectorAll(`[data-conversation-id="${CSS.escape(String(id))}"]`)
+            .forEach(el => (el.closest('.history-item') || el).remove());
+
         try {
             const fetchUrl = getBasePath() + '/includes/server_mysql.php';
-            const response = await fetch(`${fetchUrl}?action=delete_conversation&id=${id}`);
+            const response = await fetch(`${fetchUrl}?action=delete_conversation&id=${encodeURIComponent(id)}`);
             const result = await response.json();
-
-            if (result.success) {
-                if (conversationIdInput.value === id) {
-                    newChatBtn.click(); // Start a new chat if the active one was deleted
-                }
-                loadChatHistory(); // Refresh the history list
-            } else {
-                showCopyToast('Could not delete the conversation. Please try again.', 'error');
-            }
+            if (!result.success) throw new Error(result.error || 'delete refused');
         } catch (error) {
             console.error('Error deleting conversation:', error);
             showCopyToast('Could not delete the conversation. Please try again.', 'error');
+            loadChatHistory(); // put it back in the list
         }
     }
 
