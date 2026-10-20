@@ -687,6 +687,18 @@ function extractDocxTextWithPhp(string $filePath): string
     return implode("\n", $lines);
 }
 
+/** Whether a Word file holds text extractDocxTextWithPhp() may not reach: text boxes or
+ *  embedded (altChunk) content. Pictures don't count: MarkItDown can't read those either. */
+function docxMayHideText(string $filePath): bool
+{
+    if (!class_exists('ZipArchive')) return true;
+    $zip = new ZipArchive();
+    if ($zip->open($filePath) !== true) return true;
+    $xml = (string) $zip->getFromName('word/document.xml');
+    $zip->close();
+    return str_contains($xml, 'txbxContent') || str_contains($xml, 'altChunk');
+}
+
 /** A part's relationships: [rId => ['target' => ..., 'type' => last segment of its Type]]. */
 function pptxRels(ZipArchive $zip, string $relsPath): array
 {
@@ -1150,13 +1162,16 @@ function prepareFileParts($file, $user_question)
         case 'docx':
             // The PHP reader goes first: an 8.4 MB thesis took it 0.01s, against ~5-6s for
             // MarkItDown (a Python start-up per upload). MarkItDown's extra is markdown (bold,
-            // headings, tidy tables), which the tutor doesn't need. MarkItDown runs only when
-            // the PHP reader finds next to nothing (text the regex can't reach, like text
-            // boxes), then PhpWord. extractWithMarkItDown() returns '' on failure rather than
+            // headings, tidy tables), which the tutor doesn't need. On 22 real documents the PHP
+            // reader found 92-100% of MarkItDown's text, so MarkItDown runs only when the PHP
+            // reader found nothing, or found little in a file with text boxes / embedded parts
+            // it may have missed. A plain short note is just short: "under 200 chars" alone
+            // used to cost one (149 chars) 2.7s of Python for 4 more characters.
+            // Then PhpWord. extractWithMarkItDown() returns '' on failure rather than
             // throwing, so every step checks for empty text instead of catching.
             $text = extractDocxTextWithPhp($filePath);
             error_log("PHP docx reader [{$originalName}]: " . strlen($text) . " chars extracted");
-            if (strlen(trim($text)) < 200) {
+            if (trim($text) === '' || (strlen(trim($text)) < 200 && docxMayHideText($filePath))) {
                 $markItDown = extractWithMarkItDown($filePath);
                 error_log("MarkItDown docx [{$originalName}]: " . strlen($markItDown) . " chars extracted");
                 if (strlen(trim($markItDown)) > strlen(trim($text))) $text = $markItDown;
