@@ -6,6 +6,7 @@
 require_once '../includes/check_auth.php';
 // Include the database connection function.
 require_once '../includes/db_mysql.php';
+require_once '../includes/interests.php';
 
 // --- CONFIGURATION ---
 // Define the list of fields that are managed by this API.
@@ -146,15 +147,14 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
                 $value = mb_substr((string)$value, 0, $max_lengths[$field]);
             }
 
-            // Interests: same cleaning as onboarding (≤20 non-empty strings), stored as JSON
+            // Interests: same cleaning as onboarding (clean_interests), stored as JSON
             if ($field === 'interests') {
                 if (!is_array($value)) {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'error' => 'Interests must be a list.']);
                     return;
                 }
-                $clean = array_map(fn($i) => mb_substr(trim((string)$i), 0, 60), $value);
-                $value = json_encode(array_slice(array_values(array_unique(array_filter($clean, 'strlen'))), 0, 20));
+                $value = json_encode(clean_interests($value));
             }
 
             // Special validation for email

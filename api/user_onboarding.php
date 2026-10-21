@@ -2,6 +2,7 @@
 session_start();
 header('Content-Type: application/json');
 require_once '../includes/db_mysql.php';
+require_once '../includes/interests.php';
 
 // Security check
 if (!isset($_SESSION['user_id'])) {
@@ -93,8 +94,7 @@ $primary_language = (isset($rawLanguage) && is_string($rawLanguage)) ? substr($r
 // can distinguish "interests saved" from "interests never submitted" (NULL).
 $interests = null;
 if (isset($input['interests']) && is_array($input['interests'])) {
-    $cleanInterests = array_slice(array_values(array_filter(array_map('trim', array_map('strval', $input['interests'])))), 0, 20);
-    $interests = json_encode($cleanInterests);
+    $interests = json_encode(clean_interests($input['interests']));
 }
 
 // Response depth lives in response_style — the column the tutor prompt and
