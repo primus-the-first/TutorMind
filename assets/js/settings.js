@@ -182,6 +182,7 @@ class SettingsManager {
                     <p class="field-hint">Examples get built around these, like football, music or cooking.</p>
                     <ul class="interest-list" id="settings-interests" data-setting="interests" aria-label="Your interests"></ul>
                     <input type="text" id="settings-interest-entry" class="form-control" maxlength="60" placeholder="Add an interest and press Enter">
+                    <div class="interest-suggestions" id="settings-interest-suggestions" role="group" aria-label="Suggested interests"></div>
                 </div>
                 <div class="form-group">
                     <label for="settings-country">Country</label>
@@ -867,6 +868,28 @@ class SettingsManager {
             li.appendChild(remove);
             ul.appendChild(li);
         });
+        this.renderInterestSuggestions();
+    }
+
+    // One-tap starters; anything already picked drops out of the row
+    renderInterestSuggestions() {
+        const row = this.modal.querySelector('#settings-interest-suggestions');
+        if (!row) return;
+        const picked = this.interests.map(i => i.toLowerCase());
+        row.innerHTML = '';
+        const full = this.interests.length >= 20;
+        ['Football', 'Basketball', 'Gaming', 'Minecraft', 'Music', 'K-pop', 'Anime', 'Movies and TV',
+         'Fashion', 'Cooking', 'Art and drawing', 'Fitness', 'Social media', 'Cars']
+            .filter(s => !picked.includes(s.toLowerCase()))
+            .forEach(suggestion => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'interest-suggestion';
+                btn.textContent = `+ ${suggestion}`;
+                btn.disabled = full;
+                btn.addEventListener('click', () => this.saveInterests([...this.interests, suggestion]));
+                row.appendChild(btn);
+            });
     }
 
     saveInterests(list) {

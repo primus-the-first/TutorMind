@@ -106,6 +106,17 @@
   }
 
   /* ---------- Chips ---------- */
+  var MAX_TAGS = 20; // same cap as the server's clean_interests()
+
+  // "football" typed by hand and the Football chip are the same interest
+  function indexOfCI(list, value) {
+    var v = String(value).toLowerCase();
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i]).toLowerCase() === v) return i;
+    }
+    return -1;
+  }
+
   function syncChips() {
     document.querySelectorAll('[data-single]').forEach(function (row) {
       var key = row.getAttribute('data-single');
@@ -116,7 +127,7 @@
     document.querySelectorAll('[data-multi]').forEach(function (row) {
       var list = state[row.getAttribute('data-multi')];
       row.querySelectorAll('.ds-chip').forEach(function (chip) {
-        chip.setAttribute('aria-pressed', String(list.indexOf(chip.getAttribute('data-value')) !== -1));
+        chip.setAttribute('aria-pressed', String(indexOfCI(list, chip.getAttribute('data-value')) !== -1));
       });
     });
   }
@@ -136,8 +147,10 @@
       } else if (multi) {
         var listKey = multi.getAttribute('data-multi');
         var list = state[listKey];
-        var at = list.indexOf(value);
-        if (at === -1) list.push(value); else list.splice(at, 1);
+        var at = indexOfCI(list, value);
+        if (at !== -1) list.splice(at, 1);
+        else if (list.length < MAX_TAGS) list.push(value);
+        if (listKey === 'interests') renderTags();
       } else {
         return;
       }
@@ -153,7 +166,13 @@
     document.querySelectorAll('[data-tags]').forEach(function (ul) {
       var key = ul.getAttribute('data-tags');
       ul.innerHTML = '';
+      // Picks that have a chip are already shown by the chip itself
+      var chipped = [];
+      document.querySelectorAll('[data-multi="' + key + '"] .ds-chip').forEach(function (c) {
+        chipped.push(c.getAttribute('data-value').toLowerCase());
+      });
       state[key].forEach(function (text, i) {
+        if (chipped.indexOf(String(text).toLowerCase()) !== -1) return;
         var li = document.createElement('li');
         li.className = 'onb-tag';
         var label = document.createElement('span');
@@ -181,10 +200,10 @@
     var text = input.value.trim().slice(0, 60);
     if (!text) return false;
     var list = state[key];
-    var dupe = list.some(function (v) { return v.toLowerCase() === text.toLowerCase(); });
-    if (!dupe && list.length < 20) list.push(text);
+    if (indexOfCI(list, text) === -1 && list.length < MAX_TAGS) list.push(text);
     input.value = '';
     renderTags();
+    syncChips();
     save();
     return true;
   }

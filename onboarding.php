@@ -267,11 +267,27 @@ if ($user_id) {
 
                     <div class="ds-field">
                         <label for="interest-input" class="ds-label">What are you into?</label>
+                        <div class="ds-chip-row" role="group" aria-label="Suggested interests" data-multi="interests">
+                            <button type="button" class="ds-chip" data-value="Football" aria-pressed="false">Football</button>
+                            <button type="button" class="ds-chip" data-value="Basketball" aria-pressed="false">Basketball</button>
+                            <button type="button" class="ds-chip" data-value="Gaming" aria-pressed="false">Gaming</button>
+                            <button type="button" class="ds-chip" data-value="Minecraft" aria-pressed="false">Minecraft</button>
+                            <button type="button" class="ds-chip" data-value="Music" aria-pressed="false">Music</button>
+                            <button type="button" class="ds-chip" data-value="K-pop" aria-pressed="false">K-pop</button>
+                            <button type="button" class="ds-chip" data-value="Anime" aria-pressed="false">Anime</button>
+                            <button type="button" class="ds-chip" data-value="Movies and TV" aria-pressed="false">Movies and TV</button>
+                            <button type="button" class="ds-chip" data-value="Fashion" aria-pressed="false">Fashion</button>
+                            <button type="button" class="ds-chip" data-value="Cooking" aria-pressed="false">Cooking</button>
+                            <button type="button" class="ds-chip" data-value="Art and drawing" aria-pressed="false">Art and drawing</button>
+                            <button type="button" class="ds-chip" data-value="Fitness" aria-pressed="false">Fitness</button>
+                            <button type="button" class="ds-chip" data-value="Social media" aria-pressed="false">Social media</button>
+                            <button type="button" class="ds-chip" data-value="Cars" aria-pressed="false">Cars</button>
+                        </div>
                         <div class="onb-add">
                             <input type="text" id="interest-input" class="ds-input" placeholder="e.g. football, cooking, Minecraft">
                             <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-add="interest-input">Add</button>
                         </div>
-                        <p class="ds-field__hint">Hobbies, sports, games, your job. Your tutor builds examples around them. Optional.</p>
+                        <p class="ds-field__hint">Tap a few, or add your own: hobbies, sports, games, your job. Your tutor builds examples around them. Optional.</p>
                         <ul class="onb-tags" data-tags="interests" aria-label="Interests added"></ul>
                     </div>
 
