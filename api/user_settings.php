@@ -17,7 +17,7 @@ $allowed_fields = [
     'notifications_enabled', 'notification_frequency', 'notification_time', 'email_reminders',
     // Learning profile from onboarding — the tutor reads these into every prompt
     // (includes/server_mysql.php "personalization context")
-    'education_level', 'field_of_study', 'knowledge_level', 'interests', 'country', 'primary_language'
+    'education_level', 'field_of_study', 'knowledge_level', 'interests', 'suggested_interests', 'interests_in_rooms', 'country', 'primary_language'
 ];
 
 // ENUM columns: the only values MySQL will take
@@ -69,7 +69,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
     try {
         // Prepare and execute the query to get user settings.
         // We also fetch created_at for display purposes.
-        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, interests, country, primary_language, email_reminders, (google_id IS NOT NULL AND google_id <> '') AS google_linked FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, interests, suggested_interests, interests_in_rooms, country, primary_language, email_reminders, (google_id IS NOT NULL AND google_id <> '') AS google_linked FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $settings = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -87,6 +87,9 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
             // interests is stored as a JSON array string
             $interests = json_decode($settings['interests'] ?? '', true);
             $settings['interests'] = is_array($interests) ? $interests : [];
+            // what the tutor noticed in chat, waiting for the student's OK (only the pending list is theirs to see)
+            $settings['suggested_interests'] = interest_suggestions_read($settings['suggested_interests'] ?? null)['pending'];
+            $settings['interests_in_rooms'] = (bool)$settings['interests_in_rooms'];
 
             // Return the settings as JSON.
             http_response_code(200);
@@ -155,6 +158,27 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
                     return;
                 }
                 $value = json_encode(clean_interests($value));
+            }
+
+            // Reviewing what the tutor noticed: only entries that were really pending can stay,
+            // and whatever left without being accepted is remembered as declined.
+            if ($field === 'suggested_interests') {
+                if (!is_array($value)) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'error' => 'Suggested interests must be a list.']);
+                    return;
+                }
+                $stmt = $pdo->prepare("SELECT interests, suggested_interests FROM users WHERE id = ?");
+                $stmt->execute([$user_id]);
+                $current = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+                $interestsAfter = (isset($input['interests']) && is_array($input['interests']))
+                    ? clean_interests($input['interests'])
+                    : clean_interests(json_decode($current['interests'] ?? '', true));
+                $value = interest_suggestions_write(interest_suggestions_reviewed(
+                    interest_suggestions_read($current['suggested_interests'] ?? null),
+                    clean_interests($value),
+                    $interestsAfter
+                ));
             }
 
             // Special validation for email

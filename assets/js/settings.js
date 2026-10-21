@@ -183,6 +183,10 @@ class SettingsManager {
                     <ul class="interest-list" id="settings-interests" data-setting="interests" aria-label="Your interests"></ul>
                     <input type="text" id="settings-interest-entry" class="form-control" maxlength="60" placeholder="Add an interest and press Enter">
                     <div class="interest-suggestions" id="settings-interest-suggestions" role="group" aria-label="Suggested interests"></div>
+                    <div class="interest-noticed" id="settings-interest-noticed" data-setting="suggested_interests" hidden>
+                        <p class="field-hint">Noticed in your chats. Add the ones that fit, or dismiss them.</p>
+                        <ul class="interest-list" id="settings-interest-noticed-list" aria-label="Interests noticed in your chats"></ul>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="settings-country">Country</label>
@@ -328,6 +332,13 @@ class SettingsManager {
                         <p>Allow us to use anonymized data to improve our AI.</p>
                     </div>
                     <label class="switch"><input type="checkbox" role="switch" aria-label="Help improve TutorMind" data-setting="data_sharing"><span class="slider"></span></label>
+                </div>
+                <div class="toggle-group">
+                    <div class="toggle-label">
+                        <h4>Use my interests in group rooms</h4>
+                        <p>Q can frame a question around something you listed, when it asks you directly.</p>
+                    </div>
+                    <label class="switch"><input type="checkbox" role="switch" aria-label="Use my interests in group rooms" data-setting="interests_in_rooms"><span class="slider"></span></label>
                 </div>
 
                 <div class="danger-zone">
@@ -846,6 +857,7 @@ class SettingsManager {
         if (el.matches('input[type="checkbox"]')) el.checked = !!value;
         else if (el.classList.contains('option-group')) this.updateOptionButtons(el, value);
         else if (el.classList.contains('interest-list')) this.renderInterests(Array.isArray(value) ? value : []);
+        else if (el.classList.contains('interest-noticed')) this.renderNoticedInterests(Array.isArray(value) ? value : []);
         else el.value = value ?? ''; // NULL columns (e.g. last_name) must not render as "null"
     }
 
@@ -895,6 +907,45 @@ class SettingsManager {
     saveInterests(list) {
         this.renderInterests(list);
         this.debouncedSave({ interests: this.interests });
+    }
+
+    // Interests the tutor noticed in chat. Nothing here is used until it is accepted.
+    renderNoticedInterests(list) {
+        this.noticedInterests = list.slice();
+        const box = this.modal.querySelector('#settings-interest-noticed');
+        const ul = this.modal.querySelector('#settings-interest-noticed-list');
+        if (!box || !ul) return;
+        ul.innerHTML = '';
+        box.hidden = this.noticedInterests.length === 0;
+        this.noticedInterests.forEach(interest => {
+            const li = document.createElement('li');
+            li.className = 'interest-chip';
+            const add = document.createElement('button');
+            add.type = 'button';
+            add.className = 'interest-noticed-add';
+            add.textContent = `+ ${interest}`;
+            add.setAttribute('aria-label', `Add ${interest} to my interests`);
+            add.addEventListener('click', () => this.reviewNoticedInterest(interest, true));
+            const dismiss = document.createElement('button');
+            dismiss.type = 'button';
+            dismiss.setAttribute('aria-label', `Dismiss ${interest}`);
+            dismiss.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
+            dismiss.addEventListener('click', () => this.reviewNoticedInterest(interest, false));
+            li.appendChild(add);
+            li.appendChild(dismiss);
+            ul.appendChild(li);
+        });
+    }
+
+    reviewNoticedInterest(interest, accept) {
+        const remaining = this.noticedInterests.filter(i => i !== interest);
+        this.renderNoticedInterests(remaining);
+        const payload = { suggested_interests: remaining };
+        if (accept && this.interests.length < 20 && !this.interests.some(i => i.toLowerCase() === interest.toLowerCase())) {
+            this.renderInterests([...this.interests, interest]);
+            payload.interests = this.interests;
+        }
+        this.debouncedSave(payload);
     }
 
     /**

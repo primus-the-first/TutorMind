@@ -2875,6 +2875,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             highlightActiveConversation(result.conversation_id);
                         }
                     }
+                    maybeDetectInterests(result.conversation_id, question);
                 }
 
                 // A progress block only ever comes back once an outline/milestones exist
@@ -3025,6 +3026,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {
             if (DEBUG) console.log('Title request failed:', e);
         }
+    }
+
+    // When a student says they like or play something, ask the server to note it as a
+    // suggestion they can accept in Settings. The server re-checks and rate-limits; this
+    // gate (same idea as interests_cue_in_text() in includes/interests.php) only keeps
+    // the request from firing on every message. Silent either way.
+    const INTEREST_CUE = /\b(i\s+(really\s+|just\s+|actually\s+)?(love|like|enjoy|play|watch|listen\s+to|follow|collect|draw|cook|bake|code|build|stan)|i'?m\s+(really\s+)?(into|obsessed\s+with|a\s+(big\s+)?fan\s+of|addicted\s+to)|my\s+(favou?rite|hobby|hobbies)|fan\s+of|into\s+\w+|obsessed\s+with|after\s+school\s+i)\b/i;
+    function maybeDetectInterests(conversationId, userText) {
+        if (!conversationId || !userText || userText.length < 12 || !INTEREST_CUE.test(userText)) return;
+        const formData = new FormData();
+        formData.append('action', 'detect_interests');
+        formData.append('id', conversationId);
+        fetch(getBasePath() + '/includes/server_mysql.php', { method: 'POST', body: formData }).catch(() => {});
     }
 
     async function loadPersonalizedSuggestions() {

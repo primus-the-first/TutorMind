@@ -385,6 +385,19 @@ body.dark-mode .settings-overlay { background: rgba(0, 0, 0, 0.6); }
 }
 .interest-suggestion:hover:not(:disabled) { border-color: var(--primary-light); color: var(--ds-accent-ink); }
 .interest-suggestion:disabled { opacity: 0.5; cursor: not-allowed; }
+.interest-noticed { margin-top: 14px; }
+.interest-noticed .field-hint { margin-bottom: 8px; }
+.interest-chip .interest-noticed-add {
+    display: inline;
+    width: auto;
+    height: auto;
+    padding: 0 4px 0 0;
+    white-space: nowrap;
+    font: inherit;
+    font-size: 0.925rem;
+    color: var(--ds-ink);
+}
+.interest-chip .interest-noticed-add:hover { background: none; color: var(--ds-accent-ink); }
 
 /* ---------- Text size ---------- */
 .legibility-slider-group label { display: flex; align-items: center; gap: 8px; }

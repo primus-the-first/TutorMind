@@ -48,6 +48,7 @@
 
 require_once __DIR__ . '/../includes/check_auth.php';
 require_once __DIR__ . '/../includes/db_mysql.php';
+require_once __DIR__ . '/../includes/interests.php';
 require_once __DIR__ . '/services/ai_service.php';
 require_once __DIR__ . '/services/facilitator_service.php';
 
@@ -206,6 +207,28 @@ function gsSystem(PDO $pdo, int $sessionId, string $text): void {
 
 function gsTouch(PDO $pdo, int $sessionId): void {
     $pdo->prepare("UPDATE group_sessions SET updated_at = NOW() WHERE id = ?")->execute([$sessionId]);
+}
+
+/**
+ * One of the interests this student typed themselves, for Q to frame a question around.
+ * Random so it rotates. Null if they have none or switched it off (Settings → Privacy).
+ * Interests Q merely noticed in chat never get here: they stay out of users.interests
+ * until the student accepts them.
+ */
+function gsInterestFor(PDO $pdo, int $userId): ?string {
+    // A nicety, never worth silencing Q for: if the column isn't there yet (migration 022
+    // not run on this server) or the query fails, Q just asks the plain question.
+    try {
+        $stmt = $pdo->prepare("SELECT interests, interests_in_rooms FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('gsInterestFor: ' . $e->getMessage());
+        return null;
+    }
+    if (!$row || !$row['interests_in_rooms']) return null;
+    $list = interests_for_prompt($row['interests'] ?? '');
+    return $list ? $list[array_rand($list)] : null;
 }
 
 function gsFirstName(string $name): string {
@@ -609,6 +632,8 @@ function gsFacilitate(PDO $pdo, array $session, array $participants, int $sender
         'mode'     => $mode,
         'sender'   => $participants[$senderId]['display_name'],
         'call_on'  => $callOn['display_name'] ?? null,
+        // Only ever the person being asked: their own listed interest, if they allow it in rooms
+        'call_on_interest' => $callOn ? gsInterestFor($pdo, (int) $callOn['user_id']) : null,
     ]);
 
     $payload = json_encode([

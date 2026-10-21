@@ -336,6 +336,74 @@ if ($action) {
             }
             break;
 
+        case 'detect_interests':
+            // Notices a hobby the student mentioned in their latest message and parks it in
+            // users.suggested_interests for them to accept in Settings. Own request, like
+            // generate_title, so the answer never waits on it. A miss is silent and harmless.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
+                break;
+            }
+            $convo_id = (int) ($_POST['id'] ?? 0);
+            $found = [];
+            try {
+                // One model call per student per 45 seconds, whatever the client sends
+                if (time() - (int) ($_SESSION['interests_detect_at'] ?? 0) < 45) {
+                    echo json_encode(['success' => true, 'suggested' => []]);
+                    break;
+                }
+                $pdo = getDbConnection();
+                $stmt = $pdo->prepare("SELECT m.content FROM messages m JOIN conversations c ON c.id = m.conversation_id
+                    WHERE m.conversation_id = ? AND c.user_id = ? AND m.role = 'user' ORDER BY m.id DESC LIMIT 3");
+                $stmt->execute([$convo_id, $_SESSION['user_id']]);
+                $texts = [];
+                foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $raw) {
+                    $t = '';
+                    foreach (json_decode((string) $raw, true) ?: [] as $part) {
+                        if (isset($part['text'])) $t .= $part['text'] . ' ';
+                    }
+                    $texts[] = trim(mb_substr($t, 0, 500));
+                }
+                // Newest first: only look when the latest message sounds like "I like / I play…"
+                if (!$texts || !interests_cue_in_text($texts[0])) {
+                    echo json_encode(['success' => true, 'suggested' => []]);
+                    break;
+                }
+                $stmt = $pdo->prepare("SELECT interests, suggested_interests FROM users WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $u = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+                $mine = clean_interests(json_decode($u['interests'] ?? '', true));
+                $sugg = interest_suggestions_read($u['suggested_interests'] ?? null);
+                if (count($mine) >= INTEREST_MAX_ITEMS) {
+                    echo json_encode(['success' => true, 'suggested' => []]);
+                    break;
+                }
+                $detectConfig = [];
+                foreach ([__DIR__ . '/config-sql.ini', __DIR__ . '/config.ini'] as $f) {
+                    if (file_exists($f) && ($detectConfig = parse_ini_file($f)) !== false) break;
+                }
+                if (empty($detectConfig['DEEPSEEK_API_KEY'])) {
+                    echo json_encode(['success' => true, 'suggested' => []]);
+                    break;
+                }
+                $_SESSION['interests_detect_at'] = time();
+                $history = [['role' => 'user', 'parts' => [['text' => "Student messages, newest first:\n- " . implode("\n- ", $texts)]]]];
+                $reply = callDeepSeekAPI($history, interests_detect_prompt(), $detectConfig['DEEPSEEK_API_KEY'], 'off');
+                $modelText = $reply['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                $found = interests_parse_detected($modelText, array_merge($mine, $sugg['pending'], $sugg['declined']));
+                if ($found) {
+                    $sugg['pending'] = array_merge($sugg['pending'], $found);
+                    $pdo->prepare("UPDATE users SET suggested_interests = ? WHERE id = ?")
+                        ->execute([interest_suggestions_write($sugg), $_SESSION['user_id']]);
+                }
+                echo json_encode(['success' => true, 'suggested' => $found]);
+            } catch (Exception $e) {
+                error_log("detect_interests error [convo_id=$convo_id]: " . $e->getMessage());
+                echo json_encode(['success' => true, 'suggested' => []]);
+            }
+            break;
+
         case 'generate_suggestions':
             try {
                 $pdo = getDbConnection();
