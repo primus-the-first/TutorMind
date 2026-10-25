@@ -599,13 +599,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     scrollToBottomBtn.addEventListener('click', () => {
         userHasScrolledUp = false;
+        releaseScrollHold();
         chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
         scrollToBottomBtn.classList.remove('visible');
         setTimeout(() => { scrollToBottomBtn.style.display = 'none'; }, 200);
     });
 
-    // Detect user scroll
-    chatMessages.addEventListener('scroll', () => {
+    // Show or hide the scroll-to-bottom button from where the view is now
+    function syncScrollButton() {
         const distanceFromBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight;
         if (distanceFromBottom > SCROLL_THRESHOLD) {
             userHasScrolledUp = true;
@@ -616,10 +617,48 @@ document.addEventListener('DOMContentLoaded', async () => {
             scrollToBottomBtn.classList.remove('visible');
             setTimeout(() => { scrollToBottomBtn.style.display = 'none'; }, 200);
         }
-    });
+    }
+
+    // Detect user scroll
+    chatMessages.addEventListener('scroll', syncScrollButton);
+
+    // While a fresh reply types out the view stays where the student is reading:
+    // following the text down the page would carry them past the explanation
+    // before they've read it (and past the question that is about to open).
+    // scrollHoldEl is that reply; the hold ends with the student's next message,
+    // or when they tap scroll-to-bottom. Only the reply's own wrapper counts, so a
+    // chat switch (which removes it) drops the hold by itself.
+    let scrollHoldEl = null;
+
+    function releaseScrollHold() {
+        if (!scrollHoldEl) return;
+        scrollHoldEl.style.minHeight = '';
+        scrollHoldEl = null;
+    }
+
+    // Park the view on the question that was just asked, with room under it for the
+    // reply to grow into, and hold there. A reply with no question above it (the
+    // answer to a widget) just holds where the view is.
+    function holdForReply(replyEl) {
+        releaseScrollHold();
+        scrollHoldEl = replyEl;
+        // The "thinking" row is still in the page here (it's removed in the send
+        // flow's finally block); hide it now so the measurements below are final.
+        const thinking = document.getElementById('typing-indicator');
+        if (thinking) thinking.style.display = 'none';
+        let prev = replyEl.previousElementSibling;
+        if (prev === thinking) prev = prev.previousElementSibling;
+        if (!prev || !prev.classList.contains('user')) return;
+        replyEl.style.minHeight = chatMessages.clientHeight + 'px';
+        const anchor = prev.offsetHeight < chatMessages.clientHeight * 0.4 ? prev : replyEl;
+        const top = chatMessages.scrollTop + anchor.getBoundingClientRect().top - chatMessages.getBoundingClientRect().top - 16;
+        chatMessages.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
 
     // Smart scroll function - only scrolls if user hasn't scrolled up
     function smartScrollToBottom(force) {
+        if (scrollHoldEl && !scrollHoldEl.isConnected) scrollHoldEl = null;
+        if (scrollHoldEl && !force) return;
         if (force || !userHasScrolledUp) {
             chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
         }
@@ -712,6 +751,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         messageWrapper.appendChild(messageBubble);
         chatMessages.appendChild(messageWrapper);
+
+        if (sender === 'user') releaseScrollHold();
+        if (animate && sender === 'ai') holdForReply(messageWrapper);
 
         if (animate && sender === 'ai') {
             // Pull interactive widget blocks out first so their raw JSON never
@@ -2077,8 +2119,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // Scroll to bottom (respects user scroll position)
-            smartScrollToBottom();
+            // Follow the text down unless a reply is being held in place; then just
+            // keep the scroll-to-bottom button honest as the page grows.
+            if (scrollHoldEl) syncScrollButton(); else smartScrollToBottom();
 
             if (queue.length > 0) {
                 setTimeout(processQueue, speed);

@@ -305,6 +305,15 @@ class SettingsManager {
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Open questions</label>
+                    <div class="option-group" data-local="tm-question-open">
+                        <button type="button" class="option-btn active" data-value="auto">Automatically</button>
+                        <button type="button" class="option-btn" data-value="tap">When I tap</button>
+                    </div>
+                    <p class="legibility-description">Tutor questions can pop up in focus once you've had time to read. Choose "When I tap" to open them yourself, with the expand button on the question. Saved on this device.</p>
+                </div>
+
                 <!-- One text-size control. The old Font Size buttons (root font-size)
                      did the same job less well, so they're gone and no longer applied. -->
                 <div class="form-group legibility-slider-group">
@@ -473,6 +482,12 @@ class SettingsManager {
             group.addEventListener('click', e => {
                 const btn = e.target.closest('.option-btn');
                 if (!btn) return;
+                // Per-device preference: lives in the browser, never sent to the API
+                if (group.dataset.local) {
+                    try { localStorage.setItem(group.dataset.local, btn.dataset.value); } catch (err) {}
+                    this.updateOptionButtons(group, btn.dataset.value);
+                    return;
+                }
                 const change = { [group.dataset.setting]: btn.dataset.value };
                 this.updateOptionButtons(group, btn.dataset.value);
                 this.applyGlobalSettings(change);
@@ -784,6 +799,12 @@ class SettingsManager {
         });
         this.applyLegibility(settings.legibility ?? 100);
 
+        // Per-device preferences (browser storage, not the settings API)
+        this.modal.querySelectorAll('.option-group[data-local]').forEach(group => {
+            let saved = null;
+            try { saved = localStorage.getItem(group.dataset.local); } catch (err) {}
+            this.updateOptionButtons(group, saved || group.querySelector('.option-btn').dataset.value);
+        });
 
         // Google sign-ups have no password they know: offer an emailed set-password link
         const googleNote = this.modal.querySelector('#google-password-note');

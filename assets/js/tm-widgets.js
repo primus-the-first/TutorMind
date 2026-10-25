@@ -140,31 +140,68 @@
     }
 
     function setLiftLabel(btn, lifted) {
-        btn.setAttribute('aria-label', lifted ? 'Back to the lesson' : 'Answer in focus');
+        btn.setAttribute('aria-label', lifted ? 'Back to the lesson' : 'Answer the question');
+        var label = btn.querySelector('span');
+        if (label) label.textContent = lifted ? 'Back to the lesson' : 'Answer';
         // In the chat, a TmTips tooltip explains focus mode (tm-tips.js); in focus
         // the button already says "Back to the lesson", so no tip there.
         if (lifted) {
             btn.removeAttribute('data-tip');
             if (window.TmTips) window.TmTips.hide();
         } else {
-            btn.setAttribute('data-tip', 'Answer this in focus: the question opens in the middle of the screen, then drops back into the chat when your tutor replies.');
+            btn.setAttribute('data-tip', 'Questions open in the middle of the screen once you’ve had time to read, then shrink to a line in the chat when you answer. Tap here to open one yourself.');
             btn.setAttribute('data-tip-help', 'focus');
         }
     }
 
+    // In the chat an answerable question is only ever a one-line row (tm-min):
+    // a stub while it waits ("Answer"), then a summary of what was asked once
+    // it's answered. It opens as a card only in focus; a summary can be
+    // expanded to look back at the verdict.
     function makeLiftable(w) {
         var kind = w.querySelector('.tm-widget-kind');
         if (!kind) return;
         w.setAttribute('data-tm-answerable', '');
+        w.classList.add('tm-min');
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'tm-widget-lift';
-        btn.innerHTML = ICON_LIFT + ICON_DOCK + '<span>Back to the lesson</span>';
+        btn.innerHTML = ICON_LIFT + ICON_DOCK + '<span></span>';
         setLiftLabel(btn, false);
-        btn.addEventListener('click', function () {
-            if (focus && focus.widget === w) dismiss(); else lift(w);
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (focus && focus.widget === w) userDock(focus); else lift(w);
         });
         kind.appendChild(btn);
+
+        // What an answered row offers: it opens back up to the answer and verdict
+        var review = document.createElement('span');
+        review.className = 'tm-widget-review';
+        review.setAttribute('aria-hidden', 'true');
+        review.textContent = 'Review';
+        w.appendChild(review);
+
+        // The whole row is the control: a waiting question opens in focus, an
+        // answered one expands or folds back up in place.
+        kind.setAttribute('role', 'button');
+        kind.tabIndex = 0;
+        function activate() {
+            if (w.classList.contains('tm-lifted')) return;
+            if (!w.classList.contains('tm-solved')) { lift(w); return; }
+            var open = w.classList.toggle('tm-min') === false;
+            kind.setAttribute('aria-expanded', String(open));
+        }
+        // Folded, the whole row takes the click (the question text and the Review
+        // chip sit beside the header, not inside it); expanded, only the header does.
+        w.addEventListener('click', function (e) {
+            if (e.target.closest('.tm-widget-lift')) return;
+            if (w.classList.contains('tm-min') || e.target.closest('.tm-widget-kind')) activate();
+        });
+        kind.addEventListener('keydown', function (e) {
+            if (e.target !== kind || (e.key !== 'Enter' && e.key !== ' ')) return;
+            e.preventDefault();
+            activate();
+        });
     }
 
     // Re-inserting an element restarts its CSS animations, so before the card
@@ -179,7 +216,7 @@
         });
     }
 
-    function lift(w) {
+    function lift(w, auto) {
         if (focus || !w || !w.isConnected || w.classList.contains('tm-solved')) return;
         var from = w.getBoundingClientRect();
 
@@ -207,15 +244,18 @@
         root.appendChild(scrim);
         root.appendChild(stage);
         w.classList.add('tm-lifted');
+        w.classList.remove('tm-min');   // the card opens in full; the row above was its stub
+        var kindRow = w.querySelector('.tm-widget-kind');
+        if (kindRow) { kindRow.removeAttribute('role'); kindRow.tabIndex = -1; }
         stage.appendChild(w);
         document.body.appendChild(root);
         document.documentElement.classList.add('tm-focus-open');
 
-        var f = { root: root, scrim: scrim, stage: stage, widget: w, ghost: ghost,
-                  answeredAt: 0, readMs: 0, wait: null, docked: null };
+        var f = { root: root, scrim: scrim, stage: stage, widget: w, ghost: ghost, minH: from.height,
+                  answeredAt: 0, readMs: 0, wait: null, docked: null, auto: !!auto };
         f.onKey = function (e) { onFocusKey(e, f); };
         document.addEventListener('keydown', f.onKey, true);
-        scrim.addEventListener('click', function () { dock(f); });
+        scrim.addEventListener('click', function () { userDock(f); });
         focus = f;
         var btn = w.querySelector('.tm-widget-lift');
         if (btn) setLiftLabel(btn, true);
@@ -227,7 +267,7 @@
                 { transform: 'none' }
             ], { duration: FOCUS_MS, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
         }
-        scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reducedMotion() ? 120 : 320, easing: 'ease-out' });
+        scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reducedMotion() ? 120 : FOCUS_MS, easing: 'ease-out' });
 
         // Focus the dialog itself, not the first option: no stray focus ring on
         // option A, and no phone keyboard over a question not yet read. A task on
@@ -239,7 +279,7 @@
 
     function onFocusKey(e, f) {
         if (focus !== f) return;
-        if (e.key === 'Escape') { e.preventDefault(); dock(f); return; }
+        if (e.key === 'Escape') { e.preventDefault(); userDock(f); return; }
         if (e.key !== 'Tab') return;
         var items = Array.prototype.filter.call(
             f.stage.querySelectorAll('button, textarea, input, select, a[href], [tabindex]:not([tabindex="-1"])'),
@@ -267,6 +307,14 @@
         f.wait = row;
     }
 
+    // The student sent the card back themselves (Esc, backdrop, its button).
+    // If we lifted it on our own and it was still unanswered, that was too soon
+    // for them: wait longer next time (see "patience" below).
+    function userDock(f) {
+        if (f.auto && !f.docked && !f.widget.classList.contains('tm-solved')) bumpPatience(1);
+        return dock(f);
+    }
+
     // Fly the card back into the chat. Idempotent: every caller gets the same
     // landing promise.
     function dock(f) {
@@ -289,7 +337,17 @@
         }
         function land() {
             w.classList.remove('tm-lifted', 'tm-landing');
+            w.classList.add('tm-min');   // back in the chat it is a one-line row again
+            var kindRow = w.querySelector('.tm-widget-kind');
+            if (kindRow) {
+                kindRow.setAttribute('role', 'button');
+                kindRow.tabIndex = 0;
+                kindRow.setAttribute('aria-expanded', 'false');
+            }
             ghost.replaceWith(w);
+            if (!reducedMotion()) {
+                w.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+            }
             // Moving the node dropped focus. A question put aside keeps it on its
             // lift button; an answered one leaves it to the chat (the composer).
             if (!w.classList.contains('tm-solved') && btn) btn.focus({ preventScroll: true });
@@ -304,7 +362,7 @@
 
         freezeAnimations(w);
         f.stage.scrollTop = 0;
-        ghost.style.height = w.offsetHeight + 'px';   // same width, so the same height inline
+        ghost.style.height = f.minH + 'px';   // it lands as the one-line row it left from
         ghost.scrollIntoView({ block: 'nearest', behavior: 'instant' });
 
         if (reducedMotion()) {
@@ -314,9 +372,12 @@
         var from = f.stage.getBoundingClientRect();
         var to = ghost.getBoundingClientRect();
         w.classList.add('tm-landing');
+        // The card is far taller than the row it lands in, so it fades out on the
+        // way down rather than ending in a visible squash; the row fades in at land().
         var move = f.stage.animate([
-            { transform: 'none' },
-            { transform: 'translate(' + (to.left - from.left) + 'px, ' + (to.top - from.top) + 'px)' }
+            { transform: 'none', opacity: 1 },
+            { transform: 'translate(' + (to.left - from.left) * 0.8 + 'px, ' + (to.top - from.top) * 0.8 + 'px)', opacity: 0.2, offset: 0.75 },
+            { transform: 'translate(' + (to.left - from.left) + 'px, ' + (to.top - from.top) + 'px)', opacity: 0 }
         ], { duration: FOCUS_MS, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
         f.scrim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FOCUS_MS, easing: 'ease-in', fill: 'forwards' });
         move.onfinish = land;
@@ -340,11 +401,125 @@
 
     // Lift the first unanswered question in a freshly typed reply — a beat
     // after it lands in the chat, so the eye sees where it lives.
+    // It doesn't lift on arrival: the modal would cover the explanation the
+    // question is about. It waits until the student has reached the end of the
+    // reply (its last line is on screen) and stayed there for END_DWELL_MS; the
+    // card glows once ("beckons") over the last BECKON_MS of that, then flies up.
+    // Scrolling back up resets the wait. Touching the card or typing a message of
+    // their own means they're already engaged: the auto-lift is dropped (the lift
+    // button is still there).
+    var END_DWELL_MS = 5000;     // time at the end of the reply before it opens
+    var END_SLACK_PX = 40;       // how far below the edge the last line may sit and still count
+    var BECKON_MS = 750;
+    var pending = null;
+
+    // Two per-device preferences, kept in the browser (settings → Appearance
+    // has the first). "tap" turns the auto-lift off: the lift button is the only way in.
+    var OPEN_KEY = 'tm-question-open';          // 'auto' (default) | 'tap'
+    var PATIENCE_KEY = 'tm-question-patience';  // early docks so far, 0..MAX_PATIENCE
+    var MAX_PATIENCE = 4;
+
+    function store(key, val) {
+        try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) {}
+        return null;
+    }
+    function patience() {
+        var n = parseInt(store(PATIENCE_KEY), 10);
+        return isNaN(n) ? 0 : Math.max(0, Math.min(MAX_PATIENCE, n));
+    }
+    // Every early dock stretches the waits by half again (up to 3x); every
+    // question answered from the lifted card eases them back down.
+    function bumpPatience(by) {
+        store(PATIENCE_KEY, String(Math.max(0, Math.min(MAX_PATIENCE, patience() + by))));
+    }
+    var ACTIVITY_EVENTS = ['keydown', 'pointerdown'];   // the two that mean "I'm already engaged"
+
+    function cancelPending() {
+        var p = pending;
+        if (!p) return;
+        pending = null;
+        clearTimeout(p.timer);
+        ACTIVITY_EVENTS.forEach(function (ev) { document.removeEventListener(ev, p.onActivity, true); });
+        p.w.classList.remove('tm-beckon');
+    }
+
+    // A newer message below the one holding the question: the conversation has
+    // moved on, so the question is no longer the thing to answer. There is no
+    // timeout instead — with the reply no longer scrolling itself, a slow reader
+    // can take minutes to reach the question, and it should still open for them.
+    function chatMovedOn(w) {
+        var msg = w.closest('.message');
+        return !!(msg && msg.nextElementSibling);
+    }
+
+    // The nearest ancestor that scrolls (the chat list), or null for the page.
+    function scrollParent(el) {
+        for (var p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+            var oy = getComputedStyle(p).overflowY;
+            if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+        }
+        return null;
+    }
+
+    // Has the student scrolled to the end of the reply holding this question?
+    // The end is the bottom of the reply's own content — not of the page, which
+    // has blank room under a held reply (tutor_mysql.js holdForReply).
+    function reachedEnd(w) {
+        if (document.hidden) return false;
+        var end = w.closest('.message-content') || w.parentElement;
+        var sp = scrollParent(w);
+        var visibleBottom = sp ? sp.getBoundingClientRect().bottom : window.innerHeight;
+        return end.getBoundingClientRect().bottom <= visibleBottom + END_SLACK_PX;
+    }
+
     function focusFresh(container) {
-        if (!container || focus) return;
+        cancelPending();
+        if (!container || focus || store(OPEN_KEY) === 'tap') return;
         var w = Array.prototype.find.call(container.querySelectorAll('.tm-widget[data-tm-answerable]'),
             function (el) { return !el.classList.contains('tm-solved'); });
-        if (w) setTimeout(function () { lift(w); }, 500);
+        if (!w) return;
+
+        var dwellMs = END_DWELL_MS * (1 + patience() * 0.5);   // longer for a student who keeps sending it back
+        var p = { w: w, timer: 0, beckoning: false, endSince: 0 };
+        p.onActivity = function (e) {
+            if (p.beckoning || pending !== p) return;
+            var t = e.target;
+            var engaged = e.type === 'pointerdown' && w.contains(t) ||
+                          e.type === 'keydown' && t && /^(TEXTAREA|INPUT)$/.test(t.tagName) && !w.contains(t);
+            if (engaged) cancelPending();
+        };
+        ACTIVITY_EVENTS.forEach(function (ev) { document.addEventListener(ev, p.onActivity, true); });
+        pending = p;
+
+        function tick() {
+            if (pending !== p) return;
+            var now = Date.now();
+            if (!w.isConnected || w.classList.contains('tm-solved') || focus || chatMovedOn(w)) {
+                cancelPending();
+                return;
+            }
+            // The clock runs only while the end of the reply is on screen and starts
+            // over if the student scrolls back up: a slow reader still in the
+            // explanation never reaches it, however long they take.
+            if (reachedEnd(w)) { if (!p.endSince) p.endSince = now; } else p.endSince = 0;
+            var elapsed = p.endSince ? now - p.endSince : -1;
+            if (reducedMotion()) {
+                if (elapsed >= dwellMs) { cancelPending(); lift(w, true); return; }
+                p.timer = setTimeout(tick, 250);
+                return;
+            }
+            if (elapsed < dwellMs - BECKON_MS) { p.timer = setTimeout(tick, 250); return; }
+            // The glow fills the last beat of the wait, so the modal opens at dwellMs.
+            p.beckoning = true;
+            w.classList.add('tm-beckon');
+            p.timer = setTimeout(function () {
+                if (pending !== p) return;
+                var stillThere = w.isConnected && !w.classList.contains('tm-solved') && !focus && reachedEnd(w);
+                cancelPending();
+                if (stillThere) lift(w, true);
+            }, BECKON_MS);
+        }
+        p.timer = setTimeout(tick, 250);
     }
 
     // A widget was answered (correctly, or submitted for the tutor to judge):
@@ -357,6 +532,7 @@
         var f = focus && focus.widget === w ? focus : null;
         if (f) {
             f.answeredAt = Date.now();
+            if (f.auto) bumpPatience(-1);   // they used the lift: the timing was fine
             f.readMs = Math.min(5000, 1400 + (readText ? String(readText).length * 25 : 0));
             if (onReply) showWaiting(f); else settle();   // standalone: nobody replies
         }

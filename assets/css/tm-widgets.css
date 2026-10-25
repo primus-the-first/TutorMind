@@ -713,6 +713,105 @@
 /* Answered in the chat: nothing left to focus on */
 .tm-widget.tm-solved:not(.tm-lifted) .tm-widget-lift { display: none; }
 
+/* ---------- Minimized in the chat (tm-widgets.js makeLiftable) ----------
+   An answerable question is a one-line row in the chat and a full card only
+   in focus. Waiting: the kind label and an "Answer" button, no question text.
+   Answered: the label, what was asked (one line), and a tick; tap to expand
+   and look back at the verdict (the row loses .tm-min while expanded).
+   The row is a fixed height so a card docking into it never changes the
+   page's layout. */
+.tm-widget.tm-min {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  box-sizing: border-box;
+  height: 52px;
+  padding: 0 0.9rem;
+  overflow: hidden;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.tm-widget.tm-min:hover { box-shadow: none; background: var(--ds-tint, rgba(124, 58, 237, 0.05)); }
+/* !important: a verdict shows itself with an inline display:block */
+.tm-widget.tm-min > :not(.tm-widget-kind):not(.tm-widget-q):not(.tm-widget-review) { display: none !important; }
+.tm-widget.tm-min:not(.tm-solved) > .tm-widget-q { display: none; }
+.tm-widget.tm-min .tm-widget-kind { margin: 0; flex: 1 1 auto; min-width: 0; }
+.tm-widget.tm-min.tm-solved .tm-widget-kind { flex: none; }
+.tm-widget.tm-min .tm-widget-kind > span:not(.tm-widget-icon):not(.tm-widget-lift) {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tm-widget.tm-min.tm-solved > .tm-widget-q {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  font-size: 0.88rem;
+  color: var(--ds-ink-2, var(--text-secondary));
+}
+.tm-widget.tm-min.tm-solved::after {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background-color: var(--tm-good);
+  -webkit-mask: var(--tm-mark-check) center / contain no-repeat;
+  mask: var(--tm-mark-check) center / contain no-repeat;
+}
+.tm-widget.tm-min:not(.tm-solved) .tm-widget-lift {
+  flex: none;
+  margin: 0 0 0 auto;
+  padding: 6px 12px;
+  background: var(--ds-tint, rgba(124, 58, 237, 0.08));
+  color: var(--ds-accent-ink, var(--primary));
+}
+.tm-widget.tm-min .tm-widget-lift span { display: inline; }
+/* "Review" on an answered row says it opens back up; folds to "Hide" when open */
+.tm-widget-review { display: none; }
+.tm-widget.tm-min.tm-solved > .tm-widget-review {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  order: 2;   /* after the tick */
+  color: var(--ds-accent-ink, var(--primary));
+  font: 600 0.8rem var(--ds-font-body, inherit);
+}
+.tm-widget.tm-min.tm-solved > .tm-widget-review::after,
+.tm-widget.tm-solved:not(.tm-min):not(.tm-lifted) .tm-widget-kind::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-2px) rotate(45deg);
+}
+.tm-widget.tm-solved:not(.tm-min):not(.tm-lifted) .tm-widget-kind::after {
+  margin: 0 4px 0 auto;
+  color: var(--ds-ink-2, var(--text-secondary));
+  transform: translateY(2px) rotate(225deg);
+}
+/* Expanded for review: the header is still the control that folds it back up */
+.tm-widget.tm-solved:not(.tm-min):not(.tm-lifted) .tm-widget-kind { cursor: pointer; }
+.tm-widget-kind[role="button"]:focus-visible { outline: 3px solid var(--cta, #f59e0b); outline-offset: 4px; border-radius: 6px; }
+
+/* The beat before a fresh question lifts (tm-widgets.js focusFresh): the card
+   glows once and rises a hair, so the eye is on it when it flies up. */
+.tm-widget.tm-beckon {
+  animation: tm-beckon 0.75s cubic-bezier(0.3, 0, 0.3, 1) both;
+}
+@keyframes tm-beckon {
+  0%   { transform: none; box-shadow: 0 0 0 0 transparent; }
+  55%  { transform: translateY(-3px); box-shadow: 0 0 0 5px var(--ds-tint, rgba(124, 58, 237, 0.16)), var(--ds-lift-hi, 0 18px 30px -18px rgba(91, 33, 182, 0.4)); }
+  100% { transform: translateY(-3px); box-shadow: 0 0 0 8px transparent, var(--ds-lift-hi, 0 18px 30px -18px rgba(91, 33, 182, 0.4)); }
+}
+
 .tm-focus {
   position: fixed;
   inset: 0;
