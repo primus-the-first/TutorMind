@@ -1041,6 +1041,31 @@ function slideTextWithOcrSpace(array $images, string $apiKey): string
 // book. Everything below this reaches the model whole.
 const DOC_MAX_CHARS = 300000;
 
+// The type of an uploaded file from its content. Prod's PHP has no fileinfo extension, so
+// mime_content_type() is undefined there (an uncatchable fatal that broke every upload);
+// images are read with GD's getimagesize(), PDFs by their magic bytes, the rest by extension.
+function detectUploadMime(string $path, string $extension): string
+{
+    if (function_exists('mime_content_type')) {
+        return mime_content_type($path);
+    }
+    $img = @getimagesize($path);
+    if ($img && !empty($img['mime'])) {
+        return $img['mime'];
+    }
+    $head = (string) @file_get_contents($path, false, null, 0, 5);
+    if ($head === '%PDF-') {
+        return 'application/pdf';
+    }
+    if ($extension === 'txt') {
+        return 'text/plain';
+    }
+    if ($extension === 'docx' || $extension === 'pptx') {
+        return 'application/zip'; // the caller trusts the extension for these
+    }
+    return 'application/octet-stream';
+}
+
 function prepareFileParts($file, $user_question)
 {
     $filePath = $file['tmp_name'];
@@ -1048,9 +1073,9 @@ function prepareFileParts($file, $user_question)
         throw new Exception("File upload failed: Temporary file not found.");
     }
 
-    $fileType = mime_content_type($filePath);
     $originalName = $file['name'];
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $fileType = detectUploadMime($filePath, $extension);
 
     $allowed_types = [
         'txt' => 'text/plain',
@@ -1078,6 +1103,22 @@ function prepareFileParts($file, $user_question)
     if (strpos($fileType, 'image/') === 0) {
         if (!extension_loaded('gd')) {
             throw new Exception("The 'gd' PHP extension is required to process images but it is not enabled. Please enable it in your php.ini file.");
+        }
+
+        // GD decodes the whole photo at ~4 bytes a pixel before we shrink it, so a 50 MP phone
+        // photo overruns a 128M memory_limit as an uncatchable fatal ("Something went wrong on
+        // our end"). Size it up first: raise the limit if it's short, refuse cleanly if it can't fit.
+        $dims = @getimagesize($filePath);
+        if ($dims) {
+            $needed = (int) ($dims[0] * $dims[1] * 5) + 48 * 1024 * 1024;
+            $rawLimit = trim((string) ini_get('memory_limit'));
+            $limit    = (int) $rawLimit * (['g' => 1073741824, 'm' => 1048576, 'k' => 1024][strtolower(substr($rawLimit, -1))] ?? 1);
+            if ($limit > 0 && $needed > $limit - memory_get_usage()) {
+                $target = $needed + memory_get_usage();
+                if ($target > 1024 * 1024 * 1024 || @ini_set('memory_limit', (string) $target) === false) {
+                    throw new Exception("Image is too large to process ({$dims[0]}x{$dims[1]}).");
+                }
+            }
         }
 
         $srcImage = null;
