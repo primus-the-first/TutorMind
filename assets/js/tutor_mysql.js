@@ -2970,6 +2970,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatMessages.appendChild(welcomeScreen);
         welcomeScreen.style.display = 'flex';
         conversationIdInput.value = '';
+        outlineEstablished = false;  // a fresh chat: its first reply may build the lesson outline
         solvedCheckQuestions = new Set();
         solvedChipChoices = new Map();
         solvedTaskAnswers = new Map();
@@ -3205,6 +3206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         welcomeScreen.style.display = 'none';
         document.body.classList.remove('chat-empty');
         conversationIdInput.value = id;
+        outlineEstablished = true;   // an existing chat: its next reply is a follow-up, not an outline build
         chatMessages.innerHTML = `<div class="chat-loading" role="status" aria-live="polite" style="display:flex; align-items:center; justify-content:center; padding:3rem 0;">${typeof TmLoader !== 'undefined' ? TmLoader.inlineHTML() : 'Loading chat…'}</div>`;
 
         try {
