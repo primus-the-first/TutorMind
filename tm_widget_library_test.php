@@ -11,6 +11,13 @@
  * Open at: http://localhost/TutorMind/tm_widget_library_test.php
  * Safe to delete — reads widget_library only, writes nothing but usage_count.
  */
+// PRODUCTION GUARD — deny access in any environment that is not explicitly
+// marked as 'development'. This file must not be reachable on the live server.
+if (getenv('APP_ENV') !== 'development') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/includes/db_mysql.php';
 require_once __DIR__ . '/api/services/response_formatter.php';

@@ -1,4 +1,7 @@
 <?php
+// CLI only: these files run schema/maintenance work and must never answer a web request.
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+
 require_once 'db_mysql.php';
 
 try {

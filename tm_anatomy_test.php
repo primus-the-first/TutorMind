@@ -15,6 +15,13 @@
  * Safe to delete — makes one live Gemini call, writes nothing to the DB
  * except widget_library.usage_count if the model references the library.
  */
+// PRODUCTION GUARD — deny access in any environment that is not explicitly
+// marked as 'development'. This file must not be reachable on the live server.
+if (getenv('APP_ENV') !== 'development') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/includes/db_mysql.php';
 require_once __DIR__ . '/api/services/tutor_service.php';

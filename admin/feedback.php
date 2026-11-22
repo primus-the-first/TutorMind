@@ -7,6 +7,18 @@
 require_once '../includes/check_auth.php';
 require_once '../includes/db_mysql.php';
 
+// Admin gate. Being logged in is not enough: registration is open, and this page
+// lists every student's name, username, email and feedback. The allowed user IDs
+// ([app] admin_user_ids) are read by includes/admin_gate.php, shared with the
+// get_feedback chat action.
+require_once '../includes/admin_gate.php';
+
+if (!isFeedbackAdmin()) {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit('Forbidden');
+}
+
 // Get database connection
 $user_id = $_SESSION['user_id'] ?? null;
 $user_dark_mode = false;
@@ -21,7 +33,9 @@ try {
         }
     }
 } catch (Exception $e) {
-    die("Database connection failed: " . htmlspecialchars($e->getMessage()));
+    error_log("Admin feedback page: database connection failed: " . $e->getMessage());
+    http_response_code(500);
+    die("Database connection failed.");
 }
 
 // Fetch stats

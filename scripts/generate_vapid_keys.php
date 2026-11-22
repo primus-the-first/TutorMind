@@ -6,6 +6,10 @@
  * [webpush] section (see includes/config-sql.ini.example for the format).
  */
 
+// CLI only: these files run schema/maintenance work and must never answer a web request.
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
+
+
 require_once __DIR__ . '/../vendor/autoload.php';
 
 $keys = \Minishlink\WebPush\VAPID::createVapidKeys();

@@ -9,6 +9,13 @@
  * Open at: http://localhost/TutorMind/tm_widget_test.php
  * Safe to delete — it touches no database, session, or secrets.
  */
+// PRODUCTION GUARD — deny access in any environment that is not explicitly
+// marked as 'development'. This file must not be reachable on the live server.
+if (getenv('APP_ENV') !== 'development') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/api/services/response_formatter.php';
 

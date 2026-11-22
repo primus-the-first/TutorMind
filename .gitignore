@@ -68,3 +68,6 @@ update_php_js.py
 chat_area_bundle/ui-overhaul.css
 chat_area_bundle/tutor_mysql.php
 chat_area_bundle/chat-interface.js
+
+# Local per-user data (the onboarding file backup was removed; nothing should land here)
+user_data/

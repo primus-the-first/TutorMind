@@ -204,3 +204,11 @@ RewriteRule ^.*$ 404.html [L,NC]
     Header append Vary User-Agent
 </IfModule>
 
+
+# ── Deny dev/ops/data folders over HTTP ──────────────────────────────────────
+# scripts/ and migrations/ are CLI-only tooling (they also exit unless run from the
+# CLI), docs/ and data/ are read by PHP from disk and never fetched by a browser,
+# logs/ and user_data/ hold private output, chat_area_bundle/ was a stale code copy.
+# Matches both the XAMPP prefix (/TutorMind/scripts/...) and the prod root (/scripts/...).
+# Only the app's own top-level folders are covered, so e.g. /assets/data/ is unaffected.
+RedirectMatch 404 (?i)^(?:/TutorMind)?/(scripts|migrations|chat_area_bundle|user_data|docs|logs|data)(/|$)
