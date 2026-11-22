@@ -510,6 +510,32 @@ function ocrWithOcrSpace($pdfPath, $apiKey) {
     return trim($fullText);
 }
 
+// A shell argument that is safe on both Linux and Windows. escapeshellarg() is right on Linux,
+// but on Windows it turns '%' into a space, which would wreck Ghostscript's "%03d" page
+// pattern, so there the argument is double-quoted by hand (a '"' can't occur in a Windows path).
+function shellArgPortable(string $arg): string
+{
+    if (PHP_OS_FAMILY === 'Windows') {
+        return '"' . str_replace(['"', "\0"], '', $arg) . '"';
+    }
+    return escapeshellarg($arg);
+}
+
+// "timeout 60 " to put in front of an external command on Linux, so a file that hangs it can't
+// pin a worker. Empty on Windows (XAMPP has no timeout command) or where `timeout` is missing.
+function shellTimeoutPrefix(int $seconds): string
+{
+    static $bin = null; // looked up once per request
+    if ($bin === null) {
+        $bin = '';
+        if (PHP_OS_FAMILY !== 'Windows') {
+            exec('command -v timeout 2>/dev/null', $found, $code);
+            if ($code === 0 && !empty($found[0])) $bin = escapeshellarg(trim($found[0]));
+        }
+    }
+    return $bin === '' ? '' : "{$bin} -k 5 {$seconds} ";
+}
+
 function ocrWithTesseract($pdfPath) {
     $tesseractPath = '';
     $possiblePaths = [
@@ -572,9 +598,13 @@ function ocrWithTesseract($pdfPath) {
 
     try {
         $imagePrefix = $tempDir . '/page';
+        // The PDF is user-supplied: -dSAFER keeps its PostScript off the filesystem (explicit,
+        // since gs before 9.50 defaulted to unsafe), and on Linux `timeout` kills a PDF that hangs it.
         $gsCmd = sprintf(
-            '"%s" -dNOPAUSE -dBATCH -sDEVICE=png16m -r200 -sOutputFile="%s-%%03d.png" "%s" 2>&1',
-            $gsPath, $imagePrefix, $pdfPath
+            '%s%s -dSAFER -dQUIET -dNOPAUSE -dBATCH -sDEVICE=png16m -r200 %s %s 2>&1',
+            shellTimeoutPrefix(60), shellArgPortable($gsPath),
+            shellArgPortable('-sOutputFile=' . $imagePrefix . '-%03d.png'),
+            shellArgPortable($pdfPath)
         );
 
         exec($gsCmd, $gsOutput, $gsReturnCode);
@@ -1066,6 +1096,74 @@ function detectUploadMime(string $path, string $extension): string
     return 'application/octet-stream';
 }
 
+// Largest upload prepareFileParts() will open, whatever its type. A big lecture deck is 20-40 MB;
+// post_max_size is the only other cap on what reaches here.
+const UPLOAD_MAX_BYTES = 50 * 1024 * 1024;
+
+// Zip-bomb limits for docx/pptx, read from the zip's directory before anything is extracted.
+const OOXML_MAX_ENTRIES      = 2000;
+const OOXML_MAX_TOTAL_BYTES  = 200 * 1024 * 1024;
+const OOXML_MAX_ENTRY_BYTES  = 100 * 1024 * 1024;
+const OOXML_MAX_RATIO        = 200;             // uncompressed : compressed, per entry
+const OOXML_RATIO_MIN_BYTES  = 1024 * 1024;     // ratios only count on entries bigger than this
+
+// Check that a .docx/.pptx really is an Office package and not a renamed file or a zip bomb,
+// before any reader unzips it. The extension is all the caller has to go on (see
+// detectUploadMime), and PhpWord / MarkItDown / the slide-image reader would otherwise
+// inflate whatever the zip claims. Everything here comes from the zip's central directory
+// (statIndex), nothing is extracted. Throws on a bad file; returns quietly when it passes.
+function assertValidOoxmlPackage(string $path, string $extension): void
+{
+    $mismatch = "File content does not match its extension ({$extension}).";
+
+    if ((string) @file_get_contents($path, false, null, 0, 4) !== "PK\x03\x04") {
+        throw new Exception($mismatch);
+    }
+    // Without the zip extension the readers can't unzip it either (each checks for it), so
+    // there's nothing to guard; the magic-byte check above is as far as we can go.
+    if (!class_exists('ZipArchive')) {
+        return;
+    }
+
+    $zip = new ZipArchive();
+    if ($zip->open($path, ZipArchive::RDONLY) !== true) {
+        throw new Exception($mismatch);
+    }
+    try {
+        $count = $zip->numFiles;
+        if ($count > OOXML_MAX_ENTRIES) {
+            throw new Exception("Archive has too many entries ({$count}).");
+        }
+
+        $total = 0;
+        for ($i = 0; $i < $count; $i++) {
+            $stat = $zip->statIndex($i);
+            if ($stat === false) {
+                throw new Exception($mismatch);
+            }
+            $size = (int) $stat['size'];
+            $comp = max(1, (int) $stat['comp_size']);
+            if ($size > OOXML_MAX_ENTRY_BYTES) {
+                throw new Exception("Archive entry '{$stat['name']}' is too large when unpacked ({$size} bytes).");
+            }
+            if ($size > OOXML_RATIO_MIN_BYTES && $size / $comp > OOXML_MAX_RATIO) {
+                throw new Exception("Archive entry '{$stat['name']}' has a suspicious compression ratio.");
+            }
+            $total += $size;
+            if ($total > OOXML_MAX_TOTAL_BYTES) {
+                throw new Exception("Archive is too large when unpacked (over " . OOXML_MAX_TOTAL_BYTES . " bytes).");
+            }
+        }
+
+        $mainPart = $extension === 'docx' ? 'word/document.xml' : 'ppt/presentation.xml';
+        if ($zip->locateName('[Content_Types].xml') === false || $zip->locateName($mainPart) === false) {
+            throw new Exception($mismatch);
+        }
+    } finally {
+        $zip->close();
+    }
+}
+
 function prepareFileParts($file, $user_question)
 {
     $filePath = $file['tmp_name'];
@@ -1097,6 +1195,19 @@ function prepareFileParts($file, $user_question)
     // DOCX and PPTX are ZIP-based; mime_content_type() returns zip/octet-stream/ooxml depending on OS — trust the extension
     if (!in_array($extension, ['docx', 'pptx']) && !in_array($fileType, $allowed_types)) {
         throw new Exception("File content does not match its extension ({$extension} vs {$fileType}).");
+    }
+
+    // pptx has its own, friendlier size check below; every other type is capped here
+    if ($extension !== 'pptx') {
+        $uploadBytes = (int) filesize($filePath);
+        if ($uploadBytes > UPLOAD_MAX_BYTES) {
+            $mb = round($uploadBytes / 1024 / 1024, 1);
+            throw new Exception("The file '{$originalName}' is {$mb} MB, which is too large to process (limit: " . (UPLOAD_MAX_BYTES / 1024 / 1024) . " MB).");
+        }
+    }
+
+    if ($extension === 'docx' || $extension === 'pptx') {
+        assertValidOoxmlPackage($filePath, $extension);
     }
 
     // Handle images
