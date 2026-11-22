@@ -17,12 +17,34 @@ jobs:
     name: Lint & smoke checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.1'
+
+      - name: Secret scan (tracked files)
+        # Fails the build if a key-shaped string is committed. Scans tracked
+        # files only; vendor/, lock files and this workflow are skipped (the
+        # patterns below would match themselves).
+        run: |
+          pattern='AIza[0-9A-Za-z_-]{35}|sk-[A-Za-z0-9]{20,}|gsk_[A-Za-z0-9]{20,}|xkeysib-[A-Za-z0-9]{20,}|BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY'
+          matches=$(git grep -nIE "$pattern" -- . ':(exclude)vendor' ':(exclude)*.lock' ':(exclude)composer.lock' ':(exclude)package-lock.json' ':(exclude).github/workflows' || true)
+          if [ -n "$matches" ]; then
+            # Print file:line only, never the matched value.
+            echo "$matches" | cut -d: -f1,2
+            echo "::error::Possible secret committed (locations above, values hidden). Remove it and rotate the key."
+            exit 1
+          fi
+          echo "No key-shaped strings found."
+
+      - name: Composer audit (known vulnerabilities in composer.lock)
+        # Fails on any advisory. continue-on-error is TRUE for the first
+        # rollout so a pre-existing advisory cannot block a deploy; once the
+        # step is green, delete the continue-on-error line to enforce it.
+        continue-on-error: true
+        run: composer audit --locked --no-interaction
 
       - name: PHP syntax check (php -l)
         run: |
@@ -34,7 +56,7 @@ jobs:
           exit $status
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
 
@@ -58,7 +80,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: SSH in and reset the server to the deployed commit
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}

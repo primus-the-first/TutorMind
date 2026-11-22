@@ -7,7 +7,6 @@
         "erusev/parsedown": "^1.7",
         "smalot/pdfparser": "^2.0",
         "phpoffice/phpword": "^1.0",
-        "phpoffice/phppresentation": "^1.0",
         "thiagoalessio/tesseract_ocr": "^2.13",
         "minishlink/web-push": "^11.0",
         "php-http/guzzle7-adapter": "^1.1"
