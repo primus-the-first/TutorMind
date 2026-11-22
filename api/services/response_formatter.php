@@ -10,6 +10,10 @@ if (!function_exists('formatResponse')) {
         $protections = [];
         $counter = 0;
 
+        // The model must not be able to forge a placeholder (e.g. put XPROTECTX0XPROTECTX in a link
+        // URL) and have protected content restored into an attribute.
+        $text = str_replace('XPROTECTX', '', (string)$text);
+
         // IMPORTANT: Protect code blocks FIRST, before LaTeX or inline code
         // This prevents ${variables} in code from being caught by LaTeX $ protection
         // Regex notes:
@@ -75,6 +79,9 @@ if (!function_exists('formatResponse')) {
         if (class_exists('Parsedown')) {
             $Parsedown = new Parsedown();
             $Parsedown->setBreaksEnabled(true);
+            // Safe mode escapes raw HTML from the model and blocks javascript:/data: link URLs.
+            // The result is cached in messages.content_html and set via innerHTML, so it must be inert.
+            $Parsedown->setSafeMode(true);
             $html = $Parsedown->text($text);
         } else {
             $html = nl2br(htmlspecialchars($text, ENT_QUOTES, 'UTF-8'));
@@ -83,7 +90,11 @@ if (!function_exists('formatResponse')) {
         // Restore protected content
         foreach ($protections as $placeholder => $protection) {
             if ($protection['type'] === 'latex') {
-                $html = str_replace($placeholder, $protection['content'], $html);
+                // Escape before restoring: Parsedown never saw this text, so "$<img onerror=...>$" would
+                // otherwise go out as live HTML. MathJax reads text nodes, so &lt; &gt; &amp; decode back
+                // to the real characters (a < b, & in pmatrix) before it typesets. Quotes too, in case
+                // the placeholder ended up inside an attribute (e.g. a link URL).
+                $html = str_replace($placeholder, htmlspecialchars($protection['content'], ENT_QUOTES, 'UTF-8'), $html);
             } elseif ($protection['type'] === 'codeblock') {
                 // Restore code blocks with proper HTML
                 // NOTE: class goes on <code>, not <pre>, so hljs/addCopyButtonsToCodeBlocks can read it
@@ -96,7 +107,10 @@ if (!function_exists('formatResponse')) {
                 $html = str_replace($placeholder, '<code>' . $codeContent . '</code>', $html);
             } elseif ($protection['type'] === 'fetch_image') {
                 // Restore as raw marker — resolveImageMarkers() in image_service.php handles the fetch
-                $html = str_replace($placeholder, '[FETCH_IMAGE: ' . $protection['content'] . ']', $html);
+                // Only < > " are neutralised (not & or '): resolveImageMarkers() escapes the query itself
+                // when it builds the <img>, and a marker it can't resolve stays as text, never as markup.
+                $safeMarker = strtr($protection['content'], ['<' => '&lt;', '>' => '&gt;', '"' => '&quot;']);
+                $html = str_replace($placeholder, '[FETCH_IMAGE: ' . $safeMarker . ']', $html);
             }
         }
 
