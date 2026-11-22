@@ -2781,13 +2781,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         let userMessageHtml = '';
         // If files are attached, create a small display for them.
         if (attachmentManager.files.length > 0) {
-            userMessageHtml += `<div class="message-attachments-grid" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">`;
+            userMessageHtml += `<div class="message-attachments-grid">`;
             attachmentManager.files.forEach(file => {
                 const iconClass = attachmentManager.getFileIcon(file.type);
                 userMessageHtml += `
-                    <div class="message-attachment-pill" style="background: rgba(123, 63, 242, 0.1); padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
+                    <div class="message-attachment-pill">
                         <i class="${iconClass}"></i>
-                        <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${file.name}</span>
+                        <span class="attachment-pill-name">${file.name}</span>
                     </div>
                 `;
             });
@@ -3275,9 +3275,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 if (part.inline_data._removed || !part.inline_data.data) {
                                     // Show a lightweight placeholder pill instead of the full image
                                     attachmentPills.push(`
-                                        <div class="message-attachment-pill" style="background: rgba(123, 63, 242, 0.1); padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; margin-right: 4px; margin-bottom: 4px;">
+                                        <div class="message-attachment-pill">
                                             <i class="fas fa-image"></i>
-                                            <span>Image Attached</span>
+                                            <span class="attachment-pill-name">Image Attached</span>
                                         </div>
                                     `);
                                 } else {
@@ -3296,9 +3296,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     const match = part.text.match(/Context from uploaded file '([^']+)':/);
                                     const filename = match ? match[1] : "Document";
                                     attachmentPills.push(`
-                                        <div class="message-attachment-pill" style="background: rgba(123, 63, 242, 0.1); padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; margin-right: 4px; margin-bottom: 4px;">
+                                        <div class="message-attachment-pill">
                                             <i class="fas fa-file-alt"></i>
-                                            <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${filename}</span>
+                                            <span class="attachment-pill-name">${filename}</span>
                                         </div>
                                     `);
                                     // DO NOT add this to userQuestion - it's context, not the question
@@ -3318,7 +3318,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         // Assemble the final message HTML
                         if (attachmentPills.length > 0) {
-                            userMessageHtml += '<div class="message-attachments-grid" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">';
+                            userMessageHtml += '<div class="message-attachments-grid">';
                             userMessageHtml += attachmentPills.join('');
                             userMessageHtml += '</div>';
                         }
