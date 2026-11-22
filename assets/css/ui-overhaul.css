@@ -480,16 +480,7 @@ body.dark-mode .dark-mode-toggle i {
   transform: translateX(16px);
 }
 
-/* --- Main Chat Area ---
-   Background carries TutorMind's own bridge-arch mark as a barely-there
-   watermark instead of a generic dot-grid — the app's one real brand asset,
-   otherwise confined to the shell chrome. Consolidated from a dead structural
-   base, a light `!important` override, a separate dark `!important` override
-   (previously an elaborate 5-stop gradient — flattened to match the sidebar's
-   flat #1a1a1a dark surface, one dark-mode approach instead of two), and one
-   fully dead rule that targeted `.chat-main::before`, a class that appears
-   nowhere in tutor_mysql.php's HTML and had no `content` declared for it
-   anywhere — the pseudo-element never rendered. */
+/* Main Chat Area. Backdrop (dotted bridge) lives in tm-chat.css section 14. */
 .main-chat-wrapper {
   flex-grow: 1;
   display: flex;
@@ -499,19 +490,10 @@ body.dark-mode .dark-mode-toggle i {
   overflow-x: hidden;
   padding-bottom: 120px; /* Reserve space for fixed input bar */
   background-color: #FFFEF9;
-  /* First attempt at this used a 200px tile with an 84px-wide, 12px-thick arch
-     at 5% opacity — turned out to read as loud, uniform wallpaper, not a
-     watermark (visually confirmed, not assumed this time). Much smaller mark
-     (28x18, matching the original logo's own proportions unscaled), much
-     thinner stroke, and a sparser 400px tile so individual marks are
-     occasional rather than a repeating grid. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cpath d='M186 209 C 186 199, 194 191, 200 191 C 206 191, 214 199, 214 209' stroke='%237C3AED' stroke-opacity='0.06' stroke-width='3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");
-  background-size: 400px 400px;
 }
 
 body.dark-mode .main-chat-wrapper {
   background-color: #1a1a1a;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cpath d='M186 209 C 186 199, 194 191, 200 191 C 206 191, 214 199, 214 209' stroke='%23A78BFA' stroke-opacity='0.08' stroke-width='3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");
 }
 
 .main-chat-header {

@@ -473,6 +473,7 @@ function tm_goal_icon($paths) {
 
     <!-- Main Chat Area -->
     <div class="main-chat-wrapper">
+        <?php include __DIR__ . '/includes/chat_backdrop.php'; ?>
         <header class="main-chat-header" style="justify-content: space-between;">
             <div class="header-left" style="display: flex; align-items: center; flex: 1;">
                 <!-- Mobile nav moved to bottom nav bar (see #mobileBottomNav below) -->

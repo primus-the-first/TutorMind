@@ -682,6 +682,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // If there's no active conversation, show the welcome screen and hide title.
         welcomeScreen.style.display = 'flex';
         document.body.classList.add('chat-empty');
+        document.body.classList.remove('tm-encoded', 'tm-thinking');
         if (conversationTitleEl) conversationTitleEl.style.display = 'none';
     }
 
@@ -880,6 +881,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (state[name]) { dot.classList.add('tm-filled'); made++; }
             else { dot.classList.remove('tm-filled'); }
         });
+        document.body.classList.toggle('tm-encoded', made === 3);
 
         const archL = chip.querySelector('.tm-arch-l');
         const archR = chip.querySelector('.tm-arch-r');
@@ -2546,6 +2548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let outlineEstablished = !!conversationIdInput.value;
 
     function showTypingIndicator(show) {
+        document.body.classList.toggle('tm-thinking', !!show);
         let indicator = document.getElementById('typing-indicator');
         if (show) {
             if (!indicator) {
@@ -2988,6 +2991,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             conversationTitleEl.style.display = 'none';
         }
         document.body.classList.add('chat-empty');
+        document.body.classList.remove('tm-encoded', 'tm-thinking');
 
         // Clear session context
         if (window.sessionContextManager) {
@@ -3225,6 +3229,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.body.classList.remove('chat-empty');
                 chatMessages.innerHTML = '';
                 conversationIdInput.value = id;
+                if (!result.conversation.contactState) {
+                    document.body.classList.remove('tm-encoded');
+                }
                 updateContactChip(result.conversation.contactState);
                 // Find last user message index for edit button.
                 // Silent tm-check/tm-chips/tm-task echoes are excluded (they are

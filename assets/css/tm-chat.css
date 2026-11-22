@@ -1627,3 +1627,137 @@ body .attachment-pill-name {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---------- 14. Backdrop: the dotted bridge (includes/chat_backdrop.php) ---------- */
+:root {
+  --tm-bd-dot: 0.34;
+  --tm-bd-dot-faint: 0.16;
+  --tm-bd-dot-lit: 0.8;
+}
+
+body.dark-mode {
+  --tm-bd-dot: 0.42;
+  --tm-bd-dot-faint: 0.2;
+  --tm-bd-dot-lit: 0.85;
+}
+
+body .main-chat-wrapper {
+  isolation: isolate;
+}
+
+.tm-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.tm-bd {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: block;
+  fill: none;
+  transition: opacity 0.5s var(--ds-ease);
+}
+
+.tm-bd-welcome {
+  top: 0;
+  height: 100%;
+}
+
+.tm-bd-span {
+  top: 0;
+  height: 110px;
+}
+
+body.chat-empty .tm-bd-span {
+  opacity: 0;
+}
+
+body:not(.chat-empty) .tm-bd-welcome {
+  opacity: 0;
+}
+
+.tm-bd .dt {
+  fill: var(--ds-accent-ink);
+  opacity: var(--tm-bd-dot);
+}
+
+.tm-bd-span .dt {
+  opacity: var(--tm-bd-dot-faint);
+  transition: opacity 0.35s var(--ds-ease);
+  transition-delay: calc(var(--i) * 12ms);
+}
+
+.tm-bd-key {
+  fill: var(--cta);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.4s var(--ds-ease), opacity 0.4s var(--ds-ease);
+}
+
+.tm-bd-span .tm-bd-key {
+  opacity: 0.55;
+}
+
+body.tm-encoded .tm-bd-span .dt {
+  opacity: var(--tm-bd-dot-lit);
+}
+
+body.tm-encoded .tm-bd-span .tm-bd-key {
+  opacity: 1;
+  transform: scale(1.45);
+}
+
+body.tm-thinking .tm-bd-span .dt {
+  animation: tmBdRun 2.4s linear infinite;
+  animation-delay: calc(var(--i) * 22ms);
+}
+
+@keyframes tmBdRun {
+  0%, 14%, 100% {
+    opacity: var(--tm-bd-dot-faint);
+  }
+  5% {
+    opacity: 0.95;
+  }
+}
+
+body.tm-encoded.tm-thinking .tm-bd-span .dt {
+  animation-name: tmBdRunLit;
+}
+
+@keyframes tmBdRunLit {
+  0%, 14%, 100% {
+    opacity: var(--tm-bd-dot-lit);
+  }
+  5% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .tm-bd-welcome {
+    left: -35%;
+    width: 170%;
+  }
+  /* The phone greeting sits close to the arch, so keep the dots quiet behind it */
+  .tm-bd-welcome .dt {
+    opacity: var(--tm-bd-dot-faint);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tm-bd,
+  .tm-bd-span .dt,
+  .tm-bd-key {
+    transition: none;
+  }
+
+  body.tm-thinking .tm-bd-span .dt,
+  body.tm-encoded.tm-thinking .tm-bd-span .dt {
+    animation: none;
+  }
+}
