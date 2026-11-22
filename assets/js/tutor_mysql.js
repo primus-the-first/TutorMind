@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // If there's no active conversation, show the welcome screen and hide title.
         welcomeScreen.style.display = 'flex';
         document.body.classList.add('chat-empty');
-        document.body.classList.remove('tm-encoded', 'tm-thinking');
+        document.body.classList.remove('tm-encoded', 'tm-thinking', 'tm-loading-chat');
         if (conversationTitleEl) conversationTitleEl.style.display = 'none';
     }
 
@@ -2991,7 +2991,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             conversationTitleEl.style.display = 'none';
         }
         document.body.classList.add('chat-empty');
-        document.body.classList.remove('tm-encoded', 'tm-thinking');
+        document.body.classList.remove('tm-encoded', 'tm-thinking', 'tm-loading-chat');
 
         // Clear session context
         if (window.sessionContextManager) {
@@ -3216,7 +3216,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.body.classList.remove('chat-empty');
         conversationIdInput.value = id;
         outlineEstablished = true;   // an existing chat: its next reply is a follow-up, not an outline build
-        chatMessages.innerHTML = `<div class="chat-loading" role="status" aria-live="polite" style="display:flex; align-items:center; justify-content:center; padding:3rem 0;">${typeof TmLoader !== 'undefined' ? TmLoader.inlineHTML() : 'Loading chat…'}</div>`;
+        // The dotted bridge under the header runs while the chat loads (tm-chat.css section 14),
+        // so the thread itself stays empty; screen readers still get the status
+        chatMessages.innerHTML = '<div class="chat-loading" role="status" aria-live="polite"><span class="sr-only">Loading chat…</span></div>';
+        document.body.classList.add('tm-loading-chat');
 
         try {
             const result = await fetchConversation(id);
@@ -3397,6 +3400,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             failed.appendChild(retry);
             chatMessages.appendChild(failed);
             showCopyToast('Could not load this conversation. Please try again.', 'error');
+        } finally {
+            // A newer load owns the indicator now; only the latest one switches it off
+            if (seq === convoLoadSeq) document.body.classList.remove('tm-loading-chat');
         }
     }
 
