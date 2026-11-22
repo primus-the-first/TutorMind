@@ -1001,6 +1001,14 @@ class SettingsManager {
         emailError.style.display = emailOk ? 'none' : 'block';
         if (!emailOk) { emailInput.focus(); return; }
 
+        // Email and username identify the account, so the server wants the password
+        // (or a fresh Google sign-in) before it changes either one.
+        let proof = {};
+        if ('email' in payload || 'username' in payload) {
+            proof = await this.askIdentityProof();
+            if (!proof) return; // cancelled: the edits stay, nothing is sent
+        }
+
         const saveBtn = this.modal.querySelector('#settings-save-btn');
         saveBtn.classList.add('loading');
         saveBtn.disabled = true;
@@ -1008,13 +1016,13 @@ class SettingsManager {
             const response = await fetch('api/user_settings.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ ...payload, ...proof })
             });
             const result = await response.json();
             if (!result.success) throw new Error(result.error || 'Failed to save.');
             Object.assign(this.initialSettings, payload);
             this.updateMainUI(payload);
-            this.showToast('Settings saved successfully!', 'success');
+            this.showToast(result.verification_sent ? `Saved. We sent a confirmation link to ${payload.email}.` : 'Settings saved successfully!', 'success');
             this.setDirty(false);
         } catch (error) {
             this.showToast('Error: ' + error.message, 'error');
@@ -1140,10 +1148,45 @@ class SettingsManager {
      * { google_credential }, 'password' (use the password prompt), or null.
      */
     confirmDeleteWithGoogle() {
-        return TmDialog.custom({
+        return this.confirmWithGoogle({
             title: 'Delete your account?',
             message: 'This permanently erases your account and all of your chats. To confirm it is you, sign in with the Google account you use for TutorMind.',
-            destructive: true,
+            destructive: true
+        });
+    }
+
+    /**
+     * Asks who is changing the email or username: Google's button for Google-linked
+     * accounts (or "I have a password"), a password prompt otherwise. Resolves to
+     * { google_credential } or { current_password } (what api/user_settings.php checks), or null.
+     */
+    async askIdentityProof() {
+        let proof = this.initialSettings.google_linked
+            ? await this.confirmWithGoogle({
+                title: 'Confirm it is you',
+                message: 'To change your email or username, sign in with the Google account you use for TutorMind.',
+                destructive: false
+            })
+            : 'password';
+        if (proof === 'password') {
+            const password = await TmDialog.prompt({
+                title: 'Confirm it is you',
+                message: 'Enter your password to change your email or username.',
+                inputType: 'password',
+                inputLabel: 'Password',
+                confirmLabel: 'Confirm'
+            });
+            proof = password ? { current_password: password } : null;
+        }
+        return proof;
+    }
+
+    /** Google sign-in dialog shared by delete-account and identity changes. */
+    confirmWithGoogle({ title, message, destructive }) {
+        return TmDialog.custom({
+            title,
+            message,
+            destructive,
             mount: (slot, done) => {
                 slot.innerHTML = `
                     <div class="tm-google-btn" aria-live="polite"><p class="tm-dialog-note">Loading Google sign-in…</p></div>

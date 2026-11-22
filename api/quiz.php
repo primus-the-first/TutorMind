@@ -9,7 +9,10 @@
  */
 
 require_once __DIR__ . '/../includes/check_auth.php';
+require_once __DIR__ . '/../includes/csrf.php';
+requireCSRFForWrites(); // writes need the X-CSRF-Token header
 require_once __DIR__ . '/../includes/db_mysql.php';
+require_once __DIR__ . '/../includes/usage_quota.php';
 require_once __DIR__ . '/services/ai_service.php';
 
 header('Content-Type: application/json');
@@ -44,6 +47,12 @@ try {
 // --------------------------------------------------------------------------
 $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $body['action'] ?? $_GET['action'] ?? '';
+// Every quiz action writes (generate and grade store a row), so POST only
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+    exit;
+}
 
 try {
     switch ($action) {
@@ -182,6 +191,9 @@ Return ONLY valid JSON — no markdown, no commentary:
 }
 PROMPT;
 
+    // Everything is validated; the next step calls the AI providers
+    requireQuota($pdo, $user_id, 'quiz_generate');
+
     $aiData = firstValidJson([
         'gemini'   => fn() => callGemini($geminiKey, $prompt, 12),
         'groq'     => fn() => callGroqJson($groqKey, $prompt, 20),
@@ -312,6 +324,9 @@ Return ONLY valid JSON:
   "feedback": "1–2 sentences of encouraging, specific feedback"
 }
 PROMPT;
+
+    // Recognition questions were graded above without AI; only open-ended answers cost a call
+    requireQuota($pdo, $user_id, 'quiz_grade');
 
     $gradeData = firstValidJson([
         'gemini'   => fn() => callGemini($geminiKey, $prompt, 10),

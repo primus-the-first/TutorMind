@@ -34,6 +34,9 @@ define('DEBUG_MODE', false);
 define('CHAT_PRIMARY_PROVIDER', 'deepseek');
 
 require_once 'check_auth.php'; // Secure all API endpoints
+require_once __DIR__ . '/csrf.php';
+require_once __DIR__ . '/admin_gate.php';
+require_once __DIR__ . '/usage_quota.php';
 require_once __DIR__ . '/../api/services/document_service.php';
 require_once __DIR__ . '/../api/services/ai_service.php';
 
@@ -123,11 +126,44 @@ if (function_exists('pulse_label')) pulse_label($action ?: 'chat');
 
 // Add a special case for logout to be handled by auth.php
 if ($action === 'logout') {
+    // Fully log out: drop the "Remember me" token (else the next page load signs the
+    // student straight back in) and expire both cookies, then end the session.
+    // Allowed on GET (a forced logout is a nuisance, not a breach).
+    $isHttps = function_exists('tm_request_is_https') ? tm_request_is_https() : !empty($_SERVER['HTTPS']);
+    if (isset($_COOKIE['remember_me'])) {
+        [$selector] = array_pad(explode(':', (string)$_COOKIE['remember_me'], 2), 1, '');
+        if (preg_match('/^[a-f0-9]{32}$/i', $selector)) {
+            try {
+                $pdo = getDbConnection();
+                $pdo->prepare("DELETE FROM user_tokens WHERE selector = ?")->execute([$selector]);
+            } catch (Exception $e) {
+                // Ignore error on logout
+            }
+        }
+        setcookie('remember_me', '', [
+            'expires'  => time() - 3600,
+            'path'     => '/',
+            'secure'   => $isHttps,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
     session_unset();
     session_destroy();
+    setcookie(session_name(), '', [
+        'expires'  => time() - 3600,
+        'path'     => '/',
+        'secure'   => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     header('Location: login');
     exit;
 }
+
+// Every write needs the X-CSRF-Token header (or csrf_token field). Checked while the
+// session is still open, before session_write_close() below.
+requireCSRFForWrites();
 
 // Nothing below writes to $_SESSION, so release the session lock now ($_SESSION
 // stays readable). PHP runs one request per session at a time, and this file
@@ -251,7 +287,14 @@ if ($action) {
             break;
 
         case 'delete_conversation':
-            $convo_id = $_GET['id'] ?? null;
+            // Destructive: POST only (it used to delete on a plain GET link). The id is
+            // read from the POST body, or from ?id= for callers that only switch method.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'error' => 'Invalid request method.']);
+                break;
+            }
+            $convo_id = $_POST['id'] ?? $_GET['id'] ?? null;
             $pdo = getDbConnection();
             $stmt = $pdo->prepare("DELETE FROM conversations WHERE id = ? AND user_id = ?");
             $stmt->execute([$convo_id, $_SESSION['user_id']]);
@@ -323,6 +366,7 @@ if ($action) {
                     if (file_exists($f) && ($titleConfig = parse_ini_file($f)) !== false) break;
                 }
                 if (!defined('GEMINI_API_KEY') && !empty($titleConfig['GEMINI_API_KEY'])) define('GEMINI_API_KEY', $titleConfig['GEMINI_API_KEY']);
+                if ($firstText !== '') requireQuota($pdo, (int) $_SESSION['user_id'], 'title'); // the next call is the AI
                 $title = $firstText === '' ? null
                     : generateConversationTitle($firstText, $titleConfig['DEEPSEEK_API_KEY'] ?? null);
                 $title = $title ?: 'New Chat';
@@ -387,6 +431,7 @@ if ($action) {
                     echo json_encode(['success' => true, 'suggested' => []]);
                     break;
                 }
+                requireQuota($pdo, (int) $_SESSION['user_id'], 'interests'); // the next call is the AI
                 $_SESSION['interests_detect_at'] = time();
                 $history = [['role' => 'user', 'parts' => [['text' => "Student messages, newest first:\n- " . implode("\n- ", $texts)]]]];
                 $reply = callDeepSeekAPI($history, interests_detect_prompt(), $detectConfig['DEEPSEEK_API_KEY'], 'off');
@@ -446,6 +491,7 @@ if ($action) {
                 if ($config === false || !isset($config['GEMINI_API_KEY'])) {
                     throw new Exception('API key missing.');
                 }
+                requireQuota($pdo, (int) $_SESSION['user_id'], 'suggestions'); // the next call is Gemini
                 
                 // Use Quiz/Task specific key if available, otherwise fallback to main key
                 $apiKey = (isset($config['QUIZ_API_KEY']) && !empty($config['QUIZ_API_KEY'])) 
@@ -552,7 +598,13 @@ if ($action) {
             break;
 
         case 'get_feedback':
-            // For admin dashboard - retrieve feedback with optional filters
+            // For admin dashboard - retrieve feedback with optional filters.
+            // Carries every student's email, so it's gated like admin/feedback.php.
+            if (!isFeedbackAdmin()) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Forbidden']);
+                break;
+            }
             try {
                 $pdo = getDbConnection();
                 

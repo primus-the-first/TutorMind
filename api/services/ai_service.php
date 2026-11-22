@@ -4,6 +4,9 @@
  * Handles all external AI API calls: Gemini, Groq, DeepSeek, and Imagen.
  */
 
+require_once __DIR__ . '/image_generation.php';
+require_once __DIR__ . '/../../includes/usage_quota.php';
+
 // llama-3.3-70b-versatile and llama-3.1-8b-instant were retired by Groq (confirmed
 // via GET /openai/v1/models — neither appears in the current catalog, which is why
 // this fallback started hard-failing with HTTP 404 "model does not exist"). Replaced
@@ -482,34 +485,47 @@ function callGeminiAPI($payload, $apiKey, int $timeout = 60, int $maxRetries = 5
 
                 error_log("Chat Service: AI requested image generation - " . substr($imagePrompt, 0, 100));
 
+                // Imagen is billed per image: spend the student's daily allowance first. Over the
+                // cap this answers inside the chat (no exit), so the reply JSON stays intact.
+                $imageQuota = ['allowed' => true];
+                if (!empty($_SESSION['user_id']) && function_exists('getDbConnection')) {
+                    try {
+                        $imageQuota = consumeQuota(getDbConnection(), (int) $_SESSION['user_id'], 'image');
+                    } catch (Throwable $quotaError) {
+                        error_log('Image quota check failed, allowing: ' . $quotaError->getMessage()); // fail open
+                    }
+                }
+                if (!$imageQuota['allowed']) {
+                    error_log("Chat Service: image quota reached for user " . (int) $_SESSION['user_id']);
+                    return [
+                        'candidates' => [
+                            [
+                                'content' => [
+                                    'parts' => [
+                                        [
+                                            'text' => "I can't make another image right now: you've reached today's image limit, and it resets at midnight. I can still help with explanations, diagrams described in words, or anything else. What would you like to do next?"
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ];
+                }
+
                 try {
-                    $imageServiceUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http")
-                        . "://{$_SERVER['HTTP_HOST']}/api/image.php";
+                    // In-process call: this used to go over HTTP to api/image.php using the
+                    // request's Host header, which is client-controlled.
+                    try {
+                        $imageResult = generateImage($imagePrompt, $apiKey, ['aspectRatio' => $aspectRatio]);
+                    } catch (Exception $imageError) {
+                        error_log("Image Service: Error - " . $imageError->getMessage());
+                        $imageResult = [
+                            'success' => false,
+                            'error' => 'Could not generate the image. Please try again.'
+                        ];
+                    }
 
-                    $imagePayload = json_encode([
-                        'prompt' => $imagePrompt,
-                        'options' => ['aspectRatio' => $aspectRatio]
-                    ]);
-
-                    $ch = curl_init($imageServiceUrl);
-                    curl_setopt_array($ch, [
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_POST => true,
-                        CURLOPT_POSTFIELDS => $imagePayload,
-                        CURLOPT_HTTPHEADER => [
-                            'Content-Type: application/json',
-                            'X-Internal-Call: tutormind'
-                        ],
-                        CURLOPT_TIMEOUT => 90
-                    ]);
-
-                    $imageResponse = curl_exec($ch);
-                    $imageHttpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
-
-                    $imageResult = json_decode($imageResponse, true);
-
-                    if ($imageHttpStatus === 200 && isset($imageResult['success']) && $imageResult['success']) {
+                    if (!empty($imageResult['success'])) {
                         $imageData = $imageResult['imageData'];
                         error_log("Chat Service: Image generation succeeded");
 

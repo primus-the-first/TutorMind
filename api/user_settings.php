@@ -4,6 +4,8 @@
 // --- BOOTSTRAP & AUTHENTICATION ---
 // Start session and check if the user is logged in.
 require_once '../includes/check_auth.php';
+require_once __DIR__ . '/../includes/csrf.php';
+requireCSRFForWrites(); // writes need the X-CSRF-Token header
 // Include the database connection function.
 require_once '../includes/db_mysql.php';
 require_once '../includes/interests.php';
@@ -225,6 +227,78 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
         return;
     }
 
+    // Email and username are what identify the account (and where its reset links go), so a
+    // session alone can't change them: the person must prove who they are first, with the
+    // password or — for Google sign-ups — a fresh Google sign-in (same as deleting the account).
+    $emailChanged = false;
+    try {
+        $stmt = $pdo->prepare("SELECT email, username, password_hash, google_id FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $current = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    } catch (PDOException $e) {
+        error_log("Failed to load account for settings update: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Failed to update settings.']);
+        return;
+    }
+    $emailChanged = isset($input['email']) && is_string($input['email']) && trim($input['email']) !== (string)($current['email'] ?? '');
+    $usernameChanged = isset($input['username']) && is_string($input['username']) && trim($input['username']) !== (string)($current['username'] ?? '');
+    if ($emailChanged || $usernameChanged) {
+        $deny = function (int $code, string $error, array $extra = []) {
+            http_response_code($code);
+            echo json_encode(['success' => false, 'error' => $error] + $extra);
+        };
+        require_once '../includes/rate_limiter.php';
+        $ip = getClientIP();
+        $throttleKey = 'settings:' . $user_id; // shares the login limiter, so a stolen session can't guess the password here
+        if (isRateLimited($ip, $throttleKey)['limited']) {
+            $deny(429, 'Too many attempts. Please try again in a few minutes.');
+            return;
+        }
+
+        $password   = $input['current_password'] ?? null;
+        $credential = $input['google_credential'] ?? null;
+        if (!is_string($password) && !is_string($credential)) {
+            $deny(403, 'Confirm it is you to change your email or username.', [
+                'needs_proof' => true,
+                'google_linked' => !empty($current['google_id']),
+            ]);
+            return;
+        }
+
+        if (is_string($credential)) {
+            require_once '../includes/google_auth.php';
+            try {
+                $google = verifyGoogleIdToken($credential);
+            } catch (RuntimeException $e) {
+                error_log("Settings identity change: " . $e->getMessage());
+                $deny(502, 'Could not reach Google to confirm. Please try again.');
+                return;
+            }
+            if (!$google || empty($current['google_id']) || !hash_equals((string)$current['google_id'], $google['sub'])) {
+                recordFailedAttempt($ip, $throttleKey);
+                $deny(401, 'That Google account is not the one linked to this TutorMind account.');
+                return;
+            }
+            // Must be a sign-in made just now for this, not one left over from earlier.
+            if (time() - $google['iat'] > 300) {
+                $deny(401, 'That Google confirmation expired. Please try again.');
+                return;
+            }
+        } elseif (!password_verify($password, (string)($current['password_hash'] ?? ''))) {
+            recordFailedAttempt($ip, $throttleKey);
+            $deny(401, 'Incorrect password.');
+            return;
+        }
+        clearLoginAttempts($ip, $throttleKey);
+
+        // A new address isn't confirmed until its owner clicks the emailed link
+        if ($emailChanged) {
+            require_once '../includes/email_verification.php';
+            if (emailVerificationReady($pdo)) $updates[] = "`email_verified_at` = NULL";
+        }
+    }
+
     // Switching reminders or reminder emails on with no schedule yet: default to "every few days",
     // otherwise the reminder job (which needs a schedule) would silently never send anything.
     if (!array_key_exists('notification_frequency', $input)
@@ -254,8 +328,18 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
             if (isset($input['last_name'])) {
                 $_SESSION['last_name'] = $input['last_name'];
             }
+            $verificationSent = false;
+            if ($emailChanged) {
+                // A new address is a new identity for the account: sign out every other session and
+                // remember-me login (the old ones); this device is re-stamped to stay signed in.
+                require_once '../includes/session_validity.php';
+                if (tm_invalidate_sessions($pdo, (int)$user_id, true, true) && !headers_sent()) {
+                    session_regenerate_id(true);
+                }
+                $verificationSent = sendVerificationEmail($pdo, $user_id, trim($input['email']), ($_SESSION['first_name'] ?? '') ?: ($_SESSION['username'] ?? ''));
+            }
             http_response_code(200);
-            echo json_encode(['success' => true, 'message' => 'Settings updated successfully.']);
+            echo json_encode(['success' => true, 'message' => 'Settings updated successfully.', 'verification_sent' => $verificationSent]);
         } else {
             // This can happen if the submitted values are the same as the current ones.
             http_response_code(200);

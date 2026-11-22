@@ -1,9 +1,12 @@
 <?php
+require_once __DIR__ . '/includes/session_boot.php'; // hardened cookie params, before session_start()
 session_start();
 header('Content-Type: application/json');
 require_once 'includes/db_mysql.php';
 require_once 'includes/csrf.php';
 require_once 'includes/rate_limiter.php';
+require_once 'includes/session_validity.php';
+require_once 'includes/signup_throttle.php';
 
 $request_method = $_SERVER['REQUEST_METHOD'];
 
@@ -13,7 +16,7 @@ switch ($request_method) {
         if ($action === 'logout') {
             // Clear Remember Me
             if (isset($_COOKIE['remember_me'])) {
-                list($selector, $validator) = explode(':', $_COOKIE['remember_me']);
+                [$selector, $validator] = array_pad(explode(':', (string)$_COOKIE['remember_me'], 2), 2, '');
                 try {
                     $pdo = getDbConnection();
                     $stmt = $pdo->prepare("DELETE FROM user_tokens WHERE selector = ?");
@@ -45,6 +48,14 @@ switch ($request_method) {
         if (empty($action) && isset($_POST['credential']) && isset($_POST['g_csrf_token'])) {
             $action = 'google_login';
             $is_redirect_flow = true;
+
+            // Google's redirect mode sets a g_csrf_token cookie and repeats it in the form:
+            // they must match, or anyone could make a browser post a credential here.
+            $csrfCookie = (string)($_COOKIE['g_csrf_token'] ?? '');
+            if ($csrfCookie === '' || !hash_equals($csrfCookie, (string)$_POST['g_csrf_token'])) {
+                header("Location: login?error=" . urlencode('Could not verify the Google sign-in request. Please try again.'));
+                exit;
+            }
         }
         
         if ($action === 'register') {
@@ -72,9 +83,22 @@ switch ($request_method) {
                 echo json_encode(['success' => false, 'error' => 'Password must be at least 8 characters long.']);
                 exit;
             }
+            if (strlen($password) > 200) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'That password is too long.']);
+                exit;
+            }
 
             try {
                 $pdo = getDbConnection();
+                // Sign-ups per network are capped. Every request that got this far counts, taken
+                // names included, so the duplicate check can't be used as a cheap lookup.
+                if (tm_signup_throttled($pdo, getClientIP())) {
+                    http_response_code(429);
+                    echo json_encode(['success' => false, 'error' => 'Too many sign-ups from this network. Please try again later.']);
+                    exit;
+                }
+                // One answer for "username taken" and "email taken", so it doesn't say which exists
                 $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
                 $stmt->execute([$username, $email]);
                 if ($stmt->fetch()) {
@@ -96,6 +120,13 @@ switch ($request_method) {
                     $_SESSION['username'] = $username;
                     $_SESSION['first_name'] = $firstName;
                     $_SESSION['last_name'] = $lastName;
+                    tm_session_mark_authenticated($pdo);
+
+                    // The address starts unverified (email_verified_at NULL). Nothing is blocked
+                    // meanwhile, but until it's confirmed a Google sign-in on that address takes
+                    // the account over rather than joining it (see google_login below).
+                    require_once 'includes/email_verification.php';
+                    sendVerificationEmail($pdo, (int)$user_id, $email, $firstName ?: $username);
 
                     echo json_encode(['success' => true, 'redirect' => 'onboarding']);
                 } else {
@@ -140,7 +171,13 @@ switch ($request_method) {
                 $stmt->execute([$identifier, $identifier]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                if ($user && password_verify($password, $user['password_hash'])) {
+                // No such account: still do a password check against a throwaway hash, so a
+                // missing account doesn't answer faster than a wrong password. (A fixed Argon2id
+                // hash of a random string nobody knows, same parameters as real ones.)
+                $hashToCheck = $user ? $user['password_hash'] : '$argon2id$v=19$m=65536,t=4,p=1$N1RBR21BV2JtZlB2cld6ZA$LEw2KQnkm2LUNvNhRN9XvM+J2uBePc+BA8Hqf0UpGLI';
+                $passwordOk = password_verify($password, $hashToCheck);
+
+                if ($user && $passwordOk) {
                     // Clear failed attempts on successful login
                     clearLoginAttempts($clientIP, $identifier);
                     
@@ -149,6 +186,7 @@ switch ($request_method) {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['first_name'] = $user['first_name'];
                     $_SESSION['last_name'] = $user['last_name'];
+                    tm_session_mark_authenticated($pdo);
 
                     // --- Remember Me Logic ---
                     if (isset($_POST['remember'])) {
@@ -210,6 +248,11 @@ switch ($request_method) {
                 echo json_encode(['success' => false, 'error' => 'New password must be at least 8 characters long.']);
                 exit;
             }
+            if (strlen($new_password) > 200) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => 'That password is too long.']);
+                exit;
+            }
 
             try {
                 $pdo = getDbConnection();
@@ -226,6 +269,11 @@ switch ($request_method) {
                 $new_password_hash = password_hash($new_password, PASSWORD_ARGON2ID);
                 $stmt = $pdo->prepare("UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?");
                 if ($stmt->execute([$new_password_hash, $_SESSION['user_id']])) {
+                    // Whoever knew the old password shouldn't stay signed in on other devices
+                    $pdo->prepare("DELETE FROM user_tokens WHERE user_id = ?")->execute([$_SESSION['user_id']]);
+                    // ...and neither should their other open sessions; this one is re-stamped to survive
+                    tm_invalidate_sessions($pdo, (int)$_SESSION['user_id'], true, false);
+                    session_regenerate_id(true);
                     echo json_encode(['success' => true, 'message' => 'Password updated successfully!']);
                 } else {
                     throw new Exception("Failed to update password.");
@@ -301,6 +349,7 @@ switch ($request_method) {
                 $stmt = $pdo->prepare("SELECT * FROM users WHERE google_id = ?");
                 $stmt->execute([$google_id]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                $matchedByEmail = false;
                 if (!$user) {
                     $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
                     $stmt->execute([$email]);
@@ -316,12 +365,36 @@ switch ($request_method) {
                         exit;
                     }
                     $user = $byEmail;
+                    $matchedByEmail = (bool)$byEmail;
                 }
 
                 if ($user) {
                     // User exists - Update google_id, avatar, and names if missing
                     $update_fields = [];
                     $params = [];
+
+                    // A password account whose address nobody ever confirmed (email_verified_at is
+                    // NULL; the key is absent before migration 023, which keeps the old behaviour)
+                    // may have been registered by someone who doesn't own the address. Google has
+                    // just vouched for the real owner, so the account is theirs now: kill the
+                    // password it was registered with and every remember-me login before joining it.
+                    if ($matchedByEmail && empty($user['google_id'])
+                        && array_key_exists('email_verified_at', $user) && $user['email_verified_at'] === null) {
+                        $pdo->beginTransaction();
+                        try {
+                            $pdo->prepare("UPDATE users SET password_hash = ?, email_verified_at = NOW(), updated_at = NOW() WHERE id = ?")
+                                ->execute([password_hash(bin2hex(random_bytes(32)), PASSWORD_ARGON2ID), $user['id']]);
+                            $pdo->prepare("DELETE FROM user_tokens WHERE user_id = ?")->execute([$user['id']]);
+                            $pdo->commit();
+                        } catch (Throwable $e) {
+                            if ($pdo->inTransaction()) $pdo->rollBack();
+                            throw $e;
+                        }
+                        // Whoever registered it may still have a session open: sign those out too
+                        // (this request's session is the real owner's and is stamped below)
+                        tm_invalidate_sessions($pdo, (int)$user['id'], false, false);
+                        error_log("AUTH_MYSQL: unverified password account {$user['id']} taken over by its Google-verified owner");
+                    }
 
                     // Update Google ID if missing
                     if (empty($user['google_id'])) {
@@ -365,6 +438,7 @@ switch ($request_method) {
                     $_SESSION['first_name'] = $final_first_name;
                     $_SESSION['last_name'] = $final_last_name;
                     $_SESSION['avatar_url'] = $avatar_url; // Store avatar in session
+                    tm_session_mark_authenticated($pdo);
 
                     $redirect = ($user['onboarding_completed']) ? 'chat' : 'onboarding';
                     $db_theme = ($user['dark_mode'] ?? false) ? 'dark' : 'light';
@@ -398,12 +472,18 @@ switch ($request_method) {
 
                     if ($stmt->execute([$username, $email, $first_name, $last_name, $google_id, $avatar_url, $password_hash, $dark_mode])) {
                         $user_id = $pdo->lastInsertId();
+                        // Google vouched for the address (skipped before migration 023 / if Google didn't)
+                        require_once 'includes/email_verification.php';
+                        if ($verified['email_verified'] && emailVerificationReady($pdo)) {
+                            $pdo->prepare("UPDATE users SET email_verified_at = NOW() WHERE id = ?")->execute([$user_id]);
+                        }
                         session_regenerate_id(true);
                         $_SESSION['user_id'] = $user_id;
                         $_SESSION['username'] = $username;
                         $_SESSION['first_name'] = $first_name;
                         $_SESSION['last_name'] = $last_name;
                         $_SESSION['avatar_url'] = $avatar_url;
+                        tm_session_mark_authenticated($pdo);
 
                         if ($is_redirect_flow) {
                             header("Location: onboarding");

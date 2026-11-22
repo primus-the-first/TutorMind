@@ -243,6 +243,7 @@ try {
 
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.4/gsap.min.js"></script>
+    <script src="assets/js/tm-csrf.js?v=<?= filemtime('assets/js/tm-csrf.js') ?>"></script>
     <script src="assets/js/tutor_mysql.js?v=<?= time() ?>"></script>
     
     <script>

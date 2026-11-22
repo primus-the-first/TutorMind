@@ -194,6 +194,7 @@ $v = fn($f) => filemtime($f);
         </div>
     </div>
 
+    <script src="assets/js/tm-csrf.js?v=<?= $v('assets/js/tm-csrf.js') ?>"></script>
     <script src="assets/js/tm-ds.js?v=<?= $v('assets/js/tm-ds.js') ?>"></script>
     <script src="assets/js/group-study.js?v=<?= $v('assets/js/group-study.js') ?>"></script>
 </body>

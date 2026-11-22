@@ -1,8 +1,16 @@
 <?php
+require_once __DIR__ . '/../includes/session_boot.php'; // hardened cookie params, before session_start()
 session_start();
 header('Content-Type: application/json');
 require_once '../includes/db_mysql.php';
 require_once '../includes/interests.php';
+require_once __DIR__ . '/../includes/csrf.php';
+require_once __DIR__ . '/../includes/session_validity.php';
+
+// A session older than the account's last password/email change is signed out
+if (isset($_SESSION['user_id']) && tm_session_revoked()) {
+    tm_session_drop();
+}
 
 // Security check
 if (!isset($_SESSION['user_id'])) {
@@ -11,20 +19,26 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
-$input = json_decode(file_get_contents('php://input'), true);
-$profile_data = json_encode($input); 
-
-// Fallback function to save to file
-function saveToFileBackup($user_id, $profile_data) {
-    $backupDir = __DIR__ . '/../user_data/profiles/';
-    if (!file_exists($backupDir)) {
-        if (!mkdir($backupDir, 0777, true)) {
-            return false;
-        }
-    }
-    return file_put_contents($backupDir . $user_id . '.json', $profile_data) !== false;
+// Saving the profile writes to the account, so it is POST-only (a bare GET used to
+// mark onboarding complete and store an empty profile) and needs the CSRF token.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'error' => 'Method Not Allowed']);
+    exit;
 }
+requireCSRFForWrites();
+
+$user_id = $_SESSION['user_id'];
+// An onboarding profile is a few hundred bytes of choices; refuse anything big
+// (the profile_data column is TEXT, 64KB) before parsing or storing it.
+$raw = file_get_contents('php://input', false, null, 0, 65537);
+if (strlen($raw) > 65536) {
+    http_response_code(413);
+    echo json_encode(['success' => false, 'error' => 'Request too large']);
+    exit;
+}
+$input = json_decode($raw, true);
+$profile_data = json_encode($input);
 
 $response = ['success' => false, 'errors' => []];
 
@@ -227,17 +241,10 @@ try {
 } catch (Throwable $e) {
     // OUTER CATCH: Handles Connection Failures OR Query Failures
     error_log("Onboarding critical DB error for user $user_id: " . $e->getMessage());
-    $response['errors'][] = "Could not save to the database; attempting backup.";
-
-    // Attempt File Backup
-    if (saveToFileBackup($user_id, $profile_data)) {
-        $response['success'] = true;
-        $response['errors'][] = "Saved to file backup successfully.";
-        // IMPORTANT: We update session to reflect completion so middleware respects it immediately
-        $_SESSION['onboarding_completed'] = true; // Use session flag if DB fail
-    } else {
-        $response['errors'][] = "File backup also failed.";
-    }
+    // No file fallback: nothing ever read it back, and it wrote every user's raw
+    // answers to a web-reachable folder. A failed save is reported as a failure.
+    $response['success'] = false;
+    $response['errors'][] = "Could not save your answers right now. Please try again.";
 }
 
 if ($response['success']) {

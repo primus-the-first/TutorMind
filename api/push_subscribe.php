@@ -3,6 +3,8 @@
 // Manages a user's Web Push subscriptions (one row per browser/device).
 
 require_once '../includes/check_auth.php';
+require_once __DIR__ . '/../includes/csrf.php';
+requireCSRFForWrites(); // writes need the X-CSRF-Token header
 require_once '../includes/db_mysql.php';
 
 try {
@@ -25,6 +27,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /**
+ * True only for https endpoints on a known browser push service.
+ */
+function isAllowedPushEndpoint(string $endpoint): bool {
+    $parts = parse_url($endpoint);
+    if ($parts === false || strtolower($parts['scheme'] ?? '') !== 'https' || empty($parts['host'])
+        || isset($parts['user']) || isset($parts['pass']) || isset($parts['port'])) {
+        return false;
+    }
+
+    $host = strtolower(rtrim($parts['host'], '.'));
+    if (in_array($host, ['fcm.googleapis.com', 'updates.push.services.mozilla.com', 'web.push.apple.com'], true)) {
+        return true;
+    }
+    foreach (['.notify.windows.com', '.push.apple.com'] as $suffix) {
+        if (strlen($host) > strlen($suffix) && substr($host, -strlen($suffix)) === $suffix) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Stores (or refreshes) a push subscription for the logged-in user.
  *
  * @param PDO $pdo The database connection object.
@@ -40,9 +64,20 @@ function handleSubscribe(PDO $pdo, int $user_id): void {
     }
 
     $endpoint = $input['endpoint'];
-    $endpointHash = hash('sha256', $endpoint);
     $p256dh = $input['keys']['p256dh'];
     $auth = $input['keys']['auth'];
+
+    // The reminder script later POSTs to this endpoint, so only real push services are
+    // accepted (otherwise a user could aim the server at an internal address).
+    if (!is_string($endpoint) || !is_string($p256dh) || !is_string($auth)
+        || strlen($endpoint) > 2048 || strlen($p256dh) > 255 || strlen($auth) > 255
+        || !isAllowedPushEndpoint($endpoint)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid push subscription payload.']);
+        return;
+    }
+
+    $endpointHash = hash('sha256', $endpoint);
     $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
 
     try {

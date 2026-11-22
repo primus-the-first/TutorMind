@@ -1,6 +1,13 @@
 <?php
+require_once __DIR__ . '/includes/session_boot.php';
 session_start();
 require_once 'includes/db_mysql.php';
+require_once __DIR__ . '/includes/session_validity.php';
+
+// A session older than the account's last password/email change is signed out
+if (isset($_SESSION['user_id']) && tm_session_revoked()) {
+    tm_session_drop();
+}
 
 // 1. Check if session exists
 if (isset($_SESSION['user_id'])) {
@@ -10,7 +17,7 @@ if (isset($_SESSION['user_id'])) {
 
 // 2. Check if remember_me cookie exists and is valid
 if (isset($_COOKIE['remember_me'])) {
-    list($selector, $validator) = explode(':', $_COOKIE['remember_me']);
+    [$selector, $validator] = array_pad(explode(':', (string)$_COOKIE['remember_me'], 2), 2, '');
     
     try {
         $pdo = getDbConnection();
@@ -30,6 +37,7 @@ if (isset($_COOKIE['remember_me'])) {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['first_name'] = $user['first_name'];
                 $_SESSION['last_name'] = $user['last_name'];
+                tm_session_mark_authenticated($pdo);
                 
                 header('Location: chat');
                 exit;

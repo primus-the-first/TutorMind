@@ -3417,7 +3417,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const fetchUrl = getBasePath() + '/includes/server_mysql.php';
-            const response = await fetch(`${fetchUrl}?action=delete_conversation&id=${encodeURIComponent(id)}`);
+            // A state change, so POST (the id stays in the query string; tm-csrf.js adds the token)
+            const response = await fetch(`${fetchUrl}?action=delete_conversation&id=${encodeURIComponent(id)}`, { method: 'POST' });
             const result = await response.json();
             if (!result.success) throw new Error(result.error || 'delete refused');
         } catch (error) {

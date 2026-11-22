@@ -11,12 +11,14 @@
  * (migrations/018_password_resets.php). 30 minutes, single use; a reset
  * invalidates every other outstanding link and "Remember me" token.
  */
+require_once __DIR__ . '/../includes/session_boot.php'; // hardened cookie params, before session_start()
 session_start();
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 require_once __DIR__ . '/../includes/db_mysql.php';
 require_once __DIR__ . '/../includes/csrf.php';
 require_once __DIR__ . '/../includes/rate_limiter.php';   // getClientIP()
+require_once __DIR__ . '/../includes/session_validity.php';
 require_once __DIR__ . '/../includes/mailer.php';
 require_once __DIR__ . '/../includes/email_template.php';   // renderEmail(), appBaseUrl()
 
@@ -127,6 +129,16 @@ try {
         $pdo->prepare("DELETE FROM user_tokens WHERE user_id = ?")->execute([$row['user_id']]);                 // sign out "Remember me" devices
         $pdo->prepare("DELETE FROM login_attempts WHERE username IN (?, ?)")->execute([$row['email'], $row['username']]); // lift a lockout
         $pdo->commit();
+
+        // Sessions already open on this account (the old password's holder, another device)
+        // end here too (a no-op before migration 025). Remember-me tokens went above.
+        tm_invalidate_sessions($pdo, (int)$row['user_id'], false, false);
+
+        // The link only reached them because they can read this inbox: the address is proven
+        // (a no-op before migration 023, and for accounts already verified).
+        try {
+            $pdo->prepare("UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = ?")->execute([$row['user_id']]);
+        } catch (Throwable $e) { /* column not there yet */ }
 
         respond(200, ['success' => true, 'redirect' => 'login?reset=done']);
     }

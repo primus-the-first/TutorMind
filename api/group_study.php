@@ -47,8 +47,11 @@
  */
 
 require_once __DIR__ . '/../includes/check_auth.php';
+require_once __DIR__ . '/../includes/csrf.php';
+requireCSRFForWrites(); // writes need the X-CSRF-Token header
 require_once __DIR__ . '/../includes/db_mysql.php';
 require_once __DIR__ . '/../includes/interests.php';
+require_once __DIR__ . '/../includes/usage_quota.php';
 require_once __DIR__ . '/services/ai_service.php';
 require_once __DIR__ . '/services/facilitator_service.php';
 
@@ -100,6 +103,12 @@ session_write_close();
 
 $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $body['action'] ?? $_GET['action'] ?? '';
+// The page only ever POSTs. Anything else may only run the two actions that read
+// nothing but the signed-in user, so a bare link can't create, end or leave a room.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !in_array($action, ['mine', 'history'], true)) {
+    gsFail(405, 'Method not allowed');
+    exit;
+}
 // Own Pulse lane per action: the 3s poll and a 40s AI reply must not share one P99.
 if (function_exists('pulse_label')) pulse_label($action ?: 'none');
 
@@ -138,6 +147,17 @@ try {
 function gsFail(int $code, string $error): void {
     http_response_code($code);
     echo json_encode(['success' => false, 'error' => $error]);
+}
+
+/** Spend one of the caller's daily group-study AI calls (Q's replies, rounds, recaps).
+ *  Returns false after answering HTTP 429 itself. Call it right before the provider call,
+ *  inside any try/finally that releases the room's AI lease (exit would skip the finally). */
+function gsSpendAi(PDO $pdo, int $userId): bool {
+    $q = consumeQuota($pdo, $userId, 'group_ai');
+    if ($q['allowed']) return true;
+    http_response_code(429);
+    echo json_encode(quotaDeniedPayload($q));
+    return false;
 }
 
 /** 6-char join code — no 0/O/1/I/L, so it's unambiguous read aloud or handwritten. */
@@ -556,10 +576,14 @@ function gsReply(PDO $pdo, int $userId, array $data, array $keys): void {
     if ($lease->rowCount() === 0) { echo json_encode(['success' => true, 'replied' => false]); return; }
 
     try {
-        $reply = gsFacilitate($pdo, $session, $participants, $userId, $mode, $openAsk, $msg['turn_id'], $keys);
+        // false = over the daily cap (429 already sent); null = Q had nothing to say
+        $reply = gsSpendAi($pdo, $userId)
+            ? gsFacilitate($pdo, $session, $participants, $userId, $mode, $openAsk, $msg['turn_id'], $keys)
+            : false;
     } finally {
         $pdo->prepare("UPDATE group_sessions SET ai_busy_until = NULL WHERE id = ?")->execute([$sessionId]);
     }
+    if ($reply === false) return;
     if ($reply === null) { gsFail(502, "Q couldn't reply just now."); return; }
     echo json_encode(['success' => true, 'replied' => true]);
 }
@@ -933,6 +957,11 @@ function gsRoundStart(PDO $pdo, int $userId, array $data, array $keys): void {
             if ($claim->rowCount() === 0) { echo json_encode(['success' => true, 'started' => false, 'reason' => 'not_due']); return; }
         }
 
+        // The room is claimed and the lease held: the next step calls the AI providers
+        if (!gsSpendAi($pdo, $userId)) {
+            if ($source === 'timer') gsSystem($pdo, $sessionId, "Focus session done. Q has reached its daily limit, so there's no recall round this time.");
+            return;
+        }
         $round = gsWriteRound($pdo, $session, $participants, $source === 'timer' ? 'recall' : 'predict', $keys);
         if (!$round) {
             if ($source === 'timer') gsSystem($pdo, $sessionId, "Focus session done. Q couldn't put a recall question together this time.");
@@ -1249,9 +1278,18 @@ function gsRecap(PDO $pdo, int $userId, array $data, array $keys): void {
     $claim->execute([$sessionId]);
     if ($claim->rowCount() === 0) { $respond(null, true); return; }
 
-    $recap = (int) $session['ended_days_ago'] > GS_RECAP_MAX_AGE_DAYS
-        ? ['skipped' => true]
-        : gsWriteRecap($pdo, $session, $participants, $keys);
+    if ((int) $session['ended_days_ago'] > GS_RECAP_MAX_AGE_DAYS) {
+        $recap = ['skipped' => true];
+    } else {
+        if (!gsSpendAi($pdo, $userId)) {
+            // Out of calls: give the claim back so another member can write the recap
+            $pdo->prepare("UPDATE group_sessions SET recap_claimed_at = NULL, updated_at = updated_at WHERE id = ?")->execute([$sessionId]);
+            return;
+        }
+        $recap = gsWriteRecap($pdo, $session, $participants, $keys);
+        // Too little said to sum up: it never reached a provider, so the call isn't spent
+        if (!empty($recap['skipped'])) consumeQuota($pdo, $userId, 'group_ai', -1);
+    }
     if (!$recap) {
         $pdo->prepare("UPDATE group_sessions SET recap_claimed_at = NULL, updated_at = updated_at WHERE id = ?")->execute([$sessionId]);
         gsFail(502, "Q couldn't write the recap just now. Try again in a moment.");

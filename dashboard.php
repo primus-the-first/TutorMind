@@ -62,6 +62,7 @@ $v = fn($f) => filemtime($f);
         </div>
     </main>
 
+    <script src="assets/js/tm-csrf.js?v=<?= $v('assets/js/tm-csrf.js') ?>"></script>
     <script src="assets/js/tm-ds.js?v=<?= $v('assets/js/tm-ds.js') ?>"></script>
     <script src="assets/js/dashboard.js?v=<?= $v('assets/js/dashboard.js') ?>"></script>
 </body>

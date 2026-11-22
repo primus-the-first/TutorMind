@@ -3,6 +3,8 @@
 
 // --- BOOTSTRAP & AUTHENTICATION ---
 require_once '../includes/check_auth.php'; // Ensures user is logged in
+require_once __DIR__ . '/../includes/csrf.php';
+requireCSRFForWrites(); // writes need the X-CSRF-Token header
 require_once '../includes/db_mysql.php';   // Database connection
 
 // Only allow POST requests for this destructive action

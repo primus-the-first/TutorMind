@@ -230,6 +230,7 @@ $helpTopics = [
         </div>
     </main>
 
+    <script src="assets/js/tm-csrf.js?v=<?= $v('assets/js/tm-csrf.js') ?>"></script>
     <script src="assets/js/tm-ds.js?v=<?= $v('assets/js/tm-ds.js') ?>"></script>
     <script src="assets/js/help.js?v=<?= $v('assets/js/help.js') ?>"></script>
 </body>

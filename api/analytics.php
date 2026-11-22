@@ -18,6 +18,8 @@
  */
 
 require_once __DIR__ . '/../includes/check_auth.php';
+require_once __DIR__ . '/../includes/csrf.php';
+requireCSRFForWrites(); // writes need the X-CSRF-Token header
 require_once __DIR__ . '/../includes/db_mysql.php';
 
 header('Content-Type: application/json');

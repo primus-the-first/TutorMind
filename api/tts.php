@@ -6,6 +6,10 @@
  */
 
 require_once __DIR__ . '/../includes/check_auth.php';
+require_once __DIR__ . '/../includes/csrf.php';
+requireCSRFForWrites(); // writes need the X-CSRF-Token header
+require_once __DIR__ . '/../includes/db_mysql.php';
+require_once __DIR__ . '/../includes/usage_quota.php';
 
 header('Content-Type: application/json');
 
@@ -31,7 +35,7 @@ if ($method === 'POST') {
     $text = $input['text'] ?? '';
     $provider = $input['provider'] ?? 'auto'; // auto, elevenlabs, infsh, browser
 
-    if (empty($text)) {
+    if (!is_string($text) || $text === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Text is required']);
         exit;
@@ -45,6 +49,29 @@ if ($method === 'POST') {
     // Clean text for speech (remove markdown, code blocks, etc.)
     $text = cleanTextForSpeech($text);
 
+    // Daily cap on paid speech (ElevenLabs / inference.sh). The browser's own voice is free,
+    // so 'browser' skips this, and a student over the cap still hears the reply that way
+    // instead of getting silence.
+    if ($provider !== 'browser') {
+        $quota = null;
+        try {
+            $quota = consumeQuota(getDbConnection(), (int) $_SESSION['user_id'], 'tts');
+        } catch (Throwable $e) {
+            error_log('tts quota check failed, allowing: ' . $e->getMessage()); // DB down: fail open like the limiter
+        }
+        if ($quota && !$quota['allowed']) {
+            echo json_encode([
+                'success' => true,
+                'fallback' => true,
+                'text' => $text,
+                'message' => 'Daily limit reached for high-quality voice. It resets at midnight. Using browser TTS.',
+                'quota_exceeded' => true,
+                'retry_after' => $quota['retry_after'],
+            ]);
+            exit;
+        }
+    }
+
     // Provider selection logic
     if ($provider === 'auto') {
         // Try ElevenLabs first if configured
@@ -57,7 +84,7 @@ if ($method === 'POST') {
         }
 
         // Try inference.sh (Kokoro TTS)
-        $result = tryInferenceSh($text, $input['model'] ?? 'kokoro');
+        $result = tryInferenceSh($text, is_string($input['model'] ?? null) ? $input['model'] : 'kokoro');
         if ($result['success'] && !isset($result['fallback'])) {
             echo json_encode($result);
             exit;
@@ -84,7 +111,7 @@ if ($method === 'POST') {
             break;
 
         case 'infsh':
-            echo json_encode(tryInferenceSh($text, $input['model'] ?? 'kokoro'));
+            echo json_encode(tryInferenceSh($text, is_string($input['model'] ?? null) ? $input['model'] : 'kokoro'));
             break;
 
         case 'browser':
@@ -108,8 +135,12 @@ if ($method === 'POST') {
 function tryElevenLabs($text, $apiKey, $voiceId = null, $modelId = null) {
     try {
         // Default Voice: "Alice - Clear, Engaging Educator" (premade voice compatible with all tiers)
-        $voiceId = $voiceId ?? 'Xb7hH8MSUJpSbSDYk0k2';
-        $modelId = !empty($modelId) ? $modelId : 'eleven_flash_v2_5';
+        // voice_id goes into the URL path and model_id into the payload, so both come
+        // from the client only if they match a strict shape / allowlist.
+        $defaultVoiceId = 'Xb7hH8MSUJpSbSDYk0k2';
+        $voiceId = (is_string($voiceId) && preg_match('/^[A-Za-z0-9]{10,40}$/', $voiceId)) ? $voiceId : $defaultVoiceId;
+        $allowedModels = ['eleven_flash_v2_5', 'eleven_multilingual_v2', 'eleven_turbo_v2_5'];
+        $modelId = (is_string($modelId) && in_array($modelId, $allowedModels, true)) ? $modelId : 'eleven_flash_v2_5';
 
         $url = "https://api.elevenlabs.io/v1/text-to-speech/{$voiceId}";
 

@@ -359,6 +359,7 @@ function tm_goal_icon($paths) {
     <link rel="stylesheet" href="assets/css/tm-tour.css?v=<?= filemtime('assets/css/tm-tour.css') ?>">
     <!-- Chat on the design system — must stay the LAST stylesheet -->
     <link rel="stylesheet" href="assets/css/tm-chat.css?v=<?= filemtime('assets/css/tm-chat.css') ?>">
+    <script src="assets/js/tm-csrf.js?v=<?= filemtime('assets/js/tm-csrf.js') ?>"></script>
     <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
 </head>
 <body class="flex h-screen <?= $ssr_chat_active ? '' : 'chat-empty' ?> <?= $user_dark_mode ? 'dark-mode' : '' ?>">

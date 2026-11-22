@@ -11,9 +11,18 @@
  * POST ?action=create_session  - Create a new session with goal
  */
 
+require_once __DIR__ . '/../includes/session_boot.php'; // hardened cookie params, before session_start()
 session_start();
 header('Content-Type: application/json');
 require_once '../includes/db_mysql.php';
+require_once __DIR__ . '/../includes/csrf.php';
+
+require_once __DIR__ . '/../includes/session_validity.php';
+
+// A session older than the account's last password/email change is signed out
+if (isset($_SESSION['user_id']) && tm_session_revoked()) {
+    tm_session_drop();
+}
 
 // Security check
 if (!isset($_SESSION['user_id'])) {
@@ -24,6 +33,14 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $action = $_REQUEST['action'] ?? '';
+// Only recent_activity reads; every other action writes, so it must be a POST
+// (a bare GET used to be enough to create a conversation) with the CSRF token.
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $action !== 'recent_activity') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'error' => 'Method Not Allowed']);
+    exit;
+}
+requireCSRFForWrites();
 // Read-only use of the session: release its lock so this request doesn't
 // block the user's other requests while it runs
 session_write_close();

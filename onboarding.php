@@ -77,6 +77,7 @@ if ($user_id) {
     <link rel="stylesheet" href="assets/css/onboarding.css?v=<?= filemtime('assets/css/onboarding.css') ?>">
 
     <link rel="stylesheet" href="assets/css/tm-loader.css?v=<?= filemtime('assets/css/tm-loader.css') ?>">
+    <script src="assets/js/tm-csrf.js?v=<?= filemtime('assets/js/tm-csrf.js') ?>"></script>
     <script src="assets/js/tm-loader.js?v=<?= filemtime('assets/js/tm-loader.js') ?>"></script>
 </head>
 <body class="ds-page tm-onb<?= $user_dark_mode ? ' dark-mode' : '' ?>">
