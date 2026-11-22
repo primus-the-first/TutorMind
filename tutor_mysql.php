@@ -506,11 +506,14 @@ function tm_goal_icon($paths) {
                      data-tip="<?= $csMade === 3
                         ? 'All three contacts made: you connected this to something you knew, built with it, and predicted with it. That combination is what moves an idea into long-term memory.'
                         : 'Ideas stick after three kinds of contact: connecting them to something you know, building with them, and predicting with them. ' . $csMade . ' of 3 so far in this chat.' ?>">
-                    <span class="tm-contact-dots">
-                        <span class="tm-contact-dot<?= $csA ? ' tm-filled' : '' ?>" data-contact="analogy"></span>
-                        <span class="tm-contact-dot<?= $csB ? ' tm-filled' : '' ?>" data-contact="build"></span>
-                        <span class="tm-contact-dot<?= $csP ? ' tm-filled' : '' ?>" data-contact="predict"></span>
-                    </span>
+                    <svg class="tm-contact-arch" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                        <path class="tm-arch-track" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30"/>
+                        <path class="tm-arch-seg tm-arch-l<?= ($csA && $csB) ? ' tm-lit' : '' ?>" pathLength="100" d="M6 30 C 6 20, 14 12, 20 12"/>
+                        <path class="tm-arch-seg tm-arch-r<?= ($csB && $csP) ? ' tm-lit' : '' ?>" pathLength="100" d="M20 12 C 26 12, 34 20, 34 30"/>
+                        <circle class="tm-contact-dot<?= $csA ? ' tm-filled' : '' ?>" data-contact="analogy" cx="6" cy="30" r="2.8"/>
+                        <circle class="tm-contact-dot<?= $csB ? ' tm-filled' : '' ?>" data-contact="build" cx="20" cy="8" r="3.4"/>
+                        <circle class="tm-contact-dot<?= $csP ? ' tm-filled' : '' ?>" data-contact="predict" cx="34" cy="30" r="2.8"/>
+                    </svg>
                     <span class="tm-contact-label" id="contactChipLabel"><?= $csMade === 3 ? 'Encoded' : $csMade . ' / 3' ?></span>
                 </div>
                 <div class="pomodoro-widget" id="pomodoroWidget" style="margin-right: 1.5rem;">

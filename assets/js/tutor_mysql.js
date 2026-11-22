@@ -881,6 +881,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             else { dot.classList.remove('tm-filled'); }
         });
 
+        const archL = chip.querySelector('.tm-arch-l');
+        const archR = chip.querySelector('.tm-arch-r');
+        if (archL) archL.classList.toggle('tm-lit', !!(state.analogy && state.build));
+        if (archR) archR.classList.toggle('tm-lit', !!(state.build && state.predict));
+
         chip.classList.toggle('tm-complete', made === 3);
         chip.setAttribute('aria-label', 'Learning progress: ' + made + ' of 3 contacts made');
 

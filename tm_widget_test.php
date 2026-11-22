@@ -136,6 +136,7 @@ $pathHtml = formatResponse($pathResponse);
 
     <!-- The REAL styles under test -->
     <link rel="stylesheet" href="assets/css/ui-overhaul.css?v=<?= filemtime('assets/css/ui-overhaul.css') ?>">
+    <link rel="stylesheet" href="assets/css/tm-tokens.css?v=<?= filemtime('assets/css/tm-tokens.css') ?>">
     <link rel="stylesheet" href="assets/css/tm-widgets.css?v=<?= filemtime('assets/css/tm-widgets.css') ?>">
 
     <style>
@@ -177,11 +178,14 @@ $pathHtml = formatResponse($pathResponse);
             <div class="note">Real <code>formatResponse()</code> + real <code>tm-widgets.js</code> + real CSS. Chips/Task simulate a reply as a new bubble.</div>
         </div>
         <div class="tm-contact-chip" id="contactChip" tabindex="0" role="img" aria-label="Learning progress: 0 of 3 contacts made">
-            <span class="tm-contact-dots">
-                <span class="tm-contact-dot" data-contact="analogy"></span>
-                <span class="tm-contact-dot" data-contact="build"></span>
-                <span class="tm-contact-dot" data-contact="predict"></span>
-            </span>
+            <svg class="tm-contact-arch" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+                <path class="tm-arch-track" d="M6 30 C 6 20, 14 12, 20 12 C 26 12, 34 20, 34 30"/>
+                <path class="tm-arch-seg tm-arch-l" pathLength="100" d="M6 30 C 6 20, 14 12, 20 12"/>
+                <path class="tm-arch-seg tm-arch-r" pathLength="100" d="M20 12 C 26 12, 34 20, 34 30"/>
+                <circle class="tm-contact-dot" data-contact="analogy" cx="6" cy="30" r="2.8"/>
+                <circle class="tm-contact-dot" data-contact="build" cx="20" cy="8" r="3.4"/>
+                <circle class="tm-contact-dot" data-contact="predict" cx="34" cy="30" r="2.8"/>
+            </svg>
             <span class="tm-contact-label" id="contactChipLabel">0 / 3</span>
         </div>
         <button id="themeToggle" type="button">Toggle dark mode</button>
@@ -224,6 +228,10 @@ $pathHtml = formatResponse($pathResponse);
                 if (state[name]) { dot.classList.add('tm-filled'); made++; }
                 else { dot.classList.remove('tm-filled'); }
             });
+            const archL = chip.querySelector('.tm-arch-l');
+            const archR = chip.querySelector('.tm-arch-r');
+            if (archL) archL.classList.toggle('tm-lit', !!(state.analogy && state.build));
+            if (archR) archR.classList.toggle('tm-lit', !!(state.build && state.predict));
             chip.classList.toggle('tm-complete', made === 3);
             chip.setAttribute('aria-label', 'Learning progress: ' + made + ' of 3 contacts made');
             document.getElementById('contactChipLabel').textContent = made === 3 ? 'Encoded' : made + ' / 3';
