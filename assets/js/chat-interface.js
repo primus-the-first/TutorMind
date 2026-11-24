@@ -660,10 +660,14 @@ class TutorMindChat {
         this.voiceRecognition.interimResults = false;
         this.voiceRecognition.lang = 'en-US';
 
+        let receivedTranscript = false;
+        let hadError = false; // onerror already told the student; onend must not add "didn't catch that"
+
         this.voiceRecognition.onresult = (event) => {
             const transcript = event.results[0][0].transcript;
             const textarea = document.querySelector('.input-box textarea');
-            if (textarea) {
+            if (textarea && transcript) {
+                receivedTranscript = true;
                 textarea.value = transcript;
                 this.autoResizeTextarea(textarea);
             }
@@ -673,16 +677,42 @@ class TutorMindChat {
 
         this.voiceRecognition.onerror = (event) => {
             console.error('Voice recognition error:', event.error);
+            hadError = true;
+            if (event.error === 'no-speech') {
+                this.showVoiceModalFeedback("Didn't catch that. Try again.");
+                return;
+            }
             this.hideVoiceModal();
             TmDialog.alert({ title: 'Voice Error', message: 'Voice recognition error: ' + event.error, type: 'alert' });
         };
 
         this.voiceRecognition.onend = () => {
-            this.hideVoiceModal();
+            if (hadError) return;
+            if (!receivedTranscript) {
+                this.showVoiceModalFeedback("Didn't catch that. Try again.");
+            } else {
+                this.hideVoiceModal();
+            }
         };
 
         this.voiceRecognition.start();
         console.log('🎤 Voice input started');
+    }
+
+    showVoiceModalFeedback(msg) {
+        const modal = document.getElementById('voice-modal');
+        if (modal) {
+            const p = modal.querySelector('p');
+            if (p) p.textContent = msg;
+            setTimeout(() => this.hideVoiceModal(), 1800);
+        } else {
+            const textarea = document.querySelector('.input-box textarea');
+            if (textarea && !textarea.value.trim()) {
+                const old = textarea.placeholder;
+                textarea.placeholder = msg;
+                setTimeout(() => { if (textarea && textarea.placeholder === msg) textarea.placeholder = old; }, 3000);
+            }
+        }
     }
 
     showVoiceModal() {

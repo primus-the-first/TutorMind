@@ -14,6 +14,7 @@ class SettingsManager {
         this.inflight = null; // the settings GET in progress; callers share it instead of racing
         this.unsaved = {}; // changes made here that the server hasn't confirmed yet — a load must not undo them
         this.interests = []; // Personalization chips, mirrored from initialSettings.interests
+        this._lastMemoryState = null;
 
         // Everything except the Account text fields saves as soon as it changes.
         // Changes are merged and sent together, so two quick edits to different
@@ -27,6 +28,10 @@ class SettingsManager {
         this.debouncedSave = (settings) => {
             Object.assign(this.pendingSave, settings);
             Object.assign(this.unsaved, settings);
+            if (this.initialSettings) {
+                Object.assign(this.initialSettings, settings);
+                this.renderMemoryPanel(this.initialSettings);
+            }
             this.flushSave();
         };
 
@@ -130,8 +135,50 @@ class SettingsManager {
                  (learning_level per message; the rest via server_mysql.php's
                  personalization context). Saves as soon as a field changes. -->
             <div id="tab-personalization" class="tab-panel">
+                <div class="memory-panel" id="settings-memory-panel" aria-live="polite">
+                    <h3>What TutorMind knows about you</h3>
+                    <p class="memory-intro">This is what the tutor uses to shape your lessons. It uses it quietly and won't recite it back to you. Change or remove anything.</p>
+
+                    <h4><span class="memory-dot"></span>What you told us</h4>
+                    <div class="memory-rows" id="settings-memory-rows"></div>
+
+                    <div class="memory-noticed" id="settings-interest-noticed" data-setting="suggested_interests" hidden>
+                        <h4><span class="memory-dot amber"></span>Noticed in your chats</h4>
+                        <div class="memory-noticed-head">
+                            <p class="memory-noticed-hint">TutorMind only uses these once you add them.</p>
+                            <button type="button" class="memory-btn sm" id="settings-interest-noticed-dismiss-all">Dismiss all</button>
+                        </div>
+                        <ul class="memory-noticed-list" id="settings-interest-noticed-list" aria-label="Interests noticed in your chats"></ul>
+                    </div>
+
+                    <details class="memory-details" id="settings-memory-details">
+                        <summary class="memory-summary">
+                            <span>How the tutor uses this</span>
+                            <svg class="memory-chev" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg>
+                        </summary>
+                        <ul class="memory-how-used" id="settings-how-used"></ul>
+                    </details>
+
+                    <div class="memory-foot">
+                        <button type="button" class="memory-reset-btn" id="settings-reset-profile-btn">Reset my profile</button>
+                    </div>
+                </div>
+
                 <h3>How TutorMind teaches you</h3>
-                <p>TutorMind uses this quietly to pitch explanations and pick examples. It won't read your profile back to you.</p>
+                <p>Fine-tune how the tutor explains concepts and answers your questions.</p>
+                <div class="form-group">
+                    <label for="settings-learning-goal">Goal</label>
+                    <select id="settings-learning-goal" class="form-select" data-setting="learning_goal">
+                        <option value="">Not set</option>
+                        <option value="homework_help">Homework</option>
+                        <option value="exam_prep">Exam prep</option>
+                        <option value="concept_mastery">Deep understanding</option>
+                        <option value="catch_up">Catching up</option>
+                        <option value="get_ahead">Getting ahead</option>
+                        <option value="general_learning">Learning for fun</option>
+                    </select>
+                    <p class="field-hint">Your overall learning goal across sessions.</p>
+                </div>
                 <div class="form-group">
                     <label for="settings-learning-level">What you're aiming for</label>
                     <select id="settings-learning-level" class="form-select" data-setting="learning_level">
@@ -142,6 +189,7 @@ class SettingsManager {
                         <option value="Evaluate">Judge and compare ideas</option>
                         <option value="Create">Make something new with it</option>
                     </select>
+                    <p class="field-hint">Target depth for this chat session.</p>
                 </div>
                 <div class="form-group">
                     <label>Explanations</label>
@@ -183,10 +231,6 @@ class SettingsManager {
                     <ul class="interest-list" id="settings-interests" data-setting="interests" aria-label="Your interests"></ul>
                     <input type="text" id="settings-interest-entry" class="form-control" maxlength="60" placeholder="Add an interest and press Enter">
                     <div class="interest-suggestions" id="settings-interest-suggestions" role="group" aria-label="Suggested interests"></div>
-                    <div class="interest-noticed" id="settings-interest-noticed" data-setting="suggested_interests" hidden>
-                        <p class="field-hint">Noticed in your chats. Add the ones that fit, or dismiss them.</p>
-                        <ul class="interest-list" id="settings-interest-noticed-list" aria-label="Interests noticed in your chats"></ul>
-                    </div>
                 </div>
                 <div class="form-group">
                     <label for="settings-country">Country</label>
@@ -303,6 +347,16 @@ class SettingsManager {
                         <button type="button" class="option-btn" data-value="compact">Compact</button>
                         <button type="button" class="option-btn active" data-value="comfortable">Comfortable</button>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Voice speed</label>
+                    <div class="option-group" data-local="tm_voice_rate">
+                        <button type="button" class="option-btn" data-value="0.85">Slower</button>
+                        <button type="button" class="option-btn active" data-value="1.0">Normal</button>
+                        <button type="button" class="option-btn" data-value="1.2">Faster</button>
+                    </div>
+                    <p class="legibility-description">Speed of spoken responses in voice mode and read-aloud messages.</p>
                 </div>
 
                 <div class="form-group">
@@ -486,6 +540,11 @@ class SettingsManager {
                 if (group.dataset.local) {
                     try { localStorage.setItem(group.dataset.local, btn.dataset.value); } catch (err) {}
                     this.updateOptionButtons(group, btn.dataset.value);
+                    if (group.dataset.local === 'tm_voice_rate') {
+                        window.dispatchEvent(new CustomEvent('tm_voice_rate_changed', {
+                            detail: { rate: parseFloat(btn.dataset.value) }
+                        }));
+                    }
                     return;
                 }
                 const change = { [group.dataset.setting]: btn.dataset.value };
@@ -511,6 +570,26 @@ class SettingsManager {
                 this.debouncedSave({ legibility: 100 });
                 localStorage.setItem('legibility', 100);
             });
+        }
+
+        // Live sync with voice mode or external speed changes
+        window.addEventListener('tm_voice_rate_changed', (e) => {
+            if (!this.modal) return;
+            const speedGroup = this.modal.querySelector('.option-group[data-local="tm_voice_rate"]');
+            if (speedGroup && e.detail && e.detail.rate != null) {
+                const rateStr = e.detail.rate === 1 ? '1.0' : e.detail.rate.toString();
+                this.updateOptionButtons(speedGroup, rateStr);
+            }
+        });
+
+        // Personalization memory panel: Dismiss all noticed interests and Reset profile
+        const dismissAllBtn = this.modal.querySelector('#settings-interest-noticed-dismiss-all');
+        if (dismissAllBtn) {
+            dismissAllBtn.addEventListener('click', () => this.dismissAllNoticedInterests());
+        }
+        const resetProfileBtn = this.modal.querySelector('#settings-reset-profile-btn');
+        if (resetProfileBtn) {
+            resetProfileBtn.addEventListener('click', () => this.resetProfile());
         }
 
         // --- Security Tab Listeners ---
@@ -696,6 +775,8 @@ class SettingsManager {
             if (!quiet || (changed && !this.dirty)) {
                 this.populateForm(this.initialSettings);
                 this.applyGlobalSettings(this.initialSettings);
+            } else {
+                this.renderMemoryPanel(this.initialSettings);
             }
         } catch (error) {
             console.error('Settings load error:', error);
@@ -798,12 +879,15 @@ class SettingsManager {
             if (settings.hasOwnProperty(key)) this.setControl(el, settings[key]);
         });
         this.applyLegibility(settings.legibility ?? 100);
+        this.renderMemoryPanel(settings);
 
         // Per-device preferences (browser storage, not the settings API)
         this.modal.querySelectorAll('.option-group[data-local]').forEach(group => {
             let saved = null;
             try { saved = localStorage.getItem(group.dataset.local); } catch (err) {}
-            this.updateOptionButtons(group, saved || group.querySelector('.option-btn').dataset.value);
+            const activeBtn = group.querySelector('.option-btn.active');
+            const defaultVal = activeBtn ? activeBtn.dataset.value : group.querySelector('.option-btn').dataset.value;
+            this.updateOptionButtons(group, saved || defaultVal);
         });
 
         // Google sign-ups have no password they know: offer an emailed set-password link
@@ -858,6 +942,12 @@ class SettingsManager {
             this.showToast('Setting saved!', 'success');
             this.applyGlobalSettings(settings);
             Object.assign(this.initialSettings, settings);
+            const hasProfileKey = Object.keys(settings).some(k =>
+                ['learning_goal', 'education_level', 'field_of_study', 'knowledge_level', 'country', 'primary_language', 'interests', 'suggested_interests', 'response_style'].includes(k)
+            );
+            if (hasProfileKey) {
+                this.loadSettings({ quiet: true });
+            }
         } catch (error) {
             settle();
             console.error('saveToggle error:', error);
@@ -878,7 +968,7 @@ class SettingsManager {
         if (el.matches('input[type="checkbox"]')) el.checked = !!value;
         else if (el.classList.contains('option-group')) this.updateOptionButtons(el, value);
         else if (el.classList.contains('interest-list')) this.renderInterests(Array.isArray(value) ? value : []);
-        else if (el.classList.contains('interest-noticed')) this.renderNoticedInterests(Array.isArray(value) ? value : []);
+        else if (el.classList.contains('memory-noticed') || el.classList.contains('interest-noticed')) this.renderNoticedInterests(Array.isArray(value) ? value : []);
         else el.value = value ?? ''; // NULL columns (e.g. last_name) must not render as "null"
     }
 
@@ -930,32 +1020,239 @@ class SettingsManager {
         this.debouncedSave({ interests: this.interests });
     }
 
+    /**
+     * Renders the Personalization memory panel summarizing what TutorMind knows
+     * about the student, with jump links to edit each attribute in the real form controls.
+     */
+    renderMemoryPanel(settings) {
+        if (!this.modal) return;
+        const rowsContainer = this.modal.querySelector('#settings-memory-rows');
+        if (!rowsContainer) return;
+
+        if (!settings) settings = this.initialSettings || {};
+
+        // Avoid re-announcing via aria-live on every keystroke: only rebuild if values actually changed
+        const stateKey = JSON.stringify([
+            settings.learning_goal ?? '',
+            settings.education_level ?? '',
+            settings.field_of_study ?? '',
+            settings.knowledge_level ?? '',
+            settings.country ?? '',
+            settings.primary_language ?? '',
+            Array.isArray(settings.interests) ? settings.interests : [],
+            Array.isArray(settings.how_used) ? settings.how_used : []
+        ]);
+
+        if (this._lastMemoryState === stateKey && rowsContainer.children.length > 0) {
+            return;
+        }
+        this._lastMemoryState = stateKey;
+
+        const GOAL_MAP = {
+            homework_help: 'Homework',
+            exam_prep: 'Exam prep',
+            concept_mastery: 'Deep understanding',
+            catch_up: 'Catching up',
+            get_ahead: 'Getting ahead',
+            general_learning: 'Learning for fun'
+        };
+
+        const EDUCATION_MAP = {
+            Primary: 'Primary school',
+            Secondary: 'Secondary / high school',
+            University: 'University or college',
+            Graduate: 'Graduate',
+            Professional: 'Working professional',
+            Other: 'Other'
+        };
+
+        const KNOWLEDGE_MAP = {
+            beginner: 'Beginner',
+            intermediate: 'Intermediate',
+            advanced: 'Advanced'
+        };
+
+        const rowDefs = [
+            {
+                label: 'Goal',
+                ariaName: 'goal',
+                isSet: !!(settings.learning_goal && GOAL_MAP[settings.learning_goal]),
+                displayValue: settings.learning_goal && GOAL_MAP[settings.learning_goal] ? GOAL_MAP[settings.learning_goal] : '',
+                getTarget: () => this.modal.querySelector('#settings-learning-goal')
+            },
+            {
+                label: 'Level',
+                ariaName: 'level',
+                isSet: !!(settings.education_level && String(settings.education_level).trim()),
+                displayValue: settings.education_level ? (EDUCATION_MAP[settings.education_level] || settings.education_level) : '',
+                getTarget: () => this.modal.querySelector('#settings-education-level')
+            },
+            {
+                label: 'Field',
+                ariaName: 'field',
+                isSet: !!(settings.field_of_study && String(settings.field_of_study).trim()),
+                displayValue: settings.field_of_study ? String(settings.field_of_study).trim() : '',
+                getTarget: () => this.modal.querySelector('#settings-field-of-study')
+            },
+            {
+                label: 'Knowledge',
+                ariaName: 'knowledge',
+                isSet: !!(settings.knowledge_level && String(settings.knowledge_level).trim()),
+                displayValue: settings.knowledge_level ? (KNOWLEDGE_MAP[settings.knowledge_level] || (settings.knowledge_level.charAt(0).toUpperCase() + settings.knowledge_level.slice(1))) : '',
+                getTarget: () => {
+                    const group = this.modal.querySelector('#tab-personalization [data-setting="knowledge_level"]');
+                    return group ? (group.querySelector('.option-btn.active') || group.querySelector('.option-btn')) : null;
+                }
+            },
+            {
+                label: 'Country',
+                ariaName: 'country',
+                isSet: !!(settings.country && String(settings.country).trim()),
+                displayValue: settings.country ? String(settings.country).trim() : '',
+                getTarget: () => this.modal.querySelector('#settings-country')
+            },
+            {
+                label: 'Language',
+                ariaName: 'language',
+                isSet: !!(settings.primary_language && String(settings.primary_language).trim()),
+                displayValue: settings.primary_language ? String(settings.primary_language).trim() : '',
+                getTarget: () => this.modal.querySelector('#settings-primary-language')
+            },
+            {
+                label: 'Interests',
+                ariaName: 'interests',
+                type: 'chips',
+                isSet: Array.isArray(settings.interests) && settings.interests.length > 0,
+                chips: Array.isArray(settings.interests) ? settings.interests : [],
+                getTarget: () => this.modal.querySelector('#settings-interest-entry')
+            }
+        ];
+
+        rowsContainer.innerHTML = '';
+        rowDefs.forEach(def => {
+            const row = document.createElement('div');
+            row.className = 'memory-row';
+
+            const keyEl = document.createElement('div');
+            keyEl.className = 'memory-k';
+            keyEl.textContent = def.label;
+            row.appendChild(keyEl);
+
+            const valEl = document.createElement('div');
+            valEl.className = 'memory-v';
+            if (!def.isSet) {
+                valEl.classList.add('unset');
+                valEl.textContent = 'Not set';
+            } else if (def.type === 'chips') {
+                const chipsEl = document.createElement('div');
+                chipsEl.className = 'memory-chips';
+                def.chips.forEach(interest => {
+                    const chip = document.createElement('span');
+                    chip.className = 'memory-chip-static';
+                    chip.textContent = interest;
+                    chipsEl.appendChild(chip);
+                });
+                valEl.appendChild(chipsEl);
+            } else {
+                valEl.textContent = def.displayValue;
+            }
+            row.appendChild(valEl);
+
+            const actionBtn = document.createElement('button');
+            actionBtn.type = 'button';
+            actionBtn.className = 'memory-link';
+            actionBtn.setAttribute('aria-label', def.isSet ? `Edit ${def.ariaName}` : `Add ${def.ariaName}`);
+            if (def.isSet) {
+                actionBtn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.5 2.5a1.414 1.414 0 0 1 2 2L4.5 13.5 1.5 14.5l1-3L11.5 2.5z"/></svg><span>Edit</span>';
+            } else {
+                actionBtn.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg><span>Add</span>';
+            }
+            actionBtn.addEventListener('click', () => {
+                if (this.currentTab !== 'personalization') {
+                    this.switchTab('personalization');
+                }
+                const target = def.getTarget();
+                if (!target) return;
+                const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                target.scrollIntoView({
+                    block: 'center',
+                    behavior: prefersReduced ? 'auto' : 'smooth'
+                });
+                try {
+                    target.focus({ preventScroll: true });
+                } catch (e) {
+                    target.focus();
+                }
+            });
+            row.appendChild(actionBtn);
+
+            rowsContainer.appendChild(row);
+        });
+
+        // How the tutor uses this
+        const howUsedUl = this.modal.querySelector('#settings-how-used');
+        if (howUsedUl) {
+            howUsedUl.innerHTML = '';
+            const lines = Array.isArray(settings.how_used) ? settings.how_used : [];
+            if (lines.length === 0) {
+                const li = document.createElement('li');
+                li.className = 'memory-how-used-empty';
+                li.textContent = 'Nothing yet. Add a few details above and lessons will fit you better.';
+                howUsedUl.appendChild(li);
+            } else {
+                lines.forEach(line => {
+                    const li = document.createElement('li');
+                    if (typeof line === 'string' && line.startsWith('Nothing yet')) {
+                        li.className = 'memory-how-used-empty';
+                    }
+                    li.textContent = line;
+                    howUsedUl.appendChild(li);
+                });
+            }
+        }
+    }
+
     // Interests the tutor noticed in chat. Nothing here is used until it is accepted.
     renderNoticedInterests(list) {
-        this.noticedInterests = list.slice();
-        const box = this.modal.querySelector('#settings-interest-noticed');
-        const ul = this.modal.querySelector('#settings-interest-noticed-list');
+        this.noticedInterests = Array.isArray(list) ? list.slice() : [];
+        const box = this.modal ? this.modal.querySelector('#settings-interest-noticed') : null;
+        const ul = this.modal ? this.modal.querySelector('#settings-interest-noticed-list') : null;
         if (!box || !ul) return;
         ul.innerHTML = '';
         box.hidden = this.noticedInterests.length === 0;
         this.noticedInterests.forEach(interest => {
             const li = document.createElement('li');
-            li.className = 'interest-chip';
+            li.className = 'memory-noticed-item';
+
+            const name = document.createElement('span');
+            name.className = 'memory-noticed-name';
+            name.textContent = interest;
+            li.appendChild(name);
+
             const add = document.createElement('button');
             add.type = 'button';
-            add.className = 'interest-noticed-add';
-            add.textContent = `+ ${interest}`;
+            add.className = 'memory-btn sm primary';
+            add.textContent = 'Add';
             add.setAttribute('aria-label', `Add ${interest} to my interests`);
             add.addEventListener('click', () => this.reviewNoticedInterest(interest, true));
+            li.appendChild(add);
+
             const dismiss = document.createElement('button');
             dismiss.type = 'button';
+            dismiss.className = 'memory-btn sm';
+            dismiss.textContent = 'Dismiss';
             dismiss.setAttribute('aria-label', `Dismiss ${interest}`);
-            dismiss.innerHTML = '<i class="fas fa-times" aria-hidden="true"></i>';
             dismiss.addEventListener('click', () => this.reviewNoticedInterest(interest, false));
-            li.appendChild(add);
             li.appendChild(dismiss);
+
             ul.appendChild(li);
         });
+    }
+
+    dismissAllNoticedInterests() {
+        if (!this.noticedInterests || this.noticedInterests.length === 0) return;
+        this.renderNoticedInterests([]);
+        this.debouncedSave({ suggested_interests: [] });
     }
 
     reviewNoticedInterest(interest, accept) {
@@ -967,6 +1264,57 @@ class SettingsManager {
             payload.interests = this.interests;
         }
         this.debouncedSave(payload);
+    }
+
+    /**
+     * Resets the student's learning profile to empty state after user confirmation.
+     */
+    async resetProfile() {
+        const ok = await TmDialog.confirm({
+            title: 'Reset your profile?',
+            message: 'This clears your goal, level, field, knowledge, country, language and interests. Your name, email, notification and appearance settings stay.',
+            confirmLabel: 'Reset profile',
+            destructive: false
+        });
+        if (!ok) return;
+
+        const resetBtn = this.modal ? this.modal.querySelector('#settings-reset-profile-btn') : null;
+        if (resetBtn) resetBtn.disabled = true;
+
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (window.TmCsrf && typeof window.TmCsrf.token === 'function') {
+                try {
+                    const token = await window.TmCsrf.token();
+                    if (token) headers['X-CSRF-Token'] = token;
+                } catch (e) {}
+            }
+
+            const response = await fetch('api/user_settings.php', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ reset_profile: true })
+            });
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Failed to reset profile.');
+
+            this.initialSettings = result.settings;
+            this.interests = [];
+            this.noticedInterests = [];
+            this.pendingSave = {};
+            this.unsaved = {};
+            this._lastMemoryState = null;
+
+            this.populateForm(this.initialSettings);
+            this.renderMemoryPanel(this.initialSettings);
+            this.showToast(result.message || 'Profile reset successfully.', 'success');
+        } catch (error) {
+            console.error('Reset profile error:', error);
+            this.showToast('Error: ' + error.message, 'error');
+        } finally {
+            if (resetBtn) resetBtn.disabled = false;
+        }
     }
 
     /**

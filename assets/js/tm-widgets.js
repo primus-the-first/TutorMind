@@ -61,8 +61,17 @@
         try {
             data = JSON.parse(code.textContent.trim());
         } catch (e) {
+            if (type === 'resume') {
+                return { type: type, data: null, malformed: true };
+            }
             console.warn('tm-widget: invalid JSON in', type, 'block — leaving as code', e);
             return null;
+        }
+        if (type === 'resume') {
+            var rawPt = data && (data.point || data.step || data.label);
+            if (!rawPt || typeof rawPt !== 'string' || !rawPt.trim()) {
+                return { type: type, data: null, malformed: true };
+            }
         }
         return { type: type, data: data };
     }
@@ -1595,6 +1604,43 @@
         return w;
     }
 
+    // ---- tm-resume: side answer resume button ----
+    function buildResume(data) {
+        var rawPoint = data && (data.point || data.step || data.label);
+        if (!rawPoint || typeof rawPoint !== 'string' || !rawPoint.trim()) {
+            return null;
+        }
+        var point = rawPoint.trim();
+        var cleanPoint = point.replace(/^back to\s+/i, '');
+        var btnText = 'Back to ' + cleanPoint;
+
+        var w = document.createElement('div');
+        w.className = 'tm-widget tm-resume-widget tm-enter';
+        w.setAttribute('data-tm-kind', 'resume');
+        w.setAttribute('data-tm-static', 'true'); // Not focusable / liftable
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tm-resume-btn';
+        btn.setAttribute('data-point', cleanPoint);
+
+        var iconSvg = '<svg class="tm-resume-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v5"/></svg>';
+        var textSpan = document.createElement('span');
+        textSpan.textContent = btnText;
+        btn.innerHTML = iconSvg;
+        btn.appendChild(textSpan);
+
+        btn.addEventListener('click', function () {
+            if (btn.disabled) return;
+            btn.disabled = true;
+            btn.classList.add('tm-used');
+            reply('Can we continue from ' + cleanPoint + '?', { silent: false });
+        });
+
+        w.appendChild(btn);
+        return w;
+    }
+
     // solved: { checks: Set<question>, chips: Map<question, choice>, tasks: Map<question, answer>,
     // exercises: Map<question, echo detail> } — all optional, describing which widgets in
     // this conversation were already answered in an earlier turn so they render straight
@@ -1630,6 +1676,7 @@
             case 'graph': return buildGraph(spec.data);
             case 'code':  return buildCode(spec.data, exercise);
             case 'path':  return buildPath(spec.data, exercise);
+            case 'resume': return buildResume(spec.data);
             default:      return null;
         }
     }
@@ -1649,9 +1696,16 @@
         container.querySelectorAll('pre').forEach(function (pre) {
             var spec = parseTmSpec(pre);
             if (!spec) return;
-            var widget = buildTmWidget(spec, solved);
-            if (!widget) return;
             var target = pre.closest('.code-block') || pre;
+            if (spec.type === 'resume' && (spec.malformed || !spec.data)) {
+                target.remove();
+                return;
+            }
+            var widget = buildTmWidget(spec, solved);
+            if (!widget) {
+                if (spec.type === 'resume') target.remove();
+                return;
+            }
             target.replaceWith(widget);
         });
     }
@@ -1665,10 +1719,15 @@
         tmp.querySelectorAll('pre').forEach(function (pre) {
             var spec = parseTmSpec(pre);
             if (!spec) return;
+            var target = pre.closest('.code-block') || pre;
+            if (spec.type === 'resume' && (spec.malformed || !spec.data)) {
+                target.remove();
+                return;
+            }
             var slot = document.createElement('div');
             slot.className = 'tm-widget-slot';
             slot.setAttribute('data-tm-index', String(specs.length));
-            pre.replaceWith(slot);
+            target.replaceWith(slot);
             specs.push(spec);
         });
         return { html: tmp.innerHTML, specs: specs };
@@ -1678,8 +1737,42 @@
     function fillTmSlots(container, specs) {
         container.querySelectorAll('.tm-widget-slot').forEach(function (slot) {
             var spec = specs[Number(slot.getAttribute('data-tm-index'))];
-            var widget = buildTmWidget(spec);
+            var widget = spec ? buildTmWidget(spec) : null;
             if (widget) slot.replaceWith(widget); else slot.remove();
+        });
+    }
+
+    // Ensure only the most recent tutor message displays its resume button;
+    // hide it on older tutor messages and disable it if the student already replied.
+    function syncResumeWidgets(container) {
+        if (!container) container = document;
+        var aiMessages = Array.prototype.slice.call(container.querySelectorAll('.message.ai'));
+        if (!aiMessages.length) return;
+        var lastAi = aiMessages[aiMessages.length - 1];
+
+        aiMessages.forEach(function (msg) {
+            var isLatest = (msg === lastAi);
+            var widgets = msg.querySelectorAll('.tm-resume-widget');
+            widgets.forEach(function (w) {
+                if (!isLatest) {
+                    w.style.display = 'none';
+                } else {
+                    w.style.display = '';
+                    var next = msg.nextElementSibling;
+                    var hasUserReply = false;
+                    while (next) {
+                        if (next.classList && next.classList.contains('user')) {
+                            hasUserReply = true;
+                            break;
+                        }
+                        next = next.nextElementSibling;
+                    }
+                    var btn = w.querySelector('.tm-resume-btn');
+                    if (hasUserReply && btn) {
+                        btn.disabled = true;
+                    }
+                }
+            });
         });
     }
 
@@ -1694,6 +1787,7 @@
         fill: fillTmSlots,
         focusFresh: focusFresh,
         settle: settle,
-        dismiss: dismiss
+        dismiss: dismiss,
+        syncResume: syncResumeWidgets
     };
 })();

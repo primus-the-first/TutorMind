@@ -829,18 +829,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             finalizeMessage(bubble);
         });
+        if (window.TMWidgets && window.TMWidgets.syncResume) window.TMWidgets.syncResume(chatMessages);
     }
 
     // --- Helper to finalize message (highlighting, mathjax, etc) ---
     function finalizeMessage(messageBubble) {
         // Swap interactive tm-* blocks into widgets BEFORE code highlighting,
         // so they never get treated as (or wrapped like) plain code blocks.
-        if (window.TMWidgets) window.TMWidgets.render(messageBubble, {
-            solvedChecks: solvedCheckQuestions,
-            solvedChips: solvedChipChoices,
-            solvedTasks: solvedTaskAnswers,
-            solvedExercises: solvedExercises
-        });
+        if (window.TMWidgets) {
+            window.TMWidgets.render(messageBubble, {
+                solvedChecks: solvedCheckQuestions,
+                solvedChips: solvedChipChoices,
+                solvedTasks: solvedTaskAnswers,
+                solvedExercises: solvedExercises
+            });
+            if (window.TMWidgets.syncResume) window.TMWidgets.syncResume(chatMessages);
+        }
 
         // Add copy buttons to code blocks and trigger syntax highlighting
         addCopyButtonsToCodeBlocks(messageBubble);
@@ -1377,10 +1381,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // --- Voice Speed Preference (0.85, 1.0, 1.2) ---
+    function getVoiceRate() {
+        try {
+            const saved = localStorage.getItem('tm_voice_rate');
+            if (saved !== null) {
+                const parsed = parseFloat(saved);
+                if (parsed === 0.85 || parsed === 1.0 || parsed === 1.2) {
+                    return parsed;
+                }
+            }
+        } catch (e) {}
+        return 1.0;
+    }
+
+    function setVoiceRate(rate) {
+        const validRate = (rate === 0.85 || rate === 1.2) ? rate : 1.0;
+        try {
+            localStorage.setItem('tm_voice_rate', validRate.toString());
+        } catch (e) {}
+        window.dispatchEvent(new CustomEvent('tm_voice_rate_changed', { detail: { rate: validRate } }));
+        return validRate;
+    }
+    window.getVoiceRate = getVoiceRate;
+    window.setVoiceRate = setVoiceRate;
+
     // --- Voice Input/Output Manager ---
     const VoiceManager = {
         recognition: null,
         isListening: false,
+        hadResult: false,
         autoReadEnabled: localStorage.getItem('autoReadEnabled') === 'true',
         currentAudio: null,
         
@@ -1397,36 +1427,55 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 this.recognition.onresult = (event) => {
                     if (DEBUG) console.log('Speech result received:', event);
-                    let transcript = '';
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        transcript += event.results[i][0].transcript;
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+                    for (let i = 0; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        } else {
+                            interimTranscript += event.results[i][0].transcript;
+                        }
                     }
+                    const transcript = (finalTranscript + interimTranscript).trim();
                     if (DEBUG) console.log('Transcript:', transcript);
-                    questionInput.value = transcript;
-                    syncPillHasText();
+                    if (transcript) {
+                        this.hadResult = true;
+                        questionInput.value = transcript;
+                        syncPillHasText();
+                    }
                 };
                 
                 this.recognition.onstart = () => {
                     if (DEBUG) console.log('Speech recognition started');
                     this.isListening = true;
+                    this.hadResult = false;
+                    this.hadError = false;
                     this.updateMicButton();
                 };
-                
+
                 this.recognition.onend = () => {
                     if (DEBUG) console.log('Speech recognition ended');
                     this.isListening = false;
                     this.updateMicButton();
+                    // An error (mic blocked, network, no-speech) already told the student what
+                    // happened; "didn't catch that" on top of it would be wrong or a duplicate.
+                    if (!this.hadResult && !this.hadError) {
+                        this.showInlineNoSpeech();
+                    }
                 };
-                
+
                 this.recognition.onerror = (event) => {
                     if (DEBUG) console.error('Speech recognition error:', event.error, event);
+                    this.hadError = true;
                     this.isListening = false;
                     this.updateMicButton();
                     
                     if (event.error === 'not-allowed') {
                         showCopyToast('Microphone access denied. Please enable it in your browser settings.', 'error');
                     } else if (event.error === 'no-speech') {
-                        if (DEBUG) console.log('No speech detected. Try speaking louder or closer to the mic.');
+                        if (!this.hadResult) {
+                            this.showInlineNoSpeech();
+                        }
                     } else if (event.error === 'network') {
                         showCopyToast('Network error. Speech recognition needs an internet connection.', 'error');
                     }
@@ -1479,6 +1528,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 voiceBtn.title = 'Voice input';
             }
         },
+
+        showInlineNoSpeech() {
+            showCopyToast("Didn't catch that. Try again.", 'info');
+            if (questionInput && !questionInput.value.trim()) {
+                const oldPlaceholder = questionInput.placeholder;
+                questionInput.placeholder = "Didn't catch that. Try again.";
+                setTimeout(() => {
+                    if (questionInput && questionInput.placeholder === "Didn't catch that. Try again.") {
+                        questionInput.placeholder = oldPlaceholder;
+                    }
+                }, 3000);
+            }
+        },
         
         async speak(text) {
             if (!text || text.trim().length === 0) return;
@@ -1501,6 +1563,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const audioBlob = this.base64ToBlob(data.audio, data.contentType);
                     const audioUrl = URL.createObjectURL(audioBlob);
                     this.currentAudio = new Audio(audioUrl);
+                    this.currentAudio.playbackRate = getVoiceRate();
                     this.currentAudio.play();
                 } else if (data.fallback) {
                     // Fallback to browser TTS
@@ -1519,7 +1582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.speechSynthesis.cancel();
             
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
+            utterance.rate = getVoiceRate();
             utterance.pitch = 1.0;
             
             // Try to use a better voice if available
@@ -1589,12 +1652,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         circle: null,
         statusEl: null,
         liveEl: null,
+        confirmEl: null,
+        inputEl: null,
+        sendBtn: null,
+        countdownBar: null,
+        countdownEl: null,
+        countdownText: null,
+        speedCtrl: null,
         transcriptEl: null,
         recognition: null,
         currentTranscript: '',
         conversationHistory: [],
         isActive: false,
         silenceTimeout: null,
+        graceTimer: null,
+        isGracePeriodActive: false,
         returnFocus: null,
 
         init() {
@@ -1602,6 +1674,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             this.circle = document.getElementById('voice-mode-circle');
             this.statusEl = document.getElementById('voice-mode-status');
             this.liveEl = document.getElementById('voice-mode-live');
+            this.confirmEl = document.getElementById('voice-mode-confirm');
+            this.inputEl = document.getElementById('voice-mode-input');
+            this.sendBtn = document.getElementById('voice-mode-send-btn');
+            this.countdownBar = document.getElementById('voice-mode-countdown-bar');
+            this.countdownEl = document.getElementById('voice-mode-countdown');
+            this.countdownText = document.getElementById('voice-mode-countdown-text');
+            this.speedCtrl = document.getElementById('voice-mode-speed-ctrl');
             this.transcriptEl = document.getElementById('voice-mode-transcript');
             
             // Set up trigger button
@@ -1616,22 +1695,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 closeBtn.addEventListener('click', () => this.close());
             }
             
-            // Escape ends voice mode; Tab stays on its two controls
+            // Escape ends voice mode; Tab stays on visible controls
             document.addEventListener('keydown', (e) => {
                 if (!this.isActive) return;
                 if (e.key === 'Escape') { this.close(); return; }
                 if (e.key === 'Tab') {
-                    const items = [this.circle, closeBtn].filter(Boolean);
-                    const i = items.indexOf(document.activeElement);
+                    const focusable = Array.from(this.overlay.querySelectorAll('button:not([disabled]), input:not([disabled])'))
+                        .filter(el => el.offsetParent !== null || el.getClientRects().length > 0);
+                    if (focusable.length === 0) return;
+                    const i = focusable.indexOf(document.activeElement);
                     e.preventDefault();
-                    items[(i + (e.shiftKey ? items.length - 1 : 1)) % items.length].focus();
+                    focusable[(i + (e.shiftKey ? focusable.length - 1 : 1)) % focusable.length].focus();
                 }
             });
             
-            // Click on circle to toggle listening
+            // Click on circle to toggle listening or interrupt confirmation
             if (this.circle) {
                 this.circle.addEventListener('click', () => {
-                    if (this.state === 'idle') {
+                    if (this.isGracePeriodActive || (this.confirmEl && !this.confirmEl.classList.contains('hidden'))) {
+                        this.hideConfirmation();
+                        this.startListening();
+                    } else if (this.state === 'idle') {
                         this.startListening();
                     } else if (this.state === 'listening') {
                         this.stopListening();
@@ -1642,9 +1726,50 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
             }
+
+            // Editable heard-text confirmation interactions
+            if (this.inputEl) {
+                ['focus', 'pointerdown', 'touchstart', 'keydown', 'input'].forEach(evt => {
+                    this.inputEl.addEventListener(evt, () => this.cancelAutoSend());
+                });
+                this.inputEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.sendConfirmedInput();
+                    }
+                });
+            }
+            if (this.sendBtn) {
+                this.sendBtn.addEventListener('click', () => this.sendConfirmedInput());
+            }
+
+            // Voice mode speed buttons
+            if (this.speedCtrl) {
+                this.speedCtrl.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.tm-voice__speed-btn');
+                    if (!btn) return;
+                    const rate = parseFloat(btn.dataset.value);
+                    setVoiceRate(rate);
+                    this.syncVoiceRateButtons();
+                });
+            }
+            window.addEventListener('tm_voice_rate_changed', () => {
+                this.syncVoiceRateButtons();
+            });
             
             // Set up speech recognition
             this.setupRecognition();
+        },
+
+        syncVoiceRateButtons() {
+            if (!this.speedCtrl) return;
+            const currentRate = getVoiceRate();
+            this.speedCtrl.querySelectorAll('.tm-voice__speed-btn').forEach(btn => {
+                const val = parseFloat(btn.dataset.value);
+                const isActive = Math.abs(val - currentRate) < 0.01;
+                btn.classList.toggle('is-active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
         },
         
         setupRecognition() {
@@ -1663,7 +1788,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let interimTranscript = '';
                 let finalTranscript = '';
                 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
+                for (let i = 0; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
                         finalTranscript += transcript;
@@ -1673,16 +1798,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 // Show what's being heard as a live caption under the status
-                this.currentTranscript = finalTranscript + interimTranscript;
+                this.currentTranscript = (finalTranscript + interimTranscript).trim();
                 if (this.liveEl) this.liveEl.textContent = this.currentTranscript;
                 
                 // Reset silence detection on any speech
                 this.resetSilenceTimeout();
-                
-                // If we got a final result, process after brief pause
-                if (finalTranscript) {
-                    this.handleFinalTranscript(finalTranscript);
-                }
             };
             
             this.recognition.onstart = () => {
@@ -1693,24 +1813,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             this.recognition.onend = () => {
                 console.log('Voice Mode: Recognition ended');
-                // If still listening state, it ended unexpectedly - restart
                 if (this.state === 'listening' && this.isActive) {
-                    console.log('Voice Mode: Restarting recognition');
-                    setTimeout(() => {
-                        if (this.isActive && this.state === 'listening') {
-                            this.recognition.start();
-                        }
-                    }, 100);
+                    if (this.currentTranscript && this.currentTranscript.trim()) {
+                        this.showConfirmation(this.currentTranscript.trim());
+                    } else if (this.silenceTimeout) {
+                        // Silence timeout is pending
+                    } else {
+                        this.showNoSpeechFeedback();
+                    }
                 }
             };
             
             this.recognition.onerror = (event) => {
                 console.error('Voice Mode: Recognition error:', event.error);
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                if (event.error === 'no-speech') {
+                    if (!this.currentTranscript || !this.currentTranscript.trim()) {
+                        this.showNoSpeechFeedback();
+                    }
+                } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    this.clearGraceTimer();
+                    this.hideConfirmation();
                     this.setState('idle');
                     this.statusEl.textContent = 'Microphone blocked';
                     this.setLive('Allow microphone access for this site (the icon in the address bar), then tap the bridge.');
                 } else if (event.error === 'audio-capture') {
+                    this.clearGraceTimer();
+                    this.hideConfirmation();
                     this.setState('idle');
                     this.statusEl.textContent = 'No microphone found';
                     this.setLive('Plug in or enable a microphone, then tap the bridge.');
@@ -1721,17 +1849,119 @@ document.addEventListener('DOMContentLoaded', async () => {
         resetSilenceTimeout() {
             if (this.silenceTimeout) {
                 clearTimeout(this.silenceTimeout);
+                this.silenceTimeout = null;
             }
-            // If no speech for 2 seconds after final result, submit
+            if (this.state !== 'listening') return;
+            // After 1.5 seconds of silence after speech, show confirmation for the heard text
             this.silenceTimeout = setTimeout(() => {
-                if (this.currentTranscript && this.state === 'listening') {
-                    this.processInput();
+                if (this.currentTranscript && this.currentTranscript.trim() && this.state === 'listening') {
+                    this.showConfirmation(this.currentTranscript.trim());
                 }
-            }, 2000);
+            }, 1500);
+        },
+
+        showConfirmation(text) {
+            if (!this.isActive) return;
+            this.stopListening();
+            this.setState('idle');
+            this.clearGraceTimer();
+
+            if (this.inputEl) {
+                this.inputEl.value = text;
+            }
+            if (this.confirmEl) {
+                this.confirmEl.classList.remove('hidden');
+            }
+            if (this.liveEl) {
+                this.liveEl.classList.add('hidden');
+            }
+
+            // Reset countdown bar animation
+            if (this.countdownBar) {
+                this.countdownBar.style.animation = 'none';
+                void this.countdownBar.offsetHeight;
+                this.countdownBar.style.animation = '';
+            }
+            if (this.countdownEl) {
+                this.countdownEl.classList.remove('paused');
+            }
+            if (this.countdownText) {
+                this.countdownText.textContent = 'Sending in 2.5s… tap to edit';
+            }
+            if (this.statusEl) {
+                this.statusEl.textContent = 'Sending in 2.5s… tap to edit';
+            }
+
+            this.isGracePeriodActive = true;
+            this.graceTimer = setTimeout(() => {
+                if (this.isGracePeriodActive && this.isActive) {
+                    this.sendConfirmedInput();
+                }
+            }, 2500);
+        },
+
+        cancelAutoSend() {
+            if (!this.isGracePeriodActive) return;
+            this.isGracePeriodActive = false;
+            this.clearGraceTimer();
+
+            if (this.countdownBar) {
+                this.countdownBar.style.animation = 'none';
+            }
+            if (this.countdownEl) {
+                this.countdownEl.classList.add('paused');
+            }
+            if (this.countdownText) {
+                this.countdownText.textContent = 'Auto-send paused · Press Enter or Send now';
+            }
+            if (this.statusEl) {
+                this.statusEl.textContent = 'Auto-send paused. Edit and press Send now.';
+            }
+        },
+
+        sendConfirmedInput() {
+            this.clearGraceTimer();
+            const text = (this.inputEl ? this.inputEl.value : this.currentTranscript).trim();
+            this.hideConfirmation();
+            if (!text) {
+                this.showNoSpeechFeedback();
+                return;
+            }
+            this.processInput(text);
+        },
+
+        hideConfirmation() {
+            this.isGracePeriodActive = false;
+            this.clearGraceTimer();
+            if (this.confirmEl) {
+                this.confirmEl.classList.add('hidden');
+            }
+            if (this.liveEl) {
+                this.liveEl.classList.remove('hidden');
+            }
+        },
+
+        clearGraceTimer() {
+            if (this.graceTimer) {
+                clearTimeout(this.graceTimer);
+                this.graceTimer = null;
+            }
+        },
+
+        showNoSpeechFeedback() {
+            if (!this.isActive) return;
+            this.stopListening();
+            this.hideConfirmation();
+            this.setState('idle');
+            if (this.statusEl) {
+                this.statusEl.textContent = "Didn't catch that. Try again.";
+            }
+            if (this.liveEl) {
+                this.liveEl.textContent = '';
+            }
         },
         
         handleFinalTranscript(text) {
-            // User said something - wait a moment then process
             console.log('Voice Mode: Final transcript:', text);
         },
         
@@ -1748,6 +1978,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             this.conversationHistory = [];
             this.transcriptEl.innerHTML = '';
             this.setLive('');
+            this.hideConfirmation();
+            this.syncVoiceRateButtons();
             this.setState('idle');
             this.circle?.focus({ preventScroll: true });
 
@@ -1764,6 +1996,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             this.isActive = false;
             this.overlay.classList.add('hidden');
+            this.hideConfirmation();
             this.stopListening();
             VoiceManager.stopAudio();
             if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -1785,6 +2018,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
 
+            this.hideConfirmation();
             this.currentTranscript = '';
             this.setLive('');
             
@@ -1817,17 +2051,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (this.statusEl) this.statusEl.textContent = s.status;
         },
         
-        async processInput() {
-            if (!this.currentTranscript.trim()) {
-                this.startListening();
+        async processInput(textOverride) {
+            const userMessage = (textOverride || this.currentTranscript || '').trim();
+            this.currentTranscript = '';
+            if (!userMessage) {
+                this.showNoSpeechFeedback();
                 return;
             }
             
-            const userMessage = this.currentTranscript.trim();
-            this.currentTranscript = '';
-            
             // Stop listening during processing
             this.stopListening();
+            this.hideConfirmation();
             this.setState('processing');
             this.setLive('');
             
@@ -1933,6 +2167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const audioBlob = VoiceManager.base64ToBlob(data.audio, data.contentType);
                     const audioUrl = URL.createObjectURL(audioBlob);
                     const audio = new Audio(audioUrl);
+                    audio.playbackRate = getVoiceRate();
 
                     await new Promise((resolve) => {
                         audio.onended = resolve;
@@ -1970,7 +2205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.speechSynthesis.cancel();
                 
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.rate = 1.0;
+                utterance.rate = getVoiceRate();
                 utterance.pitch = 1.0;
                 utterance.onend = resolve;
                 utterance.onerror = resolve;
@@ -2266,6 +2501,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const audioBlob = base64ToBlob(data.audio, data.contentType);
                 const audioUrl = URL.createObjectURL(audioBlob);
                 currentTTSAudio = new Audio(audioUrl);
+                currentTTSAudio.playbackRate = getVoiceRate();
 
                 currentTTSAudio.onplay = () => {
                     button.innerHTML = '<i class="fas fa-stop-circle"></i>';
@@ -2304,7 +2540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.speechSynthesis.cancel();
 
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
+        utterance.rate = getVoiceRate();
         utterance.pitch = 1.0;
 
         // Try to use a better voice if available
@@ -2834,6 +3070,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Disable form and show typing indicator
             submitBtn.disabled = true;
             questionInput.disabled = true;
+            if (window.TMWidgets && window.TMWidgets.syncResume) window.TMWidgets.syncResume(chatMessages);
             showTypingIndicator(true);
             // Use getBasePath helper for consistent URL construction
             const fetchUrl = getBasePath() + '/includes/server_mysql.php';
@@ -3374,6 +3611,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 // Add edit buttons after all messages are loaded
                 updateEditButtons();
+                if (window.TMWidgets && window.TMWidgets.syncResume) window.TMWidgets.syncResume(chatMessages);
                 highlightActiveConversation(id);
 
                 // Update the conversation title in the header and show it

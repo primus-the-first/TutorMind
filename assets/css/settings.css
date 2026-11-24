@@ -385,19 +385,359 @@ body.dark-mode .settings-overlay { background: rgba(0, 0, 0, 0.6); }
 }
 .interest-suggestion:hover:not(:disabled) { border-color: var(--primary-light); color: var(--ds-accent-ink); }
 .interest-suggestion:disabled { opacity: 0.5; cursor: not-allowed; }
-.interest-noticed { margin-top: 14px; }
-.interest-noticed .field-hint { margin-bottom: 8px; }
-.interest-chip .interest-noticed-add {
-    display: inline;
-    width: auto;
-    height: auto;
-    padding: 0 4px 0 0;
-    white-space: nowrap;
-    font: inherit;
-    font-size: 0.925rem;
+
+/* ---------- What TutorMind knows about you (Personalization memory panel) ---------- */
+.memory-panel {
+    border: 1px solid var(--ds-line);
+    border-radius: var(--ds-r-lg);
+    background: var(--ds-surface);
+    padding: 20px;
+    margin-bottom: 32px;
+}
+.memory-panel [hidden],
+.memory-noticed[hidden],
+.memory-details[hidden] {
+    display: none !important;
+}
+.memory-panel > h3 {
+    margin: 0 0 6px;
+    font: 700 1.2rem/1.2 var(--ds-font-display);
+    letter-spacing: -0.02em;
     color: var(--ds-ink);
 }
-.interest-chip .interest-noticed-add:hover { background: none; color: var(--ds-accent-ink); }
+.memory-intro {
+    margin: 0 0 18px;
+    color: var(--ds-ink-2);
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+.memory-panel h4 {
+    margin: 20px 0 8px;
+    font: 700 0.95rem/1.2 var(--ds-font-display);
+    letter-spacing: -0.01em;
+    color: var(--ds-ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.memory-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    flex: none;
+}
+.memory-dot.amber {
+    background: var(--cta);
+}
+
+/* Rows: What you told us */
+.memory-rows {
+    margin-top: 10px;
+    border: 1px solid var(--ds-line);
+    border-radius: var(--ds-r-lg);
+    background: var(--ds-surface);
+    overflow: hidden;
+}
+.memory-row {
+    display: grid;
+    grid-template-columns: minmax(110px, 0.9fr) minmax(0, 1.4fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+}
+.memory-row + .memory-row {
+    border-top: 1px solid var(--ds-line);
+}
+.memory-row .memory-k {
+    color: var(--ds-ink-2);
+    font-size: 0.88rem;
+    font-weight: 500;
+}
+.memory-row .memory-v {
+    font-weight: 600;
+    font-size: 0.925rem;
+    color: var(--ds-ink);
+    overflow-wrap: anywhere;
+}
+.memory-row .memory-v.unset {
+    color: var(--ds-ink-2);
+    font-weight: 400;
+    font-style: italic;
+}
+.memory-row .memory-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.memory-chip-static {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border: 1px solid var(--ds-line);
+    border-radius: var(--ds-r-sm);
+    background: var(--ds-tint);
+    color: var(--ds-ink);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+.memory-link {
+    background: none;
+    border: 0;
+    padding: 6px 8px;
+    margin: -6px -8px;
+    border-radius: var(--ds-r-sm);
+    color: var(--ds-accent-ink);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background-color 0.15s, color 0.15s;
+}
+.memory-link:hover {
+    background: var(--ds-tint);
+}
+.memory-link:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+}
+.memory-link svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: none;
+}
+
+/* Noticed in your chats */
+.memory-noticed {
+    margin-top: 12px;
+    background: var(--ds-tint);
+    border-radius: var(--ds-r-lg);
+    padding: 14px;
+}
+.memory-noticed[hidden] {
+    display: none;
+}
+.memory-noticed-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.memory-noticed-hint {
+    margin: 0;
+    color: var(--ds-ink-2);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+.memory-noticed-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.memory-noticed-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--ds-surface);
+    border: 1px solid var(--ds-line);
+    border-radius: var(--ds-r-md);
+    padding: 8px 12px;
+}
+.memory-noticed-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    font-size: 0.925rem;
+    color: var(--ds-ink);
+    overflow-wrap: anywhere;
+}
+.memory-btn {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: var(--ds-r-md);
+    padding: 6px 12px;
+    cursor: pointer;
+    border: 1px solid var(--ds-line);
+    background: var(--ds-surface);
+    color: var(--ds-ink);
+    box-shadow: 0 2px 0 var(--ds-line);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: transform 0.12s var(--ds-ease), box-shadow 0.12s var(--ds-ease), background-color 0.15s, color 0.15s;
+}
+.memory-btn:hover {
+    color: var(--ds-accent-ink);
+}
+.memory-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 0 0 var(--ds-line);
+}
+.memory-btn.primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 2px 0 var(--primary-dark);
+}
+.memory-btn.primary:hover {
+    background: var(--primary-dark);
+}
+.memory-btn.primary:active {
+    box-shadow: 0 0 0 var(--primary-dark);
+}
+.memory-btn:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+}
+.memory-btn.sm {
+    padding: 5px 10px;
+    font-size: 0.82rem;
+}
+
+/* Collapsible: How the tutor uses this */
+.memory-details {
+    margin-top: 14px;
+    border: 1px solid var(--ds-line);
+    border-radius: var(--ds-r-lg);
+    background: var(--ds-surface);
+    overflow: hidden;
+}
+.memory-details[hidden] {
+    display: none;
+}
+.memory-summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 0.925rem;
+    color: var(--ds-ink);
+    user-select: none;
+}
+.memory-summary::-webkit-details-marker {
+    display: none;
+}
+.memory-summary:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: -2px;
+}
+.memory-summary:hover {
+    background: var(--ds-tint);
+}
+.memory-chev {
+    width: 16px;
+    height: 16px;
+    stroke: var(--ds-ink-2);
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.2s var(--ds-ease);
+    flex: none;
+}
+.memory-details[open] .memory-chev {
+    transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+    .memory-chev { transition: none !important; }
+}
+.memory-how-used {
+    margin: 0;
+    padding: 12px 14px 14px 32px;
+    border-top: 1px solid var(--ds-line);
+    background: var(--ds-surface);
+    color: var(--ds-ink);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.memory-how-used li {
+    padding-left: 2px;
+}
+.memory-how-used-empty {
+    list-style: none;
+    padding-left: 0 !important;
+    color: var(--ds-ink-2);
+    font-style: italic;
+}
+
+/* Footer / Reset button */
+.memory-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--ds-line);
+    align-items: center;
+    justify-content: flex-end;
+}
+.memory-reset-btn {
+    background: none;
+    border: 0;
+    padding: 6px 10px;
+    border-radius: var(--ds-r-sm);
+    color: var(--ds-ink-2);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s;
+}
+.memory-reset-btn:hover {
+    color: var(--ds-accent-ink);
+    background: var(--ds-tint);
+}
+.memory-reset-btn:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+}
+
+/* Responsive: 390px mobile */
+@media (max-width: 480px) {
+    .memory-row {
+        grid-template-columns: 1fr auto;
+        gap: 6px 10px;
+        padding: 10px 12px;
+    }
+    .memory-row .memory-k {
+        grid-column: 1 / -1;
+        font-size: 0.82rem;
+    }
+    .memory-row .memory-v {
+        grid-column: 1;
+        min-width: 0;
+    }
+    .memory-row .memory-link {
+        grid-column: 2;
+        justify-self: end;
+    }
+    .memory-noticed-item {
+        flex-wrap: wrap;
+    }
+    .memory-noticed-name {
+        flex: 1 1 100%;
+        margin-bottom: 4px;
+    }
+}
 
 /* ---------- Text size ---------- */
 .legibility-slider-group label { display: flex; align-items: center; gap: 8px; }

@@ -9,6 +9,7 @@ requireCSRFForWrites(); // writes need the X-CSRF-Token header
 // Include the database connection function.
 require_once '../includes/db_mysql.php';
 require_once '../includes/interests.php';
+require_once __DIR__ . '/../includes/profile_summary.php';
 
 // --- CONFIGURATION ---
 // Define the list of fields that are managed by this API.
@@ -19,7 +20,7 @@ $allowed_fields = [
     'notifications_enabled', 'notification_frequency', 'notification_time', 'email_reminders',
     // Learning profile from onboarding — the tutor reads these into every prompt
     // (includes/server_mysql.php "personalization context")
-    'education_level', 'field_of_study', 'knowledge_level', 'interests', 'suggested_interests', 'interests_in_rooms', 'country', 'primary_language'
+    'education_level', 'field_of_study', 'knowledge_level', 'learning_goal', 'interests', 'suggested_interests', 'interests_in_rooms', 'country', 'primary_language'
 ];
 
 // ENUM columns: the only values MySQL will take
@@ -28,9 +29,10 @@ $enum_values = [
     'response_style'  => ['concise', 'detailed'],
     'education_level' => ['Primary', 'Secondary', 'University', 'Graduate', 'Professional', 'Other'],
     'knowledge_level' => ['beginner', 'intermediate', 'advanced'],
+    'learning_goal'   => ['homework_help', 'exam_prep', 'concept_mastery', 'catch_up', 'get_ahead', 'general_learning'],
 ];
 // Optional profile fields: an empty value clears them (NULL = "not set")
-$nullable_fields = ['education_level', 'knowledge_level', 'field_of_study', 'country', 'primary_language', 'last_name'];
+$nullable_fields = ['education_level', 'knowledge_level', 'field_of_study', 'country', 'primary_language', 'last_name', 'learning_goal'];
 // VARCHAR limits
 $max_lengths = ['field_of_study' => 255, 'country' => 100, 'primary_language' => 50];
 
@@ -71,7 +73,7 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
     try {
         // Prepare and execute the query to get user settings.
         // We also fetch created_at for display purposes.
-        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, interests, suggested_interests, interests_in_rooms, country, primary_language, email_reminders, (google_id IS NOT NULL AND google_id <> '') AS google_linked FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, learning_goal, interests, suggested_interests, interests_in_rooms, country, primary_language, email_reminders, (google_id IS NOT NULL AND google_id <> '') AS google_linked FROM users WHERE id = ?");
         $stmt->execute([$user_id]);
         $settings = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -92,6 +94,10 @@ function handleGetRequest(PDO $pdo, int $user_id): void {
             // what the tutor noticed in chat, waiting for the student's OK (only the pending list is theirs to see)
             $settings['suggested_interests'] = interest_suggestions_read($settings['suggested_interests'] ?? null)['pending'];
             $settings['interests_in_rooms'] = (bool)$settings['interests_in_rooms'];
+
+            // Plain-language summary of how the tutor uses this profile
+            // NOTE: profile_summary_lines() mirrors includes/server_mysql.php (~lines 1009-1123); keep in sync.
+            $settings['how_used'] = profile_summary_lines($settings);
 
             // Return the settings as JSON.
             http_response_code(200);
@@ -126,6 +132,44 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
         return;
     }
 
+    // Reset learning profile: set to NULL education_level, field_of_study, knowledge_level, country, primary_language, learning_goal, interests, suggested_interests.
+    // Do NOT touch response_style, learning_level, onboarding completion flags, email, name, or notifications/appearance.
+    if (!empty($input['reset_profile'])) {
+        try {
+            $stmt = $pdo->prepare("UPDATE users SET education_level = NULL, field_of_study = NULL, knowledge_level = NULL, country = NULL, primary_language = NULL, learning_goal = NULL, interests = NULL, suggested_interests = NULL WHERE id = ?");
+            $stmt->execute([$user_id]);
+
+            // Fetch refreshed settings for response
+            $stmt = $pdo->prepare("SELECT first_name, last_name, email, username, created_at, learning_level, response_style, email_notifications, study_reminders, feature_announcements, weekly_summary, data_sharing, dark_mode, font_size, chat_density, legibility, notifications_enabled, notification_frequency, notification_time, education_level, field_of_study, knowledge_level, learning_goal, interests, suggested_interests, interests_in_rooms, country, primary_language, email_reminders, (google_id IS NOT NULL AND google_id <> '') AS google_linked FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $refreshed = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($refreshed) {
+                $refreshed['email_notifications'] = (bool)$refreshed['email_notifications'];
+                $refreshed['study_reminders'] = (bool)$refreshed['study_reminders'];
+                $refreshed['feature_announcements'] = (bool)$refreshed['feature_announcements'];
+                $refreshed['weekly_summary'] = (bool)$refreshed['weekly_summary'];
+                $refreshed['data_sharing'] = (bool)$refreshed['data_sharing'];
+                $refreshed['dark_mode'] = (bool)$refreshed['dark_mode'];
+                $refreshed['notifications_enabled'] = (bool)$refreshed['notifications_enabled'];
+                $refreshed['google_linked'] = (bool)$refreshed['google_linked'];
+                $refreshed['email_reminders'] = (bool)$refreshed['email_reminders'];
+                $interests = json_decode($refreshed['interests'] ?? '', true);
+                $refreshed['interests'] = is_array($interests) ? $interests : [];
+                $refreshed['suggested_interests'] = interest_suggestions_read($refreshed['suggested_interests'] ?? null)['pending'];
+                $refreshed['interests_in_rooms'] = (bool)$refreshed['interests_in_rooms'];
+                $refreshed['how_used'] = profile_summary_lines($refreshed);
+            }
+            http_response_code(200);
+            echo json_encode(['success' => true, 'message' => 'Profile reset successfully.', 'settings' => $refreshed]);
+            return;
+        } catch (PDOException $e) {
+            error_log("Failed to reset profile: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'Failed to reset profile.']);
+            return;
+        }
+    }
+
     // --- VALIDATION ---
     $updates = [];
     $params = [];
@@ -141,7 +185,7 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
                 $updates[] = "`$field` = NULL";
                 continue;
             }
-            if ($value === null) continue; // required columns can't be cleared
+            if ($value === null && $field !== 'interests' && $field !== 'suggested_interests') continue; // required columns can't be cleared
 
             if (isset($enum_values[$field]) && !in_array($value, $enum_values[$field], true)) {
                 http_response_code(400);
@@ -152,8 +196,12 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
                 $value = mb_substr((string)$value, 0, $max_lengths[$field]);
             }
 
-            // Interests: same cleaning as onboarding (clean_interests), stored as JSON
+            // Interests: same cleaning as onboarding (clean_interests), stored as JSON or NULL
             if ($field === 'interests') {
+                if ($value === null || $value === '') {
+                    $updates[] = "`interests` = NULL";
+                    continue;
+                }
                 if (!is_array($value)) {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'error' => 'Interests must be a list.']);
@@ -165,6 +213,10 @@ function handlePostRequest(PDO $pdo, int $user_id, array $allowed_fields, array 
             // Reviewing what the tutor noticed: only entries that were really pending can stay,
             // and whatever left without being accepted is remembered as declined.
             if ($field === 'suggested_interests') {
+                if ($value === null || $value === '') {
+                    $updates[] = "`suggested_interests` = NULL";
+                    continue;
+                }
                 if (!is_array($value)) {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'error' => 'Suggested interests must be a list.']);

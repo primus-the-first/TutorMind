@@ -708,6 +708,11 @@ function tm_goal_icon($paths) {
     <div id="voice-mode-overlay" class="tm-voice hidden" role="dialog" aria-modal="true" aria-label="Voice mode" data-state="idle">
         <header class="tm-voice__bar">
             <span class="tm-voice__brand">Voice mode</span>
+            <div class="tm-voice__speed" id="voice-mode-speed-ctrl" role="group" aria-label="Voice speed">
+                <button type="button" class="tm-voice__speed-btn" data-value="0.85" aria-pressed="false" title="Slower voice (0.85x)">0.85×</button>
+                <button type="button" class="tm-voice__speed-btn is-active" data-value="1.0" aria-pressed="true" title="Normal voice (1.0x)">1×</button>
+                <button type="button" class="tm-voice__speed-btn" data-value="1.2" aria-pressed="false" title="Faster voice (1.2x)">1.2×</button>
+            </div>
             <button type="button" class="tm-voice__end" id="voice-mode-close">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
                 End
@@ -744,6 +749,17 @@ function tm_goal_icon($paths) {
             </button>
             <p class="tm-voice__status" id="voice-mode-status" aria-live="polite">Tap the bridge to talk</p>
             <p class="tm-voice__live" id="voice-mode-live"></p>
+
+            <div class="tm-voice__confirm hidden" id="voice-mode-confirm" role="region" aria-label="Heard message">
+                <div class="tm-voice__confirm-row">
+                    <input type="text" class="tm-voice__input" id="voice-mode-input" aria-label="Heard message, edit before sending">
+                    <button type="button" class="tm-voice__send-btn" id="voice-mode-send-btn">Send now</button>
+                </div>
+                <div class="tm-voice__countdown" id="voice-mode-countdown" aria-hidden="true">
+                    <div class="tm-voice__countdown-bar" id="voice-mode-countdown-bar"></div>
+                </div>
+                <p class="tm-voice__countdown-text" id="voice-mode-countdown-text">Sending in 2.5s… tap to edit</p>
+            </div>
         </div>
 
         <section class="tm-voice__transcript" id="voice-mode-transcript" aria-label="This conversation"></section>

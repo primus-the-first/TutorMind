@@ -113,12 +113,32 @@ Let's trace this out ourselves instead of just reading the steps.
 ```
 MD;
 
+// Fifth hand-authored response: exercises tm-resume (side answer, then back to where we were).
+$resumeResponse = <<<'MD'
+Edsger W. Dijkstra was a Dutch computer scientist who pioneered structured programming. He designed this shortest-path algorithm in 1956 in about 20 minutes while shopping with his fiancée in Amsterdam, to demonstrate the ARMAC computer.
+
+```tm-resume
+{"point": "step 3: expanding from node B"}
+```
+MD;
+
+// Sixth hand-authored response: malformed tm-resume (must render plain text, no button, no leftover markup).
+$malformedResumeResponse = <<<'MD'
+This side answer has a broken resume marker. It should render purely as plain text with no button and no leftover code block.
+
+```tm-resume
+{invalid json}
+```
+MD;
+
 // (Live code also runs resolveImageMarkers() here; this test has no image
 // markers, so formatResponse alone is the exact contract under test.)
 $formattedHtml = formatResponse($aiResponse);
 $graphHtml = formatResponse($graphResponse);
 $codeHtml = formatResponse($codeResponse);
 $pathHtml = formatResponse($pathResponse);
+$resumeHtml = formatResponse($resumeResponse);
+$malformedResumeHtml = formatResponse($malformedResumeResponse);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -208,6 +228,14 @@ $pathHtml = formatResponse($pathResponse);
             <div class="message-avatar">🤖</div>
             <div class="message-content" id="pathBubble"><?= $pathHtml ?></div>
         </div>
+        <div class="message ai">
+            <div class="message-avatar">🤖</div>
+            <div class="message-content" id="resumeBubble"><?= $resumeHtml ?></div>
+        </div>
+        <div class="message ai">
+            <div class="message-avatar">🤖</div>
+            <div class="message-content" id="malformedResumeBubble"><?= $malformedResumeHtml ?></div>
+        </div>
     </div>
 
     <!-- The REAL module under test -->
@@ -264,6 +292,8 @@ $pathHtml = formatResponse($pathResponse);
         TMWidgets.render(document.getElementById('graphBubble'));
         TMWidgets.render(document.getElementById('codeBubble'));
         TMWidgets.render(document.getElementById('pathBubble'));
+        TMWidgets.render(document.getElementById('resumeBubble'));
+        TMWidgets.render(document.getElementById('malformedResumeBubble'));
 
         // Highlight the plain (non-widget) code block that remains.
         if (window.hljs) document.querySelectorAll('#aiBubble pre code').forEach(function (b) { hljs.highlightElement(b); });

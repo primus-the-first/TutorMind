@@ -1006,6 +1006,9 @@ try {
     }
 
     // Fetch user personalization data for AI context
+    // NOTE: profile_summary_lines() in includes/profile_summary.php mirrors this
+    // personalization block to describe to the student how their profile is used.
+    // If you update or add personalization branches here, update profile_summary_lines() to match.
     $stmt = $pdo->prepare("SELECT country, primary_language, education_level, field_of_study, knowledge_level, interests, response_style, learning_goal FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $user_profile = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -1273,7 +1276,7 @@ EOT;
         error_log("widget_library: entry list fetch failed: " . $e->getMessage());
     }
 
-    // System prompt
+    // System prompt (built via buildSystemPrompt in api/services/tutor_service.php, including tm-resume side-answer rule & example)
     $system_prompt = buildSystemPrompt($learningLevel, $personalization_context, $contactState, $widgetLibraryEntries);
     // Construct the prompt for the AI
     $payload = json_encode([
